@@ -5,6 +5,7 @@
 package app.epistola.catalog.archive
 
 import app.epistola.catalog.canonical.CatalogCanonicalizer
+import app.epistola.catalog.canonical.CatalogFingerprintVersion
 import app.epistola.catalog.migration.CatalogMigrationOptions
 import app.epistola.catalog.protocol.CatalogDependencyArchivePaths
 import app.epistola.catalog.validation.CatalogValidationPolicy
@@ -95,6 +96,21 @@ class CatalogCarriedReleasesTest {
             }
             // The writer is deterministic with carried releases too.
             assertContentEquals(fatBytes, write(carrying))
+        }
+    }
+
+    @Test
+    fun `a carried release is fingerprinted with V6, and one that pins nothing keeps the V5 value it was published with`() {
+        // Published as v5:<hex> before V6 existed; aliases added to the fixtures move neither.
+        mapOf(
+            "base-1.0.0" to "v5:04625ca6d3e808b5a05e50513e0934f0db5e5b76bb6498364bc42b1f8691fc9d",
+            "base-2.0.0" to "v5:fea0a290719328605f1d45ec16d55e0f14746c48e0d46f41c7829719aefdf14b",
+        ).forEach { (name, v5) ->
+            read(zip(*catalogEntries(name).toTypedArray())).use { release ->
+                assertEquals(v5, CatalogCanonicalizer.qualifiedFingerprint(release, CatalogFingerprintVersion.V5).toString(), name)
+                assertEquals(release.manifest.release.fingerprint, CatalogCanonicalizer.currentQualifiedFingerprint(release).toString(), name)
+                assertTrue(release.manifest.release.fingerprint!!.startsWith("v6:"), name)
+            }
         }
     }
 

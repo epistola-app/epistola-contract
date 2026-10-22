@@ -18,7 +18,9 @@ import app.epistola.catalog.protocol.CatalogThemeRef
 import app.epistola.catalog.protocol.CompatibilityInfo
 import app.epistola.catalog.protocol.DependencyRef
 import app.epistola.catalog.protocol.IncludeEntry
+import app.epistola.catalog.protocol.PublisherInfo
 import app.epistola.catalog.protocol.ReleaseBase
+import app.epistola.catalog.protocol.ReleaseInfo
 import app.epistola.catalog.protocol.ResourceDetail
 import app.epistola.catalog.protocol.StencilResource
 import app.epistola.catalog.protocol.TemplateResource
@@ -68,6 +70,87 @@ class CatalogCanonicalizerTest {
         val expected = resource("fingerprints.json").use(mapper::readTree)
 
         assertEquals(expected["currentWireV8CatalogFingerprint"].asString(), CatalogCanonicalizer.currentFingerprint(archive).value)
+        // V5 keeps the value it was published with; V6 is the current algorithm.
+        listOf(CatalogFingerprintVersion.V5, CatalogFingerprintVersion.V6).forEach { version ->
+            assertEquals(expected["wireV8CatalogFingerprints"][version.name].asString(), CatalogCanonicalizer.fingerprint(archive, version).value, version.name)
+        }
+        assertEquals(CatalogFingerprintVersion.V6, CatalogCanonicalizer.CURRENT_FINGERPRINT_VERSION)
+        assertEquals("v6:${expected["wireV8CatalogFingerprints"]["V6"].asString()}", CatalogCanonicalizer.currentQualifiedFingerprint(archive).toString())
+    }
+
+    @Test
+    fun `v6 covers content only, so catalogs that differ only in name, presentation or release have the same fingerprint`() {
+        val original = wireV8Archive()
+        val manifest = original.manifest
+        val info = manifest.catalog
+        val renamed = CatalogInfo.create(
+            key = "letters",
+            name = "Brieven",
+            description = "Another description",
+            attributes = listOf(AttributeAssignment("system", "locale", "en-GB")),
+            keywords = setOf("letters"),
+            presentation = CatalogPresentation("default"),
+            license = info.license,
+            namespace = "gemeente-x",
+            registry = "gemeente-x.nl",
+            defaultTheme = info.defaultTheme,
+            presets = info.presets,
+        )
+        val other = original.copyWithManifest(
+            manifest.copy(
+                catalog = renamed,
+                publisher = PublisherInfo("Gemeente X", "https://gemeente-x.nl"),
+                includes = listOf(IncludeEntry("https://gemeente-x.nl/letters.html", "About")),
+                release = ReleaseInfo("1.3.1", "2026-10-22T00:00:00Z", "v6:${"0".repeat(64)}", "r4t8w2nc", base = ReleaseBase("1.3.0", "v6:${"1".repeat(64)}")),
+                // The dependency renamed and mirrored under another name, pinned to the same release under the same alias.
+                catalogDependencies = manifest.catalogDependencies.orEmpty().map {
+                    it.copy(registry = "registry.gemeente-x.nl", namespace = "mirror", catalogKey = "shared-mirror", releaseVersion = "1.4.0")
+                },
+            ),
+        )
+
+        assertEquals(CatalogCanonicalizer.fingerprint(original, CatalogFingerprintVersion.V6), CatalogCanonicalizer.fingerprint(other, CatalogFingerprintVersion.V6))
+        assertEquals(CatalogCanonicalizer.currentFingerprint(original), CatalogCanonicalizer.currentFingerprint(other))
+        // V5 covered the name, so it tells the two apart; it keeps doing so.
+        assertNotEquals(CatalogCanonicalizer.fingerprint(original, CatalogFingerprintVersion.V5), CatalogCanonicalizer.fingerprint(other, CatalogFingerprintVersion.V5))
+    }
+
+    @Test
+    fun `v6 covers every resource, the content settings, the pins by alias, the resource index and the wire version`() {
+        val base = wireV8Archive()
+        val template = base.resourceDetails.getValue("template/letter").resource as TemplateResource
+        fun changed(edit: (CatalogManifest) -> CatalogManifest) = base.copyWithManifest(edit(base.manifest))
+        val shared = base.manifest.catalogDependencies.orEmpty().single()
+        val variants = mapOf(
+            "a resource" to inMemory(base, template.copy(description = "Another description.")),
+            "the default theme" to changed { it.copy(catalog = it.catalog.copyWithMetadata(defaultTheme = CatalogThemeRef("default"))) },
+            "the default theme's alias" to changed { it.copy(catalog = it.catalog.copyWithMetadata(defaultTheme = CatalogThemeRef("default", "shared"))) },
+            "the presets" to changed { it.copy(catalog = it.catalog.copyWithMetadata(presets = listOf(CatalogPresetDeclaration("muted", "Muted")))) },
+            "the license" to changed { it.copy(catalog = it.catalog.copyWithMetadata(license = CatalogLicense("Proprietary"))) },
+            "no license" to changed { it.copy(catalog = it.catalog.copyWithMetadata(license = null)) },
+            "the compatibility" to changed { it.copy(compatibility = CompatibilityInfo(">=2.0.0")) },
+            "the wire version" to changed { it.copy(schemaVersion = 7) },
+            "a pinned release" to changed { it.copy(catalogDependencies = listOf(shared.copy(releaseFingerprint = "v6:${"0".repeat(64)}"))) },
+            "an alias" to changed {
+                it.copy(
+                    catalogDependencies = listOf(shared.copy(alias = "acme-shared")),
+                    dependencies = it.dependencies.orEmpty().map { dependency -> DependencyRef.Font("acme-shared", dependency.key) },
+                )
+            },
+            "a dependency declared" to changed { it.copy(catalogDependencies = it.catalogDependencies.orEmpty() + CatalogDependency("acme.com", "acme", "brand", null)) },
+            "the resource dependency index" to changed { it.copy(dependencies = emptyList()) },
+            "a resource entry's name" to changed { it.copy(resources = it.resources.map { entry -> entry.copy(name = "${entry.name} 2") }) },
+        )
+
+        variants.forEach { (what, variant) ->
+            assertNotEquals(CatalogCanonicalizer.currentFingerprint(base), CatalogCanonicalizer.currentFingerprint(variant), what)
+        }
+        // Order carries no meaning: presets and dependencies are sorted.
+        val two = changed { it.copy(catalogDependencies = it.catalogDependencies.orEmpty() + CatalogDependency("acme.com", "acme", "brand", null)) }
+        assertEquals(
+            CatalogCanonicalizer.currentFingerprint(two),
+            CatalogCanonicalizer.currentFingerprint(two.copyWithManifest(two.manifest.copy(catalogDependencies = two.manifest.catalogDependencies.orEmpty().reversed()))),
+        )
     }
 
     @Test
@@ -310,8 +393,12 @@ class CatalogCanonicalizerTest {
             original.manifest.copy(includes = listOf(IncludeEntry("https://example.test/catalog.json"))),
         )
 
+        val v5 = CatalogFingerprintVersion.V5
+        assertNotEquals(CatalogCanonicalizer.fingerprint(original, v5), CatalogCanonicalizer.fingerprint(changedCompatibility, v5))
+        assertNotEquals(CatalogCanonicalizer.fingerprint(original, v5), CatalogCanonicalizer.fingerprint(changedIncludes, v5))
+        // V6: the compatibility declaration is content, the linked documents are presentation.
         assertNotEquals(CatalogCanonicalizer.currentFingerprint(original), CatalogCanonicalizer.currentFingerprint(changedCompatibility))
-        assertNotEquals(CatalogCanonicalizer.currentFingerprint(original), CatalogCanonicalizer.currentFingerprint(changedIncludes))
+        assertEquals(CatalogCanonicalizer.currentFingerprint(original), CatalogCanonicalizer.currentFingerprint(changedIncludes))
         assertEquals(
             CatalogCanonicalizer.fingerprint(original),
             CatalogCanonicalizer.fingerprint(changedCompatibility),
@@ -349,10 +436,16 @@ class CatalogCanonicalizerTest {
             base.manifest.copy(catalog = baseInfo.copyWithMetadata(license = CatalogLicense("Proprietary"))),
         )
 
-        assertNotEquals(CatalogCanonicalizer.currentFingerprint(base), CatalogCanonicalizer.currentFingerprint(keyword))
-        assertNotEquals(CatalogCanonicalizer.currentFingerprint(base), CatalogCanonicalizer.currentFingerprint(attribute))
-        assertEquals(CatalogCanonicalizer.currentFingerprint(base), CatalogCanonicalizer.currentFingerprint(reordered))
-        assertNotEquals(CatalogCanonicalizer.currentFingerprint(base), CatalogCanonicalizer.currentFingerprint(presentation))
+        val v5 = CatalogFingerprintVersion.V5
+        assertNotEquals(CatalogCanonicalizer.fingerprint(base, v5), CatalogCanonicalizer.fingerprint(keyword, v5))
+        assertNotEquals(CatalogCanonicalizer.fingerprint(base, v5), CatalogCanonicalizer.fingerprint(attribute, v5))
+        assertEquals(CatalogCanonicalizer.fingerprint(base, v5), CatalogCanonicalizer.fingerprint(reordered, v5))
+        assertNotEquals(CatalogCanonicalizer.fingerprint(base, v5), CatalogCanonicalizer.fingerprint(presentation, v5))
+        assertNotEquals(CatalogCanonicalizer.fingerprint(base, v5), CatalogCanonicalizer.fingerprint(license, v5))
+        // V6 leaves discovery metadata out: it is presentation, information about the name. The license is content.
+        listOf(keyword, attribute, reordered, presentation).forEach {
+            assertEquals(CatalogCanonicalizer.currentFingerprint(base), CatalogCanonicalizer.currentFingerprint(it))
+        }
         assertNotEquals(CatalogCanonicalizer.currentFingerprint(base), CatalogCanonicalizer.currentFingerprint(license))
         assertEquals(
             CatalogCanonicalizer.fingerprint(base, CatalogFingerprintVersion.V3),
@@ -387,8 +480,9 @@ class CatalogCanonicalizerTest {
             "declared catalogs" to changed { it.copy(catalogDependencies = listOf(shared)) },
         )
 
+        val v5 = CatalogFingerprintVersion.V5
         variants.forEach { (what, variant) ->
-            assertNotEquals(CatalogCanonicalizer.currentFingerprint(base), CatalogCanonicalizer.currentFingerprint(variant), what)
+            assertNotEquals(CatalogCanonicalizer.fingerprint(base, v5), CatalogCanonicalizer.fingerprint(variant, v5), what)
             assertEquals(
                 CatalogCanonicalizer.fingerprint(base, CatalogFingerprintVersion.V4),
                 CatalogCanonicalizer.fingerprint(variant, CatalogFingerprintVersion.V4),
@@ -396,10 +490,16 @@ class CatalogCanonicalizerTest {
             )
         }
         assertEquals(
-            CatalogCanonicalizer.currentFingerprint(base),
-            CatalogCanonicalizer.currentFingerprint(changed { it.copy(catalogDependencies = listOf(brand, shared)) }),
+            CatalogCanonicalizer.fingerprint(base, v5),
+            CatalogCanonicalizer.fingerprint(changed { it.copy(catalogDependencies = listOf(brand, shared)) }, v5),
         )
-        assertEquals(CatalogCanonicalizer.fingerprint(base, CatalogFingerprintVersion.V5), CatalogCanonicalizer.currentFingerprint(base))
+        // V6 covers what the catalog renders with, not who it or its dependencies are, nor a pin's number.
+        listOf("namespace", "registry", "dependency namespace", "declared registry", "pinned release").forEach { what ->
+            assertEquals(CatalogCanonicalizer.currentFingerprint(base), CatalogCanonicalizer.currentFingerprint(variants.getValue(what)), what)
+        }
+        listOf("release fingerprint", "declared catalogs").forEach { what ->
+            assertNotEquals(CatalogCanonicalizer.currentFingerprint(base), CatalogCanonicalizer.currentFingerprint(variants.getValue(what)), what)
+        }
     }
 
     @Test
@@ -440,6 +540,8 @@ class CatalogCanonicalizerTest {
             v8.manifest.copy(catalog = v8.manifest.catalog.copyWithMetadata(defaultTheme = null, presets = emptyList())),
         )
 
+        assertEquals(expected["wireV8CatalogFingerprints"]["V5"].asString(), CatalogCanonicalizer.fingerprint(explicit, CatalogFingerprintVersion.V5).value)
+        assertEquals(expected["catalogFingerprints"]["V5"].asString(), CatalogCanonicalizer.fingerprint(goldenArchive(), CatalogFingerprintVersion.V5).value)
         assertEquals(expected["currentWireV8CatalogFingerprint"].asString(), CatalogCanonicalizer.currentFingerprint(explicit).value)
         assertEquals(expected["currentCatalogFingerprint"].asString(), CatalogCanonicalizer.currentFingerprint(goldenArchive()).value)
     }
@@ -460,8 +562,10 @@ class CatalogCanonicalizerTest {
         )
 
         variants.forEach { (what, variant) ->
-            assertNotEquals(CatalogCanonicalizer.currentFingerprint(base), CatalogCanonicalizer.currentFingerprint(variant), what)
-            CatalogFingerprintVersion.entries.filter { it != CatalogFingerprintVersion.V5 }.forEach { version ->
+            listOf(CatalogFingerprintVersion.V5, CatalogFingerprintVersion.V6).forEach { version ->
+                assertNotEquals(CatalogCanonicalizer.fingerprint(base, version), CatalogCanonicalizer.fingerprint(variant, version), "$what under $version")
+            }
+            CatalogFingerprintVersion.entries.filter { it < CatalogFingerprintVersion.V5 }.forEach { version ->
                 assertEquals(CatalogCanonicalizer.fingerprint(base, version), CatalogCanonicalizer.fingerprint(variant, version), "$what under $version")
             }
         }
@@ -469,11 +573,13 @@ class CatalogCanonicalizerTest {
             CatalogCanonicalizer.currentFingerprint(variants.getValue("default theme")),
             CatalogCanonicalizer.currentFingerprint(variants.getValue("default theme in another catalog")),
         )
-        assertEquals(
-            CatalogCanonicalizer.currentFingerprint(withPresets),
-            CatalogCanonicalizer.currentFingerprint(changed { it.copyWithMetadata(presets = listOf(label, muted)) }),
-            "preset order carries no meaning",
-        )
+        listOf(CatalogFingerprintVersion.V5, CatalogFingerprintVersion.V6).forEach { version ->
+            assertEquals(
+                CatalogCanonicalizer.fingerprint(withPresets, version),
+                CatalogCanonicalizer.fingerprint(changed { it.copyWithMetadata(presets = listOf(label, muted)) }, version),
+                "preset order carries no meaning under $version",
+            )
+        }
     }
 
     @Test
@@ -481,9 +587,10 @@ class CatalogCanonicalizerTest {
         val legacy = stencilArchive(4, mapOf("stencilId" to "address", "version" to 3, "isDraft" to false))
         val current = stencilArchive(5, mapOf("stencilId" to "address", "version" to 3))
 
+        // V5 compares the content alone; V6 also covers the wire version the manifest names, which differs here.
         assertEquals(
-            CatalogCanonicalizer.currentFingerprint(legacy),
-            CatalogCanonicalizer.currentFingerprint(current),
+            CatalogCanonicalizer.fingerprint(legacy, CatalogFingerprintVersion.V5),
+            CatalogCanonicalizer.fingerprint(current, CatalogFingerprintVersion.V5),
         )
         assertEquals(
             CatalogCanonicalizer.currentPerResourceFingerprints(legacy),

@@ -6,18 +6,22 @@
   "type": "object",
   "properties": {
     "schemaVersion": {
+      "description": "The wire version the content is to be read with. Content: the fingerprint (V6) covers it.",
       "const": 8
     },
     "catalog": {
       "$ref": "#/$defs/CatalogInfo"
     },
     "publisher": {
+      "description": "Who publishes the catalog, for people; not publisher authority. Presentation: information about the catalog's name, not about a release. The fingerprint does not cover it, so it can change without a release; of the releases an installation receives, the presentation most recently received wins.",
       "$ref": "#/$defs/PublisherInfo"
     },
     "release": {
+      "description": "The archive's binding of the catalog's name and release number to the release's content hash (release.fingerprint). Not covered by the fingerprint.",
       "$ref": "#/$defs/ReleaseInfo"
     },
     "compatibility": {
+      "description": "The Epistola versions the producer declares the content for. Content: the fingerprint (V6) covers it, and a release fixes it.",
       "oneOf": [
         {
           "$ref": "#/$defs/CompatibilityInfo"
@@ -28,6 +32,7 @@
       ]
     },
     "includes": {
+      "description": "Documents linked from the catalog, for people. Presentation: information about the catalog's name, not about a release. The fingerprint does not cover it, so it can change without a release; of the releases an installation receives, the presentation most recently received wins.",
       "oneOf": [
         {
           "type": "array",
@@ -41,12 +46,14 @@
       ]
     },
     "resources": {
+      "description": "The resource index. Content: the fingerprint (V6) covers it, and a release fixes it.",
       "type": "array",
       "items": {
         "$ref": "#/$defs/ResourceEntry"
       }
     },
     "dependencies": {
+      "description": "The index of the resources in other catalogs the content uses, by alias. Content: the fingerprint (V6) covers it, and a release fixes it.",
       "oneOf": [
         {
           "type": "array",
@@ -60,6 +67,7 @@
       ]
     },
     "catalogDependencies": {
+      "description": "The catalogs this catalog depends on, each under its alias, by name and by pinned release. Content: the fingerprint (V6) covers each alias and the release fingerprint it pins, not the dependency's name or number.",
       "oneOf": [
         {
           "type": "array",
@@ -83,6 +91,7 @@
   "additionalProperties": false,
   "$defs": {
     "CatalogInfo": {
+      "description": "The catalog: its name (registry, the authority, a domain; namespace; and key), which the fingerprint (V6) does not cover, so the same release under another name has the same fingerprint; its content settings (defaultTheme, presets, license), which it covers; and its presentation (name, description, keywords, presentation, attributes), which it does not (contract ADR 0003).",
       "type": "object",
       "properties": {
         "registry": {
@@ -92,28 +101,32 @@
           "$ref": "#/$defs/CatalogNamespace"
         },
         "key": {
-          "description": "The catalog's key: its public address within its namespace. Until wire v8 this member was called slug.",
+          "description": "The catalog's key: its public address within its namespace. Until wire v8 this member was called slug. Part of the catalog's name, which the fingerprint (V6) does not cover: the same release under another name has the same fingerprint.",
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
           "minLength": 3,
           "maxLength": 50
         },
         "name": {
+          "description": "The catalog's display name. Presentation: information about the catalog's name, not about a release. The fingerprint does not cover it, so it can change without a release; of the releases an installation receives, the presentation most recently received wins.",
           "type": "string"
         },
         "description": {
+          "description": "The catalog's description, for people. Presentation: information about the catalog's name, not about a release. The fingerprint does not cover it, so it can change without a release; of the releases an installation receives, the presentation most recently received wins.",
           "type": [
             "string",
             "null"
           ]
         },
         "attributes": {
+          "description": "Discovery labels. Presentation: information about the catalog's name, not about a release. The fingerprint does not cover it, so it can change without a release; of the releases an installation receives, the presentation most recently received wins.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/AttributeAssignment"
           }
         },
         "keywords": {
+          "description": "Discovery keywords. Presentation: information about the catalog's name, not about a release. The fingerprint does not cover it, so it can change without a release; of the releases an installation receives, the presentation most recently received wins.",
           "oneOf": [
             {
               "type": "array",
@@ -129,6 +142,7 @@
           ]
         },
         "presentation": {
+          "description": "Which of the catalog's images to show as its icon and gallery; the image resources themselves are content. Presentation: information about the catalog's name, not about a release. The fingerprint does not cover it, so it can change without a release; of the releases an installation receives, the presentation most recently received wins.",
           "oneOf": [
             {
               "$ref": "#/$defs/CatalogPresentation"
@@ -139,6 +153,7 @@
           ]
         },
         "license": {
+          "description": "The terms the catalog's content is licensed under. Content: the fingerprint (V6) covers it, and a release fixes it.",
           "oneOf": [
             {
               "$ref": "#/$defs/CatalogLicense"
@@ -149,7 +164,7 @@
           ]
         },
         "defaultTheme": {
-          "description": "The theme a template that names none renders with, after the variant's own theme and the template's (ADR 0007). It names a theme in this catalog or in a catalog it depends on. Absent or null means no default theme: such a template renders with the rendering defaults alone. No render reads a tenant-wide default theme.",
+          "description": "The theme a template that names none renders with, after the variant's own theme and the template's (ADR 0007). It names a theme in this catalog or in a catalog it depends on. Absent or null means no default theme: such a template renders with the rendering defaults alone. No render reads a tenant-wide default theme. Content: the fingerprint (V6) covers it, and a release fixes it.",
           "oneOf": [
             {
               "$ref": "#/$defs/CatalogThemeRef"
@@ -160,7 +175,7 @@
           ]
         },
         "presets": {
-          "description": "The block style presets this catalog's content may use (ADR 0007), each declared once by key; a theme's blockStylePresets supplies their styles. A catalog's available presets are these plus those of the catalogs it depends on. Absent or empty means the catalog declares none. Keys are unique within the list; order carries no meaning.",
+          "description": "The block style presets this catalog's content may use (ADR 0007), each declared once by key; a theme's blockStylePresets supplies their styles. A catalog's available presets are these plus those of the catalogs it depends on. Absent or empty means the catalog declares none. Keys are unique within the list; order carries no meaning. Content: the fingerprint (V6) covers it, and a release fixes it.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/CatalogPresetDeclaration"
@@ -372,7 +387,7 @@
           ]
         },
         "fingerprint": {
-          "description": "The canonical fingerprint of the release's content, in the form that names its algorithm: v5:<lowercase SHA-256 hex>. Wire v8 requires the current algorithm, v5.",
+          "description": "The release's identity: the canonical fingerprint of its content, in the form that names its algorithm: v6:<lowercase SHA-256 hex>. Wire v8 requires the current algorithm, v6, which covers the release's content only, never the catalog's name, this release block or the catalog's presentation, so two releases with the same fingerprint are the same release wherever they come from and whatever they are called.",
           "type": [
             "string",
             "null"
@@ -411,7 +426,7 @@
       "additionalProperties": false
     },
     "ReleaseBase": {
-      "description": "The release this one was made from: the base of the draft it was released from, by identity only. Merging a release into a draft compares each resource three ways against the merge base, the closest release both descend from (contract ADR 0005); every release names the release it was made from, so a receiver can follow the lineage to that common release. The merge needs that release installed, and checks by its fingerprint that the installed release of that number is the same one. Absent for a first release, or when the producer does not know its base. A receiver keeps it as received, member for member, when it installs, migrates or re-exports the release. Release metadata: the fingerprint does not cover it.",
+      "description": "The release this one was made from: the base of the draft it was released from, by identity only: its content hash, with its number for people. Merging a release into a draft compares each resource three ways against the merge base, the closest release both descend from (contract ADR 0005); every release names the release it was made from, so a receiver can follow the lineage to that common release, by hash, whatever it is called there. The merge needs that release installed. Absent for a first release, or when the producer does not know its base. A receiver keeps it as received, member for member, when it installs, migrates or re-exports the release. Release metadata: the fingerprint does not cover it.",
       "type": "object",
       "properties": {
         "version": {
@@ -421,7 +436,7 @@
           "maxLength": 50
         },
         "fingerprint": {
-          "description": "The base release's catalog fingerprint, in the form that names its algorithm (v5:<lowercase SHA-256 hex>), so a receiver holding a release of that number can tell whether it is the same one.",
+          "description": "The base release's content hash: its catalog fingerprint, in the form that names its algorithm (v6:<lowercase SHA-256 hex> for a base made under V6), so a receiver finds the base by it, whatever its number or name there.",
           "type": "string",
           "pattern": "^v[1-9][0-9]*:[0-9a-f]{64}$"
         }
@@ -580,7 +595,7 @@
           "maxLength": 50
         },
         "releaseFingerprint": {
-          "description": "The pin: the fingerprint of the release this catalog renders with and was cut with, copied from that release's own release.fingerprint, in the form that names its algorithm (v5:<lowercase SHA-256 hex>). A copy of that release fetched from any registry, mirror or file is checked with exactly that algorithm. Null exactly when releaseVersion is null.",
+          "description": "The pin: the fingerprint of the release this catalog renders with and was cut with, copied from that release's own release.fingerprint, in the form that names its algorithm (v6:<lowercase SHA-256 hex> for a release made under V6, which covers content only, so the same release has the same pin under any name). A copy of that release fetched from any registry, mirror or file is checked with exactly that algorithm. Null exactly when releaseVersion is null.",
           "type": [
             "string",
             "null"

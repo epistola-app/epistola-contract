@@ -85,8 +85,9 @@ CatalogDto:
         The canonical fingerprint of the content of the highest release (`highestVersion`;
         deterministic, excludes volatile fields), which identifies content independently of the
         version. It names the algorithm that computed it, as the catalog archive does:
-        `v5:` and lowercase SHA-256 hex. Null when the catalog has no release.
-      example: v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
+        `v6:` and lowercase SHA-256 hex for a release made under V6, which covers content only.
+        Null when the catalog has no release.
+      example: v6:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
 
 CatalogListResponse:
   type: object
@@ -595,8 +596,9 @@ CatalogReleaseDto:
         - type: 'null'
       description: |
         The canonical fingerprint of the released content, naming the algorithm that computed it
-        (`v5:` and lowercase SHA-256 hex), the same value as `release.fingerprint` in the release's
-        catalog archive. Null for a draft.
+        (`v6:` and lowercase SHA-256 hex for a release made under V6, which covers content only, not
+        the catalog's name or presentation), the same value as `release.fingerprint` in the
+        release's catalog archive. Null for a draft.
       example: null
     dependencies:
       type: array

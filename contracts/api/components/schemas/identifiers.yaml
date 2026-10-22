@@ -147,8 +147,10 @@ Fingerprint:
   pattern: '^v[1-9][0-9]*:[0-9a-f]{64}$'
   description: |
     The canonical fingerprint of a release's content, as its catalog archive carries it: the
-    version of the algorithm that computed it (`v5`), a colon, and the lowercase hex SHA-256.
-  example: v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
+    version of the algorithm that computed it (`v6` for a release made under V6, which covers the
+    release's content only; `v5` and older for releases made before), a colon, and the lowercase
+    hex SHA-256.
+  example: v6:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
 
 ReleaseRegistryName:
   type: string

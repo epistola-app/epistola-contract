@@ -32,7 +32,7 @@ import java.security.MessageDigest
 value class CatalogFingerprint(val value: String)
 
 /**
- * A fingerprint that names the algorithm it was computed with: `v5:<lowercase SHA-256 hex>`.
+ * A fingerprint that names the algorithm it was computed with: `v6:<lowercase SHA-256 hex>`.
  *
  * Wire v8 writes every fingerprint in this form, so a fingerprint copied into another archive, such
  * as a catalog dependency's `releaseFingerprint`, can still be verified after the current algorithm
@@ -44,7 +44,7 @@ data class QualifiedCatalogFingerprint(
     val version: CatalogFingerprintVersion,
     val fingerprint: CatalogFingerprint,
 ) {
-    /** The wire form, `v5:<hex>`. */
+    /** The wire form, `v6:<hex>`. */
     override fun toString(): String = "${version.label}:${fingerprint.value}"
 
     companion object {
@@ -70,16 +70,27 @@ data class QualifiedCatalogFingerprint(
 /**
  * Versioned canonicalization algorithms accepted by the contract.
  *
- * V1 through V4 are retained for fingerprints already stored by older producers. V4, introduced with
- * catalog v6, includes authored discovery metadata. V5 is the current algorithm, introduced with
- * catalog v8, and also covers the catalog's identity and declared dependencies: its registry and
+ * V1 through V5 are retained for fingerprints already stored by older producers, and verify exactly
+ * as they did. V4, introduced with catalog v6, includes authored discovery metadata. V5, introduced
+ * with catalog v8, also covers the catalog's identity and declared dependencies: its registry and
  * namespace, the registry and namespace of every resource dependency, and every catalog dependency
  * with its registry, namespace, pinned release and that release's fingerprint. It covers the
  * catalog's default theme and declared presets (ADR 0007) too, each only when present, so a catalog
  * that has neither keeps the V5 fingerprint it had before they existed.
  * Registry and namespace are separate members, never joined into one string.
  *
- * V5 is also the only algorithm that names a resource's address `key`, as wire v8 does. V1 to V4
+ * V6 is the current algorithm (contract ADR 0003, amendment of 2026-10-22): a release's identity is
+ * its **content**, so V6 covers what the release renders with and nothing that names or presents it.
+ * It covers every resource as V5 does (references to other catalogs name an alias), the resource
+ * index, the catalog's content settings (`defaultTheme`, `presets`, `license`), the resource
+ * dependencies by alias, the catalog dependencies as alias to pinned release fingerprint, and the
+ * wire version and `compatibility` the content is to be read with. It does not cover the catalog's
+ * own name (registry, namespace, key), the release block, or the catalog's presentation (display
+ * `name`, `description`, `keywords`, `presentation`, `attributes`, `publisher`, `includes`): two
+ * catalogs that differ only there have the same V6 fingerprint, so the same release under another
+ * name, from any registry, mirror or file, verifies as itself.
+ *
+ * V5 and V6 name a resource's address `key`, as wire v8 does. V1 to V4
  * canonicalize the members catalog v8 renamed ([CatalogKeyRenames]) under their old names (`slug`,
  * `themeId`, `stencilId`, `assetId`, `iconAssetSlug`, `imageAssetSlugs`, an attribute's `catalog`,
  * a font reference's `slug`), so they reproduce exactly the fingerprints producers computed before
@@ -94,9 +105,10 @@ enum class CatalogFingerprintVersion {
     V3,
     V4,
     V5,
+    V6,
     ;
 
-    /** The label a [QualifiedCatalogFingerprint] names this algorithm by: `v1` to `v5`. */
+    /** The label a [QualifiedCatalogFingerprint] names this algorithm by: `v1` to `v6`. */
     val label: String get() = name.lowercase()
 }
 
@@ -119,14 +131,14 @@ object CatalogCanonicalizer {
      */
     fun fingerprint(catalog: CatalogArchive): CatalogFingerprint = fingerprint(catalog, CatalogFingerprintVersion.V1)
 
-    /** Produces the current V5 fingerprint. */
-    fun currentFingerprint(catalog: CatalogArchive): CatalogFingerprint = fingerprint(catalog, CatalogFingerprintVersion.V5)
+    /** Produces the current V6 fingerprint. */
+    fun currentFingerprint(catalog: CatalogArchive): CatalogFingerprint = fingerprint(catalog, CatalogFingerprintVersion.V6)
 
     /** The algorithm [currentFingerprint] computes, and the one wire v8 requires of a release. */
     @JvmField
-    val CURRENT_FINGERPRINT_VERSION: CatalogFingerprintVersion = CatalogFingerprintVersion.V5
+    val CURRENT_FINGERPRINT_VERSION: CatalogFingerprintVersion = CatalogFingerprintVersion.V6
 
-    /** Produces the current V5 fingerprint in the form wire v8 writes, `v5:<hex>`. */
+    /** Produces the current V6 fingerprint in the form wire v8 writes, `v6:<hex>`. */
     fun currentQualifiedFingerprint(catalog: CatalogArchive): QualifiedCatalogFingerprint = qualifiedFingerprint(catalog, CURRENT_FINGERPRINT_VERSION)
 
     /**
@@ -140,7 +152,7 @@ object CatalogCanonicalizer {
     ): QualifiedCatalogFingerprint = QualifiedCatalogFingerprint(version, fingerprint(catalog, version))
 
     /**
-     * Whether [expected], a fingerprint in the form `v5:<hex>`, identifies the catalog under exactly
+     * Whether [expected], a fingerprint in the form `v6:<hex>`, identifies the catalog under exactly
      * the algorithm it names. False when [expected] does not parse or names an unknown algorithm.
      */
     fun matchesQualifiedFingerprint(
@@ -159,7 +171,13 @@ object CatalogCanonicalizer {
     fun fingerprint(
         catalog: CatalogArchive,
         version: CatalogFingerprintVersion,
-    ): CatalogFingerprint = computeFingerprint(if (version == CatalogFingerprintVersion.V5) catalog else sourceKeyed(catalog), version)
+    ): CatalogFingerprint = computeFingerprint(if (coversBoundModel(version)) catalog else sourceKeyed(catalog), version)
+
+    /**
+     * Whether [version] canonicalizes the catalog as bound (V5 and later, which cover the keys as
+     * wire v8 has them) rather than under the keys its source archive used (V1 to V4, [sourceKeyed]).
+     */
+    private fun coversBoundModel(version: CatalogFingerprintVersion): Boolean = version >= CatalogFingerprintVersion.V5
 
     /** [version] over [catalog] as given: a legacy algorithm expects the source keys ([sourceKeyed]). */
     private fun computeFingerprint(
@@ -170,7 +188,7 @@ object CatalogCanonicalizer {
             CatalogFingerprintVersion.V1, CatalogFingerprintVersion.V2 -> entries(catalog)
             CatalogFingerprintVersion.V3 -> semanticEntries(catalog)
             CatalogFingerprintVersion.V4 -> currentEntries(catalog, currentNames = false)
-            CatalogFingerprintVersion.V5 -> currentEntries(catalog, currentNames = true)
+            CatalogFingerprintVersion.V5, CatalogFingerprintVersion.V6 -> currentEntries(catalog, currentNames = true)
         }
         val canonical = when (version) {
             CatalogFingerprintVersion.V1 -> canonicalV1(catalog, entries)
@@ -178,6 +196,7 @@ object CatalogCanonicalizer {
             CatalogFingerprintVersion.V3 -> canonicalV2(catalog, entries, includeV6Metadata = false)
             CatalogFingerprintVersion.V4 -> canonicalV4(catalog, entries)
             CatalogFingerprintVersion.V5 -> canonicalV5(catalog, entries)
+            CatalogFingerprintVersion.V6 -> canonicalV6(catalog, entries)
         }
         return CatalogFingerprint(sha256(canonical.byteInputStream()))
     }
@@ -192,7 +211,7 @@ object CatalogCanonicalizer {
     ): Boolean {
         val source = sourceKeyed(catalog)
         val exact = CatalogFingerprintVersion.entries.mapTo(mutableSetOf()) {
-            computeFingerprint(if (it == CatalogFingerprintVersion.V5) catalog else source, it).value
+            computeFingerprint(if (coversBoundModel(it)) catalog else source, it).value
         }
         val projected = legacyV4Entries(source)
         exact += sha256(canonicalV1(source, projected).byteInputStream())
@@ -408,6 +427,74 @@ object CatalogCanonicalizer {
                 includeV8Identity = true,
             ),
         )
+    }
+
+    /**
+     * V6: the release's content and nothing that names or presents it (contract ADR 0003, amendment
+     * of 2026-10-22). The resource entries are V5's, so a resource is covered exactly as V5 covers
+     * it; its references to other catalogs name an alias. The manifest contributes, under its own
+     * domain prefix:
+     *
+     * - `schemaVersion` and `compatibility`: what the content is to be read with;
+     * - the catalog's content settings: `defaultTheme` (key and alias), `presets` (sorted by key) and
+     *   `license`;
+     * - the resource index (`resources`: type, key, name, description, as V5);
+     * - the resource dependencies by alias and key (`dependencies`);
+     * - the catalog dependencies as alias to the pinned release's fingerprint
+     *   (`catalogDependencies`: `alias`, `releaseFingerprint`), not the dependency's name or number,
+     *   so a dependency renamed or mirrored under another name, pinned to the same release, is the
+     *   same content.
+     *
+     * The catalog's own registry, namespace and key, the release block, and the catalog's
+     * presentation -- `name`, `description`, `keywords`, `presentation`, `attributes`, `publisher`,
+     * `includes` -- are left out: they are information about the name, which may change without a
+     * release.
+     */
+    private fun canonicalV6(
+        catalog: CatalogArchive,
+        entries: List<Entry>,
+    ): String = buildString {
+        append("algorithm sha256-v6\n")
+        append("content ").append(canonicalContentJson(catalog)).append('\n')
+        appendEntries(entries)
+    }
+
+    private fun canonicalContentJson(catalog: CatalogArchive): String {
+        val manifest = catalog.manifest
+        val info = manifest.catalog
+        val canonical = linkedMapOf<String, Any?>(
+            "schemaVersion" to manifest.schemaVersion,
+            "compatibility" to manifest.compatibility?.let { linkedMapOf("epistolaVersions" to it.epistolaVersions) },
+            "catalog" to linkedMapOf(
+                "defaultTheme" to info.defaultTheme?.let { linkedMapOf("key" to it.key, "catalogKey" to it.catalogKey) },
+                "presets" to info.presets
+                    .sortedWith(compareBy({ it.key }, { it.name }, { it.description }))
+                    .map { preset -> linkedMapOf("key" to preset.key, "name" to preset.name, "description" to preset.description) },
+                "license" to info.license?.let { license ->
+                    linkedMapOf(
+                        "name" to license.name,
+                        "spdxExpression" to license.spdxExpression,
+                        "url" to license.url,
+                        "copyrightText" to license.copyrightText,
+                    )
+                },
+            ),
+            "resources" to manifest.resources
+                .sortedWith(compareBy({ it.type }, { it.key }))
+                .map { resource ->
+                    linkedMapOf("type" to resource.type, "key" to resource.key, "name" to resource.name, "description" to resource.description)
+                },
+            "dependencies" to manifest.dependencies.orEmpty()
+                .map { dependency ->
+                    val (type, alias) = dependency.identity()
+                    linkedMapOf("type" to type, "catalogKey" to alias, "key" to dependency.key)
+                }
+                .sortedWith(compareBy({ it["type"] }, { it["catalogKey"] }, { it["key"] })),
+            "catalogDependencies" to manifest.catalogDependencies.orEmpty()
+                .sortedWith(compareBy({ it.alias }, { it.releaseFingerprint }))
+                .map { dependency -> linkedMapOf("alias" to dependency.alias, "releaseFingerprint" to dependency.releaseFingerprint) },
+        )
+        return mapper.writeValueAsString(sortKeys(mapper.valueToTree(canonical)))
     }
 
     private fun canonicalV4(
@@ -638,8 +725,10 @@ object CatalogCanonicalizer {
     }
 
     /**
-     * Returns a hash for every `type/key` resource over its complete content, as the V5 algorithm
-     * covers it: the per-resource counterpart of [currentFingerprint].
+     * Returns a hash for every `type/key` resource over its complete content, as the V5 and V6
+     * algorithms cover it: the per-resource counterpart of [currentFingerprint]. V6 covers each
+     * resource exactly as V5 does (it differs from V5 only in what it covers of the manifest), so
+     * this one form serves both.
      *
      * Use this to tell resources apart when merging or diffing releases. Unlike
      * [perResourceFingerprints] (V1) and [currentPerResourceFingerprints] (V3), which canonicalize a
@@ -651,8 +740,8 @@ object CatalogCanonicalizer {
      *
      * The values are the lowercase hex SHA-256 under the domain prefix `resource sha256-v5`, so they
      * never equal a V1 or V3 per-resource value. They are not interchangeable with the older forms:
-     * compare values computed by this function only. It stays the V5 form; content a later wire
-     * version adds gets a form of its own.
+     * compare values computed by this function only. It keeps the V5 form; resource content a later
+     * wire version adds gets a form of its own.
      *
      * @throws java.io.IOException when referenced archive content cannot be read.
      */

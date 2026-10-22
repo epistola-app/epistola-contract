@@ -384,6 +384,28 @@ libraries.
 
 ### Changed
 
+- **BREAKING (catalog wire v8, unreleased, changed in place): a release is identified by its
+  content, a V6 fingerprint** (contract ADR 0003, amendment of 2026-10-22; Epistola Suite ADR 0034).
+  `CatalogFingerprintVersion.V6` is the current algorithm (`currentFingerprint`,
+  `CURRENT_FINGERPRINT_VERSION`), and a v8 `release.fingerprint` must name it (`v6:<hex>`; a `v5`
+  one is now `CATALOG_RELEASE_FINGERPRINT_INVALID`). V6 covers every resource as V5 does (references
+  to other catalogs by alias), the resource index, the content settings `defaultTheme`, `presets` and
+  `license`, the resource dependencies by alias, each catalog dependency as its alias and pinned
+  `releaseFingerprint`, and `schemaVersion` and `compatibility`. It does not cover the catalog's
+  name (registry, namespace, key), a dependency's name or `releaseVersion`, the release block, or the
+  catalog's presentation (`name`, `description`, `keywords`, `presentation`, `attributes`,
+  `publisher`, `includes`): catalogs that differ only there have the same V6 fingerprint, so a
+  release under another name, from any registry, mirror or file, verifies as itself, and
+  presentation can change without a release (the most recently received wins). V1 to V5 stay
+  verifiable with exactly the values they had; a pin or `release.base` may name any known
+  algorithm. `release.base.fingerprint` is the base's content hash, and the schema and model say
+  which catalog members are the name, which content and which presentation. A catalog archive's
+  name, `release.version` and `release.fingerprint` are documented as its binding.
+  `fingerprints.json` pins V6 (`currentCatalogFingerprint`, `catalogFingerprints.V6`,
+  `currentWireV8CatalogFingerprint`, `wireV8CatalogFingerprints.V6`); the `carried-releases`
+  fixtures are fingerprinted and pinned with V6. `completePerResourceFingerprints` is the
+  per-resource form of V5 and V6 alike, with its values unchanged. The API's fingerprint
+  descriptions and examples say `v6:` (the pattern already accepted it).
 - **BREAKING (catalog wire v8, unreleased, changed in place): content names another catalog by an
   alias** (contract ADR 0003, amendment of 2026-10-22; Epistola Suite ADR 0034). A
   `catalogDependencies` entry gains a required `alias` (the catalog key rule, `CatalogAliases`,

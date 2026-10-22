@@ -162,8 +162,9 @@ Its `base`, when it carries one (`ReleaseBase`), names a release number and a qu
 fingerprint of a known algorithm (`CATALOG_RELEASE_BASE_INVALID`, also for a missing member; the
 migrator's wire check raises it too). Whether the receiver has that release, and whether it is below
 this one, is not checked: the base is kept as given.
-A recorded `releaseVersion` comes with the `releaseFingerprint` of that release, naming a known
-algorithm (`v5:<lowercase SHA-256 hex>`), and an unrecorded one with a null fingerprint
+A recorded `releaseVersion` comes with the `releaseFingerprint` of that release, the pin, naming a
+known algorithm (`v6:<lowercase SHA-256 hex>` for a release made under V6), and an unrecorded one
+with a null fingerprint
 (`CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID`, also raised by the migrator's wire check).
 Every alias a reference names must be declared there (`CATALOG_DEPENDENCY_CATALOG_UNDECLARED`, at
 the reference): a resource dependency's, the default theme's, and every reference inside content
