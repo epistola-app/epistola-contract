@@ -32,8 +32,8 @@ script:
     contentType: application/vnd.epistola.v2+json
     body:
       items:
-        - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: branding, version: null, releaseId: r4t8w2nc }
-        - { registry: exchange.epistola.app, namespace: epistola, catalogKey: system, version: 1.3.0, releaseId: null }
+        - { alias: branding, registry: exchange.epistola.app, namespace: acme-corp, catalogKey: branding, version: null, releaseId: r4t8w2nc }
+        - { alias: system, registry: exchange.epistola.app, namespace: epistola, catalogKey: system, version: 1.3.0, releaseId: null }
 
 expect:
   requestCount: 1
@@ -50,6 +50,7 @@ expect:
             - { registry: { whenPresent: { equals: null } }, namespace: acme-corp, catalogKey: branding, releaseId: r4t8w2nc, version: { whenPresent: { equals: null } } }
             - { registry: { whenPresent: { equals: null } }, namespace: epistola, catalogKey: system, version: 1.3.0, releaseId: { whenPresent: { equals: null } } }
   report:
+    aliases: branding,system
     registries: exchange.epistola.app,exchange.epistola.app
     namespaces: acme-corp,epistola
     catalogKeys: branding,system

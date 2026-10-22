@@ -83,6 +83,7 @@ import app.epistola.client.jakarta.model.TenantDto;
 import app.epistola.client.jakarta.model.ThemeRef;
 import app.epistola.client.jakarta.model.UpdateCatalogDependenciesRequest;
 import app.epistola.client.jakarta.model.UpdateAttributeRequest;
+import app.epistola.client.jakarta.model.UpdateAttributeRequestCodeListBinding;
 import app.epistola.client.jakarta.model.UpdateCatalogReleaseRequest;
 import app.epistola.client.jakarta.model.UpdateCodeListEntryHiddenRequest;
 import app.epistola.client.jakarta.model.UpdateConsumerRequest;
@@ -364,8 +365,6 @@ public final class Driver {
         if (config.containsKey("attributes") && !config.isNull("attributes")) {
             request.attributes(config.getJsonArray("attributes").getValuesAs(JsonObject.class).stream()
                     .map(attribute -> new VariantSelectionAttribute()
-                            .registry(optional(attribute, "registry"))
-                            .namespace(optional(attribute, "namespace"))
                             .catalogKey(optional(attribute, "catalogKey"))
                             .key(attribute.getString("key"))
                             .value(attribute.getString("value"))
@@ -741,6 +740,7 @@ public final class Driver {
         List<CatalogDependencyRequirement> dependencies = config.getJsonArray("dependencies").stream()
                 .map(JsonValue::asJsonObject)
                 .map(dependency -> new CatalogDependencyRequirement()
+                        .alias(optional(dependency, "alias"))
                         .registry(optional(dependency, "registry"))
                         .namespace(dependency.getString("namespace"))
                         .catalogKey(dependency.getString("catalogKey"))
@@ -775,6 +775,7 @@ public final class Driver {
 
     private static Map<String, Object> dependencyFields(List<CatalogDependencyDto> items) {
         return Map.of(
+                        "aliases", joined(items, CatalogDependencyDto::getAlias),
                         "registries", joined(items, CatalogDependencyDto::getRegistry),
                         "namespaces", joined(items, CatalogDependencyDto::getNamespace),
                         "catalogKeys", joined(items, CatalogDependencyDto::getCatalogKey),
@@ -865,6 +866,7 @@ public final class Driver {
                                         dependency -> dependency.getRegistry() + "/" + dependency.getNamespace() + "/"
                                                 + dependency.getCatalogKey() + "@"
                                                 + dependency.getVersion())),
+                        Map.entry("dependencyAliases", joined(dependencies, ReleaseDependencyDto::getAlias)),
                         Map.entry(
                                 "deployedTo",
                                 release.getDeployedTo() == null ? "null" : String.join(",", release.getDeployedTo())),
@@ -1767,6 +1769,13 @@ public final class Driver {
         List<String> allowedValues = config.containsKey("allowedValues") && !config.isNull("allowedValues")
                 ? config.getJsonArray("allowedValues").getValuesAs(jakarta.json.JsonString::getString)
                 : null;
+        // A binding names its catalog by alias, or by nothing for the attribute's own.
+        UpdateAttributeRequestCodeListBinding codeListBinding =
+                config.containsKey("codeListBinding") && !config.isNull("codeListBinding")
+                        ? new UpdateAttributeRequestCodeListBinding()
+                                .key(config.getJsonObject("codeListBinding").getString("key"))
+                                .catalogKey(optional(config.getJsonObject("codeListBinding"), "catalogKey"))
+                        : null;
         conditionalUpdate(
                 baseUrl,
                 () -> clients(baseUrl, config)
@@ -1780,6 +1789,7 @@ public final class Driver {
                                 config.getString("attributeKey"),
                                 new UpdateAttributeRequest()
                                         .allowedValues(allowedValues)
+                                        .codeListBinding(codeListBinding)
                                         .clearCodeListBinding(optionalBoolean(config, "clearCodeListBinding")),
                                 optional(config, "ifMatch")),
                 response -> {
@@ -1790,7 +1800,7 @@ public final class Driver {
                             "allowedValues", String.join(",", attribute.getAllowedValues() == null ? List.of() : attribute.getAllowedValues()),
                             "codeListBinding", binding == null
                                     ? "null"
-                                    : binding.getRegistry() + "/" + binding.getNamespace() + "/" + binding.getCatalogKey() + "/" + binding.getKey());
+                                    : binding.getCatalogKey() + "/" + binding.getKey());
                 });
     }
 

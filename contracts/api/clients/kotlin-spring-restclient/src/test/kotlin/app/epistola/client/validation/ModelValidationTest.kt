@@ -45,6 +45,13 @@ class ModelValidationTest {
     }
 
     @Test
+    fun `a dependency declaration may give the catalog an alias`() {
+        val aliased = CatalogDependencyRequirement(alias = "shared-branding", namespace = "acme-corp", catalogKey = "branding", version = "1.3.0")
+        assertEquals(aliased, aliased.validate())
+        assertFailsWith<IllegalArgumentException> { aliased.copy(alias = "x").validate() }
+    }
+
+    @Test
     fun `a patch release number is a release number`() {
         val pinned = CatalogDependencyRequirement(namespace = "epistola", catalogKey = "system", version = "1.3.1-gemeente-x.1")
         assertEquals(pinned, pinned.validate())
@@ -59,8 +66,10 @@ class ModelValidationTest {
 
     @Test
     fun `an attribute criterion names its attribute by resource key, never dotted`() {
-        val qualified = VariantSelectionAttribute(key = "locale", `value` = "nl-NL", catalogKey = "system", namespace = "epistola")
+        val qualified = VariantSelectionAttribute(key = "locale", `value` = "nl-NL", catalogKey = "system")
         assertEquals(qualified, qualified.validate())
+        // catalogKey is an alias, under the catalog key rule.
+        assertFailsWith<IllegalArgumentException> { qualified.copy(catalogKey = "System").validate() }
         val ownCatalog = VariantSelectionAttribute(key = "2026-campaign", `value` = "spring")
         assertEquals(ownCatalog, ownCatalog.validate())
         assertFailsWith<IllegalArgumentException> {

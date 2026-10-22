@@ -51,6 +51,7 @@ from epistola_client import (
     TemplatesApi,
     TenantsApi,
     UpdateAttributeRequest,
+    UpdateAttributeRequestCodeListBinding,
     UpdateCatalogDependenciesRequest,
     UpdateCatalogReleaseRequest,
     UpdateCodeListEntryHiddenRequest,
@@ -304,7 +305,7 @@ def _generate_document(base_url: str, config: dict) -> None:
                 value=attribute["value"],
                 **{
                     name: attribute[name]
-                    for name in ("registry", "namespace", "catalogKey", "required")
+                    for name in ("catalogKey", "required")
                     if name in attribute
                 },
             )
@@ -564,6 +565,8 @@ def _update_catalog_dependencies(base_url: str, config: dict) -> None:
     request = UpdateCatalogDependenciesRequest(
         dependencies=[
             CatalogDependencyRequirement(
+                # Only when the entry names one: omitted means the catalog's key.
+                **({"alias": dependency["alias"]} if "alias" in dependency else {}),
                 # Only when the entry names one: omitted means the server's default registry.
                 **({"registry": dependency["registry"]} if "registry" in dependency else {}),
                 namespace=dependency["namespace"],
@@ -591,6 +594,7 @@ def _report_dependencies(base_url: str, dependencies, extra: dict | None = None)
         base_url,
         {
             **(extra or {}),
+            "aliases": ",".join(_show(d.alias) for d in dependencies),
             "registries": ",".join(_show(d.registry) for d in dependencies),
             "namespaces": ",".join(_show(d.namespace) for d in dependencies),
             "catalogKeys": ",".join(_show(d.catalog_key) for d in dependencies),
@@ -672,6 +676,7 @@ def _get_catalog_release(base_url: str, config: dict) -> None:
                 f"{_show(d.registry)}/{_show(d.namespace)}/{_show(d.catalog_key)}@{_show(d.version)}"
                 for d in release.dependencies
             ),
+            "dependencyAliases": ",".join(_show(d.alias) for d in release.dependencies),
             "deployedTo": ",".join(release.deployed_to),
             "behind": ";".join(
                 f"{_show(b.version)}="
@@ -1382,6 +1387,12 @@ def _update_attribute(base_url: str, config: dict) -> None:
         for key, attr in (("allowedValues", "allowed_values"), ("clearCodeListBinding", "clear_code_list_binding"))
         if config.get(key) is not None
     }
+    # A binding names its catalog by alias, or by nothing for the attribute's own.
+    if config.get("codeListBinding") is not None:
+        members["code_list_binding"] = UpdateAttributeRequestCodeListBinding(
+            key=config["codeListBinding"]["key"],
+            **({"catalogKey": config["codeListBinding"]["catalogKey"]} if "catalogKey" in config["codeListBinding"] else {}),
+        )
     try:
         response = AttributesApi(_client(base_url, config)).update_attribute_with_http_info(
             *_release_address(config),
@@ -1399,7 +1410,7 @@ def _update_attribute(base_url: str, config: dict) -> None:
         {
             "key": _show(attribute.key),
             "allowedValues": ",".join(attribute.allowed_values or []),
-            "codeListBinding": "null" if binding is None else f"{binding.registry}/{binding.namespace}/{binding.catalog_key}/{binding.key}",
+            "codeListBinding": "null" if binding is None else f"{_show(binding.catalog_key)}/{binding.key}",
             "etag": _header(response, "ETag"),
         },
     )

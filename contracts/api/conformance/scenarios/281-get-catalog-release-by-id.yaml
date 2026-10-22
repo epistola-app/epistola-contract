@@ -40,7 +40,7 @@ script:
       notes: Spelling fixes.
       fingerprint: v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
       dependencies:
-        - { registry: exchange.epistola.app, namespace: epistola, catalogKey: system, version: 3.2.0, direct: true }
+        - { alias: system, registry: exchange.epistola.app, namespace: epistola, catalogKey: system, version: 3.2.0, direct: true }
       deployedTo: [acceptance, production]
 
 expect:

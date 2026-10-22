@@ -43,8 +43,11 @@ class ModelValidationTest {
     @Test
     void an_attribute_criterion_names_its_attribute_by_resource_key_never_dotted() {
         VariantSelectionAttribute qualified = new VariantSelectionAttribute()
-                .key("locale").value("nl-NL").catalogKey("system").namespace("epistola");
+                .key("locale").value("nl-NL").catalogKey("system");
         assertSame(qualified, ModelValidation.validate(qualified));
+        // catalogKey is an alias, under the catalog key rule.
+        assertThrows(IllegalArgumentException.class,
+                () -> ModelValidation.validate(new VariantSelectionAttribute().key("locale").value("nl-NL").catalogKey("System")));
         VariantSelectionAttribute ownCatalog = new VariantSelectionAttribute().key("2026-campaign").value("spring");
         assertSame(ownCatalog, ModelValidation.validate(ownCatalog));
         assertThrows(IllegalArgumentException.class,
@@ -191,6 +194,21 @@ class ModelValidationTest {
                             .version(release)),
                     "expected a pinned release '" + release + "' to fail");
         }
+    }
+
+    @Test
+    void a_dependency_declaration_may_give_the_catalog_an_alias() {
+        CatalogDependencyRequirement aliased = new CatalogDependencyRequirement()
+                .alias("shared-branding")
+                .namespace("acme-corp")
+                .catalogKey("branding")
+                .version("1.3.0");
+        assertSame(aliased, ModelValidation.validate(aliased));
+        assertThrows(IllegalArgumentException.class, () -> ModelValidation.validate(new CatalogDependencyRequirement()
+                .alias("x")
+                .namespace("acme-corp")
+                .catalogKey("branding")
+                .version("1.3.0")));
     }
 
     @Test

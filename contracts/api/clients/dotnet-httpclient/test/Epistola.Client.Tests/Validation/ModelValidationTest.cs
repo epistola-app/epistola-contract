@@ -20,8 +20,10 @@ public class ModelValidationTest
     [Fact]
     public void AnAttributeCriterionNamesItsAttributeByResourceKeyNeverDotted()
     {
-        var qualified = new VariantSelectionAttribute(key: "locale", value: "nl-NL", catalogKey: "system", @namespace: "epistola");
+        var qualified = new VariantSelectionAttribute(key: "locale", value: "nl-NL", catalogKey: "system");
         Assert.Same(qualified, qualified.Validate());
+        // catalogKey is an alias, under the catalog key rule.
+        Assert.Throws<ArgumentException>(() => new VariantSelectionAttribute(key: "locale", value: "nl-NL", catalogKey: "System").Validate());
         var ownCatalog = new VariantSelectionAttribute(key: "2026-campaign", value: "spring");
         Assert.Same(ownCatalog, ownCatalog.Validate());
         Assert.Throws<ArgumentException>(() => new VariantSelectionAttribute(key: "system.locale", value: "nl-NL").Validate());
@@ -174,6 +176,15 @@ public class ModelValidationTest
     {
         var draft = new CreateCatalogReleaseRequest(name: "Redesign 2027", from: "k7m2x9qa");
         Assert.Same(draft, draft.Validate());
+    }
+
+    // A declaration may give the catalog an alias, under the catalog key rule.
+    [Fact]
+    public void DependencyDeclarationMayGiveAnAlias()
+    {
+        var aliased = new CatalogDependencyRequirement(alias: "shared-branding", @namespace: "acme-corp", catalogKey: "branding", version: "1.3.0");
+        Assert.Same(aliased, aliased.Validate());
+        Assert.Throws<ArgumentException>(() => new CatalogDependencyRequirement(alias: "x", @namespace: "acme-corp", catalogKey: "branding", version: "1.3.0").Validate());
     }
 
     [Fact]

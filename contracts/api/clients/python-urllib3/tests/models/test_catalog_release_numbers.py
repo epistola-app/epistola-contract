@@ -64,6 +64,18 @@ def test_a_dependency_declaration_pins_an_exact_release():
     assert json.loads(pinned.to_json()) == {"namespace": "epistola", "catalogKey": "system", "version": "1.3.0"}
 
 
+def test_a_dependency_declaration_may_give_the_catalog_an_alias():
+    aliased = CatalogDependencyRequirement(alias="shared-branding", namespace="acme-corp", catalogKey="branding", version="1.3.0")
+    assert json.loads(aliased.to_json()) == {
+        "alias": "shared-branding",
+        "namespace": "acme-corp",
+        "catalogKey": "branding",
+        "version": "1.3.0",
+    }
+    with pytest.raises(ValueError):
+        CatalogDependencyRequirement(alias="x", namespace="acme-corp", catalogKey="branding", version="1.3.0")
+
+
 def test_a_dependency_declaration_in_a_draft_names_a_draft_alone():
     on_draft = CatalogDependencyRequirement(namespace="acme-corp", catalogKey="branding", releaseId=RELEASE_ID)
     assert json.loads(on_draft.to_json()) == {"namespace": "acme-corp", "catalogKey": "branding", "releaseId": RELEASE_ID}

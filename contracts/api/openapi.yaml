@@ -225,19 +225,24 @@ info:
     `/catalogs/exchange.epistola.app/acme-corp/letters/…` address the same catalog when
     `exchange.epistola.app` is the default, and `~` may be sent percent-encoded as `%7E`.
 
-    In a body, a catalog is named by separate `registry`, `namespace` and `catalogKey` members:
+    In a body, a catalog is named by separate `registry`, `namespace` and `catalogKey` members, and
+    a reference into another catalog by an alias:
 
     1. **A request that names a catalog** (a generation or preview target, a dependency declaration)
        may omit `registry`, or send null, for the default registry. (An import's `registry` defaults to
        the one the archive names.)
-    2. **A reference relative to another catalog** (an attribute's code-list binding, an attribute
-       qualifier in variant selection) may omit `registry` and `namespace`; each omitted one is that
-       other catalog's own, never the default registry. A `registry` without a `namespace` is invalid.
-    3. **A reference inside catalog content** (a template model's `themeRef`, its stencil and image
-       nodes, a `fontFamily`) names another catalog by the alias the catalog's dependency declarations
-       give it (portable catalog wire v8, contract ADR 0003), never by registry or namespace, so content
-       means the same in every installation and under any name. A dependency declared through this
-       API has the catalog's key as its alias.
+    2. **A reference from one catalog's release to a resource of another** names that catalog by the
+       **alias** the release's dependency declarations give it (`CatalogAlias`, in the member
+       `catalogKey`), never by registry or namespace: a template model's `themeRef`, its stencil and
+       image nodes, a `fontFamily` (catalog content, portable catalog wire v8, contract ADR 0003),
+       and the references this API reads and writes beside it, a release's default theme
+       (`CatalogThemeReference`), an attribute's code-list binding and an attribute criterion in
+       variant selection (`VariantSelectionAttribute`, resolved through the release that renders).
+       Omitted or null, or the catalog's own key, is the catalog itself. A declaration
+       (`CatalogDependencyDto`, `listCatalogDependencies`) maps each alias to the catalog's full
+       name and the release it pins; that is where a client finds the name. An alias is by default
+       the catalog's key (`CatalogDependencyRequirement.alias`), so content means the same in every
+       installation and under any name, and pinning another release changes no content.
 
     Responses write every registry in full, by its name, never `~`, so a value read from one
     installation means the same catalog on another. Content documents are returned as stored.

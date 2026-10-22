@@ -39,6 +39,23 @@ CatalogKey:
     single hyphens, starting with a letter, 3 to 50 characters.
   example: letters
 
+CatalogAlias:
+  type: string
+  pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+  minLength: 3
+  maxLength: 50
+  description: |
+    The name a catalog's dependency declarations give another catalog, by which the catalog's
+    content and the references this API reports name it (portable catalog wire v8, contract ADR
+    0003): "theme `corporate` of `shared`". The catalog key rule: lowercase letters, digits and
+    single hyphens, starting with a letter, 3 to 50 characters. Unique among a release's
+    declarations, never the catalog's own key, and by default the depended-on catalog's own key;
+    a declaration gives another one when two catalogs it depends on share a key. A reference
+    resolves it through the declarations of the release it is in, which name the catalog in full
+    (`registry`, `namespace`, `catalogKey`) and the release they pin. The same rule as
+    `CatalogAliases` in the catalog archive.
+  example: shared
+
 EnvironmentKey:
   type: string
   pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'

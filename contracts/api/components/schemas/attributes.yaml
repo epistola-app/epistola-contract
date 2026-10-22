@@ -69,27 +69,22 @@ AttributeDto:
         - object
         - 'null'
       description: |
-        Set when the attribute is bound to a code list. The bound list may live
-        in this same catalog or in another catalog of the same tenant (e.g. a
-        local attribute binding to `system/iso-639-1`). Another catalog must be one the attribute's
-        catalog declares as a dependency.
+        Set when the attribute is bound to a code list. The bound list may live in this same
+        catalog or in another catalog the attribute's release declares as a dependency (a local
+        attribute binding to `bcp-47` of `system`), named by the declaration's alias, as the
+        attribute's catalog content names it (catalog wire v8); `listCatalogDependencies` names
+        that catalog in full.
       required:
-        - registry
-        - namespace
         - catalogKey
         - key
       properties:
-        registry:
-          $ref: './identifiers.yaml#/Registry'
-          description: Registry of the catalog the bound code list belongs to, written in full
-          example: exchange.epistola.app
-        namespace:
-          $ref: './identifiers.yaml#/Namespace'
-          description: Namespace of the catalog the bound code list belongs to, within its registry
-          example: epistola
         catalogKey:
-          $ref: './identifiers.yaml#/CatalogKey'
-          description: Key of the catalog the bound code list belongs to.
+          oneOf:
+            - $ref: './identifiers.yaml#/CatalogAlias'
+            - type: 'null'
+          description: |
+            The alias of the catalog the bound code list belongs to, as the release's dependency
+            declarations give it; null when it is the attribute's own catalog.
           example: system
         key:
           $ref: './identifiers.yaml#/ResourceKey'
@@ -120,9 +115,7 @@ AttributeDto:
     description: BCP-47 language + region tag (e.g. en-US, nl-NL).
     allowedValues: []
     codeListBinding:
-      registry: exchange.epistola.app
-      namespace: epistola
-      catalogKey: system
+      catalogKey: null
       key: bcp-47
     readOnly: true
     createdAt: "2026-01-16T10:00:00Z"
@@ -163,29 +156,21 @@ CreateAttributeRequest:
       type:
         - object
         - 'null'
+      description: |
+        The code list the attribute's values come from: in the attribute's own catalog, or in a
+        catalog its draft declares as a dependency, named by the declaration's alias. An alias the
+        draft does not declare is refused with 400.
       required:
-        - catalogKey
         - key
       properties:
-        registry:
-          oneOf:
-            - $ref: './identifiers.yaml#/Registry'
-            - type: 'null'
-          description: |
-            Registry of the catalog the bound code list belongs to. Omitted or null: the registry of
-            the attribute's own catalog (not the default registry). Set only together with
-            `namespace`.
-          example: null
-        namespace:
-          oneOf:
-            - $ref: './identifiers.yaml#/Namespace'
-            - type: 'null'
-          description: |
-            Namespace of the catalog the bound code list belongs to, within its registry. Omitted or
-            null: the namespace of the attribute's own catalog.
-          example: null
         catalogKey:
-          $ref: './identifiers.yaml#/CatalogKey'
+          oneOf:
+            - $ref: './identifiers.yaml#/CatalogAlias'
+            - type: 'null'
+          description: |
+            The alias of the catalog the bound code list belongs to, as the draft's dependency
+            declarations give it. Omitted or null, or the attribute's own catalog key: the
+            attribute's own catalog.
           example: system
         key:
           $ref: './identifiers.yaml#/ResourceKey'
@@ -217,33 +202,23 @@ UpdateAttributeRequest:
         - object
         - 'null'
       required:
-        - catalogKey
         - key
       properties:
-        registry:
-          oneOf:
-            - $ref: './identifiers.yaml#/Registry'
-            - type: 'null'
-          description: |
-            Registry of the catalog the bound code list belongs to. Omitted or null: the registry of
-            the attribute's own catalog (not the default registry). Set only together with
-            `namespace`.
-          example: null
-        namespace:
-          oneOf:
-            - $ref: './identifiers.yaml#/Namespace'
-            - type: 'null'
-          description: |
-            Namespace of the catalog the bound code list belongs to, within its registry. Omitted or
-            null: the namespace of the attribute's own catalog.
-          example: null
         catalogKey:
-          $ref: './identifiers.yaml#/CatalogKey'
+          oneOf:
+            - $ref: './identifiers.yaml#/CatalogAlias'
+            - type: 'null'
+          description: |
+            The alias of the catalog the bound code list belongs to, as the draft's dependency
+            declarations give it. Omitted or null, or the attribute's own catalog key: the
+            attribute's own catalog.
         key:
           $ref: './identifiers.yaml#/ResourceKey'
           description: Key of the bound code list
       description: |
-        The code list the attribute's values come from. Omitted or null keeps the current binding;
+        The code list the attribute's values come from: in the attribute's own catalog, or in a
+        catalog its draft declares as a dependency, named by the declaration's alias (an alias the
+        draft does not declare is refused with 400). Omitted or null keeps the current binding;
         `clearCodeListBinding` removes it.
     clearCodeListBinding:
       type: [boolean, 'null']
@@ -275,7 +250,7 @@ AttributeListResponse:
         catalogKey: system
         displayName: Locale
         allowedValues: []
-        codeListBinding: { registry: exchange.epistola.app, namespace: epistola, catalogKey: system, key: bcp-47 }
+        codeListBinding: { catalogKey: null, key: bcp-47 }
         readOnly: true
         createdAt: "2026-01-16T10:00:00Z"
         lastModified: "2026-05-11T12:00:00Z"

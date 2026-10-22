@@ -12,8 +12,11 @@ why: >
   (`v5:`), as the release's catalog archive does.
 
   The catalog is in a registry other than the default (`exchange.example.org`), named in full as
-  its own path segment, dots and all. The dependency in the body names its registry and namespace
+  its own path segment, dots and all. The dependencies in the body name their registry and namespace
   as two members. A client must send the first as given and surface the second as written.
+
+  The release declares `system` itself, under the alias its content names it by; it renders with
+  `fonts` only because `system` pins it, so that one has no alias here (null, contract ADR 0003).
 
 action:
   name: get-catalog-release
@@ -41,7 +44,8 @@ script:
       notes: Spelling fixes.
       fingerprint: v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
       dependencies:
-        - { registry: exchange.epistola.app, namespace: epistola, catalogKey: system, version: 3.2.0, direct: true }
+        - { alias: system, registry: exchange.epistola.app, namespace: epistola, catalogKey: system, version: 3.2.0, direct: true }
+        - { alias: null, registry: exchange.epistola.app, namespace: epistola, catalogKey: fonts, version: 1.0.0, direct: false }
       deployedTo: [acceptance, production]
 
 expect:
@@ -57,7 +61,8 @@ expect:
     releasedAt: "2026-10-01T12:00:00Z"
     # The fingerprint names its algorithm; a client must not strip or reformat the prefix.
     fingerprint: v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
-    dependencies: exchange.epistola.app/epistola/system@3.2.0
+    dependencies: exchange.epistola.app/epistola/system@3.2.0,exchange.epistola.app/epistola/fonts@1.0.0
+    dependencyAliases: system,null
     deployedTo: acceptance,production
     # A released release is never behind.
     behind: ""

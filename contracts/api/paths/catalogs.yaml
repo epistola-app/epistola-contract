@@ -270,9 +270,9 @@ catalog-dependencies:
     operationId: listCatalogDependencies
     summary: List the catalogs a release depends on
     description: |
-      The dependencies declared in the release, each with the exact release it pins, or, in
-      a draft, the draft of it the draft uses. A resource can reference another catalog's resources
-      only through a declared dependency.
+      The dependencies declared in the release, each under its alias, with the catalog's name and
+      the exact release it pins, or, in a draft, the draft of it the draft uses. A resource can
+      reference another catalog's resources only through a declared dependency, by its alias.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_VIEW]
@@ -301,6 +301,13 @@ catalog-dependencies:
       with the draft, like any other change. Each catalog is declared at most once, with the exact
       release the catalog renders with (`version`), so a release renders with exactly the
       releases its dependencies pin. A declaration names an exact release, never a range.
+
+      Each declaration gives the catalog an **alias** (`alias`, by default the catalog's key), by
+      which the draft's content and the references this API reports name it: unique among the
+      declarations and never the draft's own catalog key, or the request is refused with 400.
+      Because content names the alias, pinning another release, or another catalog under the same
+      alias, changes no content. Changing an alias does not rewrite the content that names the old
+      one: releasing is refused while a resource names an alias no declaration gives.
 
       In a draft, a declaration may name a **draft** of the other catalog instead (`releaseId`), to
       build on work that is not released yet: this draft then renders with that draft, live. A
@@ -717,10 +724,11 @@ catalog-release-merge-preview:
       merging it**. The entries are the resources; the release's catalog settings, its default
       theme and its presets, each one entry of `resourceType` `catalog` (`catalog/defaultTheme`,
       `catalog/presets`); and each catalog it declares it uses, one entry of `resourceType`
-      `catalogDependency` keyed by that catalog's key (`catalogDependency/shared`), valued by its
-      declaration (the release it pins, or the draft it names). Each is resolved like a resource,
-      so adding, removing or re-pinning one dependency is a change of its own, and only both sides
-      changing the same catalog's declaration differently is a conflict. The catalog's name,
+      `catalogDependency` keyed by the declaration's alias (`catalogDependency/shared`), the name
+      the release's content gives that catalog, valued by its declaration (the catalog's name and
+      the release it pins, or the draft it names). Each is resolved like a resource, so adding,
+      removing or re-pinning one dependency is a change of its own, and only both sides changing
+      the same alias's declaration differently is a conflict. The catalog's name,
       description and other catalog-wide details are not a release's and are not merged. Each
       entry is compared in three states by its fingerprint: the **merge base** (see below), the
       draft (ours) and the release (theirs):
@@ -886,7 +894,7 @@ catalog-release-merge:
       released. It is validated as an import validates content (the portable catalog format and the
       server's rules), and the merge's result is checked as every merge's is. The release's catalog settings (its default theme and presets)
       are merged the same way, each as one entry (`catalog/defaultTheme`, `catalog/presets`), and
-      so is each catalog it declares it uses (`catalogDependency/<catalogKey>`): taken when only the
+      so is each catalog it declares it uses (`catalogDependency/<alias>`): taken when only the
       release changed it, kept when only the draft did, and resolved when both did. A dependency
       the release added or re-pinned is declared as the release declares it, one it no longer
       declares is removed, and one nothing refers to any more after the merge stays declared, as

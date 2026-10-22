@@ -496,6 +496,7 @@ function reportDependencies(baseUrl, items) {
 
 function dependencyFields(items) {
   return {
+    aliases: items.map((d) => show(d.alias)).join(','),
     registries: items.map((d) => show(d.registry)).join(','),
     namespaces: items.map((d) => show(d.namespace)).join(','),
     catalogKeys: items.map((d) => show(d.catalogKey)).join(','),
@@ -561,6 +562,7 @@ async function getCatalogRelease(baseUrl, config) {
     releasedAt: showInstant(release.releasedAt),
     fingerprint: show(release.fingerprint),
     dependencies: (release.dependencies ?? []).map((d) => `${show(d.registry)}/${show(d.namespace)}/${show(d.catalogKey)}@${show(d.version)}`).join(','),
+    dependencyAliases: (release.dependencies ?? []).map((d) => show(d.alias)).join(','),
     deployedTo: (release.deployedTo ?? []).map(show).join(','),
     behind: release.behind
       .map((r) => `${show(r.version)}=${r.changes.map((c) => `${show(c.type)}/${show(c.key)}:${show(c.change)}`).join('+')}`)
@@ -1247,7 +1249,8 @@ async function updateAttribute(baseUrl, config) {
       catalogKey: config.catalogKey,
       release: config.release,
       attributeKey: config.attributeKey,
-      updateAttributeRequest: pick(config, ['allowedValues', 'clearCodeListBinding']),
+      // A binding names its catalog by alias, or by nothing for the attribute's own.
+      updateAttributeRequest: pick(config, ['allowedValues', 'codeListBinding', 'clearCodeListBinding']),
       ...ifMatch(config),
     }),
     (attribute) => {
@@ -1255,7 +1258,7 @@ async function updateAttribute(baseUrl, config) {
       return {
         key: show(attribute.key),
         allowedValues: (attribute.allowedValues ?? []).join(','),
-        codeListBinding: binding == null ? 'null' : `${binding.registry}/${binding.namespace}/${binding.catalogKey}/${binding.key}`,
+        codeListBinding: binding == null ? 'null' : `${show(binding.catalogKey)}/${binding.key}`,
       }
     },
   )
