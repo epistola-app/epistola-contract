@@ -1,0 +1,69 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: update-attribute-bind-code-list-by-alias
+title: Binding an attribute to another catalog's code list names that catalog by its alias
+why: >
+  An attribute's code-list binding is a reference from one catalog's release into another, so it
+  names that catalog the way the release's content does: by the alias its dependency declarations
+  give it (`catalogKey`), never by registry or namespace, which are the declaration's (contract
+  ADR 0003). Moving an inline attribute to a code list sends the binding with an empty
+  `allowedValues`. A client must send the alias and the key as given and nothing beside them, and
+  surface the binding the response carries: here in `system`, the alias the draft declares the
+  bundled catalog under.
+
+action:
+  name: update-attribute
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: k7m2x9qa
+    attributeKey: locale
+    allowedValues: []
+    codeListBinding: { catalogKey: system, key: bcp-47 }
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    headers:
+      ETag: '"6"'
+    body:
+      key: locale
+      tenantKey: acme-corp
+      registry: exchange.epistola.app
+      namespace: acme-corp
+      catalogKey: letters
+      displayName: Locale
+      readOnly: false
+      allowedValues: []
+      codeListBinding: { catalogKey: system, key: bcp-47 }
+      createdAt: "2026-09-01T09:00:00Z"
+      lastModified: "2026-10-22T08:30:00Z"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PATCH
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/attributes/locale
+      headers:
+        Content-Type:
+          matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
+        if-match: { absent: true }
+      body:
+        json:
+          allowedValues: []
+          codeListBinding:
+            catalogKey: system
+            key: bcp-47
+            registry: { absent: true }
+            namespace: { absent: true }
+        jsonAbsent: [displayName, description, clearCodeListBinding]
+  report:
+    key: locale
+    allowedValues: ""
+    codeListBinding: system/bcp-47
+    etag: '"6"'

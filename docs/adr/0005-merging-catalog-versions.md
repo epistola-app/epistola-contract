@@ -117,7 +117,8 @@ The preview lists the resources whose outcome is `ours`, `theirs` or `conflict` 
   which content names the catalog by and which is unique within a catalog's dependencies, and is by
   default the catalog's key, so `catalogDependency/shared` keeps its meaning. The declaration's
   value is its name and its pin, the content hash: two sides pinning the same hash under different
-  names or numbers pin the same release. Until the API declares aliases, the alias is the key.) Adding, removing or
+  names or numbers pin the same release. A dependency declared through the API without an alias has
+the catalog's key as its alias.) Adding, removing or
   re-pinning a dependency is a change of its own, and only both sides changing the same catalog's
   declaration differently is a conflict. A dependency nothing refers to any more after the merge is
   kept, as editing keeps one; one the release no longer declares, and the draft did not change, is

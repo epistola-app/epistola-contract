@@ -53,6 +53,14 @@ test('a dependency declaration pins an exact release, checked through the Releas
   validateModel('CatalogDependencyRequirement', { namespace: 'acme-corp', catalogKey: 'branding', releaseId: 'r4t8w2nc' })
 })
 
+test('a dependency declaration may give the catalog an alias, under the catalog key rule', () => {
+  validateModel('CatalogDependencyRequirement', { alias: 'shared-branding', namespace: 'acme-corp', catalogKey: 'branding', version: '1.3.0' })
+  assert.throws(
+    () => validateModel('CatalogDependencyRequirement', { alias: 'x', namespace: 'acme-corp', catalogKey: 'branding', version: '1.3.0' }),
+    /alias: /,
+  )
+})
+
 test('a patch release number is a release number, labelled with a namespace and a sequence number from 1', () => {
   validateModel('CatalogDependencyRequirement', { namespace: 'epistola', catalogKey: 'system', version: '1.3.1-gemeente-x.1' })
   validateModel('ReleaseCatalogDraftRequest', { version: '2.0.0-redesign-2027.12' })
@@ -62,7 +70,9 @@ test('a patch release number is a release number, labelled with a namespace and 
 })
 
 test('an attribute criterion names its attribute by resource key, never dotted', () => {
-  validateModel('VariantSelectionAttribute', { key: 'locale', value: 'nl-NL', catalogKey: 'system', namespace: 'epistola' })
+  validateModel('VariantSelectionAttribute', { key: 'locale', value: 'nl-NL', catalogKey: 'system' })
+  // catalogKey is an alias, under the catalog key rule.
+  assert.throws(() => validateModel('VariantSelectionAttribute', { key: 'locale', value: 'nl-NL', catalogKey: 'System' }), /catalogKey: must match pattern/)
   validateModel('VariantSelectionAttribute', { key: '2026-campaign', value: 'spring' })
   assert.throws(() => validateModel('VariantSelectionAttribute', { key: 'system.locale', value: 'nl-NL' }), /key: must match pattern/)
 })

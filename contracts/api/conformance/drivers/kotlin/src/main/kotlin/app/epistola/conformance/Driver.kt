@@ -42,6 +42,7 @@ import app.epistola.client.model.ReleaseCatalogDraftRequest
 import app.epistola.client.model.TemplateDocument
 import app.epistola.client.model.ThemeRef
 import app.epistola.client.model.UpdateAttributeRequest
+import app.epistola.client.model.UpdateAttributeRequestCodeListBinding
 import app.epistola.client.model.UpdateCatalogDependenciesRequest
 import app.epistola.client.model.UpdateCatalogReleaseRequest
 import app.epistola.client.model.UpdateCodeListEntryHiddenRequest
@@ -298,8 +299,6 @@ object Driver {
                     VariantSelectionAttribute(
                         key = attribute["key"].asText(),
                         `value` = attribute["value"].asText(),
-                        registry = attribute.optionalText("registry"),
-                        namespace = attribute.optionalText("namespace"),
                         catalogKey = attribute.optionalText("catalogKey"),
                         required = attribute["required"]?.takeUnless { it.isNull }?.asBoolean() ?: true,
                     )
@@ -374,7 +373,11 @@ object Driver {
         )
     }) { entry -> mapOf("code" to entry.code, "hidden" to (entry.hidden?.toString() ?: "null")) }
 
-    /** Changes an attribute's constraint with only the members the scenario names, conditionally when `config.ifMatch` is set. */
+    /**
+     * Changes an attribute's constraint with only the members the scenario names, conditionally when
+     * `config.ifMatch` is set; a code-list binding names its catalog by alias, or by nothing for the
+     * attribute's own.
+     */
     private fun updateAttribute(baseUrl: String, config: ObjectNode) = conditionalUpdate(baseUrl, {
         AttributesApi(restClient(baseUrl, config)).updateAttributeWithHttpInfo(
             config["tenantKey"].asText(),
@@ -385,6 +388,9 @@ object Driver {
             config["attributeKey"].asText(),
             UpdateAttributeRequest(
                 allowedValues = config.get("allowedValues")?.takeUnless { it.isNull }?.map { it.asText() },
+                codeListBinding = config.get("codeListBinding")?.takeUnless { it.isNull }?.let {
+                    UpdateAttributeRequestCodeListBinding(key = it["key"].asText(), catalogKey = it.optionalText("catalogKey"))
+                },
                 clearCodeListBinding = config.optionalBoolean("clearCodeListBinding"),
             ),
             ifMatch = config.optionalText("ifMatch"),
@@ -393,7 +399,7 @@ object Driver {
         mapOf(
             "key" to attribute.key,
             "allowedValues" to attribute.allowedValues.joinToString(","),
-            "codeListBinding" to (attribute.codeListBinding?.let { "${it.registry}/${it.namespace}/${it.catalogKey}/${it.key}" } ?: "null"),
+            "codeListBinding" to (attribute.codeListBinding?.let { "${it.catalogKey ?: "null"}/${it.key}" } ?: "null"),
         )
     }
 
@@ -695,6 +701,7 @@ object Driver {
             UpdateCatalogDependenciesRequest(
                 dependencies = config.path("dependencies").map {
                     CatalogDependencyRequirement(
+                        alias = it.optionalText("alias"),
                         registry = it.optionalText("registry"),
                         namespace = it["namespace"].asText(),
                         catalogKey = it["catalogKey"].asText(),
@@ -711,6 +718,7 @@ object Driver {
 
     private fun dependencyFields(dependencies: List<CatalogDependencyDto>): Map<String, Any> = (
         mapOf(
+            "aliases" to dependencies.joinToString(",") { it.alias },
             "registries" to dependencies.joinToString(",") { it.registry },
             "namespaces" to dependencies.joinToString(",") { it.namespace },
             "catalogKeys" to dependencies.joinToString(",") { it.catalogKey },
@@ -789,6 +797,7 @@ object Driver {
                 "dependencies" to release.dependencies.joinToString(",") {
                     "${it.registry}/${it.namespace}/${it.catalogKey}@${it.version}"
                 },
+                "dependencyAliases" to release.dependencies.joinToString(",") { it.alias ?: "null" },
                 "deployedTo" to release.deployedTo.joinToString(","),
                 "behind" to release.behind.joinToString(";") { behind ->
                     "${behind.version}=" + behind.changes.joinToString("+") { "${it.type}/${it.key}:${it.change.value}" }

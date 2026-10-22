@@ -43,8 +43,8 @@ script:
         notes: Letters in the 2027 house style.
         fingerprint: v5:3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b
         dependencies:
-          - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: fonts, version: 1.1.0, direct: false }
-          - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: branding, version: 3.0.0, direct: true }
+          - { alias: null, registry: exchange.epistola.app, namespace: acme-corp, catalogKey: fonts, version: 1.1.0, direct: false }
+          - { alias: branding, registry: exchange.epistola.app, namespace: acme-corp, catalogKey: branding, version: 3.0.0, direct: true }
         deployedTo: []
       unchangedContent: false
       draftsBehind: []

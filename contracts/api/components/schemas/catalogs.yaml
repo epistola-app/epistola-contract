@@ -271,13 +271,26 @@ InstallCatalogReleaseResponse:
 
 ReleaseDependencyDto:
   type: object
+  description: |
+    A release of another catalog a released release renders with: one its declarations pin, or one
+    those pin in turn
   required:
+    - alias
     - registry
     - namespace
     - catalogKey
     - version
     - direct
   properties:
+    alias:
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogAlias'
+        - type: 'null'
+      description: |
+        The alias the release's own declaration gives the catalog, by which its content names it.
+        Null for a catalog the release does not declare itself, which it renders with only through
+        another dependency, whose own declarations name it.
+      example: system
     registry:
       $ref: './identifiers.yaml#/Registry'
       description: |
@@ -367,10 +380,22 @@ CatalogDependencyRequirement:
     reference into that catalog resolves through this one declaration, so a release renders with
     exactly the release it pins. Exactly one of `version` and `releaseId` is given (omitted
     and null are not given); neither, or both, is refused with 400.
+
+    The declaration gives the catalog an alias, by which the draft's content names it (`alias`).
   required:
     - namespace
     - catalogKey
   properties:
+    alias:
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogAlias'
+        - type: 'null'
+      description: |
+        The alias the draft's content names the catalog by (`CatalogAlias`). Omitted or null: the
+        catalog's key. Unique among the draft's declarations and never the draft's own catalog key,
+        or the request is refused with 400; give another one only when two catalogs it depends on
+        share a key.
+      example: null
     registry:
       oneOf:
         - $ref: './identifiers.yaml#/Registry'
@@ -412,15 +437,23 @@ CatalogDependencyRequirement:
 CatalogDependencyDto:
   type: object
   description: |
-    A declared dependency and the exact release it pins, or, in a draft, the draft of it the draft
-    uses
+    A declared dependency: the alias the release's content names the catalog by, the catalog's
+    name, and the exact release it pins, or, in a draft, the draft of it the draft uses
   required:
+    - alias
     - registry
     - namespace
     - catalogKey
     - version
     - releaseId
   properties:
+    alias:
+      $ref: './identifiers.yaml#/CatalogAlias'
+      description: |
+        The alias the release's content names the catalog by: what a reference's `catalogKey`
+        holds (a theme reference, a code-list binding, an attribute criterion), resolved through
+        this declaration. The catalog's key unless the declaration gave another.
+      example: system
     registry:
       $ref: './identifiers.yaml#/Registry'
       description: |
@@ -739,9 +772,9 @@ UpdateCatalogReleaseRequest:
         - type: 'null'
       description: |
         The draft's new default theme: a theme in the catalog itself or in a catalog the draft
-        declares as a dependency. Omitted or null keeps the current one; `clearDefaultTheme`
-        removes it. A theme that cannot be found, or a catalog the draft does not declare, is
-        refused with 400.
+        declares as a dependency, named by the declaration's alias. Omitted or null keeps the
+        current one; `clearDefaultTheme` removes it. A theme that cannot be found, or an alias the
+        draft does not declare, is refused with 400.
     clearDefaultTheme:
       type: [boolean, 'null']
       description: |
@@ -761,8 +794,11 @@ UpdateCatalogReleaseRequest:
 CatalogThemeReference:
   type: object
   description: |
-    A reference to a theme from a release, qualified like every other cross-catalog
-    reference: an omitted `catalogKey`, `namespace` or `registry` means the referring catalog's own.
+    A reference to a theme from a release, as the release's content names it (catalog wire v8,
+    `catalog.defaultTheme`): the theme's key, and the alias of the catalog holding it when that is
+    another catalog. The alias is one the release's dependency declarations give
+    (`listCatalogDependencies`), which name that catalog in full and the release it pins; a
+    reference never names a registry or namespace itself.
   required:
     - key
   properties:
@@ -772,27 +808,13 @@ CatalogThemeReference:
       example: corporate
     catalogKey:
       oneOf:
-        - $ref: './identifiers.yaml#/CatalogKey'
+        - $ref: './identifiers.yaml#/CatalogAlias'
         - type: 'null'
-      description: Key of the catalog holding the theme. Omitted or null means the referring catalog.
+      description: |
+        The alias of the catalog holding the theme, as the release's dependency declarations give
+        it (`CatalogAlias`). Omitted or null, or the release's own catalog key: the release's own
+        catalog. An alias the release does not declare is refused with 400.
       example: brand
-    namespace:
-      oneOf:
-        - $ref: './identifiers.yaml#/Namespace'
-        - type: 'null'
-      description: |
-        Namespace of the catalog holding the theme, within its registry. Omitted or null means the
-        referring catalog's namespace.
-      example: acme-corp
-    registry:
-      oneOf:
-        - $ref: './identifiers.yaml#/Registry'
-        - type: 'null'
-      description: |
-        Registry of the catalog holding the theme, written in full. Omitted or null means the
-        referring catalog's registry, never an installation default. Naming one requires a
-        `namespace`.
-      example: exchange.epistola.app
 
 CatalogPresetDto:
   type: object
@@ -1044,11 +1066,11 @@ CatalogMergeEntryContent:
     - `catalog/defaultTheme`: `{"defaultTheme": …}`, the manifest's `catalog.defaultTheme`, a theme
       reference or null when the side has no default theme;
     - `catalog/presets`: `{"presets": […]}`, the manifest's `catalog.presets`;
-    - `catalogDependency/<catalogKey>`: the declaration as an entry of the manifest's
-      `catalogDependencies` has it (`registry`, `namespace`, `catalogKey`, `releaseVersion`,
-      `releaseFingerprint`). A draft's declaration that names a draft of that catalog, which no
-      archive carries, has `releaseId` naming that draft and `releaseVersion` and
-      `releaseFingerprint` null.
+    - `catalogDependency/<alias>`: the declaration as an entry of the manifest's
+      `catalogDependencies` has it (`alias`, `registry`, `namespace`, `catalogKey`,
+      `releaseVersion`, `releaseFingerprint`, the pinned release's content hash). A draft's
+      declaration that names a draft of that catalog, which no archive carries, has `releaseId`
+      naming that draft and `releaseVersion` and `releaseFingerprint` null.
 
     A member whose value is null and an absent member mean the same: merged content may leave
     nulls out, and a client may drop them when it sends it. A client keeps members it does not know.
@@ -1138,10 +1160,11 @@ CatalogDraftMergeResource:
         The entry's key within its type. For a resource, its key (`ResourceKey`). For `catalog`, the
         setting: `defaultTheme` (the theme a template that names none renders with) or `presets`
         (the block style presets); these are not resource keys and do not follow that rule. For
-        `catalogDependency`, the key of the catalog used (`CatalogKey`), one entry per catalog: its
-        registry and namespace are part of the declaration, the entry's value, not of its key, since
-        a catalog key is unique in a tenant and a full name does not fit 50 characters. A
-        resolution names the entry as `resourceType/resourceKey` (`template/invoice`,
+        `catalogDependency`, the alias of the declaration (`CatalogAlias`), one entry per
+        declaration, as the release's content names the catalog: the catalog's name (registry,
+        namespace and key) and the release it pins are the declaration, the entry's value, not its
+        key, so two sides that declare the same alias for another name or another release differ in
+        value. A resolution names the entry as `resourceType/resourceKey` (`template/invoice`,
         `catalog/defaultTheme`, `catalogDependency/shared`).
       example: invoice
     name:
@@ -1173,7 +1196,7 @@ CatalogDraftMergeResource:
         a template needs the theme or stencil it uses when the merge also changes that one, and an
         entry referring into another catalog needs that catalog's dependency entry
         (`catalog/defaultTheme` needs `catalogDependency/shared` when the default theme is a theme
-        of catalog `shared`). Only entries this preview lists, never the entry itself. Empty or
+        of the catalog aliased `shared`). Only entries this preview lists, never the entry itself. Empty or
         absent when there are none. Choosing a side of an entry without the side of what it needs
         can leave a reference that does not resolve, which the merge refuses (409
         `merge-refused`), saying what to choose.
@@ -1351,7 +1374,7 @@ MergeIntoCatalogDraftResponse:
   description: |
     What the merge did, each entry as `resourceType/resourceKey` (alpha): resources, the release's
     catalog settings as `catalog/defaultTheme` and `catalog/presets`, and each catalog used as
-    `catalogDependency/<catalogKey>`
+    `catalogDependency/<alias>`
   required:
     - release
     - taken

@@ -123,35 +123,21 @@ VariantSelectionAttribute:
     defines it, and the value a variant must have for it.
 
     Without `catalogKey`, `key` names an attribute of the template's own catalog. With `catalogKey`,
-    it names an attribute of that catalog, which must be the template's own catalog or one it
-    declares as a dependency; `namespace` and `registry` default to those of the template's catalog,
-    as in every reference relative to another catalog (see "Catalog identity").
+    it names an attribute of the catalog with that alias in the dependency declarations of the
+    release that renders (`listCatalogDependencies`), as the template's content names that catalog
+    (see "Catalog identity"); the template's own catalog key names its own catalog. An alias the
+    release does not declare names no attribute, so no variant has a value for it.
   required:
     - key
     - value
   properties:
-    registry:
-      oneOf:
-        - $ref: './identifiers.yaml#/Registry'
-        - type: 'null'
-      description: |
-        Registry of the catalog that defines the attribute. Omitted or null: the registry of the
-        template's catalog (not the default registry). Set only together with `namespace`.
-      example: null
-    namespace:
-      oneOf:
-        - $ref: './identifiers.yaml#/Namespace'
-        - type: 'null'
-      description: |
-        Namespace of the catalog that defines the attribute, within its registry. Omitted or null:
-        the namespace of the template's catalog. Set only together with `catalogKey`.
-      example: null
     catalogKey:
       oneOf:
-        - $ref: './identifiers.yaml#/CatalogKey'
+        - $ref: './identifiers.yaml#/CatalogAlias'
         - type: 'null'
       description: |
-        Key of the catalog that defines the attribute. Omitted or null: the template's own catalog.
+        The alias of the catalog that defines the attribute, as the dependency declarations of the
+        release that renders give it. Omitted or null: the template's own catalog.
       example: system
     key:
       $ref: './identifiers.yaml#/ResourceKey'

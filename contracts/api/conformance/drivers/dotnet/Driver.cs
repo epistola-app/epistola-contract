@@ -387,6 +387,10 @@ public static class Driver
                 Str(config, "attributeKey"),
                 new UpdateAttributeRequest(
                     allowedValues: OptStrList(config, "allowedValues")!,
+                    // A binding names its catalog by alias, or by nothing for the attribute's own.
+                    codeListBinding: config.TryGetProperty("codeListBinding", out var bindingConfig) && bindingConfig.ValueKind != JsonValueKind.Null
+                        ? new UpdateAttributeRequestCodeListBinding(key: Str(bindingConfig, "key"), catalogKey: OptStr(bindingConfig, "catalogKey")!)
+                        : null!,
                     clearCodeListBinding: OptBool(config, "clearCodeListBinding")),
                 ifMatch: OptStr(config, "ifMatch"));
         }
@@ -401,7 +405,7 @@ public static class Driver
         {
             ["key"] = Show(response.Data.Key),
             ["allowedValues"] = string.Join(",", response.Data.AllowedValues ?? new List<string>()),
-            ["codeListBinding"] = binding == null ? "null" : $"{binding.Registry}/{binding.Namespace}/{binding.CatalogKey}/{binding.Key}",
+            ["codeListBinding"] = binding == null ? "null" : $"{Show(binding.CatalogKey)}/{binding.Key}",
             ["etag"] = Header(response, "ETag"),
         });
     }
@@ -674,6 +678,8 @@ public static class Driver
         var (http, apiBase) = Client(baseUrl, config);
         var dependencies = config.GetProperty("dependencies").EnumerateArray()
             .Select(d => new CatalogDependencyRequirement(
+                // Set only when the entry names one: omitted means the catalog's key.
+                alias: OptStr(d, "alias")!,
                 // Set only when the entry names one: omitted means the default registry.
                 registry: OptStr(d, "registry")!,
                 @namespace: Str(d, "namespace"),
@@ -702,6 +708,7 @@ public static class Driver
         var items = response.Items;
         var values = new Dictionary<string, object>
         {
+            ["aliases"] = string.Join(",", items.Select(d => Show(d.Alias))),
             ["registries"] = string.Join(",", items.Select(d => Show(d.Registry))),
             ["namespaces"] = string.Join(",", items.Select(d => Show(d.Namespace))),
             ["catalogKeys"] = string.Join(",", items.Select(d => Show(d.CatalogKey))),
@@ -775,6 +782,7 @@ public static class Driver
             ["fingerprint"] = Show(release.Fingerprint),
             ["dependencies"] = string.Join(",", (release.Dependencies ?? new List<ReleaseDependencyDto>())
                 .Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}@{Show(d.Version)}")),
+            ["dependencyAliases"] = string.Join(",", (release.Dependencies ?? new List<ReleaseDependencyDto>()).Select(d => Show(d.Alias))),
             ["deployedTo"] = string.Join(",", release.DeployedTo ?? new List<string>()),
             ["behind"] = string.Join(";", (release.Behind ?? new List<BehindReleaseDto>())
                 .Select(b => $"{Show(b.Version)}=" + string.Join("+", (b.Changes ?? new List<ReleasedChangeDto>())
@@ -1603,8 +1611,6 @@ public static class Driver
     private static List<VariantSelectionAttribute>? OptAttributes(JsonElement config) =>
         config.TryGetProperty("attributes", out var value) && value.ValueKind != JsonValueKind.Null
             ? value.EnumerateArray().Select(attribute => new VariantSelectionAttribute(
-                registry: OptStr(attribute, "registry")!,
-                @namespace: OptStr(attribute, "namespace")!,
                 catalogKey: OptStr(attribute, "catalogKey")!,
                 key: Str(attribute, "key"),
                 value: Str(attribute, "value"),

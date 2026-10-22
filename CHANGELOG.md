@@ -384,6 +384,31 @@ libraries.
 
 ### Changed
 
+- **BREAKING (API 2.0, unreleased, changed in place): the API names another catalog's resource by
+  alias** (contract ADR 0003, amendment of 2026-10-22; Epistola Suite ADR 0034). A reference from
+  one catalog's release into another names that catalog as the release's content does, by the
+  alias its dependency declarations give it, in the member `catalogKey`, never by registry or
+  namespace: `CatalogThemeReference` is `{key, catalogKey}` (`namespace` and `registry` removed),
+  an attribute's `codeListBinding` is `{catalogKey, key}` in `AttributeDto` (`catalogKey` null for
+  the attribute's own catalog, no longer required to be set) and in `CreateAttributeRequest` and
+  `UpdateAttributeRequest` (`catalogKey` optional; `registry` and `namespace` removed), and
+  `VariantSelectionAttribute` is `{catalogKey, key, value, required}`, its alias resolved through
+  the release that renders. Omitted or null, or the catalog's own key, is the catalog itself; an
+  alias the release does not declare is refused with 400 (in variant selection it names no
+  attribute). New identifier `CatalogAlias` (the catalog key rule, 3 to 50 characters; a catalog
+  test holds it to `CatalogAliases`). Dependency declarations carry the alias:
+  `CatalogDependencyRequirement.alias` (optional, by default the catalog's key; unique among the
+  declarations and never the draft's own key, else 400), `CatalogDependencyDto.alias` (required)
+  and `ReleaseDependencyDto.alias` (required, null for a catalog the release renders with only
+  through another dependency); the declaration is where a client finds the full name. Merge
+  entries of declarations are `catalogDependency/<alias>`, and their content
+  (`CatalogMergeEntryContent`) has `alias`. The "Catalog identity" section says so. Clients' tests
+  build criteria and declarations with aliases. Conformance: `generate-document` sends no
+  `registry` or `namespace` in a criterion, `update-catalog-dependencies` sends an entry's `alias`,
+  dependency reports carry `aliases` and `get-catalog-release` reports `dependencyAliases`,
+  `update-attribute` sends `config.codeListBinding` and reports the binding as `catalogKey/key`;
+  scenario `update-attribute-bind-code-list-by-alias` is new, and the theme, dependency, release
+  and attribute-criterion scenarios name catalogs by alias.
 - **Patch release numbers in the API** (contract ADR 0003, amendment of 2026-10-22; Epistola Suite
   ADR 0034). `ReleaseVersion` is the catalog archive's release number rule,
   `CatalogReleaseVersions.PATTERN`: `MAJOR.MINOR.PATCH`, or a patch release

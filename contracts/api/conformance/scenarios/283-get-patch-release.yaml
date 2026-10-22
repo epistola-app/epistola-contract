@@ -39,7 +39,7 @@ script:
       notes: The payment terms say 30 days.
       fingerprint: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
       dependencies:
-        - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: branding, version: 2.0.1-gemeente-x.3, direct: true }
+        - { alias: branding, registry: exchange.epistola.app, namespace: acme-corp, catalogKey: branding, version: 2.0.1-gemeente-x.3, direct: true }
       deployedTo: [production]
 
 expect:
