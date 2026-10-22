@@ -246,9 +246,10 @@ info:
        variant selection (`VariantSelectionAttribute`, resolved through the release that renders).
        Omitted or null, or the catalog's own key, is the catalog itself. A declaration
        (`CatalogDependencyDto`, `listCatalogDependencies`) maps each alias to the catalog's full
-       name and the release it pins; that is where a client finds the name. An alias is by default
-       the catalog's key (`CatalogDependencyRequirement.alias`), so content means the same in every
-       installation and under any name, and pinning another release changes no content.
+       name and the release it pins; that is where a client finds the name. Because content names
+       the alias, it means the same in every installation and under any name, and pinning another
+       release changes no content. An alias is by default the catalog's key
+       (`CatalogDependencyRequirement.alias`).
 
     Responses write every registry in full, by its name, never `~`, so a value read from one
     installation means the same catalog on another. Content documents are returned as stored.
