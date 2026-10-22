@@ -55,28 +55,79 @@ The published `migrations/v7-to-v8/` fixtures pin the manifest and stencil conve
 notices.
 
 `CatalogCanonicalizer` hashes canonical catalog content. It sorts resources and JSON object keys,
-normalizes numeric JSON representation, includes streamed asset digests, dependency identity,
-publisher metadata, compatibility declarations, and includes, and excludes the release metadata
-(its timestamp, version, id, producer `metadata` and `base`), resource URLs, and ZIP metadata. Therefore equivalent archives have
-identical fingerprints even when their entry order, timestamps, compression, or JSON property order
-differ.
+normalizes numeric JSON representation, includes streamed asset digests, and excludes the release
+metadata (its timestamp, version, id, producer `metadata` and `base`), resource URLs, and ZIP
+metadata. Therefore equivalent archives have identical fingerprints even when their entry order,
+timestamps, compression, or JSON property order differ. What each algorithm covers of the manifest
+differs; see the list below.
 
-The current canonical form is V5. `CatalogCanonicalizer.currentFingerprint(catalog)` produces V5.
+The current canonical form is V6. `CatalogCanonicalizer.currentFingerprint(catalog)` produces V6.
 The existing `fingerprint(catalog)` method continues to produce V1 for source, binary, and
 behavioral compatibility, and the versioned overload supports explicit selection. New fingerprints
 should always use `currentFingerprint`.
 
-Wire v8 writes a fingerprint in the form that names its algorithm, `v5:<hex>`
+Wire v8 writes a fingerprint in the form that names its algorithm, `v6:<hex>`
 (`QualifiedCatalogFingerprint`; `currentQualifiedFingerprint` and `qualifiedFingerprint` produce it,
 `matchesQualifiedFingerprint` checks one with exactly the algorithm it names). The label is part of
-the stored value, not of what is hashed: V5's own domain prefix is unchanged. See
+the stored value, not of what is hashed: each algorithm's own domain prefix is unchanged. See
 [the archive format](catalog-archive.md#fingerprints-name-their-algorithm) for why.
+
+## V6: a release is identified by its content
+
+V6 is the current algorithm (contract ADR 0003, amendment of 2026-10-22; Epistola Suite ADR 0034).
+A release's identity is a hash over its **content**: what it renders with, and nothing that names or
+presents it. So two releases with the same V6 fingerprint are the same release, wherever they come
+from and whatever they are called, and a release fetched by its hash from any registry, mirror or
+file verifies itself. A dependency renamed, mirrored under another name, or promoted to a real name
+keeps its hash, and so does every release that pins it.
+
+V6 covers, under its own domain prefix (`algorithm sha256-v6`):
+
+| What | Members |
+| --- | --- |
+| Every resource, as V5 covers it | each resource detail, an image's or font face's bytes included; references to other catalogs name an alias, so the resource says nothing about another catalog's name |
+| The resource index | each entry's `type`, `key`, `name` and `description`, as V5 |
+| The catalog's content settings | `catalog.defaultTheme` (`key`, `catalogKey` alias), `catalog.presets` (sorted by key) and `catalog.license` |
+| The dependencies | each resource dependency by type, alias and key; each `catalogDependencies` entry as its `alias` and the pinned `releaseFingerprint`, sorted by alias |
+| How the content is read | `schemaVersion` and `compatibility` |
+
+V6 does not cover:
+
+- **the catalog's name**: `catalog.registry` (the authority), `catalog.namespace` and `catalog.key`;
+- **a dependency's name and number**: a `catalogDependencies` entry's `registry`, `namespace`,
+  `catalogKey` and `releaseVersion`. The alias and the pinned hash say what the content renders
+  with; the name and number are how to find it;
+- **the release block**: `release.version`, `releasedAt`, `fingerprint`, `releaseId`, `metadata`
+  and `base`. Together with the name they are the archive's binding of a name and number to the
+  hash ([the archive format](catalog-archive.md#bindings-a-name-at-a-number-is-a-hash));
+- **the catalog's presentation**: `catalog.name`, `description`, `keywords`, `presentation` (which
+  images to show; the image resources themselves are content), `attributes` (discovery labels),
+  and the manifest's `publisher` and `includes`.
+
+**Why** (Suite ADR 0034): when the name is the identity, giving a release another name -- a mirror
+under another name, a promotion from a provisional name, a channel, a rename -- makes it a new
+release and changes every reference to it. V5 covered the catalog's own registry and namespace and
+those of every dependency, so it had that problem. With content addressing, names point at
+releases (bindings) and content names other catalogs by alias, so a name can change without the
+content changing.
+
+**Presentation is information about the name, not about a release.** It can be updated without
+making a release, and, of the releases of a catalog an installation receives, the presentation most
+recently received wins. A producer may therefore change a catalog's display name, description,
+keywords or icon without minting a new release; two archives of the same release with different
+presentation verify against the same fingerprint.
+
+**The wire version.** V6 covers `schemaVersion` as the manifest states it, the wire version the
+content is to be read with. Archives are fingerprinted at the current wire version, after any
+migration. A later wire version that keeps V6 must therefore verify a V6 fingerprint against the
+wire version the archive was written at, as V4 is verified against the source content of a
+migrated archive (below); one that changes what V6 covers gets an algorithm of its own.
 
 - V3 retains the semantic v5 resource projection.
 - V4 adds an algorithm domain prefix and includes qualified catalog attributes sorted by catalog
   and key, sorted `keywords`, catalog presentation asset references, and catalog-wide license
   metadata. It was the current algorithm for wires v6 and v7.
-- V5, introduced with wire v8, is V4 under its own domain prefix (`algorithm sha256-v5`) plus the
+- V5, introduced with wire v8 and current until V6, is V4 under its own domain prefix (`algorithm sha256-v5`) plus the
   catalog's identity and declared dependencies: `catalog.registry` and `catalog.namespace`, each
   resource dependency's catalog by registry, namespace and key (dependencies sort by type, registry,
   namespace, catalog key, and key), and every `catalogDependencies` entry with its `registry`,
@@ -129,7 +180,8 @@ SHA-256 over that resource alone, an image's bytes included:
 | `completePerResourceFingerprints` | V5 | the resource's complete v8 content, under the v8 names, as V5 covers it |
 
 **To tell resources apart when merging or diffing, use `completePerResourceFingerprints`.** It is
-the per-resource counterpart of the current catalog fingerprint (V5): it names every member as wire
+the per-resource counterpart of V5 and of the current catalog fingerprint, V6, which covers each
+resource exactly as V5 does: it names every member as wire
 v8 does and covers what v8 added (a template's `description`, a variant's `metadata`, a data
 example's `key`), so a change to only those changes the value of that resource and of no other.
 The V1 and V3 forms leave them out (`CatalogV8Additions`), so a resource changed only there looks
@@ -139,7 +191,9 @@ they always had, for consumers that stored them.
 
 **Why a new algorithm rather than extending V4.** V4 fingerprints are already published and must
 keep verifying. Adding the registry, namespace and catalog dependencies to V4 would change every V4 value; a
-new version keeps V4 reproducible and makes the new coverage explicit.
+new version keeps V4 reproducible and makes the new coverage explicit. V6 is a new algorithm for the
+same reason: it covers less than V5 (no names, no presentation), and V5 values already written into
+releases, pins and bases keep verifying under V5.
 
 Whole-catalog validation chooses the rule by the archive's source wire version:
 
@@ -158,16 +212,19 @@ Whole-catalog validation chooses the rule by the archive's source wire version:
   canonicalizer restores each from the raw `catalog.json` and resource documents in the archive:
   wherever the migrated value is exactly the rewrite of a different raw value at the same position.
   V5 covers the keys as migrated.
-- Native v8 input must carry `v5:<hex>` over its own content. Naming another algorithm is
-  `CATALOG_RELEASE_FINGERPRINT_INVALID`, even when it matches: an older one covers less.
+- Native v8 input must carry `v6:<hex>` over its own content. Naming another algorithm is
+  `CATALOG_RELEASE_FINGERPRINT_INVALID`, even when it matches. A pin (`releaseFingerprint`) or a base
+  (`release.base.fingerprint`) may name any known algorithm, and is checked with exactly that one.
 
-Re-exporting a migrated catalog replaces a present legacy fingerprint with V5, as `v5:<hex>`.
+Re-exporting a migrated catalog replaces a present legacy fingerprint with V6, as `v6:<hex>`.
 
 Authoritative versioned inputs and expected hashes are published below
 `META-INF/epistola-catalog/fixtures/v1` in the Maven artifact and
 `@epistola.app/epistola-catalog/fixtures/v1/*` in the npm artifact. `fingerprints.json` pins every
-algorithm's fingerprint of the wire-v4 golden catalog and, as `currentWireV8CatalogFingerprint`,
-the V5 fingerprint of the wire-v8 golden catalog, whose declared dependency records a release and
+algorithm's fingerprint of the wire-v4 golden catalog (`catalogFingerprints`; `currentCatalogFingerprint`
+is the V6 one) and, as `wireV8CatalogFingerprints`, the V5 and V6 fingerprints of the wire-v8 golden
+catalog (`currentWireV8CatalogFingerprint` is the V6 one; the V5 value is the one published before
+V6 and aliases existed), whose declared dependency records a release and
 its fingerprint, and whose template carries a description, a keyed data example and variant
 metadata. `completeWireV8ResourceFingerprints` pins `completePerResourceFingerprints` of that
 catalog.

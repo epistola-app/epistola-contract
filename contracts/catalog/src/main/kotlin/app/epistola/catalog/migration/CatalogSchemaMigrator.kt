@@ -236,7 +236,7 @@ object CatalogMigrationCodes {
     /**
      * A catalog-v8 catalog dependency's `releaseFingerprint` does not pair with its `releaseVersion`:
      * it is missing or null although a release is recorded, set although none is, or not in the form
-     * that names a known algorithm (`v5:<lowercase SHA-256 hex>`).
+     * that names a known algorithm (`v6:<lowercase SHA-256 hex>`).
      */
     const val DEPENDENCY_CATALOG_FINGERPRINT_INVALID = "CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID"
 
@@ -569,7 +569,7 @@ object CatalogSchemaMigrator {
         }
         val fingerprint = base["fingerprint"]
         if (fingerprint == null || !fingerprint.isString || !ReleaseBase.isValidFingerprint(fingerprint.asString())) {
-            findings += CatalogMigrationFinding(CatalogMigrationCodes.RELEASE_BASE_INVALID, "$path.fingerprint", "base fingerprint must name a known algorithm: v5:<lowercase SHA-256 hex>")
+            findings += CatalogMigrationFinding(CatalogMigrationCodes.RELEASE_BASE_INVALID, "$path.fingerprint", "base fingerprint must name a known algorithm: v6:<lowercase SHA-256 hex>")
         }
         return findings
     }
@@ -590,7 +590,7 @@ object CatalogSchemaMigrator {
                 release == null && fingerprint != null -> "releaseFingerprint must be null when no releaseVersion is recorded"
                 release != null && fingerprint == null -> "releaseFingerprint is required when a releaseVersion is recorded"
                 fingerprint != null && !(fingerprint.isString && CatalogDependency.isValidReleaseFingerprint(fingerprint.asString())) ->
-                    "releaseFingerprint must name a known algorithm: v5:<lowercase SHA-256 hex>"
+                    "releaseFingerprint must name a known algorithm: v6:<lowercase SHA-256 hex>"
                 else -> null
             }
             message?.let { CatalogMigrationFinding(CatalogMigrationCodes.DEPENDENCY_CATALOG_FINGERPRINT_INVALID, path, it) }

@@ -24,12 +24,17 @@ import java.util.TreeSet
  * portable contract state only; Exchange publication state and Suite install
  * state are not represented.
  *
- * @property schemaVersion portable catalog wire version.
- * @property catalog stable catalog identity and display metadata.
- * @property publisher descriptive publisher metadata, not publisher authority.
- * @property release version and optional canonical content fingerprint.
- * @property compatibility optional consumer compatibility declaration.
- * @property includes optional linked catalog documents retained by the format.
+ * @property schemaVersion portable catalog wire version. Content: the fingerprint (V6) covers it.
+ * @property catalog stable catalog identity and display metadata ([CatalogInfo] says which members
+ *   are the name, which content and which presentation).
+ * @property publisher descriptive publisher metadata, not publisher authority. Presentation: not
+ *   covered by the fingerprint.
+ * @property release version and optional canonical content fingerprint: the archive's binding of
+ *   the catalog's name and number to a content hash. Not covered by the fingerprint.
+ * @property compatibility optional consumer compatibility declaration. Content: the fingerprint
+ *   covers it.
+ * @property includes optional linked catalog documents retained by the format. Presentation: not
+ *   covered by the fingerprint.
  * @property resources complete resource-detail index.
  * @property dependencies the index of the resources in other catalogs that the content uses, each by
  *   alias and key ([DependencyRef]), derived from the content by the producer.
@@ -77,9 +82,10 @@ data class CatalogManifest(
  *   earlier, which never recorded one: the author pins one before the catalog is released again.
  * @property releaseFingerprint the pin: the fingerprint of the release this catalog renders with,
  *   copied from that release's own `release.fingerprint`, in the form that names its algorithm
- *   (`v5:<hex>`, [QualifiedCatalogFingerprint]). An installation checks a copy of that release,
- *   from any registry or mirror, with exactly the algorithm it names, after the current algorithm
- *   has moved on. Null exactly when [releaseVersion] is null. The wire requires
+ *   ([QualifiedCatalogFingerprint]; `v6:<hex>` for a release made under V6, which covers content
+ *   only, so the same release has the same pin under any name). An installation checks a copy of
+ *   that release, from any registry, mirror or file, with exactly the algorithm it names, after the
+ *   current algorithm has moved on. Null exactly when [releaseVersion] is null. The wire requires
  *   the pairing; the migrator's wire check and the validator enforce it, not this model, so that
  *   manifests stored without it still bind.
  * @property alias how this catalog's content names the dependency ([CatalogAliases]). Defaults to
@@ -97,7 +103,7 @@ data class CatalogDependency(
     val alias: String = catalogKey,
 ) {
     companion object {
-        /** The shape of a [releaseFingerprint]: [QualifiedCatalogFingerprint.PATTERN], `v5:<hex>`. */
+        /** The shape of a [releaseFingerprint]: [QualifiedCatalogFingerprint.PATTERN], `v6:<hex>`. */
         const val RELEASE_FINGERPRINT_PATTERN: String = QualifiedCatalogFingerprint.PATTERN
 
         /**
@@ -204,6 +210,17 @@ sealed class DependencyRef {
  * three-argument constructor preserves source compatibility for existing producers. Use [create],
  * [copyWithMetadata] or [withNamespace] when setting discovery metadata, the default theme and
  * declared presets, or the registry and namespace.
+ *
+ * Its members are of three kinds (contract ADR 0003, amendment of 2026-10-22):
+ * - **the name**: [registry] (the authority, a domain), [namespace] and [key];
+ * - **content**, which the fingerprint (V6) covers and which a release fixes: [defaultTheme],
+ *   [presets] and [license];
+ * - **presentation**, information about the name rather than the release: [name], [description],
+ *   [keywords], [presentation] (which images to show; the image resources themselves are content)
+ *   and [attributes] (discovery labels). The fingerprint does not cover it, so it can be updated
+ *   without a release; when an installation receives several releases of a catalog, the
+ *   presentation most recently received wins. The manifest's [CatalogManifest.publisher] and
+ *   [CatalogManifest.includes] are presentation too.
  */
 class CatalogInfo private constructor(
     /**
@@ -447,12 +464,15 @@ data class PublisherInfo(
  *   manifests stored under earlier versions still bind.
  * @param releasedAt ISO-8601 timestamp the version was cut, if known.
  * @param fingerprint the canonical fingerprint of the catalog's content
- *   (deterministic, order-independent, excludes volatile fields). Lets
- *   consumers detect that content actually changed independently of the
- *   `version` label. From wire v8 it names its algorithm, which must be the
- *   current one (`v5:<hex>`, [QualifiedCatalogFingerprint]); before wire v8 it
- *   is bare lowercase SHA-256 hex whose algorithm the wire version implies.
- *   Nullable for catalogs produced before fingerprinting.
+ *   (deterministic, order-independent, excludes volatile fields): the
+ *   release's identity. From wire v8 it names its algorithm, which must be the
+ *   current one (`v6:<hex>`, [QualifiedCatalogFingerprint]). V6 covers the
+ *   release's content only, never the catalog's name, this release block or
+ *   the catalog's presentation, so two releases with the same fingerprint are
+ *   the same release wherever they come from and whatever they are called
+ *   (contract ADR 0003). Before wire v8 it is bare lowercase SHA-256 hex whose
+ *   algorithm the wire version implies. Nullable for catalogs produced before
+ *   fingerprinting.
  * @param releaseId the release's id (wire v8, [CatalogReleaseIds]): unique among the releases of
  *   the catalog's name (registry, namespace and key), and kept when the release moves to another
  *   installation, through an exchange, a registry or a file, so that the release is the same
@@ -466,10 +486,15 @@ data class PublisherInfo(
  *   namespace; every other reader keeps it, an unrecognised one included, member for member. Not
  *   covered by the fingerprint. Omitted when null or empty, since the wire forbids `{}`.
  * @param base the release this one was made from, its draft's base (wire v8, [ReleaseBase]), by
- *   number and fingerprint, so that a receiver can follow the lineage to the closest release this
- *   one shares with a draft of its own and merge against it (contract ADR 0005). Null for a first
- *   release, and when the producer does not know it. Release metadata: the fingerprint does not
- *   cover it. Omitted when null.
+ *   content hash, with its number for people, so that a receiver can follow the lineage to the
+ *   closest release this one shares with a draft of its own and merge against it (contract ADR
+ *   0005). Null for a first release, and when the producer does not know it. Release metadata: the
+ *   fingerprint does not cover it. Omitted when null.
+ *
+ * The catalog's name ([CatalogInfo.registry], [CatalogInfo.namespace], [CatalogInfo.key]),
+ * [version] and [fingerprint] together are the archive's **binding** (contract ADR 0003): "this
+ * name at this number is the release with this content hash", issued by the holder of the
+ * namespace.
  */
 data class ReleaseInfo(
     val version: String,
@@ -485,30 +510,32 @@ data class ReleaseInfo(
 
 /**
  * The release a release was made from: the base of the draft it was released from (wire v8,
- * `release.base`), by identity only.
+ * `release.base`), by identity only: its content hash ([fingerprint]) and, for people, its number.
  *
  * Merging a release into a draft is a three-way comparison per resource against the merge base,
  * the closest release both the draft and the merged release descend from (contract ADR 0005). Each
  * release names the release it was made from, so a receiver can follow the lineage to that common
  * release. The merge then needs that release installed: it compares against the base's resources
- * in that release's own snapshot, and checks by [fingerprint] that the installed release of that
- * number is the same release. A receiver keeps the base as it was received, member for member,
- * when it installs, migrates or re-exports the release.
+ * in that release's own snapshot, and finds it by [fingerprint]: lineage is by hash (contract ADR
+ * 0003), so it survives renames, mirrors and forks. A receiver keeps the base as it was received,
+ * member for member, when it installs, migrates or re-exports the release. Merge parents (the
+ * releases a draft merged) are the producer's to record, not the format's.
  *
  * The rules are enforced by the migrator's wire check and the validator, not by this model.
  *
  * @param version the base release's number, a release number ([CatalogReleaseVersions]).
- * @param fingerprint the base release's catalog fingerprint, in the form that names its algorithm
- *   ([FINGERPRINT_PATTERN], `v5:<hex>`, any algorithm this library knows), as a catalog
- *   dependency's [CatalogDependency.releaseFingerprint] pins a release: a receiver that has a release
- *   of that number can tell whether it is the same one.
+ * @param fingerprint the base release's content hash: its catalog fingerprint, in the form that
+ *   names its algorithm ([FINGERPRINT_PATTERN], any algorithm this library knows; `v6:<hex>` for a
+ *   base made under V6, which covers content only), as a catalog dependency's
+ *   [CatalogDependency.releaseFingerprint] pins a release: a receiver finds the base by it, whatever
+ *   number or name the base has there.
  */
 data class ReleaseBase(
     val version: String,
     val fingerprint: String,
 ) {
     companion object {
-        /** The shape of a [fingerprint]: [QualifiedCatalogFingerprint.PATTERN], `v5:<hex>`. */
+        /** The shape of a [fingerprint]: [QualifiedCatalogFingerprint.PATTERN], `v6:<hex>`. */
         const val FINGERPRINT_PATTERN: String = QualifiedCatalogFingerprint.PATTERN
 
         /**

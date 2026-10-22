@@ -194,7 +194,7 @@ object CatalogValidationCodes {
     /**
      * A catalog dependency's `releaseFingerprint` does not pair with its `releaseVersion`: missing
      * although a release is recorded, set although none is, or not in the form that names a known
-     * algorithm (`v5:<lowercase SHA-256 hex>`).
+     * algorithm (`v6:<lowercase SHA-256 hex>`).
      */
     const val DEPENDENCY_CATALOG_FINGERPRINT_INVALID = "CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID"
 
@@ -216,7 +216,7 @@ object CatalogValidationCodes {
 
     /**
      * `release.base` names its version by other than a release number ([CatalogReleaseVersions]),
-     * or its fingerprint by other than a known qualified algorithm (`v5:<hex>`,
+     * or its fingerprint by other than a known qualified algorithm (`v6:<hex>`,
      * [ReleaseBase.isValidFingerprint]).
      */
     const val RELEASE_BASE_INVALID = "CATALOG_RELEASE_BASE_INVALID"
@@ -1188,7 +1188,7 @@ object CatalogValidator {
             findings.error(CatalogValidationCodes.RELEASE_BASE_INVALID, "$path.version", "base version must be MAJOR.MINOR.PATCH, without a pre-release or build part")
         }
         if (!ReleaseBase.isValidFingerprint(base.fingerprint)) {
-            findings.error(CatalogValidationCodes.RELEASE_BASE_INVALID, "$path.fingerprint", "base fingerprint must name a known algorithm: v5:<lowercase SHA-256 hex>")
+            findings.error(CatalogValidationCodes.RELEASE_BASE_INVALID, "$path.fingerprint", "base fingerprint must name a known algorithm: v6:<lowercase SHA-256 hex>")
         }
     }
 
@@ -1423,7 +1423,7 @@ object CatalogValidator {
                 dependency.releaseVersion != null && dependency.releaseFingerprint == null ->
                     "releaseFingerprint is required when a releaseVersion is recorded"
                 dependency.releaseFingerprint != null && !CatalogDependency.isValidReleaseFingerprint(dependency.releaseFingerprint) ->
-                    "releaseFingerprint must name a known algorithm: v5:<lowercase SHA-256 hex>"
+                    "releaseFingerprint must name a known algorithm: v6:<lowercase SHA-256 hex>"
                 else -> null
             }
             fingerprintFinding?.let { findings.error(CatalogValidationCodes.DEPENDENCY_CATALOG_FINGERPRINT_INVALID, "$path.releaseFingerprint", it) }

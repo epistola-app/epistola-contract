@@ -143,7 +143,7 @@ class CatalogValidatorTest {
     }
 
     @Test
-    fun `current catalogs must carry a v5 fingerprint that names its algorithm`() {
+    fun `current catalogs must carry a v6 fingerprint that names its algorithm`() {
         val withoutFingerprint = archive(manifest(), emptyMap())
         fun codes(fingerprint: String) = CatalogValidator.validate(archive(manifest(release = ReleaseInfo("1.0.0", fingerprint = fingerprint)), emptyMap()))
             .codes()
@@ -152,11 +152,13 @@ class CatalogValidatorTest {
             val qualified = CatalogCanonicalizer.qualifiedFingerprint(withoutFingerprint, version)
 
             // An older algorithm covers less, so naming one is invalid even when it matches.
-            val expected = if (version == CatalogFingerprintVersion.V5) emptyList() else listOf(CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID)
+            val expected = if (version == CatalogFingerprintVersion.V6) emptyList() else listOf(CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID)
             assertEquals(expected, codes(qualified.toString()), version.toString())
             assertEquals(listOf(CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID), codes(qualified.fingerprint.value), "bare $version")
         }
-        assertEquals(listOf(CatalogValidationCodes.RELEASE_FINGERPRINT_MISMATCH), codes("v5:" + "0".repeat(64)))
+        assertEquals(listOf(CatalogValidationCodes.RELEASE_FINGERPRINT_MISMATCH), codes("v6:" + "0".repeat(64)))
+        // A v8 release fingerprinted before V6 covered content only names an algorithm that is no longer current.
+        assertEquals(listOf(CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID), codes("v5:" + "0".repeat(64)))
         assertEquals(listOf(CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID), codes("v9:" + "0".repeat(64)))
     }
 

@@ -129,21 +129,51 @@ mapped to the alias of the catalog it names (`CATALOG_REFERENCE_ALIASED`); one n
 another namespace cannot be (`CATALOG_REFERENCE_ALIAS_UNRESOLVED`).
 
 The writer only emits the current wire version. Re-exporting a migrated catalog that carried a
-fingerprint replaces it with the current algorithm's, in the form that names it (`v5:<hex>`).
+fingerprint replaces it with the current algorithm's, in the form that names it (`v6:<hex>`).
 
 ## Fingerprints Name Their Algorithm
 
 From wire v8 a fingerprint is written as the algorithm that computed it, a colon and the lowercase
-SHA-256 hex: `v5:58f4…` (`QualifiedCatalogFingerprint`, pattern `^v[1-9][0-9]*:[0-9a-f]{64}$`). An
-archive's own `release.fingerprint` must name the current algorithm, `v5`. Before wire v8 it is
+SHA-256 hex: `v6:58f4…` (`QualifiedCatalogFingerprint`, pattern `^v[1-9][0-9]*:[0-9a-f]{64}$`). An
+archive's own `release.fingerprint` must name the current algorithm, `v6`. Before wire v8 it is
 bare hex, and the wire version implies the algorithm.
+
+V6 covers the release's content only (see [canonicalization](catalog-canonicalization.md)): not
+the catalog's name, the release block or the catalog's presentation. A release's fingerprint is
+therefore its identity: the same release under another name, or from another registry, mirror or
+file, has the same fingerprint.
 
 The algorithm is in the value because a fingerprint outlives the archive it was written in: a
 catalog dependency's `releaseFingerprint` is kept when the current algorithm moves on, and has to
 be checked with the algorithm that computed it. A verifier computes exactly the named algorithm
 (`CatalogCanonicalizer.matchesQualifiedFingerprint`) and never tries the others, because an older
-algorithm covers less: V4 covers no identity and no dependencies, so a copy that differs only there
-would match it.
+algorithm covers something else: V4 covers no dependencies, so a copy that differs only there would
+match it, while V5 covers names that V6 leaves out.
+
+## Bindings: a Name at a Number Is a Hash
+
+A release archive's name (`catalog.registry`, `catalog.namespace`, `catalog.key`), its
+`release.version` and its `release.fingerprint` together are a **binding**: "this name at this
+number is the release with this content hash" (contract ADR 0003). The holder of the namespace
+issues it when it releases; installing, mirroring and moving a release carry it along unchanged.
+Names stay what people, deployments and version ranges work with; each resolves to a hash, and a
+receiver records the hash. A catalog dependency's declaration is a binding seen from the other side:
+the dependency's name and the number it had (`releaseVersion`), pointing at the hash it pins
+(`releaseFingerprint`).
+
+The format carries the binding but cannot know who holds a namespace: whether the producer of an
+archive may issue a binding under its name is for the installation and the registry to decide.
+
+## Presentation Is Not Content
+
+A catalog's presentation -- `catalog.name`, `description`, `keywords`, `presentation` (which images
+to show; the image resources themselves are content), `attributes` (discovery labels), and the
+manifest's `publisher` and `includes` -- is information about the catalog's name, not about a
+release. The fingerprint does not cover it, so a producer can change it without making a release,
+and two archives of one release that present it differently both verify. Of the releases of a
+catalog an installation receives, the presentation most recently received wins. Everything else in
+the manifest except the name and the release block is content: the fingerprint covers it and a
+release fixes it.
 
 ## Dependencies: an Alias, a Name and a Pin
 
@@ -154,7 +184,7 @@ Each `catalogDependencies` entry declares one catalog the catalog depends on (co
   "alias": "branding",
   "registry": "registry.gemeente-x.nl", "namespace": "huisstijl", "catalogKey": "branding",
   "releaseVersion": "1.4.2",
-  "releaseFingerprint": "v5:<fingerprint of that release>"
+  "releaseFingerprint": "v6:<fingerprint of that release>"
 }
 ```
 
@@ -200,8 +230,8 @@ dependencies/{registry}/{namespace}/{catalogKey}/{releaseVersion}.zip
 
 The manifest has no member for it: the declaration (`registry`, `namespace`, `catalogKey`,
 `releaseVersion`, `releaseFingerprint`) says where to look. So a release's `catalog.json` and its fingerprint are the
-same whether it is exported thin or with its dependencies; V5 covers the manifest and the resources,
-never `dependencies/`. `CatalogArchiveWriter` writes the releases in `CatalogArchive.dependencies`
+same whether it is exported thin or with its dependencies; the fingerprint covers content in the
+manifest and the resources, never `dependencies/`. `CatalogArchiveWriter` writes the releases in `CatalogArchive.dependencies`
 there and leaves `catalog.json` byte for byte as a thin export writes it.
 
 - **Flat and transitive.** Every release reachable through the pins, a carried release's own pins

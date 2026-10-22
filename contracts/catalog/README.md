@@ -38,7 +38,7 @@ versions catalogs as a whole:
   (`alias`, the catalog key rule, unique in the list, never the catalog's own key, and by default
   the depended-on catalog's own key), by its name (`registry`, `namespace` and `catalogKey`, which
   finds newer releases of it), and with the release it pins: `releaseFingerprint`, copied from that
-  release's `release.fingerprint` in the form that names the algorithm (`v5:<hex>`), so a copy
+  release's `release.fingerprint` in the form that names the algorithm (`v6:<hex>`), so a copy
   fetched from any registry or mirror can be checked, and `releaseVersion`, the number it had (the
   catalog renders with that release and was cut with it; a declaration names no range). Both are
   null only for a catalog migrated from wire v7.
@@ -49,6 +49,14 @@ versions catalogs as a whole:
   `catalogKey`. Every alias must be declared; a reference naming no alias, or the catalog's own
   key, is to the catalog itself. Moving a dependency to another release changes one declaration,
   and renaming or mirroring it changes no content (`CatalogAliases`, `CATALOG_ALIAS_PATTERN`).
+- A release is identified by its content: `release.fingerprint` is V6 (`v6:<hex>`), which covers
+  the resources, the content settings (`defaultTheme`, `presets`, `license`), the dependencies by
+  alias and pinned hash, and `schemaVersion` and `compatibility`, but not the catalog's name, the
+  release block, or its presentation (`name`, `description`, `keywords`, `presentation`,
+  `attributes`, `publisher`, `includes`). Presentation is information about the name: it can change
+  without a release, and the most recently received wins. The name, `release.version` and
+  `release.fingerprint` are the archive's binding of a name and number to a hash; see
+  [Canonicalization](docs/catalog-canonicalization.md) and [Archive format](docs/catalog-archive.md).
 - Stencils carry no version: `StencilResource.version` is gone, and a stencil node carries no
   `version` or `draftVersion`. A stencil resolves through its catalog's dependency.
 - A resource's public address is its `key`; an `id` is only ever a generated identifier that is

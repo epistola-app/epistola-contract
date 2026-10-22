@@ -41,18 +41,19 @@ ignores it when binding a stored v7 document.
   either Jackson 2 or the Suite's Jackson 3 runtime can inspect them. Public
   APIs do not expose an `ObjectMapper`.
 - The members wire v8 adds to a template (a data example's `key`, `description`, a variant's
-  `metadata`) are covered by V5 only. V1 to V4 canonicalize a resource as a v7 producer serialized
+  `metadata`) are covered by V5 and V6 only. V1 to V4 canonicalize a resource as a v7 producer serialized
   it, without them, so a key the v7-to-v8 migration derived moves no published fingerprint.
 - Existing V1 through V3 catalog fingerprints remain accepted when reading legacy v4/v5 input.
   V1 to V4 canonicalize the members wire v8 renamed under their old names, so the rename moves no
-  legacy fingerprint and only V5 names a resource's address `key`.
+  legacy fingerprint and only V5 and V6 name a resource's address `key`.
   v6 and v7 catalogs carry V4; a v6 fingerprint over keywords that the v7 migration rewrote, a
   v7 fingerprint over stencil versions that the v8 migration removed, and a v7 fingerprint over
   keys that the v8 migration padded or cut, still verify. V1 to V4 are computed over the source
   keys, restored from the archive's raw documents, for any catalog read before wire v8. v8 catalogs use
-  V5, written as `v5:<hex>` (`currentQualifiedFingerprint`); `currentFingerprint` still returns
-  the bare hex. The existing `fingerprint` API retains its V1 result and the
-  exact-version overload is additive.
+  V6, written as `v6:<hex>` (`currentQualifiedFingerprint`); `currentFingerprint` still returns
+  the bare hex. V5, which v8 used before V6 (contract ADR 0003, amendment of 2026-10-22), stays
+  verifiable with exactly the values it had: a pin or a base that names `v5` is checked with V5. The
+  existing `fingerprint` API retains its V1 result and the exact-version overload is additive.
 - The 1.0.1 `CatalogInfo(key, name, description)` construction shape remains source-compatible
   for positional callers; the first parameter is named `key` from wire v8.
   New discovery metadata is exposed through `create` and `copyWithMetadata`. Consumers must
@@ -159,7 +160,7 @@ Wire v8 also adds optional members, changed in place before v8 was released:
   namespaces, each at most 100 characters (`CatalogVariantMetadata`), and its metadata is at most
   8 KiB serialized (`CATALOG_VARIANT_METADATA_TOO_LARGE`, a limit the schema cannot state); other
   breaches are `CATALOG_VARIANT_METADATA_INVALID`. Empty metadata is omitted, never written as `{}`.
-  The metadata is part of the release content and V5 covers it, so like the rest of a release it is
+  The metadata is part of the release content and V5 and V6 cover it, so like the rest of a release it is
   fixed once the release is cut. In Kotlin it binds as `Map<String, Map<String, Any?>>`, the plain
   maps the model uses for other free-form JSON such as `dataModel`.
 - `ReleaseInfo.releaseId`: the release's id, by the API's `CatalogReleaseId` rule (lowercase
@@ -176,10 +177,10 @@ Wire v8 also adds optional members, changed in place before v8 was released:
   release.
 - `ReleaseInfo.base` (`ReleaseBase`): the release this one was made from, its draft's base, by
   identity only (ADR 0005, "The merge base travels with the release"): `version`, a release number,
-  and `fingerprint`, that release's catalog fingerprint in the qualified form (`v5:<hex>`, any known
-  algorithm), and nothing else. A receiver follows the lineage through it to the closest release a
-  draft and the merged release share; the merge needs that release installed and checks by the
-  fingerprint that the installed release of that number is the same one. A receiver keeps the base
+  and `fingerprint`, that release's content hash, its catalog fingerprint in the qualified form (`v6:<hex>` for a base made under V6, any known
+  algorithm), and nothing else. A receiver follows the lineage through it, by hash, to the closest
+  release a draft and the merged release share; the merge needs that release installed and finds it
+  by the fingerprint, whatever its number or name there. A receiver keeps the base
   as received. Absent for a first release, or when the producer does not know its base. Finding:
   `CATALOG_RELEASE_BASE_INVALID`, from the validator and the migrator's wire check.
 
