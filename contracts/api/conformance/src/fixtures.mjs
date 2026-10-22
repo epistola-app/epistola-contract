@@ -108,10 +108,10 @@ const ACTION_OPERATIONS = {
   'get-catalog-draft-merge-sides': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/merge-sides' },
   'merge-into-catalog-draft': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/merge' },
   'list-release-registries': { method: 'get', path: '/tenants/{tenantKey}/release-registries' },
-  'list-registry-releases': { method: 'get', path: '/tenants/{tenantKey}/release-registries/{name}/catalogs/{namespace}/{catalogKey}/releases' },
+  'list-registry-releases': { method: 'get', path: '/tenants/{tenantKey}/release-registries/{name}/catalogs/{registry}/{namespace}/{catalogKey}/releases' },
   'install-registry-release': {
     method: 'post',
-    path: '/tenants/{tenantKey}/release-registries/{name}/catalogs/{namespace}/{catalogKey}/releases/{version}/install',
+    path: '/tenants/{tenantKey}/release-registries/{name}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{version}/install',
   },
   'publish-release-to-registry': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/publish' },
   'install-catalog-release': {
