@@ -101,23 +101,34 @@ class CatalogReleaseVersionsTest {
     }
 
     /**
-     * The API reports a release by its plain number, so the core of the archive's rule is the API's
-     * `ReleaseVersion`; a patch release's label is the archive's alone until the API follows. The
-     * spec is read as text: this module has no YAML parser, and the schema is a flat block.
+     * The API names a release by the archive's own rule, patch releases included: `ReleaseVersion`
+     * is [CatalogReleaseVersions.PATTERN] with its length, and `CatalogReleaseRef` joins it with the
+     * release id rule. The spec is read as text: this module has no YAML parser, and each schema is a
+     * flat block.
      */
     @Test
-    fun `the rule's core is the API's ReleaseVersion`() {
+    fun `the rule is the API's ReleaseVersion`() {
         val spec = File("../api/components/schemas/identifiers.yaml")
         assertTrue(spec.isFile, "the API spec must be next to the catalog module: ${spec.absolutePath}")
-        val block = assertNotNull(
-            Regex("(?m)^ReleaseVersion:\\n((?:[ ]{2}.*\\n)+)").find(spec.readText()),
-            "ReleaseVersion is a top-level schema of the API's identifiers.yaml",
-        ).groupValues[1]
-        val pattern = assertNotNull(Regex("(?m)^ {2}pattern: '([^']+)'$").find(block)).groupValues[1]
-        val maxLength = assertNotNull(Regex("(?m)^ {2}maxLength: (\\d+)$").find(block)).groupValues[1].toInt()
+        fun schema(name: String): Pair<String, Int> {
+            val block = assertNotNull(
+                Regex("(?m)^$name:\\n((?:[ ]{2}.*\\n)+)").find(spec.readText()),
+                "$name is a top-level schema of the API's identifiers.yaml",
+            ).groupValues[1]
+            val pattern = assertNotNull(Regex("(?m)^ {2}pattern: '([^']+)'$").find(block)).groupValues[1]
+            val maxLength = assertNotNull(Regex("(?m)^ {2}maxLength: (\\d+)$").find(block)).groupValues[1].toInt()
+            return pattern to maxLength
+        }
 
-        assertEquals(CatalogReleaseVersions.CORE_PATTERN, pattern)
-        assertEquals(CatalogReleaseVersions.MAX_LENGTH, maxLength)
-        assertTrue(CatalogReleaseVersions.PATTERN.startsWith(CatalogReleaseVersions.CORE_PATTERN.removeSuffix("$")))
+        val (version, versionLength) = schema("ReleaseVersion")
+        assertEquals(CatalogReleaseVersions.PATTERN, version)
+        assertEquals(CatalogReleaseVersions.MAX_LENGTH, versionLength)
+
+        val (ref, refLength) = schema("CatalogReleaseRef")
+        val (releaseId, _) = schema("CatalogReleaseId")
+        assertEquals("^(${releaseId.removePrefix("^").removeSuffix("$")}|${version.removePrefix("^").removeSuffix("$")})$", ref)
+        assertEquals(CatalogReleaseVersions.MAX_LENGTH, refLength)
+        listOf("1.3.1-gemeente-x.1", "1.4.0", "k7m2x9qa").forEach { assertTrue(Regex(ref).matches(it), it) }
+        listOf("1.4.0-rc.1", "1.4.0+build.5", "1.4").forEach { assertFalse(Regex(ref).matches(it), it) }
     }
 }

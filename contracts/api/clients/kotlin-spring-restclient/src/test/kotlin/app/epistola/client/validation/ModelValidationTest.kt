@@ -37,7 +37,18 @@ class ModelValidationTest {
     fun `a dependency declaration pins an exact release`() {
         val pinned = CatalogDependencyRequirement(namespace = "epistola", catalogKey = "system", version = "1.3.0")
         assertEquals(pinned, pinned.validate())
-        for (release in listOf("^1.3.0", "1.x", "*", "01.3.0", "1.3.0-rc.1")) {
+        for (release in listOf("^1.3.0", "1.x", "*", "01.3.0", "1.3.0-rc.1", "1.3.0+build.5")) {
+            assertFailsWith<IllegalArgumentException>("Expected '$release' to fail") {
+                pinned.copy(version = release).validate()
+            }
+        }
+    }
+
+    @Test
+    fun `a patch release number is a release number`() {
+        val pinned = CatalogDependencyRequirement(namespace = "epistola", catalogKey = "system", version = "1.3.1-gemeente-x.1")
+        assertEquals(pinned, pinned.validate())
+        for (release in listOf("1.3.1-gemeente-x.0", "1.3.1-gemeente-x.01", "1.3.1-Gemeente-x.1", "1.3.1-gemeente-x")) {
             assertFailsWith<IllegalArgumentException>("Expected '$release' to fail") {
                 pinned.copy(version = release).validate()
             }

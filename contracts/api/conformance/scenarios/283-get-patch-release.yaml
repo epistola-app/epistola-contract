@@ -1,0 +1,59 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: get-patch-release
+title: A patch release is addressed and read by its number, label and all
+why: >
+  Someone who does not hold a catalog's namespace fixes a release of it as a patch release,
+  numbered `MAJOR.MINOR.PATCH-<namespace>.<N>`: a municipality fixing a supplier's `1.3.0` as
+  `1.3.1-gemeente-x.1` (contract ADR 0003, the catalog archive's rule). It is a `ReleaseVersion`
+  like any other, so a client sends it as the release in a path and reads it back from a body,
+  as a pinned dependency's version too, without refusing, stripping or reformatting the label.
+  A client that checked releases against the plain `MAJOR.MINOR.PATCH` rule would refuse to
+  address it at all.
+
+action:
+  name: get-catalog-release
+  config:
+    nodeId: conformance-node-1
+    tenantKey: gemeente-x
+    registry: exchange.epistola.app
+    namespace: acme-corp
+    catalogKey: letters
+    release: 1.3.1-gemeente-x.1
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      version: 1.3.1-gemeente-x.1
+      releaseId: p7r2w9xm
+      name: Fix the payment terms
+      status: released
+      base: 1.3.0
+      createdFrom: null
+      createdAt: "2026-10-20T09:00:00Z"
+      behind: []
+      releasedAt: "2026-10-21T12:00:00Z"
+      notes: The payment terms say 30 days.
+      fingerprint: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
+      dependencies:
+        - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: branding, version: 2.0.1-gemeente-x.3, direct: true }
+      deployedTo: [production]
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/gemeente-x/catalogs/exchange.epistola.app/acme-corp/letters/releases/1.3.1-gemeente-x.1
+  report:
+    version: 1.3.1-gemeente-x.1
+    releaseId: p7r2w9xm
+    name: Fix the payment terms
+    status: released
+    releasedAt: "2026-10-21T12:00:00Z"
+    fingerprint: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
+    dependencies: exchange.epistola.app/acme-corp/branding@2.0.1-gemeente-x.3
+    deployedTo: production
+    behind: ""

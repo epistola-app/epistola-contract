@@ -19,7 +19,8 @@ info:
       or **draft**, is editable and has no version; a **released** release is immutable and has a
       version. "Release `1.4.0`" means the released one.
     - **Version**: the number of a released release, its `version` (`1.4.0`), a SemVer core
-      version. A **version range**, `versionRange` (`^1.4.0`), selects the highest release that
+      version, or a patch release number (`1.3.1-gemeente-x.1`, see "Versions and version
+      ranges"). A **version range**, `versionRange` (`^1.4.0`), selects the highest release that
       satisfies it, for a request that renders; it never matches a draft.
     - **Releasing**: turning a draft into a released release, as a version. A release keeps its id,
       its `releaseId`, assigned by the server, and its name when it is released, so a draft released
@@ -171,7 +172,7 @@ info:
     - with **no `versionRange`**: the catalog's deployed draft if there is one, else the highest
       release the environment serves;
     - with a **range or an exact version**: the highest served release that satisfies it. A draft
-      never matches, as a SemVer pre-release does not.
+      never matches: it has no version.
 
     Rollback is undeploying the newer release. Deploying a draft replaces the draft the environment
     served for that catalog, and an environment marked **production** (`EnvironmentDto.production`)
@@ -182,14 +183,27 @@ info:
     ## Versions and version ranges
 
     A version (`ReleaseVersion`) is a SemVer core version, `MAJOR.MINOR.PATCH` without leading
-    zeros, at most 128 characters. Wherever the contract names one exact version it has that form, and
-    is called `version`; every member called `version` is one.
+    zeros, as the holder of the catalog's namespace issues it, or a **patch release** number,
+    `MAJOR.MINOR.PATCH-<namespace>.<N>`, at most 128 characters. Wherever the contract names one
+    exact version it has that form, and is called `version`; every member called `version` is one.
+
+    A patch release is how someone who does not hold a catalog's namespace fixes a release of it (a
+    municipality fixing a supplier's catalog): it is labelled with a namespace they hold, and
+    numbered from 1, `1.3.1-gemeente-x.1`. As a SemVer pre-release it sorts below its core and above
+    every release below that, `1.3.0` < `1.3.1-gemeente-x.1` < `1.3.1`, so the holder's next
+    release supersedes it, and the two never collide: the holder never uses a label, the patcher
+    never issues a plain number (contract ADR 0003). Which namespaces a tenant holds is the
+    installation's to know; the contract checks the shape. "Highest" always means by this order, a
+    patch release included.
 
     A request that selects a release to render or check (generation, preview, validation) takes a
     version range, `versionRange`, in the npm SemVer range grammar: an exact version (`1.4.0`), a caret
     (`^1.4.0`), a tilde (`~1.4.0`), comparators (`>=1.0.0 <2.0.0`), a hyphen range
     (`1.0.0 - 2.0.0`), or a `||` union of these. The highest release that satisfies it renders, and
-    responses name the exact release used.
+    responses name the exact release used. A range matches a patch release as npm matches a
+    pre-release: only when one of its comparators names a pre-release of the same
+    `MAJOR.MINOR.PATCH`, such as the exact number (`1.3.1-gemeente-x.1`) or
+    `>=1.3.1-gemeente-x.1 <1.4.0`; `^1.3.0` never selects one.
 
     ## Catalog dependencies
 

@@ -384,6 +384,23 @@ libraries.
 
 ### Changed
 
+- **Patch release numbers in the API** (contract ADR 0003, amendment of 2026-10-22; Epistola Suite
+  ADR 0034). `ReleaseVersion` is the catalog archive's release number rule,
+  `CatalogReleaseVersions.PATTERN`: `MAJOR.MINOR.PATCH`, or a patch release
+  `MAJOR.MINOR.PATCH-<namespace>.<N>` (`1.3.1-gemeente-x.1`), at most 128 characters, and
+  `CatalogReleaseRef` joins it with the release id rule, so every member called `version`, every
+  `{release}` and `{version}` path parameter and every query parameter that names a release accepts
+  a patch release. A patch release sorts below its core and above every release below that
+  (`1.3.0` < `1.3.1-gemeente-x.1` < `1.3.1`), "highest" means by that order, and a version range
+  matches one as npm matches a pre-release: only when a comparator names a pre-release of the same
+  `MAJOR.MINOR.PATCH` (`^1.3.0` never does). `releaseCatalogDraft` takes one only where the tenant
+  may issue it (a namespace it holds, for a catalog whose namespace it does not hold), else 400;
+  which namespaces it holds is the installation's to know. A client that stores or compares
+  versions must accept the label. `CatalogReleaseVersionsTest` now holds `ReleaseVersion` to
+  `PATTERN` and `CatalogReleaseRef` to the two rules joined. The clients' validation tests accept
+  patch numbers and refuse `-<label>.0`, a leading zero, an uppercase label and a label without a
+  number. Conformance: scenarios `get-patch-release` (a patch release in the path and in the body,
+  a pinned dependency's version too) and `release-catalog-draft-patch-release`.
 - **Catalog wire v8 (unreleased, changed in place): patch release numbers** (contract ADR 0003,
   amendment of 2026-10-22). A release number is `MAJOR.MINOR.PATCH`, as the holder of the catalog's
   namespace issues it, or `MAJOR.MINOR.PATCH-<namespace>.<N>` for a patch release by someone who
@@ -398,9 +415,8 @@ libraries.
   `patchNamespace`; npm gains `CATALOG_RELEASE_VERSION_CORE_PATTERN`. The format checks the shape
   only: who holds a namespace is the installation's and the registry's to know. A consumer that
   stores or reports release numbers must accept the label. The v7-to-v8 migration still refuses a v7
-  pre-release (`1.0.0-beta.1`) rather than reading it as a patch release. The API's `ReleaseVersion`
-  stays the plain rule (a test now holds it to `CORE_PATTERN`), so the API cannot yet report a patch
-  release: an API follow-up.
+  pre-release (`1.0.0-beta.1`) rather than reading it as a patch release. The API follows (see the
+  entry on patch release numbers in the API).
 - **BREAKING (catalog wire v8, unreleased, changed in place): a release is identified by its
   content, a V6 fingerprint** (contract ADR 0003, amendment of 2026-10-22; Epistola Suite ADR 0034).
   `CatalogFingerprintVersion.V6` is the current algorithm (`currentFingerprint`,

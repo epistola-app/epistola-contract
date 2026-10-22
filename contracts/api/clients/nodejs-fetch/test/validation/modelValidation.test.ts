@@ -53,6 +53,14 @@ test('a dependency declaration pins an exact release, checked through the Releas
   validateModel('CatalogDependencyRequirement', { namespace: 'acme-corp', catalogKey: 'branding', releaseId: 'r4t8w2nc' })
 })
 
+test('a patch release number is a release number, labelled with a namespace and a sequence number from 1', () => {
+  validateModel('CatalogDependencyRequirement', { namespace: 'epistola', catalogKey: 'system', version: '1.3.1-gemeente-x.1' })
+  validateModel('ReleaseCatalogDraftRequest', { version: '2.0.0-redesign-2027.12' })
+  for (const release of ['1.3.1-gemeente-x.0', '1.3.1-gemeente-x.01', '1.3.1-Gemeente-x.1', '1.3.1-gemeente-x', '1.3.1+build.5']) {
+    assert.throws(() => validateModel('ReleaseCatalogDraftRequest', { version: release }), /version: must match pattern/, release)
+  }
+})
+
 test('an attribute criterion names its attribute by resource key, never dotted', () => {
   validateModel('VariantSelectionAttribute', { key: 'locale', value: 'nl-NL', catalogKey: 'system', namespace: 'epistola' })
   validateModel('VariantSelectionAttribute', { key: '2026-campaign', value: 'spring' })

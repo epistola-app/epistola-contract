@@ -247,8 +247,9 @@ environment-deployment-release:
       - when it names **no `versionRange`**: the catalog's deployed draft if there is one, else the
         highest release the environment serves;
       - when it names a **range or an exact version**: the highest served release that satisfies
-        it. A draft never matches a range or a version, as a SemVer pre-release does not, so a
-        breaking draft based on `1.2.0` is never served to `^1.2.0`.
+        it. A draft never matches a range or a version, as it has no version, so a breaking draft
+        based on `1.2.0` is never served to `^1.2.0`. A patch release matches as a SemVer
+        pre-release does (see "Versions and version ranges").
 
       So deploying a higher release moves such requests to it, and undeploying it moves them back:
       rollback is undeploying the newer release, and holding one back is not deploying it. Requests

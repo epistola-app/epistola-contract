@@ -203,16 +203,17 @@ class ModelValidationTest {
     }
 
     @Test
-    void a_release_number_is_a_plain_semver_number() {
-        for (String version : List.of("0.1.0", "1.4.0", "10.20.30")) {
+    void a_release_number_is_a_semver_core_number_or_a_patch_release() {
+        for (String version : List.of("0.1.0", "1.4.0", "10.20.30", "1.3.1-gemeente-x.1", "2.0.0-redesign-2027.12")) {
             ReleaseCatalogDraftRequest request = new ReleaseCatalogDraftRequest().version(version);
             assertSame(request, ModelValidation.validate(request), "expected '" + version + "' to be valid");
         }
         // Omitted, the server numbers the release from its changes.
         ModelValidation.validate(new ReleaseCatalogDraftRequest());
 
-        for (String version :
-                List.of("1.4", "v1.4.0", "01.4.0", "1.4.0-rc.1", "2.0.0-redesign-2027.1", "1.4.0+build", "^1.4.0", "next")) {
+        for (String version : List.of(
+                "1.4", "v1.4.0", "01.4.0", "1.4.0-rc.1", "1.3.1-gemeente-x.0", "1.3.1-gemeente-x.01",
+                "1.3.1-Gemeente-x.1", "1.3.1-gemeente-x", "1.4.0+build", "^1.4.0", "next")) {
             assertThrows(
                     IllegalArgumentException.class,
                     () -> ModelValidation.validate(new ReleaseCatalogDraftRequest().version(version)),
