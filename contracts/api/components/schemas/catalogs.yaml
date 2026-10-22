@@ -88,6 +88,14 @@ CatalogDto:
         `v6:` and lowercase SHA-256 hex for a release made under V6, which covers content only.
         Null when the catalog has no release.
       example: v6:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
+    contentHash:
+      oneOf:
+        - $ref: './identifiers.yaml#/ContentHash'
+        - type: 'null'
+      description: |
+        The content hash of the highest release (`ContentHash`, as `CatalogReleaseDto.contentHash`).
+        Null when the catalog has no release, or the server has none for it (see there).
+      example: v6:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
 
 CatalogListResponse:
   type: object
@@ -308,6 +316,16 @@ ReleaseDependencyDto:
     version:
       $ref: './identifiers.yaml#/ReleaseVersion'
       description: The version of the release of the catalog the release renders with
+    contentHash:
+      oneOf:
+        - $ref: './identifiers.yaml#/ContentHash'
+        - type: 'null'
+      description: |
+        The content hash of that release, which the pin names it by (`releaseFingerprint` in the
+        release's catalog archive): the release renders with exactly this content, whatever the
+        number is called elsewhere. Null when the server has no content hash for it (see
+        `CatalogReleaseDto.contentHash`).
+      example: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
     direct:
       type: boolean
       description: True when the release's own resources reference the catalog; false when only reached through another dependency
@@ -487,6 +505,16 @@ CatalogDependencyDto:
         `CatalogReleaseId`), as declared. Null when the declaration pins a released release, and
         always once this release is released: a released release never pins a draft.
       example: null
+    contentHash:
+      oneOf:
+        - $ref: './identifiers.yaml#/ContentHash'
+        - type: 'null'
+      description: |
+        The content hash of the release the declaration pins, the pin itself
+        (`releaseFingerprint` in the release's catalog archive): `version` is its number for
+        people. Null when the declaration names a draft or pins no release, and when the server
+        has no content hash for the pinned release (see `CatalogReleaseDto.contentHash`).
+      example: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
 
 CatalogDependencyListResponse:
   type: object
@@ -632,6 +660,23 @@ CatalogReleaseDto:
         (`v6:` and lowercase SHA-256 hex for a release made under V6, which covers content only, not
         the catalog's name or presentation), the same value as `release.fingerprint` in the
         release's catalog archive. Null for a draft.
+      example: null
+    contentHash:
+      oneOf:
+        - $ref: './identifiers.yaml#/ContentHash'
+        - type: 'null'
+      description: |
+        The release's content hash (`ContentHash`), which identifies it whatever its number: the
+        same as `fingerprint` for a release made under V6, and computed from the release's content
+        for one recorded with an earlier algorithm. `listCatalogReleases?contentHash=` finds the
+        releases with it. Once set it never changes. Null:
+
+        - for a draft, whose content is still changing; it gets one when it is released;
+        - for a release recorded before the server computed content hashes, until the server has
+          computed it from the content it retained (a server may do so in the background, or when
+          the release is first used);
+        - for such a release whose retained content no longer reproduces its recorded
+          `fingerprint`, which the server cannot vouch for a content hash of.
       example: null
     dependencies:
       type: array
@@ -939,7 +984,10 @@ ReleaseCatalogDraftResponse:
       description: The release, now released, with the same `releaseId` and name it had as a draft
     unchangedContent:
       type: boolean
-      description: True when the release content matches a previous release fingerprint.
+      description: |
+        True when the released content is that of a release the catalog has already: its
+        `contentHash` is another release's (a draft whose changes restore an earlier release's
+        content, for one), so the two numbers name one release's content.
       example: false
     draftsBehind:
       type: array
@@ -1307,6 +1355,16 @@ CatalogMergeBaseRef:
     fingerprint:
       $ref: './identifiers.yaml#/Fingerprint'
       description: The release's catalog fingerprint, in the form that names its algorithm
+    contentHash:
+      oneOf:
+        - $ref: './identifiers.yaml#/ContentHash'
+        - type: 'null'
+      description: |
+        The release's content hash, by which a receiver finds it whatever its number (lineage is
+        by hash, contract ADR 0003): `fingerprint` itself when that is a V6 one. Null or absent
+        when it is not known: a release recorded with an earlier algorithm whose content hash was
+        not computed.
+      example: null
 
 MergeIntoCatalogDraftRequest:
   type: object

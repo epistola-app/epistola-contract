@@ -64,6 +64,7 @@ import app.epistola.client.jakarta.model.Node;
 import app.epistola.client.jakarta.model.PartitionAssignment;
 import app.epistola.client.jakarta.model.PingRequest;
 import app.epistola.client.jakarta.model.PublishReleaseToRegistryRequest;
+import app.epistola.client.jakarta.model.RegistryReleaseDto;
 import app.epistola.client.jakarta.model.RegistryReleaseListResponse;
 import app.epistola.client.jakarta.model.ReleasePublicationDto;
 import app.epistola.client.jakarta.model.ReleaseRegistryListResponse;
@@ -780,7 +781,8 @@ public final class Driver {
                         "namespaces", joined(items, CatalogDependencyDto::getNamespace),
                         "catalogKeys", joined(items, CatalogDependencyDto::getCatalogKey),
                         "versions", joined(items, CatalogDependencyDto::getVersion),
-                        "releaseIds", joined(items, dependency -> String.valueOf(dependency.getReleaseId())));
+                        "releaseIds", joined(items, dependency -> String.valueOf(dependency.getReleaseId())),
+                        "contentHashes", joined(items, CatalogDependencyDto::getContentHash));
     }
 
     private static void createCatalogRelease(String baseUrl, JsonObject config) {
@@ -819,6 +821,7 @@ public final class Driver {
                         config.getString("namespace"),
                         config.getString("catalogKey"),
                         status == null ? null : CatalogReleaseStatus.fromValue(status),
+                        optional(config, "contentHash"),
                         null,
                         null)
                 .getItems();
@@ -834,7 +837,8 @@ public final class Driver {
                         "statuses", joined(releases, release -> String.valueOf(release.getStatus())),
                         "bases", joined(releases, CatalogReleaseDto::getBase),
                         "createdFrom", joined(releases, release -> String.valueOf(release.getCreatedFrom())),
-                        "behindCounts", joined(releases, release -> String.valueOf(behind(release).size()))));
+                        "behindCounts", joined(releases, release -> String.valueOf(behind(release).size())),
+                        "contentHashes", joined(releases, CatalogReleaseDto::getContentHash)));
     }
 
     private static void getCatalogRelease(String baseUrl, JsonObject config) {
@@ -859,6 +863,7 @@ public final class Driver {
                         Map.entry(
                                 "fingerprint",
                                 release.getFingerprint() == null ? "null" : release.getFingerprint()),
+                        Map.entry("contentHash", String.valueOf(release.getContentHash())),
                         Map.entry(
                                 "dependencies",
                                 joined(
@@ -867,6 +872,7 @@ public final class Driver {
                                                 + dependency.getCatalogKey() + "@"
                                                 + dependency.getVersion())),
                         Map.entry("dependencyAliases", joined(dependencies, ReleaseDependencyDto::getAlias)),
+                        Map.entry("dependencyContentHashes", joined(dependencies, ReleaseDependencyDto::getContentHash)),
                         Map.entry(
                                 "deployedTo",
                                 release.getDeployedTo() == null ? "null" : String.join(",", release.getDeployedTo())),
@@ -1039,6 +1045,8 @@ public final class Driver {
                         "version", String.valueOf(response.getRelease().getVersion()),
                         "status", String.valueOf(response.getRelease().getStatus()),
                         "releaseId", String.valueOf(response.getRelease().getReleaseId()),
+                        "contentHash", String.valueOf(response.getRelease().getContentHash()),
+                        "unchangedContent", String.valueOf(response.getUnchangedContent()),
                         "draftsBehind", String.join("|", draftsBehind),
                         "releasedDependencies",
                                 joined(
@@ -1064,33 +1072,42 @@ public final class Driver {
                 preview.getResources() == null ? List.of() : preview.getResources();
         report(
                 baseUrl,
-                Map.of(
-                        "draft", String.valueOf(preview.getDraft()),
-                        "base", String.valueOf(preview.getBase()),
-                        "release", String.valueOf(preview.getRelease()),
-                        "alreadyMerged", String.valueOf(preview.getAlreadyMerged()),
-                        "resources",
+                Map.ofEntries(
+                        Map.entry("draft", String.valueOf(preview.getDraft())),
+                        Map.entry("base", String.valueOf(preview.getBase())),
+                        Map.entry("release", String.valueOf(preview.getRelease())),
+                        Map.entry("alreadyMerged", String.valueOf(preview.getAlreadyMerged())),
+                        Map.entry(
+                                "resources",
                                 joined(
                                         resources,
                                         r -> r.getResourceType() + "/" + r.getResourceKey() + ":" + r.getOutcome()
-                                                + ":" + r.getDraftChange() + ":" + r.getReleaseChange()),
-                        "resourceNames",
+                                                + ":" + r.getDraftChange() + ":" + r.getReleaseChange())),
+                        Map.entry(
+                                "resourceNames",
                                 resources.stream()
                                         .map(r -> String.valueOf(r.getName()))
-                                        .collect(Collectors.joining("|")),
-                        "resourceNeeds",
+                                        .collect(Collectors.joining("|"))),
+                        Map.entry(
+                                "resourceNeeds",
                                 resources.stream()
                                         .filter(r -> r.getNeeds() != null && !r.getNeeds().isEmpty())
                                         .map(r -> r.getResourceType() + "/" + r.getResourceKey() + "="
                                                 + String.join("+", r.getNeeds()))
-                                        .collect(Collectors.joining(";")),
-                        "unchanged", String.valueOf(preview.getUnchanged()),
-                        "token", String.valueOf(preview.getToken()),
-                        "missingBase",
+                                        .collect(Collectors.joining(";"))),
+                        Map.entry("unchanged", String.valueOf(preview.getUnchanged())),
+                        Map.entry("token", String.valueOf(preview.getToken())),
+                        Map.entry(
+                                "missingBase",
                                 preview.getMissingBase() == null
                                         ? "null"
                                         : preview.getMissingBase().getVersion() + "@"
-                                                + preview.getMissingBase().getFingerprint()));
+                                                + preview.getMissingBase().getFingerprint()),
+                        Map.entry(
+                                "missingBaseContentHash",
+                                preview.getMissingBase() == null
+                                        ? "null"
+                                        : String.valueOf(preview.getMissingBase().getContentHash()))));
     }
 
     /**
@@ -1167,7 +1184,10 @@ public final class Driver {
                                         r -> r.getVersion() + ":" + r.getFingerprint() + ":" + r.getReleaseId() + ":"
                                                 + (r.getBase() == null
                                                         ? "null"
-                                                        : r.getBase().getVersion() + "@" + r.getBase().getFingerprint()))));
+                                                        : r.getBase().getVersion() + "@" + r.getBase().getFingerprint())),
+                        "contentHashes", joined(releases.getItems(), RegistryReleaseDto::getContentHash),
+                        "baseContentHashes",
+                                joined(releases.getItems(), r -> r.getBase() == null ? null : r.getBase().getContentHash())));
     }
 
     /** Installs a release from a release registry (alpha). A refusal is reported by its problem. */

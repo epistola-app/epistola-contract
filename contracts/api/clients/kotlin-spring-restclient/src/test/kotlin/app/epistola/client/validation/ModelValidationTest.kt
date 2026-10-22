@@ -482,6 +482,26 @@ class ModelValidationTest {
         assertFailsWith<IllegalArgumentException> { version.copy(fingerprint = "v0:$hex").validate() }
     }
 
+    @Test
+    fun `a content hash is a V6 fingerprint`() {
+        val hex = "0123456789abcdef".repeat(4)
+        val release = CatalogReleaseDto(
+            version = "1.0.0",
+            releaseId = "v1x9q2",
+            status = CatalogReleaseStatus.released,
+            behind = emptyList(),
+            dependencies = emptyList(),
+            deployedTo = emptyList(),
+            fingerprint = "v5:$hex",
+            contentHash = "v6:$hex",
+        )
+        assertEquals(release, release.validate())
+        for (contentHash in listOf(hex, "v5:$hex", "v7:$hex", "v6:${hex.uppercase()}", "v6:${hex.drop(1)}")) {
+            val ex = assertFailsWith<IllegalArgumentException>("Expected '$contentHash' to fail") { release.copy(contentHash = contentHash).validate() }
+            assertEquals(true, ex.message?.startsWith("contentHash: must match pattern"))
+        }
+    }
+
     // --- DocumentDto: many slug fields + integer range in one DTO ---
 
     @Test

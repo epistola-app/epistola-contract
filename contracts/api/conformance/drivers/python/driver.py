@@ -601,6 +601,7 @@ def _report_dependencies(base_url: str, dependencies, extra: dict | None = None)
             # A declaration that pins no release (migrated from wire v7) reports ``null``.
             "versions": ",".join(_show(d.version) for d in dependencies),
             "releaseIds": ",".join(_show(d.release_id) for d in dependencies),
+            "contentHashes": ",".join(_show(d.content_hash) for d in dependencies),
         },
     )
 
@@ -637,7 +638,8 @@ def _create_catalog_release(base_url: str, config: dict) -> None:
 
 
 def _list_catalog_releases(base_url: str, config: dict) -> None:
-    optional = {"status": config["status"]} if "status" in config else {}
+    # Each filter only when the scenario names it: an absent one stays off the query.
+    optional = {arg: config[name] for name, arg in (("status", "status"), ("contentHash", "content_hash")) if name in config}
     releases = (
         CatalogsApi(_client(base_url, config))
         .list_catalog_releases(
@@ -655,6 +657,7 @@ def _list_catalog_releases(base_url: str, config: dict) -> None:
             "bases": ",".join(_show(v.base) for v in releases),
             "createdFrom": ",".join(_show(v.created_from) for v in releases),
             "behindCounts": ",".join(str(len(v.behind)) for v in releases),
+            "contentHashes": ",".join(_show(v.content_hash) for v in releases),
         },
     )
 
@@ -672,11 +675,13 @@ def _get_catalog_release(base_url: str, config: dict) -> None:
             "status": _show(_enum(release.status)),
             "releasedAt": _show_instant(release.released_at),
             "fingerprint": _show(release.fingerprint),
+            "contentHash": _show(release.content_hash),
             "dependencies": ",".join(
                 f"{_show(d.registry)}/{_show(d.namespace)}/{_show(d.catalog_key)}@{_show(d.version)}"
                 for d in release.dependencies
             ),
             "dependencyAliases": ",".join(_show(d.alias) for d in release.dependencies),
+            "dependencyContentHashes": ",".join(_show(d.content_hash) for d in release.dependencies),
             "deployedTo": ",".join(release.deployed_to),
             "behind": ";".join(
                 f"{_show(b.version)}="
@@ -803,6 +808,8 @@ def _release_catalog_draft(base_url: str, config: dict) -> None:
             "version": _show(response.release.version),
             "status": _show(_enum(response.release.status)),
             "releaseId": _show(response.release.release_id),
+            "contentHash": _show(response.release.content_hash),
+            "unchangedContent": _show_bool(response.unchanged_content),
             "draftsBehind": "|".join(response.drafts_behind),
             "releasedDependencies": ",".join(
                 f"{_show(d.registry)}/{_show(d.namespace)}/{_show(d.catalog_key)}@{_show(d.version)}"
@@ -844,6 +851,7 @@ def _preview_catalog_draft_merge(base_url: str, config: dict) -> None:
                 if preview.missing_base is not None
                 else "null"
             ),
+            "missingBaseContentHash": _show(None if preview.missing_base is None else preview.missing_base.content_hash),
         },
     )
 
@@ -912,6 +920,8 @@ def _list_registry_releases(base_url: str, config: dict) -> None:
             "namespace": _show(releases.namespace),
             "catalogKey": _show(releases.catalog_key),
             "releases": ",".join(entry(r) for r in releases.items),
+            "contentHashes": ",".join(_show(r.content_hash) for r in releases.items),
+            "baseContentHashes": ",".join(_show(None if r.base is None else r.base.content_hash) for r in releases.items),
         },
     )
 

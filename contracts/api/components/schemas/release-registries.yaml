@@ -63,6 +63,16 @@ RegistryReleaseDto:
         - $ref: './identifiers.yaml#/Fingerprint'
         - type: 'null'
       description: The catalog fingerprint the registry records for it; null when it records none
+    contentHash:
+      oneOf:
+        - $ref: './identifiers.yaml#/ContentHash'
+        - type: 'null'
+      description: |
+        The content hash the registry records for it, a label like the rest: installing the
+        release recomputes it from the release's content. Absent or null when the registry
+        records none, such as for a release published before content hashes; `fingerprint` then
+        still names it.
+      example: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
     releaseId:
       oneOf:
         - $ref: './identifiers.yaml#/CatalogReleaseId'

@@ -374,6 +374,13 @@ catalog-releases:
       releases, highest version first, each with its `status`. This is the only place a catalog's
       drafts are listed; `?status=draft` gives only the drafts. Releases received from elsewhere
       (imported, or installed from the catalog's source) are listed like those released here.
+
+      **Finding a release by its content**: `?contentHash=` gives the releases whose content hash
+      it is (`CatalogReleaseDto.contentHash`), highest version first: every number in the catalog
+      that names that content, since several can (a release whose changes restore an earlier one's
+      content, or one received again under another number), and an empty list when none does,
+      never 404. A draft has no content hash and is never listed by it, and neither is a release
+      the server has none for yet. The filter combines with `status` and paging.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_VIEW]
@@ -384,6 +391,15 @@ catalog-releases:
         description: Only releases with this status. Omitted, every release.
         schema:
           $ref: '../components/schemas/catalogs.yaml#/CatalogReleaseStatus'
+      - name: contentHash
+        in: query
+        required: false
+        description: |
+          Only the releases with this content hash (`ContentHash`, `v6:` and 64 lowercase hex
+          digits); anything else is refused with 400. Omitted, every release.
+        schema:
+          $ref: '../components/schemas/identifiers.yaml#/ContentHash'
+        example: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
     responses:

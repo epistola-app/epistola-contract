@@ -237,4 +237,28 @@ public class ModelValidationTest
         var ex = Assert.Throws<ArgumentException>(() => CatalogWithFingerprint(fingerprint).Validate());
         Assert.Contains("fingerprint", ex.Message);
     }
+
+    private static CatalogDto CatalogWithContentHash(string contentHash) => new(
+        registry: "exchange.epistola.app", @namespace: "acme-corp", catalogKey: "letters", name: "Letters",
+        editable: true, source: "exchange:acme-corp/letters", fingerprint: "v5:" + new string('a', 64), contentHash: contentHash);
+
+    // A content hash is the V6 fingerprint: v6:<64 lowercase hex>, whatever algorithm the fingerprint names.
+    [Fact]
+    public void ContentHashAcceptsAV6Digest()
+    {
+        var catalog = CatalogWithContentHash("v6:" + new string('a', 64));
+        Assert.Same(catalog, catalog.Validate());
+    }
+
+    [Theory]
+    [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("v5:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("v7:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("v6:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")]
+    [InlineData("v6:aaaa")]
+    public void ContentHashRejectsAnythingButAV6Digest(string contentHash)
+    {
+        var ex = Assert.Throws<ArgumentException>(() => CatalogWithContentHash(contentHash).Validate());
+        Assert.Contains("contentHash", ex.Message);
+    }
 }

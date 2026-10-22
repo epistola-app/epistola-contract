@@ -69,6 +69,16 @@ test('a patch release number is a release number, labelled with a namespace and 
   }
 })
 
+test('a content hash is a V6 fingerprint, whatever algorithm the recorded fingerprint names', () => {
+  const hex = '0123456789abcdef'.repeat(4)
+  const release = { version: '1.0.0', releaseId: 'v1x9q2', status: 'released', behind: [], dependencies: [], deployedTo: [], fingerprint: `v5:${hex}` }
+  validateModel('CatalogReleaseDto', { ...release, contentHash: `v6:${hex}` })
+  validateModel('CatalogReleaseDto', { ...release, contentHash: null })
+  for (const contentHash of [hex, `v5:${hex}`, `v7:${hex}`, `v6:${hex.toUpperCase()}`, `v6:${hex.slice(1)}`]) {
+    assert.throws(() => validateModel('CatalogReleaseDto', { ...release, contentHash }), /contentHash: must match pattern/, contentHash)
+  }
+})
+
 test('an attribute criterion names its attribute by resource key, never dotted', () => {
   validateModel('VariantSelectionAttribute', { key: 'locale', value: 'nl-NL', catalogKey: 'system' })
   // catalogKey is an alias, under the catalog key rule.

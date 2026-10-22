@@ -178,6 +178,22 @@ Fingerprint:
     hex SHA-256.
   example: v6:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
 
+ContentHash:
+  type: string
+  pattern: '^v6:[0-9a-f]{64}$'
+  description: |
+    The content hash of a release: its V6 catalog fingerprint (`v6:` and the lowercase hex
+    SHA-256), which covers the release's content and nothing else, not its catalog's name, its
+    number, its release metadata or the catalog's presentation (portable catalog wire v8, contract
+    ADR 0003). It identifies the release: two releases with the same content hash are the same
+    release, whatever they are called and wherever they come from, and a release fetched by it
+    verifies itself. Several numbers can name one content hash: in one catalog (a release whose
+    changes restore an earlier one's content, or one received again under another number with
+    only its notes changed), and across names (a mirror, a renamed catalog). For a
+    release made under V6 it equals the recorded `fingerprint`; for one recorded with an earlier
+    algorithm (`v5:`) it is computed from the release's content.
+  example: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
+
 ReleaseRegistryName:
   type: string
   pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
