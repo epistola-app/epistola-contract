@@ -55,9 +55,10 @@ versions catalogs as a whole:
   format checks the shape, not who holds a namespace.
 - A release is identified by its content: `release.fingerprint` is V6 (`v6:<hex>`), which covers
   the resources, the content settings (`defaultTheme`, `presets`, `license`), the dependencies by
-  alias and pinned hash, and `schemaVersion` and `compatibility`, but not the catalog's name, the
-  release block, or its presentation (`name`, `description`, `keywords`, `presentation`,
-  `attributes`, `publisher`, `includes`). Presentation is information about the name: it can change
+  alias and pinned hash, and `compatibility`, but not the catalog's name, the release block, its
+  presentation (`name`, `description`, `keywords`, `presentation`, `attributes`, `publisher`,
+  `includes`), or the wire version (`schemaVersion`), so a wire version that only re-encodes content
+  keeps every V6 value. Presentation is information about the name: it can change
   without a release, and the most recently received wins. The name, `release.version` and
   `release.fingerprint` are the archive's binding of a name and number to a hash; see
   [Canonicalization](docs/catalog-canonicalization.md) and [Archive format](docs/catalog-archive.md).

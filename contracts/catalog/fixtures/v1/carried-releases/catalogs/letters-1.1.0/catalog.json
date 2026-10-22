@@ -11,7 +11,7 @@
   },
   "release": {
     "version": "1.1.0",
-    "fingerprint": "v6:4e2183190fd166f3df6336cf6333619dadc228101e27e14b0d7b74774426bc8a"
+    "fingerprint": "v6:dfa0c223c54a39c3344200a0fe5ef729946dca870ab08eb1ba109b6fa1c2991a"
   },
   "resources": [
     {
@@ -29,7 +29,7 @@
       "namespace": "acme",
       "catalogKey": "shared",
       "releaseVersion": "1.1.0",
-      "releaseFingerprint": "v6:b9d89327c38abc17c0c0d8f2b0c195ee9ec6da285b95ee6c16f52a647d25ca4c"
+      "releaseFingerprint": "v6:98f8f966a33cfe16f17ff7bf459f27ba87bea41188c04f4e3caf7b7554805945"
     },
     {
       "alias": "base",
@@ -37,7 +37,7 @@
       "namespace": "acme",
       "catalogKey": "base",
       "releaseVersion": "1.0.0",
-      "releaseFingerprint": "v6:459c44cc8320c6bbd6c9c47291c6259c48de7204749f7c802042ec2c32adebb0"
+      "releaseFingerprint": "v6:28138c6fbc445189ea0bfd6434ce17d260d993d87abf719a3b175b59eac02ddd"
     }
   ]
 }

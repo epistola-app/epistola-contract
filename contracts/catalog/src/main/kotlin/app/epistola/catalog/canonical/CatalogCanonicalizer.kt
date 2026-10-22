@@ -83,12 +83,14 @@ data class QualifiedCatalogFingerprint(
  * its **content**, so V6 covers what the release renders with and nothing that names or presents it.
  * It covers every resource as V5 does (references to other catalogs name an alias), the resource
  * index, the catalog's content settings (`defaultTheme`, `presets`, `license`), the resource
- * dependencies by alias, the catalog dependencies as alias to pinned release fingerprint, and the
- * wire version and `compatibility` the content is to be read with. It does not cover the catalog's
- * own name (registry, namespace, key), the release block, or the catalog's presentation (display
- * `name`, `description`, `keywords`, `presentation`, `attributes`, `publisher`, `includes`): two
- * catalogs that differ only there have the same V6 fingerprint, so the same release under another
- * name, from any registry, mirror or file, verifies as itself.
+ * dependencies by alias, the catalog dependencies as alias to pinned release fingerprint, and
+ * `compatibility` (the Epistola versions the content needs). It does not cover the catalog's own
+ * name (registry, namespace, key), the release block, the catalog's presentation (display `name`,
+ * `description`, `keywords`, `presentation`, `attributes`, `publisher`, `includes`), or the wire
+ * version (`schemaVersion`): two catalogs that differ only there have the same V6 fingerprint, so
+ * the same release under another name, from any registry, mirror or file, verifies as itself. The
+ * algorithm itself, its domain prefix and canonical form, fixes how content is encoded, so a later
+ * wire version that only re-encodes the same content keeps every release's V6 value.
  *
  * V5 and V6 name a resource's address `key`, as wire v8 does. V1 to V4
  * canonicalize the members catalog v8 renamed ([CatalogKeyRenames]) under their old names (`slug`,
@@ -435,7 +437,7 @@ object CatalogCanonicalizer {
      * it; its references to other catalogs name an alias. The manifest contributes, under its own
      * domain prefix:
      *
-     * - `schemaVersion` and `compatibility`: what the content is to be read with;
+     * - `compatibility`: the Epistola versions the content needs;
      * - the catalog's content settings: `defaultTheme` (key and alias), `presets` (sorted by key) and
      *   `license`;
      * - the resource index (`resources`: type, key, name, description, as V5);
@@ -448,7 +450,8 @@ object CatalogCanonicalizer {
      * The catalog's own registry, namespace and key, the release block, and the catalog's
      * presentation -- `name`, `description`, `keywords`, `presentation`, `attributes`, `publisher`,
      * `includes` -- are left out: they are information about the name, which may change without a
-     * release.
+     * release. So is `schemaVersion`: the hash identifies the release across wire versions, and this
+     * canonical form, under its domain prefix, already fixes how the content is encoded.
      */
     private fun canonicalV6(
         catalog: CatalogArchive,
@@ -463,7 +466,6 @@ object CatalogCanonicalizer {
         val manifest = catalog.manifest
         val info = manifest.catalog
         val canonical = linkedMapOf<String, Any?>(
-            "schemaVersion" to manifest.schemaVersion,
             "compatibility" to manifest.compatibility?.let { linkedMapOf("epistolaVersions" to it.epistolaVersions) },
             "catalog" to linkedMapOf(
                 "defaultTheme" to info.defaultTheme?.let { linkedMapOf("key" to it.key, "catalogKey" to it.catalogKey) },

@@ -399,8 +399,10 @@ had no number of its own to use, and "registry" read as a location.
   **V6** fingerprint (`v6:<hex>`, the current algorithm, required of a wire-v8 `release.fingerprint`).
   V6 covers every resource, the resource index, the content settings (`defaultTheme`, `presets`,
   `license`), the resource dependencies by alias, each catalog dependency as its alias and pinned
-  hash, and `schemaVersion` and `compatibility`. It does not cover the catalog's own name, the
-  release block (number, release id, metadata, base, release time) or the catalog's presentation.
+  hash, and `compatibility` (the Epistola versions the content needs). It does not cover the
+  catalog's own name, the release block (number, release id, metadata, base, release time), the
+  catalog's presentation, or the wire version (`schemaVersion`): the algorithm's canonical form
+  fixes the encoding, so a wire version that only re-encodes content keeps every V6 value.
   Two releases with the same V6 fingerprint are the same release wherever they come from, and a
   release fetched by its hash from any registry, mirror or file verifies itself. V1 to V5 stay
   verifiable exactly as they were, with the algorithm a fingerprint names.

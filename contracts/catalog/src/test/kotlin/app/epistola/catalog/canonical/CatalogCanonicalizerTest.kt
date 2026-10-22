@@ -116,7 +116,23 @@ class CatalogCanonicalizerTest {
     }
 
     @Test
-    fun `v6 covers every resource, the content settings, the pins by alias, the resource index and the wire version`() {
+    fun `v6 identifies a release across wire versions, so the same content under another schemaVersion has the same v6`() {
+        val expected = resource("fingerprints.json").use(mapper::readTree)
+        val v8 = wireV8Archive()
+        val golden = goldenArchive()
+        fun stated(catalog: CatalogArchive, schemaVersion: Int) = catalog.copyWithManifest(catalog.manifest.copy(schemaVersion = schemaVersion))
+
+        listOf(4, 7, 9, 12).forEach { schemaVersion ->
+            assertEquals(expected["wireV8CatalogFingerprints"]["V6"].asString(), CatalogCanonicalizer.currentFingerprint(stated(v8, schemaVersion)).value, "$schemaVersion")
+            assertEquals(expected["catalogFingerprints"]["V6"].asString(), CatalogCanonicalizer.currentFingerprint(stated(golden, schemaVersion)).value, "$schemaVersion")
+            // V5 never covered the wire version either, and keeps the values it was published with.
+            assertEquals(expected["wireV8CatalogFingerprints"]["V5"].asString(), CatalogCanonicalizer.fingerprint(stated(v8, schemaVersion), CatalogFingerprintVersion.V5).value, "$schemaVersion")
+            assertEquals(expected["catalogFingerprints"]["V5"].asString(), CatalogCanonicalizer.fingerprint(stated(golden, schemaVersion), CatalogFingerprintVersion.V5).value, "$schemaVersion")
+        }
+    }
+
+    @Test
+    fun `v6 covers every resource, the content settings, the pins by alias, the resource index and the compatibility`() {
         val base = wireV8Archive()
         val template = base.resourceDetails.getValue("template/letter").resource as TemplateResource
         fun changed(edit: (CatalogManifest) -> CatalogManifest) = base.copyWithManifest(edit(base.manifest))
@@ -129,7 +145,6 @@ class CatalogCanonicalizerTest {
             "the license" to changed { it.copy(catalog = it.catalog.copyWithMetadata(license = CatalogLicense("Proprietary"))) },
             "no license" to changed { it.copy(catalog = it.catalog.copyWithMetadata(license = null)) },
             "the compatibility" to changed { it.copy(compatibility = CompatibilityInfo(">=2.0.0")) },
-            "the wire version" to changed { it.copy(schemaVersion = 7) },
             "a pinned release" to changed { it.copy(catalogDependencies = listOf(shared.copy(releaseFingerprint = "v6:${"0".repeat(64)}"))) },
             "an alias" to changed {
                 it.copy(
@@ -587,7 +602,10 @@ class CatalogCanonicalizerTest {
         val legacy = stencilArchive(4, mapOf("stencilId" to "address", "version" to 3, "isDraft" to false))
         val current = stencilArchive(5, mapOf("stencilId" to "address", "version" to 3))
 
-        // V5 compares the content alone; V6 also covers the wire version the manifest names, which differs here.
+        assertEquals(
+            CatalogCanonicalizer.currentFingerprint(legacy),
+            CatalogCanonicalizer.currentFingerprint(current),
+        )
         assertEquals(
             CatalogCanonicalizer.fingerprint(legacy, CatalogFingerprintVersion.V5),
             CatalogCanonicalizer.fingerprint(current, CatalogFingerprintVersion.V5),

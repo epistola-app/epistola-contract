@@ -6,7 +6,7 @@
   "type": "object",
   "properties": {
     "schemaVersion": {
-      "description": "The wire version the content is to be read with. Content: the fingerprint (V6) covers it.",
+      "description": "The wire version the archive is written at. Not covered by the fingerprint (V6): the algorithm's canonical form fixes how content is encoded, so the same content under another wire version has the same V6 fingerprint.",
       "const": 8
     },
     "catalog": {
@@ -21,7 +21,7 @@
       "$ref": "#/$defs/ReleaseInfo"
     },
     "compatibility": {
-      "description": "The Epistola versions the producer declares the content for. Content: the fingerprint (V6) covers it, and a release fixes it.",
+      "description": "The Epistola versions the content needs. Content: the fingerprint (V6) covers it, and a release fixes it.",
       "oneOf": [
         {
           "$ref": "#/$defs/CompatibilityInfo"

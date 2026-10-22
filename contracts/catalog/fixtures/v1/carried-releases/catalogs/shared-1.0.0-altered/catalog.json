@@ -11,7 +11,7 @@
   },
   "release": {
     "version": "1.0.0",
-    "fingerprint": "v6:6299bef75265fd752c2e939411fb66cc00d5f2d4865170df3152120be7c557da"
+    "fingerprint": "v6:a7d520071e52bd22733a5e31305e5ac390dcf022f02483c3afe4a238b6f28417"
   },
   "resources": [
     {
@@ -29,7 +29,7 @@
       "namespace": "acme",
       "catalogKey": "base",
       "releaseVersion": "1.0.0",
-      "releaseFingerprint": "v6:459c44cc8320c6bbd6c9c47291c6259c48de7204749f7c802042ec2c32adebb0"
+      "releaseFingerprint": "v6:28138c6fbc445189ea0bfd6434ce17d260d993d87abf719a3b175b59eac02ddd"
     }
   ]
 }
