@@ -1654,7 +1654,17 @@ public final class Driver {
                         "base", String.valueOf(changes.getBase()),
                         "releasable", String.valueOf(changes.getReleasable()),
                         "dependenciesChanged", String.valueOf(changes.getDependenciesChanged()),
-                        "changes", joined(changes.getChanges(), change -> change.getType() + "/" + change.getKey() + ":" + change.getChange())));
+                        "changes", joined(changes.getChanges(), change -> change.getType() + "/" + change.getKey() + ":" + change.getChange()),
+                        "mergedForReview",
+                                joined(
+                                        changes.getChanges().stream()
+                                                .filter(change -> Boolean.TRUE.equals(change.getMergedForReview()))
+                                                .collect(Collectors.toList()),
+                                        change -> change.getType() + "/" + change.getKey()),
+                        "catalogChanges",
+                                joined(
+                                        changes.getCatalogChanges() == null ? List.of() : changes.getCatalogChanges(),
+                                        change -> change.getType() + "/" + change.getKey() + ":" + change.getChange())));
     }
 
     private static void listEnvironmentDeployments(String baseUrl, JsonObject config) {

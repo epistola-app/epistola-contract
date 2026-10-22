@@ -195,9 +195,17 @@ catalog-changes:
     operationId: getCatalogChanges
     summary: List a release's changes since its base
     description: |
-      Every resource of the release that is `new`, `modified` or `ready`, and the resources removed
-      since its base, the release the draft started from. For a draft, `releasable` says whether
-      releasing it would be accepted now; once released it has no changes and is not releasable.
+      What differs from its base, the release the draft started from: every resource of the release
+      that is `new`, `modified` or `ready`, and the resources removed since the base (`changes`,
+      each marked `mergedForReview` when it holds merged content no one has marked ready); and its
+      catalog-level content outside the resources (`catalogChanges`): each dependency declaration
+      added, removed or re-pinned, by its alias, and its default theme, presets and license when
+      they changed. Together that is what the release's content hash covers; the catalog's
+      presentation (its name, description and the like) is not content and is not listed.
+
+      For a draft, `releasable` says whether releasing it would be accepted now: something changed,
+      and every changed resource is ready, among the rest `CatalogChangesDto.releasable` lists.
+      Once released it has no changes and is not releasable.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_VIEW]
@@ -667,7 +675,10 @@ catalog-release-action:
       a tenant holds is the installation's to know, and a number the tenant may not issue is refused
       with 400.
 
-      A release contains the whole draft: it is refused while any resource is `new` or `modified`.
+      A release contains the whole draft: it is refused while any resource is `new` or `modified`
+      (merged content included, `mergedForReview`), and with 409 `conflict` when nothing changed
+      against its base (`getCatalogChanges` lists no change, so `releasable` is false), since
+      releasing it would only give its base's content another number.
 
       A draft that is **behind** (see `CatalogReleaseDto.behind`, recomputed for the version it is
       released as) does not contain those releases' changes unless an author applied them by hand,

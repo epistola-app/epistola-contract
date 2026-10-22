@@ -1131,6 +1131,8 @@ function reportChanges(baseUrl, changes) {
     releasable: show(changes.releasable),
     dependenciesChanged: show(changes.dependenciesChanged),
     changes: changes.changes.map((c) => `${show(c.type)}/${show(c.key)}:${show(c.change)}`).join(','),
+    mergedForReview: changes.changes.filter((c) => c.mergedForReview === true).map((c) => `${show(c.type)}/${show(c.key)}`).join(','),
+    catalogChanges: changes.catalogChanges.map((c) => `${show(c.type)}/${show(c.key)}:${show(c.change)}`).join(','),
   })
 }
 

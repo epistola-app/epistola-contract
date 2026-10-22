@@ -409,6 +409,22 @@ libraries.
 
 ### Changed
 
+- **BREAKING (API 2.0, unreleased, changed in place): a draft's changes include its catalog-level
+  content, and releasing needs a change** (Epistola Suite ADR 0034). `CatalogChangesDto` gains
+  `catalogChanges` (required): what the content hash covers outside the resources, each as a new
+  `CatalogLevelChangeDto` `{type, key, change}` named as merge entries are, `catalogDependency/<alias>`
+  for a dependency declaration added, removed or changed (re-pinned, a draft named instead, or
+  another catalog under the alias) and `catalog/defaultTheme`, `catalog/presets` and
+  `catalog/license` for those settings, `change` one of `added`, `modified`, `removed`; never the
+  catalog's presentation. `ResourceChangeDto.mergedForReview` (optional, default false) marks a
+  resource holding merged content (`mergedContent`, alpha) no one has marked ready.
+  `dependenciesChanged` is now defined as `catalogChanges` listing a `catalogDependency` entry.
+  `releasable` and `releaseCatalogDraft` say the same thing: a draft is releasable only when
+  something changed against its base (a resource or catalog-level content; without a base, it has
+  any), and releasing one with no change is refused with 409 `conflict`; `releasable` also lists
+  merged content under review among what keeps a draft from release, and says what it does not
+  cover (acknowledging `behind`). Conformance: `get-catalog-changes` and `mark-catalog-ready`
+  report `mergedForReview` and `catalogChanges`, and their scenarios carry both.
 - **BREAKING (API 2.0, unreleased, changed in place): the API names another catalog's resource by
   alias** (contract ADR 0003, amendment of 2026-10-22; Epistola Suite ADR 0034). A reference from
   one catalog's release into another names that catalog as the release's content does, by the

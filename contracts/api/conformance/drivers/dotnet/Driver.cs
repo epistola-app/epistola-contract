@@ -1517,6 +1517,11 @@ public static class Driver
             ["dependenciesChanged"] = Bool(changes.DependenciesChanged),
             ["changes"] = string.Join(",", (changes.Changes ?? new List<ResourceChangeDto>())
                 .Select(c => $"{Show(c.Type)}/{Show(c.Key)}:{Wire(c.Change)}")),
+            ["mergedForReview"] = string.Join(",", (changes.Changes ?? new List<ResourceChangeDto>())
+                .Where(c => c.MergedForReview == true)
+                .Select(c => $"{Show(c.Type)}/{Show(c.Key)}")),
+            ["catalogChanges"] = string.Join(",", (changes.CatalogChanges ?? new List<CatalogLevelChangeDto>())
+                .Select(c => $"{Show(c.Type)}/{Show(c.Key)}:{Wire(c.Change)}")),
         });
 
     private static void ListEnvironmentDeployments(string baseUrl, JsonElement config)

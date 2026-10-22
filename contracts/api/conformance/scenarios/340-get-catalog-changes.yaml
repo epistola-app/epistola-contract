@@ -11,6 +11,13 @@ why: >
   ResourceStatus fails on the fourth. `releasable` is false here, because resources are still new
   and modified; a client that misreads it offers a release the server will refuse.
 
+  The invoice holds content merged from both sides of a conflict that no one has reviewed yet
+  (`mergedForReview`), so it stays `modified` until it is marked ready. Beside the resources, the
+  draft's catalog-level content changed too (`catalogChanges`, named as merge entries are): it
+  re-pinned the catalog it declares as `shared`, added one as `fonts`, and set a default theme.
+  What the content hash covers outside the resources is a change of its own; a client that reads
+  only `changes` tells an author a draft with only a re-pinned dependency has nothing to release.
+
 action:
   name: get-catalog-changes
   config:
@@ -29,10 +36,14 @@ script:
       releasable: false
       dependenciesChanged: true
       changes:
-        - { type: template, key: invoice, change: modified }
-        - { type: stencil, key: corporate-header, change: ready }
+        - { type: template, key: invoice, change: modified, mergedForReview: true }
+        - { type: stencil, key: corporate-header, change: ready, mergedForReview: false }
         - { type: theme, key: house-style, change: new }
         - { type: theme, key: legacy, change: removed }
+      catalogChanges:
+        - { type: catalogDependency, key: shared, change: modified }
+        - { type: catalogDependency, key: fonts, change: added }
+        - { type: catalog, key: defaultTheme, change: added }
 
 expect:
   requestCount: 1
@@ -49,3 +60,6 @@ expect:
     dependenciesChanged: "true"
     # One entry per change, as type/key:change.
     changes: template/invoice:modified,stencil/corporate-header:ready,theme/house-style:new,theme/legacy:removed
+    # Only the resource whose merged content waits for review; absent means false.
+    mergedForReview: template/invoice
+    catalogChanges: catalogDependency/shared:modified,catalogDependency/fonts:added,catalog/defaultTheme:added

@@ -1275,6 +1275,10 @@ def _report_changes(base_url: str, changes) -> None:
             "releasable": _show_bool(changes.releasable),
             "dependenciesChanged": _show_bool(changes.dependencies_changed),
             "changes": ",".join(f"{_show(c.type)}/{_show(c.key)}:{_show(_enum(c.change))}" for c in changes.changes),
+            "mergedForReview": ",".join(f"{_show(c.type)}/{_show(c.key)}" for c in changes.changes if c.merged_for_review),
+            "catalogChanges": ",".join(
+                f"{_show(c.type)}/{_show(c.key)}:{_show(_enum(c.change))}" for c in changes.catalog_changes
+            ),
         },
     )
 

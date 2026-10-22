@@ -33,8 +33,8 @@ info:
       publishing.
     - **Base**: the release a draft started from; its changes are measured against it. A
       draft is **behind** a release whose changes it may lack (see "Releases"). A changed resource
-      is **ready** once someone marks it reviewed; a draft is released only when all its changes
-      are.
+      is **ready** once someone marks it reviewed; a draft is released only when it changed
+      something and all its changes are (`getCatalogChanges`).
     - **Editable** catalogs: every catalog has releases and drafts, wherever its releases come from
       (its **source**: an exchange, a registry, a file, or the server itself). Whether a catalog can
       be changed depends on the installation, which may only receive and run releases, and on

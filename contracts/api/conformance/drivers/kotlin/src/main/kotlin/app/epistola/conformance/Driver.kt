@@ -1451,6 +1451,8 @@ object Driver {
             "releasable" to changes.releasable.toString(),
             "dependenciesChanged" to changes.dependenciesChanged.toString(),
             "changes" to changes.changes.joinToString(",") { "${it.type}/${it.key}:${it.change.value}" },
+            "mergedForReview" to changes.changes.filter { it.mergedForReview == true }.joinToString(",") { "${it.type}/${it.key}" },
+            "catalogChanges" to changes.catalogChanges.joinToString(",") { "${it.type}/${it.key}:${it.change.value}" },
         ),
     )
 
