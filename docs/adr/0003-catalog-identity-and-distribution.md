@@ -1,7 +1,7 @@
 # ADR 0003: Catalog identity, registries and mirrors
 
 - **Status:** Accepted; amended 2026-10-21 (see "Amendment: a catalog's name never changes on the
-  way")
+  way") and 2026-10-22 (see "Amendment: releases are content-addressed; names point at them")
 - **Date:** 2026-10-16
 - **Scope:** API contract (`contracts/api`) and portable catalog contract (`contracts/catalog`, wire
   v8), contract 2.0
@@ -79,6 +79,10 @@ problem.
 
 ### Identity: registry, namespace, key
 
+> Amended 2026-10-22: the three parts are the catalog's **name**, not the identity of its releases,
+> which is their content hash; the `registry` is the name's **authority**, a domain, never a
+> location. See "Amendment: releases are content-addressed; names point at them".
+
 A catalog is identified by three parts, always together:
 
 - The **registry**: the DNS name, in normal order, of the registry the catalog is published on and
@@ -120,6 +124,10 @@ The API reports the same value. A fingerprint recorded before contract 2.0 may s
 an API response, meaning its algorithm was not recorded.
 
 ### Dependencies pin the release and its fingerprint
+
+> Amended 2026-10-22: a declaration also gives the dependency an `alias`, which content names it by
+> instead of its registry, namespace and key, and its pin is the release's content hash
+> (`releaseFingerprint`, V6), with `releaseVersion` as the number for people.
 
 A catalog declares each catalog it depends on once (wire v8 `catalogDependencies`), with the exact
 release it renders with:
@@ -319,7 +327,8 @@ The second option, and "the tenant's key by default" above, are withdrawn by the
 - **Wire v8** (unreleased, changed in place): `catalog.registry` and `catalog.namespace`; the same two
   members on catalog dependencies, resource dependencies and content references; `releaseFingerprint`
   on catalog dependencies; the V5 fingerprint covers all of them. Every fingerprint names its
-  algorithm (`v5:<hex>`).
+  algorithm (`v5:<hex>`). (Amended 2026-10-22: resource dependencies and content references name an
+  alias instead, and V6, which covers content only, is the current algorithm.)
 - Deploying can fail on dependencies: when a dependency release cannot be had, the deployment is
   refused with `release-dependencies-missing`. Undeploying never fails on them.
 - An environment has one answer per catalog, its deployments. There are no environment overrides:
@@ -366,6 +375,80 @@ it creates is received like any other. `CatalogType`, `CatalogDto.type` and `imp
   joins the registry, namespace, key, number and fingerprint.
 - Installations that migrated catalogs to their own host before this amendment have to rename them
   to a registry they will keep; the contract offers no move operation yet ("Later").
+
+## Amendment: releases are content-addressed; names point at them (2026-10-22)
+
+Epistola Suite's ADR 0034 separates four questions that this ADR answered with one name: which
+release this is, what it is called, who may give it that name, and where to get it. Naming,
+ownership and location were tangled: the V5 fingerprint covered the catalog's own registry and
+namespace and those of its dependencies, and content named other catalogs by registry, namespace
+and key, so a mirror under another name, a promotion from a provisional name, a channel or a rename
+made a new release and rewrote every reference to it. A municipality fixing a supplier's catalog
+had no number of its own to use, and "registry" read as a location.
+
+**Decision, for the contract.**
+
+- **The authority is a domain.** The first part of a catalog's name, the `registry` member, is the
+  name's **authority**: the domain under which its namespace was granted, the Exchange's
+  (`exchange.epistola.app`) for namespaces it grants or an organisation's own (`gemeente-x.nl`). A
+  domain is unique without a central party. It never says where a release is fetched from: that is
+  a **release registry** (ADR 0008), a mirror or a file. The member keeps its name.
+- **Namespaces are flat.** `acme`, `acme-hr`: an organisation may hold several, and a name never
+  nests.
+- **A release is identified by its content.** Its identity is a hash over what it renders with: the
+  **V6** fingerprint (`v6:<hex>`, the current algorithm, required of a wire-v8 `release.fingerprint`).
+  V6 covers every resource, the resource index, the content settings (`defaultTheme`, `presets`,
+  `license`), the resource dependencies by alias, each catalog dependency as its alias and pinned
+  hash, and `schemaVersion` and `compatibility`. It does not cover the catalog's own name, the
+  release block (number, release id, metadata, base, release time) or the catalog's presentation.
+  Two releases with the same V6 fingerprint are the same release wherever they come from, and a
+  release fetched by its hash from any registry, mirror or file verifies itself. V1 to V5 stay
+  verifiable exactly as they were, with the algorithm a fingerprint names.
+- **Bindings: a name at a number is a hash.** An archive's name (registry, namespace, key),
+  `release.version` and `release.fingerprint` together are a **binding**, "`authority/namespace/key
+  @ version` is this hash", issued by the holder of the namespace when it releases and carried along
+  unchanged by installing, mirroring and moving. People, deployments and version ranges keep working
+  with names and numbers; each resolves to a hash.
+- **The patch rule.** The holder of a namespace issues plain numbers. Anyone else may only issue a
+  **patch release** labelled with a namespace they hold: `1.3.1-gemeente-x.1`, which sorts above
+  `1.3.0` and below the holder's `1.3.1`, so the holder's next release supersedes it and merges it
+  in, and the numbers never collide. Wire v8 accepts exactly that label and no other pre-release
+  (`CatalogReleaseVersions`). The format cannot know who holds a namespace; installations and
+  registries enforce it.
+- **Catalogs refer to each other by alias.** A `catalogDependencies` entry is `{alias, registry,
+  namespace, catalogKey, releaseVersion, releaseFingerprint}`: the alias content uses, the name (to
+  find newer releases) and the pin (the content hash, with the number it had). Content names another
+  catalog by alias and resource key ("theme `brand` of `shared`") -- a reference's `catalogKey`, a
+  template's `themeCatalogKey`, `defaultTheme.catalogKey`, a variant attribute's qualifier -- and
+  never by registry or namespace; within a catalog, by key. An alias follows the catalog key rule,
+  is unique in the list, is never the catalog's own key, and defaults to the dependency's key.
+  Moving a dependency to another release changes one declaration; renaming or mirroring it changes
+  no content.
+- **Lineage is by hash.** `release.base` names the base by its content hash, with its number for
+  people, so lineage survives renames, mirrors and forks. Merge parents stay producer metadata, not
+  format.
+- **Presentation is not content.** The catalog's `name`, `description`, `keywords`, `presentation`
+  (which images to show; the images are content), `attributes` (discovery labels), and the
+  manifest's `publisher` and `includes` are information about the name, not about a release. V6 does
+  not cover them: they change without a release, and the most recently received wins. The schema and
+  the model mark each member as name, content or presentation.
+
+**What this replaces.** The `registry` and `namespace` this ADR put on resource dependencies and
+content references (an earlier draft of wire v8) are gone again: they are the declaration's. "A
+mirror ... is checked against the fingerprint the release was published with" stands, and now also
+holds for a copy under another name.
+
+**Consequences.**
+
+- Wire v8 changes in place (it is not released): `alias` on catalog dependencies, references by
+  alias, V6, patch numbers. A v7 archive migrates with each catalog it names declared under its key
+  as the alias, so its references keep their values.
+- The API is not yet changed: it does not address releases by hash, show which names point at a
+  release, declare an alias (a dependency declared through the API has its key as its alias), report
+  a patch release, grant namespaces or verify an Exchange domain. Its own references
+  (`CatalogThemeReference`, an attribute's code-list binding) still name registry and namespace.
+  Those follow as API changes, with ADR 0008.
+- Channels (`stable`), signed bindings and a `local` authority are later phases.
 
 ## Hotfix releases
 

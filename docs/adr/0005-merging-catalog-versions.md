@@ -2,7 +2,9 @@
 
 - **Status:** Accepted (alpha), 2026-10-21. Proposed 2026-10-16; accepted as Epistola Suite
   implemented step one (Suite ADR 0032, section 5). The operations are `x-experimental` and may
-  still change in a minor release.
+  still change in a minor release. Amended 2026-10-22: releases are content-addressed (ADR 0003,
+  amendment of 2026-10-22), so the merge base is found by content hash and a catalog used is an
+  entry by its alias.
 - **Date:** 2026-10-16
 - **Scope:** API contract (`contracts/api`) and portable catalog contract (`contracts/catalog`)
 - **Related:** [ADR 0002](0002-intermediate-releases.md) (drafts and releases; drafts are independent
@@ -57,11 +59,14 @@ The merge compares three states of each resource, identified by type and key (AD
 merge base travels with the release"; amended 2026-10-21, it said the draft's base, which it need
 not be), **theirs** (the release merged in) and **ours** (the draft). Each state is the
 resource's canonical fingerprint (`CatalogCanonicalizer.completePerResourceFingerprints`, the
-per-resource form of V5, the current catalog algorithm; amended twice on 2026-10-21: it named
+per-resource form of V5 and of V6, the current catalog algorithm, which covers each resource as V5
+does; amended twice on 2026-10-21: it named
 `perResourceFingerprints`, the V1 form, then `currentPerResourceFingerprints`, the V3 form, both of
 which leave out what wire v8 added to a resource, a template's `description`, a variant's
 `metadata` and a data example's `key`, so a change to only those looked like no change), so key
-order, number formatting and the like never make a difference. A resource absent from a state is not in it: added on a side that has it and the base
+order, number formatting and the like never make a difference. A reference into another catalog
+names an alias (ADR 0003, amendment of 2026-10-22), so a resource's fingerprint does not move when
+the catalog it refers to is renamed or mirrored. A resource absent from a state is not in it: added on a side that has it and the base
 does not, removed on a side that does not have it and the base does.
 
 | Ours vs base | Theirs vs base | Outcome     | Merging                                     |
@@ -107,7 +112,12 @@ The preview lists the resources whose outcome is `ours`, `theirs` or `conflict` 
   conflicted): type `catalogDependency`, keyed by the catalog's key (`catalogDependency/shared`) and
   valued by its declaration, the release it pins (with its fingerprint) or the draft it names.
   Registry and namespace are part of the declaration, not of the key: a catalog key is unique in a
-  tenant, and a full name does not fit the 50 characters of `resourceKey`. Adding, removing or
+  tenant, and a full name does not fit the 50 characters of `resourceKey`. (Amended again
+  2026-10-22, with releases content-addressed: the entry is keyed by the declaration's **alias**,
+  which content names the catalog by and which is unique within a catalog's dependencies, and is by
+  default the catalog's key, so `catalogDependency/shared` keeps its meaning. The declaration's
+  value is its name and its pin, the content hash: two sides pinning the same hash under different
+  names or numbers pin the same release. Until the API declares aliases, the alias is the key.) Adding, removing or
   re-pinning a dependency is a change of its own, and only both sides changing the same catalog's
   declaration differently is a conflict. A dependency nothing refers to any more after the merge is
   kept, as editing keeps one; one the release no longer declares, and the draft did not change, is
@@ -118,8 +128,8 @@ The preview lists the resources whose outcome is `ours`, `theirs` or `conflict` 
   resource referred to must be in the result: a release that removes a resource something the draft
   keeps still uses, or a template taken from the release that uses a stencil the result does not
   have, is refused. Into another
-  catalog, the reference resolves only through the result's declaration of that catalog, against
-  the release it pins (never that catalog's newest release) or the draft it names; a catalog the
+  catalog, the reference resolves only through the result's declaration of that catalog's alias,
+  against the release it pins (never that catalog's newest release) or the draft it names; a catalog the
   result does not declare resolves nothing. The catalog's default theme is checked the same way.
   Only what the merge breaks is refused: a reference that did not resolve in the draft before is the
   draft's own, for releasing to refuse. The problem's `detail` names what is missing and what to
@@ -190,9 +200,15 @@ So every release names the release it was made from, its draft's base, in wire v
 A receiver follows these links through the releases it knows to the closest release both lines
 share. The base is not covered by any fingerprint, and a receiver keeps it as received.
 
+Amended 2026-10-22 (ADR 0003, amendment of 2026-10-22): **lineage is by hash.** The base's
+`fingerprint` is its content hash (V6 for a base made under V6, which covers content only), and the
+number is for people. A receiver finds the base by its hash, whatever number or name it has there,
+so lineage survives renames, mirrors and forks. Which releases a draft merged (the merge parents) is
+the producer's to record, in its own metadata, not the format's.
+
 - **The merge base must be installed.** The merge compares against that release's own resources,
-  so the receiving installation needs it, and checks by its fingerprint that the release it has
-  under that number is the same release.
+  so the receiving installation needs it, and finds it by its fingerprint: the release it has with
+  that content hash is the base, whatever its number.
 - **When it is not installed**, the merge is refused and says which release to get first: 409
   `merge-base-missing`, whose `version` and `fingerprint` name that release. The preview does not
   fail: it answers with `missingBase` (`{version, fingerprint}`) naming the same release and
@@ -221,5 +237,6 @@ Until then, merged content (`mergedContent`) is how both sides of a conflict are
 ## Open questions
 
 - Should a release record which releases its draft merged (for provenance), or only its base? (It
-  now records its base, `release.base`, for merging; provenance of merges stays open.)
+  records its base, `release.base`, by hash, for merging. Decided 2026-10-22: the merge parents stay
+  producer metadata, not part of the format.)
 - Should merging another draft, not only a release, be offered?

@@ -488,6 +488,16 @@ libraries.
   Conformance: `import-catalog-fingerprint-conflict` now expects it, and new scenarios
   `install-catalog-release-number-taken` and `install-registry-release-number-taken`.
 
+- **ADR 0003 is amended (2026-10-22): releases are content-addressed; names point at them**
+  (Epistola Suite ADR 0034, phase 1 for the catalog format). The `registry` of a catalog's name is
+  its authority, a domain, never a location; namespaces are flat; a release is identified by its
+  content (V6); an archive's name, number and fingerprint are a binding, issued by the holder of the
+  namespace, and anyone else issues only patch releases labelled with a namespace they hold;
+  catalogs refer to each other by alias; lineage is by hash; presentation is not content. It lists
+  the API follow-ups (addressing releases by hash, bindings, aliases and patch numbers in the API,
+  namespace grants, the Exchange's domain verification). **ADR 0005 is amended** alike: the merge
+  base is found by its content hash, a catalog used is a merge entry by its alias, and merge
+  parents stay producer metadata.
 - **ADR 0001 (hotfixing) is superseded** by Epistola Suite's ADR 0032 and contract ADR 0005: with
   no catalog types, any installation that allows editing fixes a release the ordinary way and the
   fix comes back as a merge; numbers are checked where releases meet. The `+hotfix.N` grammar it
