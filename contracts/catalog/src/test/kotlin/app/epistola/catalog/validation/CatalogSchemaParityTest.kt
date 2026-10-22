@@ -108,6 +108,19 @@ class CatalogSchemaParityTest {
         }
     }
 
+    @Test
+    fun `local is the one registry without a dot`() {
+        assertTrue(CatalogNamespaces.isValidRegistry(CatalogNamespaces.LOCAL_REGISTRY))
+        assertTrue(CatalogNamespaces.isLocalRegistry("local"))
+        listOf("local.example", "local.acme.com").forEach {
+            assertTrue(CatalogNamespaces.isValidRegistry(it), it)
+            assertTrue(!CatalogNamespaces.isLocalRegistry(it), it)
+        }
+        listOf("localhost", "Local", "locals", "local-", "xlocal", "local.", ".local", "local/hr").forEach {
+            assertTrue(!CatalogNamespaces.isValidRegistry(it), it)
+        }
+    }
+
     private fun schema(name: String) = requireNotNull(
         javaClass.getResourceAsStream("/META-INF/epistola-catalog/schemas/$name"),
     ).use(jsonMapper()::readTree)

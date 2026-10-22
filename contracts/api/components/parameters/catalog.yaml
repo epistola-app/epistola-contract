@@ -10,7 +10,8 @@ Registry:
   required: true
   description: |
     Registry of the catalog: the exchange (`exchange.epistola.app`) or the domain that publishes
-    it (`acme.com`), in normal domain order.
+    it (`acme.com`), in normal domain order, or `local` for a name that never leaves the
+    organisation.
 
     `~` means the installation's **default registry**, which the server configures; it is not part
     of this contract. The default registry may also be named in full, and both address the same

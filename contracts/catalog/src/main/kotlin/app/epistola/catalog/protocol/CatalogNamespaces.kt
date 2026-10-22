@@ -26,6 +26,11 @@ package app.epistola.catalog.protocol
  * an organisation for its own (`gemeente-x.nl`). It never says where a release is fetched from. A
  * namespace is flat: an organisation may hold several (`acme`, `acme-hr`), and a name never nests.
  *
+ * Besides a domain, the registry may be [LOCAL_REGISTRY], `local`: the authority of names that never
+ * leave the organisation (`local/acme-hr/letters`), valid within its own installations, moved by file or
+ * by its own release registry, and never published to an Exchange, which refuses them (contract ADR
+ * 0003). It is the only registry without a dot; `localhost` and any other single label stay invalid.
+ *
  * Models deliberately do not enforce these rules; consumers rebind manifests stored under earlier
  * wire versions, which name neither. The migrator's wire check and the catalog validator enforce
  * them.
@@ -43,9 +48,15 @@ object CatalogNamespaces {
     /** Longest registry, the longest DNS name. */
     const val REGISTRY_MAX_LENGTH: Int = 253
 
-    /** A registry: a lowercase DNS name with at least one dot, in normal (not reversed) order. */
+    /** The authority of names that never leave the organisation: the one registry that is not a domain. */
+    const val LOCAL_REGISTRY: String = "local"
+
+    /**
+     * A registry: [LOCAL_REGISTRY], or a lowercase DNS name with at least one dot, in normal (not
+     * reversed) order.
+     */
     const val REGISTRY_PATTERN: String =
-        "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
+        "^(local|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+)$"
 
     private val namespace = Regex(PATTERN)
     private val registry = Regex(REGISTRY_PATTERN)
@@ -55,4 +66,8 @@ object CatalogNamespaces {
 
     /** Whether [value] is a valid registry. */
     fun isValidRegistry(value: String): Boolean = value.length <= REGISTRY_MAX_LENGTH && registry.matches(value)
+
+    /** Whether [value] is the [LOCAL_REGISTRY]: a name that never leaves the organisation. */
+    @JvmStatic
+    fun isLocalRegistry(value: String): Boolean = value == LOCAL_REGISTRY
 }

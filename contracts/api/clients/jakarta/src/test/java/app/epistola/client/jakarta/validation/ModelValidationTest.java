@@ -366,6 +366,14 @@ class ModelValidationTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> ModelValidation.validate(baseGenerationRequest().versionRange("x".repeat(257))));
+        // `local` is the one registry without a dot; `localhost` is none.
+        ModelValidation.validate(baseGenerationRequest().registry("local"));
+        for (String registry : List.of("localhost", "Local", "locals")) {
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> ModelValidation.validate(baseGenerationRequest().registry(registry)),
+                    "expected the registry '" + registry + "' to fail");
+        }
 
         ModelValidation.validate(baseGenerationRequest().environmentKey(null));
         assertThrows(

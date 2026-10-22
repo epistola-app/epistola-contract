@@ -1,0 +1,53 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: get-local-catalog-release
+title: A catalog under the local authority is addressed and read as `local`
+why: >
+  `local` is the authority of names that never leave the organisation (`local/acme-hr/letters`,
+  contract ADR 0003). It is the one registry without a dot, so a client that holds a registry to
+  "a DNS name with a dot" refuses to address such a catalog at all, and one that treats a single
+  label as a host name may rewrite it. A client sends `local` as its own path segment, as given,
+  and reads it back from a body where a dependency is under `local` too.
+
+action:
+  name: get-catalog-release
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: local
+    namespace: acme-hr
+    catalogKey: letters
+    release: 1.0.0
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      version: 1.0.0
+      releaseId: h7r2k9mw
+      name: First letters
+      status: released
+      base: null
+      createdFrom: null
+      createdAt: "2026-10-20T09:00:00Z"
+      behind: []
+      releasedAt: "2026-10-21T12:00:00Z"
+      notes: null
+      fingerprint: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
+      contentHash: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
+      dependencies:
+        - { alias: house-style, registry: local, namespace: acme-hr, catalogKey: house-style, version: 2.0.0, direct: true }
+      deployedTo: []
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/local/acme-hr/letters/releases/1.0.0
+  report:
+    version: 1.0.0
+    status: released
+    dependencies: local/acme-hr/house-style@2.0.0
+    dependencyAliases: house-style

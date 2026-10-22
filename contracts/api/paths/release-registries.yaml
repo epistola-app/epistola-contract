@@ -214,7 +214,8 @@ catalog-release-publish:
       - 409 `conflict`: `{release}` names a draft; only a released release is published;
       - 409 `release-number-taken`: the registry holds this version with other content;
       - 409 `namespace-not-granted`: the registry grants namespaces (the Exchange) and does not
-        grant this installation the catalog's namespace;
+        grant this installation the catalog's namespace, which is always so for a catalog whose
+        registry is `local`: such a name never leaves the organisation;
       - 502/503 `catalog-source-unavailable`: the registry could not be used.
 
       Publishing needs `CATALOG_PUBLISH`, not only `CATALOG_RELEASE`: the release leaves the

@@ -111,12 +111,16 @@ export const MAX_CATALOG_REGISTRY_LENGTH = 253
 
 /**
  * Pattern a catalog registry must match: a lowercase DNS name with at least one dot, in normal
- * order (`exchange.epistola.app`, `acme.com`) (wire v8). It is the authority of a catalog's name, the
- * domain its namespace was granted under, never where a release is fetched from (contract ADR 0003). An
- * archive always writes it in full, for the catalog itself and each catalog dependency; content
- * never names one.
+ * order (`exchange.epistola.app`, `acme.com`), or `local` (wire v8). It is the authority of a catalog's
+ * name, the domain its namespace was granted under, never where a release is fetched from (contract
+ * ADR 0003); `local` is the authority of names that never leave the organisation, which an Exchange
+ * refuses. An archive always writes it in full, for the catalog itself and each catalog dependency;
+ * content never names one.
  */
-export const CATALOG_REGISTRY_PATTERN = '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+export const CATALOG_REGISTRY_PATTERN = '^(local|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+)$'
+
+/** The authority of names that never leave the organisation (contract ADR 0003): the one registry that is not a domain. */
+export const CATALOG_LOCAL_REGISTRY = 'local'
 
 /**
  * Pattern an alias must match (wire v8, contract ADR 0003): the catalog key rule. A catalog's content names
@@ -274,7 +278,7 @@ export const CATALOG_DEPENDENCY_ARCHIVE_DIRECTORY = 'dependencies/'
  * exported thin or with the releases it pins.
  */
 export const CATALOG_DEPENDENCY_ARCHIVE_PATH_PATTERN =
-  '^dependencies/([a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+)/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)/((?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?=[a-z0-9-]{3,63}\\.)[a-z][a-z0-9]*(?:-[a-z0-9]+)*\\.[1-9][0-9]*)?)\\.zip$'
+  '^dependencies/(local|[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+)/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)/((?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?=[a-z0-9-]{3,63}\\.)[a-z][a-z0-9]*(?:-[a-z0-9]+)*\\.[1-9][0-9]*)?)\\.zip$'
 
 /** Most releases one catalog archive carries by default; each is held to the per-archive limits on its own. */
 export const MAX_CATALOG_ARCHIVE_DEPENDENCIES = 50

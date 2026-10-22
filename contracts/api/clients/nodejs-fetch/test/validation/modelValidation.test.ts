@@ -76,6 +76,14 @@ test('a version range holds an exact release number of any valid length, up to 2
   assert.throws(() => validateModel('GenerateDocumentRequest', { ...request, versionRange: 'x'.repeat(257) }), /versionRange: /)
 })
 
+test('local is the one registry without a dot', () => {
+  const request = { namespace: 'acme-hr', catalogKey: 'letters', templateKey: 'invoice', data: {} }
+  validateModel('GenerateDocumentRequest', { ...request, registry: 'local' })
+  for (const registry of ['localhost', 'Local', 'locals']) {
+    assert.throws(() => validateModel('GenerateDocumentRequest', { ...request, registry }), /registry: must match pattern/, registry)
+  }
+})
+
 test('a content hash is a V6 fingerprint, whatever algorithm the recorded fingerprint names', () => {
   const hex = '0123456789abcdef'.repeat(4)
   const release = { version: '1.0.0', releaseId: 'v1x9q2', status: 'released', behind: [], dependencies: [], deployedTo: [], fingerprint: `v5:${hex}` }

@@ -27,7 +27,7 @@ object CatalogDependencyArchivePaths {
     /** The suffix of an embedded catalog archive. */
     const val SUFFIX: String = ".zip"
 
-    private const val REGISTRY: String = "[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+"
+    private const val REGISTRY: String = "local|[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+"
     private const val NAMESPACE: String = "[a-z][a-z0-9]*(?:-[a-z0-9]+)*"
     private const val CATALOG_KEY: String = "[a-z][a-z0-9]*(?:-[a-z0-9]+)*"
     private const val RELEASE: String =
