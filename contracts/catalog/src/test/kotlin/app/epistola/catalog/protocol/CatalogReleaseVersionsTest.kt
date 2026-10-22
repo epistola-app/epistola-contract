@@ -16,12 +16,12 @@ import kotlin.test.assertTrue
 class CatalogReleaseVersionsTest {
     @Test
     fun `a release number is MAJOR_MINOR_PATCH without leading zeros, pre-release or build part`() {
-        listOf("0.0.0", "1.4.0", "10.20.30", "1.0.${"1".repeat(46)}").forEach {
+        listOf("0.0.0", "1.4.0", "10.20.30", "1.0.${"1".repeat(124)}").forEach {
             assertTrue(CatalogReleaseVersions.isValid(it), it)
             assertTrue(CatalogReleaseVersions.isCore(it), it)
             assertNull(CatalogReleaseVersions.patchNamespace(it), it)
         }
-        listOf("", "1.0", "1.0.0.0", "01.0.0", "1.01.0", "v1.0.0", "1.0.0-rc.1", "1.0.0+5", "^1.0.0", "1.x", "1.0.${"1".repeat(47)}")
+        listOf("", "1.0", "1.0.0.0", "01.0.0", "1.01.0", "v1.0.0", "1.0.0-rc.1", "1.0.0+5", "^1.0.0", "1.x", "1.0.${"1".repeat(125)}")
             .forEach {
                 assertFalse(CatalogReleaseVersions.isValid(it), it)
                 assertFalse(CatalogReleaseVersions.isCore(it), it)
@@ -29,11 +29,25 @@ class CatalogReleaseVersionsTest {
     }
 
     @Test
+    fun `a release number is at most 128 characters, so every namespace can label a patch release`() {
+        assertEquals(128, CatalogReleaseVersions.MAX_LENGTH)
+        assertTrue(CatalogReleaseVersions.MAX_LENGTH >= "999999.999999.999999-".length + CatalogNamespaces.MAX_LENGTH + ".99999".length)
+        val longest = "1.0.${"1".repeat(58)}-${"a".repeat(63)}.1"
+        assertEquals(128, longest.length)
+        assertTrue(CatalogReleaseVersions.isValid(longest))
+        assertFalse(CatalogReleaseVersions.isValid("1.0.${"1".repeat(59)}-${"a".repeat(63)}.1"), "129 characters")
+        assertTrue(CatalogReleaseVersions.isCore("1.0.${"1".repeat(124)}"))
+        assertFalse(CatalogReleaseVersions.isCore("1.0.${"1".repeat(125)}"), "129 characters")
+    }
+
+    @Test
     fun `a patch release is labelled with a namespace and a sequence number, and sorts below the next plain number`() {
         mapOf(
             "1.3.1-gemeente-x.1" to "gemeente-x",
             "1.3.1-acme.12" to "acme",
-            "0.0.1-${"a".repeat(42)}.1" to "a".repeat(42),
+            // Every valid namespace, the longest (63 characters) included, can label a patch release.
+            "0.0.1-${"a".repeat(63)}.1" to "a".repeat(63),
+            "1.0.${"1".repeat(58)}-${"a".repeat(63)}.1" to "a".repeat(63),
         ).forEach { (version, namespace) ->
             assertTrue(CatalogReleaseVersions.isValid(version), version)
             assertFalse(CatalogReleaseVersions.isCore(version), version)
@@ -52,7 +66,9 @@ class CatalogReleaseVersionsTest {
             "1.3.1-gemeente-x.1.2",
             "1.3.1-gemeente-x.1+5",
             "1.3.1-gemeente.x.1",
-            "0.0.1-${"a".repeat(43)}.1",
+            "0.0.1-${"a".repeat(64)}.1",
+            // 129 characters in all.
+            "1.0.${"1".repeat(59)}-${"a".repeat(63)}.1",
         ).forEach {
             assertFalse(CatalogReleaseVersions.isValid(it), it)
             assertNull(CatalogReleaseVersions.patchNamespace(it), it)

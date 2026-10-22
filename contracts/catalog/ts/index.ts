@@ -133,8 +133,11 @@ export const MIN_CATALOG_ALIAS_LENGTH = 3
 /** Longest alias (wire v8). */
 export const MAX_CATALOG_ALIAS_LENGTH = 50
 
-/** Longest release number (wire v8), a patch label included; the same limit as the API's `ReleaseVersion`. */
-export const MAX_CATALOG_RELEASE_VERSION_LENGTH = 50
+/**
+ * Longest release number (wire v8), a patch label included: 128 characters, so that every valid
+ * namespace (up to 63 characters) can label a patch release. The same limit as the API's `ReleaseVersion`.
+ */
+export const MAX_CATALOG_RELEASE_VERSION_LENGTH = 128
 
 /**
  * Pattern a release number must match in wire v8: `MAJOR.MINOR.PATCH` without leading zeros, or, for
@@ -264,7 +267,7 @@ export const CATALOG_DEPENDENCY_ARCHIVE_DIRECTORY = 'dependencies/'
  * Pattern the path of a release a catalog archive carries must match in full (wire v8):
  * `dependencies/{registry}/{namespace}/{catalogKey}/{releaseVersion}.zip`, the pin's own values, each
  * segment by its own rule (and its length limits: a registry at most 253 characters, a namespace 3 to
- * 63, a catalog key 3 to 50, a release number, a patch release's included, at most 50). The groups are, in order, the registry,
+ * 63, a catalog key 3 to 50, a release number, a patch release's included, at most 128). The groups are, in order, the registry,
  * namespace, catalog key and release number. Anything else under `dependencies/` refuses the archive.
  * The manifest has no member for it: a release's manifest and fingerprint are the same whether it is
  * exported thin or with the releases it pins.

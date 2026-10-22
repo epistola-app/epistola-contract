@@ -73,6 +73,8 @@ for (const invalid of ['1.4', '1.4.0-rc.1', '1.4.0-beta', '1.4.0-gemeente-x.0', 
   assert.ok(!releaseNumber.test(invalid), `${invalid} is not a release number`);
 }
 assert.ok(catalog.CATALOG_RELEASE_VERSION_PATTERN.startsWith(catalog.CATALOG_RELEASE_VERSION_CORE_PATTERN.slice(0, -1)), 'a release number is its core and an optional patch label');
+assert.equal(catalog.MAX_CATALOG_RELEASE_VERSION_LENGTH, 128, 'a release number is at most 128 characters');
+assert.ok(releaseNumber.test(`0.0.1-${'a'.repeat(catalog.MAX_CATALOG_NAMESPACE_LENGTH)}.1`), 'the longest namespace can label a patch release');
 for (const [where, property] of [
   ['release.version', manifestSchema.$defs.ReleaseInfo.properties.version],
   ['catalog dependency releaseVersion', manifestSchema.$defs.CatalogDependency.properties.releaseVersion],

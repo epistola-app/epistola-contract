@@ -517,10 +517,11 @@ class ModelValidationTest {
             base.copy(variantKey = "English!").validate()
         }
 
-        // version over its length limit
+        // version over its length limit (128), though a MAJOR.MINOR.PATCH number otherwise
         assertFailsWith<IllegalArgumentException> {
-            base.copy(version = "1".repeat(51)).validate()
+            base.copy(version = "1.0." + "1".repeat(125)).validate()
         }
+        assertEquals("1.0.${"1".repeat(124)}", base.copy(version = "1.0." + "1".repeat(124)).validate().version)
     }
 
     // --- CreateTemplateRequest: key + name + optional nested schema ---

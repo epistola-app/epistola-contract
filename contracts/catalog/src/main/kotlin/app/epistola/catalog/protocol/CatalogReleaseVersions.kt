@@ -10,7 +10,8 @@ package app.epistola.catalog.protocol
  * A release is numbered with a SemVer core version, `MAJOR.MINOR.PATCH` without leading zeros
  * (`1.4.0`), or, for a **patch release**, that core followed by a pre-release label that names a
  * namespace and a sequence number: `MAJOR.MINOR.PATCH-<namespace>.<N>` (`1.3.1-gemeente-x.1`), at
- * most [MAX_LENGTH] characters in all. Nothing else: no other pre-release (`1.4.0-rc.1`), no build
+ * most [MAX_LENGTH] characters in all, enough for a patch label of every valid namespace (up to 63
+ * characters). Nothing else: no other pre-release (`1.4.0-rc.1`), no build
  * part (`1.4.0+build.5`). It applies to `release.version`, a catalog dependency's `releaseVersion`,
  * `release.base.version`, and the release segment of a carried release's path.
  *
@@ -36,8 +37,12 @@ package app.epistola.catalog.protocol
  * validator enforce it.
  */
 object CatalogReleaseVersions {
-    /** Longest release number, a patch label included. */
-    const val MAX_LENGTH: Int = 50
+    /**
+     * Longest release number, a patch label included: 128 characters, so that every valid namespace
+     * ([CatalogNamespaces.MAX_LENGTH], 63) can label a patch release of any reasonable core number.
+     * The API's `ReleaseVersion` has the same limit.
+     */
+    const val MAX_LENGTH: Int = 128
 
     /** A release number without a patch label: `MAJOR.MINOR.PATCH`, without leading zeros. The API's `ReleaseVersion`. */
     const val CORE_PATTERN: String = "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"

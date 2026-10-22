@@ -105,11 +105,13 @@ RegistryOrDefault:
 ReleaseVersion:
   type: string
   pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-  maxLength: 50
+  maxLength: 128
   description: |
     A release's version, its number: a SemVer core version, `MAJOR.MINOR.PATCH` without leading
-    zeros, unique in its catalog. A draft has none until it is released. Never a range (that is a
-    `versionRange`); wherever the API names one exact version, the member is called `version`.
+    zeros, unique in its catalog, at most 128 characters (the limit of a catalog archive's release
+    number, whose patch releases, `MAJOR.MINOR.PATCH-<namespace>.<N>`, the API does not report yet).
+    A draft has none until it is released. Never a range (that is a `versionRange`); wherever the
+    API names one exact version, the member is called `version`.
   example: "1.4.0"
 
 CatalogReleaseId:
@@ -135,7 +137,7 @@ CatalogReleaseRef:
   type: string
   pattern: '^([a-z0-9]+(-[a-z0-9]+)*|(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))$'
   minLength: 4
-  maxLength: 50
+  maxLength: 128
   description: |
     One release of a catalog, by its `CatalogReleaseId` or, once it is released, by its version
     (`ReleaseVersion`): both name the same release, and as an id never contains a dot, the two

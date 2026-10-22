@@ -152,7 +152,7 @@ migrated from wire v7, an exact `releaseVersion`, never a range
 From wire v8 every release number, `release.version`, a pinned `releaseVersion` and
 `release.base.version`, is `MAJOR.MINOR.PATCH` without leading zeros (the API's `ReleaseVersion`),
 or a patch release `MAJOR.MINOR.PATCH-<namespace>.<N>` labelled with a namespace and a sequence
-number from 1 (`1.3.1-gemeente-x.1`), and no other pre-release or build part, at most 50
+number from 1 (`1.3.1-gemeente-x.1`), and no other pre-release or build part, at most 128
 characters (`CatalogReleaseVersions`; `CATALOG_RELEASE_VERSION_INVALID` and
 `CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID`, also raised by the migrator's wire check). Who may
 issue which number (the holder of the namespace the plain ones, anyone else only a patch release

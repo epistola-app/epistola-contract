@@ -212,7 +212,8 @@ for (const [description, edit] of [
   ['a patch release numbered 0', (m) => { m.release.version = '1.0.0-gemeente-x.0'; }],
   ['a release version with build metadata', (m) => { m.release.version = '1.0.0+5'; }],
   ['a release version with a leading zero', (m) => { m.release.version = '1.01.0'; }],
-  ['a release version that is too long', (m) => { m.release.version = `1.0.${'1'.repeat(48)}`; }],
+  ['a release version that is too long', (m) => { m.release.version = `1.0.${'1'.repeat(125)}`; }],
+  ['a patch release version that is too long', (m) => { m.release.version = `1.0.${'1'.repeat(59)}-${'a'.repeat(63)}.1`; }],
   ['a pre-release catalog dependency releaseVersion', (m) => { m.catalogDependencies[0].releaseVersion = '1.4.0-rc.1'; }],
   ['a range as catalog dependency releaseVersion', (m) => { m.catalogDependencies[0].releaseVersion = '^1.4.0'; }],
 ]) {
@@ -224,6 +225,7 @@ for (const [description, edit] of [
   ['null catalog dependencies', (m) => { m.catalogDependencies = null; m.dependencies = []; }],
   ['a migrated catalog dependency', (m) => { m.catalogDependencies[0].releaseVersion = null; m.catalogDependencies[0].releaseFingerprint = null; }],
   ['a patch release', (m) => { m.release.version = '1.3.1-gemeente-x.1'; }],
+  ['a patch release by a 63-character namespace, 128 characters in all', (m) => { m.release.version = `1.0.${'1'.repeat(58)}-${'a'.repeat(63)}.1`; }],
   ['a dependency pinned to a patch release', (m) => { m.catalogDependencies[0].releaseVersion = '1.4.1-gemeente-x.2'; }],
   ['an alias other than the catalog key', (m) => { m.catalogDependencies[0].alias = 'acme-shared'; m.dependencies[0].catalogKey = 'acme-shared'; }],
 ]) {
