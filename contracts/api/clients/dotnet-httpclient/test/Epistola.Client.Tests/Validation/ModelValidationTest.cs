@@ -138,13 +138,17 @@ public class ModelValidationTest
         Assert.Same(request, request.Validate());
     }
 
-    // A version is a plain MAJOR.MINOR.PATCH: there are no pre-release versions.
-    [Fact]
-    public void VersionAcceptsAPlainSemVerNumber()
+    // A version is a plain MAJOR.MINOR.PATCH, or a patch release labelled with a namespace and a
+    // sequence number from 1; there are no other pre-release versions.
+    [Theory]
+    [InlineData("1.4.0")]
+    [InlineData("1.3.1-gemeente-x.1")]
+    [InlineData("2.0.0-redesign-2027.12")]
+    public void VersionAcceptsASemVerCoreNumberOrAPatchRelease(string version)
     {
-        var release = new ReleaseCatalogDraftRequest(version: "1.4.0");
+        var release = new ReleaseCatalogDraftRequest(version: version);
         Assert.Same(release, release.Validate());
-        var draft = new CreateCatalogReleaseRequest(name: "Follow-up", from: "1.4.0");
+        var draft = new CreateCatalogReleaseRequest(name: "Follow-up", from: version);
         Assert.Same(draft, draft.Validate());
     }
 
@@ -152,8 +156,11 @@ public class ModelValidationTest
     [InlineData("1.4")]
     [InlineData("v1.4.0")]
     [InlineData("1.4.0+build")]
-    [InlineData("2.0.0-beta.1")]
-    [InlineData("2.0.0-redesign-2027.1")]
+    [InlineData("2.0.0-rc.1")]
+    [InlineData("1.3.1-gemeente-x.0")]
+    [InlineData("1.3.1-gemeente-x.01")]
+    [InlineData("1.3.1-Gemeente-x.1")]
+    [InlineData("1.3.1-gemeente-x")]
     [InlineData("Next")]
     public void VersionRejectsAnythingElse(string version)
     {

@@ -26,8 +26,8 @@ package app.epistola.catalog.protocol
  * namespace, so it checks only the shape; whether a producer may issue a number is the
  * installation's and the registry's to decide.
  *
- * The plain numbers are the API's `ReleaseVersion` ([CORE_PATTERN]); the API does not yet report a
- * patch release.
+ * The API's `ReleaseVersion` is the same rule ([PATTERN]), and its `CatalogReleaseRef` accepts it
+ * beside a release id.
  *
  * Wire v7 and earlier accepted full SemVer, where a pre-release meant a pre-release; an archive at
  * those versions keeps its rule, and the v7-to-v8 migration reports a release numbered with a
@@ -44,7 +44,7 @@ object CatalogReleaseVersions {
      */
     const val MAX_LENGTH: Int = 128
 
-    /** A release number without a patch label: `MAJOR.MINOR.PATCH`, without leading zeros. The API's `ReleaseVersion`. */
+    /** A release number without a patch label: `MAJOR.MINOR.PATCH`, without leading zeros, as the namespace's holder issues it. */
     const val CORE_PATTERN: String = "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
 
     /**

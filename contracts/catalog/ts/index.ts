@@ -146,14 +146,15 @@ export const MAX_CATALOG_RELEASE_VERSION_LENGTH = 128
  * above `1.3.0` and below the holder's `1.3.1`). No other pre-release or build part (`1.4.0-rc.1`,
  * `1.4.0+5`). It applies to `release.version`, a catalog dependency's `releaseVersion`,
  * `release.base.version` and a carried release's path. The format checks the shape only; who holds a
- * namespace is not its to know. Wire v7 and earlier accepted full SemVer.
+ * namespace is not its to know. Wire v7 and earlier accepted full SemVer. The same rule as the API's
+ * `ReleaseVersion`.
  */
 export const CATALOG_RELEASE_VERSION_PATTERN = '^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-(?=[a-z0-9-]{3,63}\\.)([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\\.([1-9][0-9]*))?$'
 
 /**
  * Pattern of a release number without a patch label (wire v8): `MAJOR.MINOR.PATCH`, as the holder of
- * the catalog's namespace issues it. The same rule as the API's `ReleaseVersion`, which does not yet
- * report a patch release.
+ * the catalog's namespace issues it. The API's `ReleaseVersion` is the full rule,
+ * `CATALOG_RELEASE_VERSION_PATTERN`.
  */
 export const CATALOG_RELEASE_VERSION_CORE_PATTERN = '^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$'
 
