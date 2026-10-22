@@ -137,7 +137,9 @@ info:
       theirs and applies a resolution, `ours` or `theirs`, per conflict. The draft then contains
       the release and is no longer behind it; its base does not move. The preview's `token`, sent
       back as `expectedToken`, makes the merge apply what the preview showed or nothing
-      (`merge-preview-outdated`). The merge needs the merge base installed; the preview names one
+      (`merge-preview-outdated`). A conflict can also be resolved to content combined from its
+      sides (`getCatalogDraftMergeSides`, then `mergedContent`), reviewed before the draft is
+      released. The merge needs the merge base installed; the preview names one
       that is not (`missingBase`), and the merge is refused with `merge-base-missing`.
     - **Release registries** (alpha, `x-experimental`, ADR 0008) move releases between
       installations: an Epistola Exchange the installation is connected to, or a container registry
@@ -450,7 +452,8 @@ x-problem-types:
       status: 409
       schema: MergeBaseMissingProblemDetail
       description: >-
-        Merging a release into a draft (alpha) was refused because this
+        Merging a release into a draft (alpha), or reading the sides of one of
+        its entries, was refused because this
         installation does not have the merge base, the closest release both
         the draft and the release descend from; `version` and `fingerprint`
         name the release to get first. Nothing changed.
@@ -753,6 +756,8 @@ paths:
     $ref: './paths/catalogs.yaml#/catalog-release-action'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/merge-preview:
     $ref: './paths/catalogs.yaml#/catalog-release-merge-preview'
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/merge-sides:
+    $ref: './paths/catalogs.yaml#/catalog-release-merge-sides'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/merge:
     $ref: './paths/catalogs.yaml#/catalog-release-merge'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/dependencies:
@@ -982,6 +987,10 @@ components:
       $ref: './components/schemas/catalogs.yaml#/CatalogMergeOutcome'
     CatalogMergeSide:
       $ref: './components/schemas/catalogs.yaml#/CatalogMergeSide'
+    CatalogMergeEntryContent:
+      $ref: './components/schemas/catalogs.yaml#/CatalogMergeEntryContent'
+    CatalogDraftMergeSides:
+      $ref: './components/schemas/catalogs.yaml#/CatalogDraftMergeSides'
     CatalogDraftMergeResource:
       $ref: './components/schemas/catalogs.yaml#/CatalogDraftMergeResource'
     CatalogDraftMergePreview:

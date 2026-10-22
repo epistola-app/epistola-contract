@@ -105,6 +105,7 @@ const ACTION_OPERATIONS = {
   'delete-catalog-release': { method: 'delete', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}' },
   'release-catalog-draft': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/release' },
   'preview-catalog-draft-merge': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/merge-preview' },
+  'get-catalog-draft-merge-sides': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/merge-sides' },
   'merge-into-catalog-draft': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/merge' },
   'list-release-registries': { method: 'get', path: '/tenants/{tenantKey}/release-registries' },
   'list-registry-releases': { method: 'get', path: '/tenants/{tenantKey}/release-registries/{name}/catalogs/{namespace}/{catalogKey}/releases' },

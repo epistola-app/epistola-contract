@@ -16,6 +16,7 @@ import app.epistola.client.jakarta.error.ProblemDetailException;
 import app.epistola.client.jakarta.model.AvailableCatalogReleases;
 import app.epistola.client.jakarta.model.CatalogDependencyListResponse;
 import app.epistola.client.jakarta.model.CatalogDraftMergePreview;
+import app.epistola.client.jakarta.model.CatalogDraftMergeSides;
 import app.epistola.client.jakarta.model.CatalogDraftReleasePreview;
 import app.epistola.client.jakarta.model.CatalogReleaseDto;
 import app.epistola.client.jakarta.model.CatalogReleaseListResponse;
@@ -46,6 +47,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.time.OffsetDateTime;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.eclipse.microprofile.rest.client.annotation.RegisterProvider;
@@ -371,6 +373,18 @@ class GeneratedApiContractTest {
                 "previewCatalogDraftMerge names the release to merge as its version query parameter");
         assertTrue(method(CatalogsApi.class, "mergeIntoCatalogDraft").getAnnotation(Path.class).value()
                 .endsWith("/releases/{release}/merge"));
+        Method mergeSides = method(CatalogsApi.class, "getCatalogDraftMergeSides");
+        assertNotNull(mergeSides.getAnnotation(GET.class), "getCatalogDraftMergeSides should be a GET");
+        assertEquals(CatalogDraftMergeSides.class, mergeSides.getReturnType());
+        assertTrue(mergeSides.getAnnotation(Path.class).value().endsWith("/releases/{release}/merge-sides"));
+        assertEquals(
+                List.of("version", "entry"),
+                Arrays.stream(mergeSides.getParameters())
+                        .filter(parameter -> parameter.isAnnotationPresent(QueryParam.class))
+                        .map(parameter -> parameter.getAnnotation(QueryParam.class).value())
+                        .sorted(Comparator.reverseOrder())
+                        .toList(),
+                "getCatalogDraftMergeSides names the release to merge and the entry as query parameters");
 
         for (String withBody :
                 List.of("createCatalogRelease", "updateCatalogRelease", "releaseCatalogDraft", "mergeIntoCatalogDraft")) {

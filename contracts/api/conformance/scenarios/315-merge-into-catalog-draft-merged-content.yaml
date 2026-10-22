@@ -1,0 +1,73 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: merge-into-catalog-draft-merged-content
+title: A conflict resolved to merged content sends that content as given, beside the side resolutions
+why: >
+  Merging is alpha (ADR 0005). A conflict is resolved to a side in `resolutions`, a plain string,
+  or to content combined from its sides in `mergedContent`, the entry as the draft is to hold it in
+  the portable catalog format, a JSON object the API does not type. A client sends that object as
+  given, nested arrays and unknown members included. (A null member and an absent one mean the
+  same in merged content, so a client that leaves out nulls, as the Kotlin client does, sends the
+  same content.) The response lists the conflicts resolved to content in `merged`.
+
+action:
+  name: merge-into-catalog-draft
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: k7m2x9qa
+    version: 1.5.0
+    expectedToken: m1.k7m2x9qa.42.1-5-0.9f3a1c2b
+    resolutions:
+      catalog/defaultTheme: ours
+    mergedContent:
+      template/invoice:
+        type: template
+        key: invoice
+        name: Invoice
+        variants: [{ key: nl, title: Factuur }, { key: en, title: Invoice }]
+        x-tool: { reviewed: true }
+      catalog/presets:
+        presets: [{ key: callout, name: Callout }]
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      release: 1.5.0
+      taken: [theme/corporate]
+      removed: []
+      kept: [catalog/defaultTheme]
+      merged: [catalog/presets, template/invoice]
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/merge
+      body:
+        json:
+          release: { equals: 1.5.0 }
+          expectedToken: { equals: m1.k7m2x9qa.42.1-5-0.9f3a1c2b }
+          resolutions:
+            catalog/defaultTheme: ours
+          mergedContent:
+            template/invoice:
+              type: template
+              key: invoice
+              name: Invoice
+              variants: [{ key: nl, title: Factuur }, { key: en, title: Invoice }]
+              x-tool: { reviewed: true }
+            catalog/presets:
+              presets: [{ key: callout, name: Callout }]
+  report:
+    release: 1.5.0
+    taken: theme/corporate
+    removed: ''
+    kept: catalog/defaultTheme
+    merged: catalog/presets,template/invoice

@@ -729,6 +729,9 @@ catalog-release-merge-preview:
       | changed | changed alike | not listed (`unchanged`) |
       | changed | changed differently | `conflict`: a resolution chooses a side |
 
+      `getCatalogDraftMergeSides` returns the content of one listed entry on each side, so a
+      conflict can be resolved with content combined from them.
+
       Each listed entry names the other listed entries it goes with (`needs`): those its value
       refers to, such as the theme or stencil a template uses, or the dependency entry through which
       a reference into another catalog resolves. Choosing them apart can leave a reference that does
@@ -774,6 +777,81 @@ catalog-release-merge-preview:
       '409':
         $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
+catalog-release-merge-sides:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
+
+  get:
+    operationId: getCatalogDraftMergeSides
+    x-experimental: true
+    summary: Read the three sides of one entry of a merge (alpha)
+    description: |
+      **Alpha** (`x-experimental`, ADR 0005): may still change in a minor release.
+
+      The content of one entry of merging the release `version` into the draft, on each of its
+      three sides: the merge base (`base`, read from the release `mergeBase`), the draft (`draft`,
+      ours) and the release (`release`, theirs), each in the portable catalog format
+      (`CatalogMergeEntryContent`: a resource as a resource detail carries it, a setting's or a
+      dependency's value), or null when that side does not have the entry. So that a person, an
+      assistant or a tool can combine the sides of a conflict and resolve it with the result
+      (`mergeIntoCatalogDraft`, `mergedContent`) instead of choosing one side. Changes
+      nothing.
+
+      The entry is named as the preview names it, `resourceType/resourceKey` (`entry`), and must be
+      one the preview lists (outcome `ours`, `theirs` or `conflict`); merged content resolves a
+      conflict only. `token` is the preview's: send it as the merge's `expectedToken`, so the merged
+      content is applied only to the sides it was made from.
+
+      404 when the catalog has no such draft, no released release with that version, or the
+      merge does not list the entry; 409 `merge-base-missing` when this installation does not have
+      the merge base (`version` and `fingerprint` name it), and 409 `conflict` outside a draft.
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_VIEW]
+    parameters:
+      - name: version
+        in: query
+        required: true
+        description: The version of the release of this catalog to merge in
+        schema:
+          $ref: '../components/schemas/identifiers.yaml#/ReleaseVersion'
+      - name: entry
+        in: query
+        required: true
+        description: The entry, as `resourceType/resourceKey` (`template/invoice`, `catalog/defaultTheme`, `catalogDependency/shared`)
+        schema:
+          type: string
+          minLength: 3
+          maxLength: 128
+          pattern: '^[A-Za-z][A-Za-z0-9-]*/[^/]+$'
+        example: template/invoice
+    responses:
+      '200':
+        description: The three sides of the entry
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogDraftMergeSides'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/MergeSidesConflictError'
+
 catalog-release-merge:
   parameters:
     - name: tenantKey
@@ -797,8 +875,12 @@ catalog-release-merge:
       Merges a released release of the catalog into the draft, as `previewCatalogDraftMerge`
       classifies it: what only the release changed is taken (written as the release has it, or
       removed), what only the draft changed stays, and each conflict is resolved by `resolutions`
-      (`resourceType/resourceKey` to `ours` or `theirs`). Taken resources are marked ready, since
-      they are released content. The release's catalog settings (its default theme and presets)
+      (`resourceType/resourceKey` to `ours` or `theirs`) or by `mergedContent` (to content). Taken
+      resources are marked ready, since they are released content. Merged content, combined from
+      the entry's sides (`getCatalogDraftMergeSides`) by a person, an assistant or a tool, is
+      written into the draft as given and is not marked ready: it is reviewed before the draft is
+      released. It is validated as an import validates content (the portable catalog format and the
+      server's rules), and the merge's result is checked as every merge's is. The release's catalog settings (its default theme and presets)
       are merged the same way, each as one entry (`catalog/defaultTheme`, `catalog/presets`), and
       so is each catalog it declares it uses (`catalogDependency/<catalogKey>`): taken when only the
       release changed it, kept when only the draft did, and resolved when both did. A dependency
@@ -814,6 +896,9 @@ catalog-release-merge:
 
       All or nothing. Refused, with nothing changed:
 
+      - 400 `validation-error` when merged content is not valid for its entry (each failure's
+        `field` names the entry, `mergedContent.template/invoice`, and the path within it), or a
+        conflict is resolved both in `resolutions` and in `mergedContent`;
       - 409 `merge-conflicts-unresolved` when a conflict has no resolution; `unresolvedConflicts`
         lists each;
       - 409 `merge-refused` when the result would hold a reference that does not resolve: a
@@ -831,7 +916,7 @@ catalog-release-merge:
         release both the draft and the release descend from; `version` and `fingerprint` name the
         release to install first (the preview names it as `missingBase`);
       - 422 `merge-not-applicable` when the draft already contains the release (its base, or merged
-        before), or a resolution names a resource that is not a conflict;
+        before), or a resolution or merged content names an entry that is not a conflict;
       - 409 `catalog-read-only` when the catalog cannot be changed in this installation
         (`readOnlyReason`);
       - 409 `conflict` outside a draft, and 404 when there is no such draft or release.

@@ -102,6 +102,7 @@ def main() -> int:
         "delete-catalog-release": _delete_catalog_release,
         "release-catalog-draft": _release_catalog_draft,
         "preview-catalog-draft-merge": _preview_catalog_draft_merge,
+        "get-catalog-draft-merge-sides": _get_catalog_draft_merge_sides,
         "merge-into-catalog-draft": _merge_into_catalog_draft,
         "list-release-registries": _list_release_registries,
         "list-registry-releases": _list_registry_releases,
@@ -842,6 +843,34 @@ def _preview_catalog_draft_merge(base_url: str, config: dict) -> None:
     )
 
 
+def _merge_side(content: dict | None) -> str:
+    """One side of a merge entry as ``type/key:name``, or ``null`` when the side lacks it."""
+    if content is None:
+        return "null"
+    return f"{_show(content.get('type'))}/{_show(content.get('key'))}:{_show(content.get('name'))}"
+
+
+def _get_catalog_draft_merge_sides(base_url: str, config: dict) -> None:
+    """Reads the three sides of ``config.entry`` in merging ``config.version`` into the draft
+    ``config.release`` (alpha)."""
+    # The generator puts the operation's own query parameters before the path's parameters.
+    sides = CatalogsApi(_client(base_url, config)).get_catalog_draft_merge_sides(
+        config["version"], config["entry"], *_release_address(config)
+    )
+    _report(
+        base_url,
+        {
+            "entry": _show(sides.entry),
+            "mergeBase": _show(sides.merge_base),
+            "token": _show(sides.token),
+            "base": _merge_side(sides.base),
+            "draft": _merge_side(sides.draft),
+            "release": _merge_side(sides.release),
+            "draftMembers": "null" if sides.draft is None else ",".join(sorted(sides.draft)),
+        },
+    )
+
+
 def _report_problem_only(base_url: str, exc: ProblemDetailException) -> None:
     _report(base_url, {"problemTypeSlug": exc.type_slug or "<null>", "problemStatus": exc.status_code})
 
@@ -935,7 +964,11 @@ def _merge_into_catalog_draft(base_url: str, config: dict) -> None:
     the conflicts it lists and the read-only reason it gives."""
     optional = {
         field: config[key]
-        for key, field in (("resolutions", "resolutions"), ("expectedToken", "expected_token"))
+        for key, field in (
+            ("resolutions", "resolutions"),
+            ("mergedContent", "merged_content"),
+            ("expectedToken", "expected_token"),
+        )
         if key in config
     }
     try:
@@ -966,6 +999,7 @@ def _merge_into_catalog_draft(base_url: str, config: dict) -> None:
             "taken": ",".join(merged.taken),
             "removed": ",".join(merged.removed),
             "kept": ",".join(merged.kept),
+            "merged": ",".join(merged.merged or []),
         },
     )
 

@@ -72,6 +72,7 @@ public static class Driver
                 case "delete-catalog-release": DeleteCatalogRelease(baseUrl, config); break;
                 case "release-catalog-draft": ReleaseCatalogDraft(baseUrl, config); break;
                 case "preview-catalog-draft-merge": PreviewCatalogDraftMerge(baseUrl, config); break;
+                case "get-catalog-draft-merge-sides": GetCatalogDraftMergeSides(baseUrl, config); break;
                 case "merge-into-catalog-draft": MergeIntoCatalogDraft(baseUrl, config); break;
                 case "list-release-registries": ListReleaseRegistries(baseUrl, config); break;
                 case "list-registry-releases": ListRegistryReleases(baseUrl, config); break;
@@ -941,6 +942,35 @@ public static class Driver
         });
     }
 
+    /// <summary>Reads the three sides of <c>config.entry</c> in merging <c>config.version</c> into the draft <c>config.release</c> (alpha).</summary>
+    private static void GetCatalogDraftMergeSides(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        // The generator puts the operation's own query parameters before the path's parameters.
+        var sides = new CatalogsApi(http, apiBase).GetCatalogDraftMergeSides(
+            Str(config, "version"), Str(config, "entry"),
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"));
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["entry"] = Show(sides.Entry),
+            ["mergeBase"] = Show(sides.MergeBase),
+            ["token"] = Show(sides.Token),
+            ["base"] = MergeSide(sides.Base),
+            ["draft"] = MergeSide(sides.Draft),
+            ["release"] = MergeSide(sides.Release),
+            ["draftMembers"] = sides.Draft is { } draft ? string.Join(",", draft.Keys.OrderBy(k => k, StringComparer.Ordinal)) : "null",
+        });
+    }
+
+    /// <summary>One side of a merge entry as <c>type/key:name</c>, or <c>null</c> when the side lacks it.</summary>
+    private static string MergeSide(Dictionary<string, object>? content)
+    {
+        if (content == null) return "null";
+        string Member(string name) => content.TryGetValue(name, out var value) && value != null ? value.ToString()! : "null";
+        return $"{Member("type")}/{Member("key")}:{Member("name")}";
+    }
+
     /// <summary>Lists the release registries (alpha), each as <c>name:kind</c>.</summary>
     private static void ListReleaseRegistries(string baseUrl, JsonElement config)
     {
@@ -1057,6 +1087,12 @@ public static class Driver
         {
             resolutions = raw.EnumerateObject().ToDictionary(p => p.Name, p => Parse<CatalogMergeSide>(p.Value.GetString()!));
         }
+        Dictionary<string, Dictionary<string, object>>? mergedContent = null;
+        if (config.TryGetProperty("mergedContent", out var rawContent) && rawContent.ValueKind == JsonValueKind.Object)
+        {
+            // Through the client's own serializer, as a caller holding the JSON would.
+            mergedContent = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, object>>>(rawContent.GetRawText());
+        }
         MergeIntoCatalogDraftResponse merged;
         try
         {
@@ -1065,6 +1101,7 @@ public static class Driver
                 new MergeIntoCatalogDraftRequest(
                     release: Str(config, "version"),
                     resolutions: resolutions!,
+                    mergedContent: mergedContent!,
                     expectedToken: OptStr(config, "expectedToken")!));
         }
         catch (ProblemDetailException e)
@@ -1086,6 +1123,7 @@ public static class Driver
             ["taken"] = string.Join(",", merged.Taken ?? new List<string>()),
             ["removed"] = string.Join(",", merged.Removed ?? new List<string>()),
             ["kept"] = string.Join(",", merged.Kept ?? new List<string>()),
+            ["merged"] = string.Join(",", merged.Merged ?? new List<string>()),
         });
     }
 

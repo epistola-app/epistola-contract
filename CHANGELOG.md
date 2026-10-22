@@ -11,6 +11,30 @@ libraries.
 
 ### Added
 
+- **Resolving a merge conflict with merged content (alpha, `x-experimental`, ADR 0005).** So that a
+  person, an assistant or a tool can combine both sides of a conflict:
+  `getCatalogDraftMergeSides` (`GET
+  …/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/merge-sides?version=&entry=`,
+  `CATALOG_VIEW`) returns one listed entry's content on each side, `{entry, mergeBase, base, draft,
+  release, token}`, each side a free-form JSON object in the portable catalog format
+  (`CatalogMergeEntryContent`: a resource as a resource detail carries it, `{"defaultTheme": …}`,
+  `{"presets": […]}`, a dependency declaration) or null; 404 when the merge does not list the
+  entry, 409 `merge-base-missing` (`MergeSidesConflictError`) without the merge base.
+  `MergeIntoCatalogDraftRequest.mergedContent` (optional, `type/key` to that content) resolves a
+  conflict to the content given; it is written into the draft as given, not marked ready, so it is
+  reviewed before the draft is released, and listed in the response's new optional `merged`.
+  Invalid content is 400 `validation-error` (`field` `mergedContent.<type/key>…`), a result with an
+  unresolved reference 409 `merge-refused`, content for an entry that is not a conflict 422
+  `merge-not-applicable`. `resolutions` keeps its type, a map of `ours`/`theirs` strings: a `oneOf`
+  of a string and an object there generated a type holding only the content in the Kotlin and
+  Jakarta clients (and the Kotlin server stubs), so no side could be sent. A null member and an
+  absent one mean the same in merged content. Jakarta's `GeneratedApiContractTest` and the Node
+  client's operation test name the operation. Conformance: a driver action
+  `get-catalog-draft-merge-sides` in all five clients, `merged` reported by
+  `merge-into-catalog-draft`, which sends `config.mergedContent`, and scenarios
+  `get-catalog-draft-merge-sides`, `merge-into-catalog-draft-merged-content` and
+  `merge-into-catalog-draft-merged-content-invalid`.
+
 - **A merge preview says what goes together (alpha, `x-experimental`, ADR 0005).**
   `CatalogDraftMergeResource.needs` (optional array of `resourceType/resourceKey`): the other
   entries of the preview the entry's value refers to, so a choice is made with them in view (a
