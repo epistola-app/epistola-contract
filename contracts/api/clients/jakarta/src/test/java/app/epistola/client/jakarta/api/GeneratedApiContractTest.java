@@ -196,10 +196,11 @@ class GeneratedApiContractTest {
                     continue;
                 }
                 if (fullPath.contains("/release-registries/{name}/")) {
-                    // A catalog in a release registry (alpha, ADR 0008) is found there by namespace and
-                    // key: the registry's name is the installation's, not part of the catalog's name.
-                    assertEquals(List.of("tenantKey", "name", "namespace", "catalogKey"), pathParams.subList(0, 4),
-                            where + " addresses a catalog in a release registry by name, namespace and catalogKey");
+                    // A catalog in a release registry (alpha, ADR 0008) is found there by its full name,
+                    // its authority included (amendment of 2026-10-22): the release registry's name is
+                    // the installation's, not part of the catalog's name.
+                    assertEquals(List.of("tenantKey", "name", "registry", "namespace", "catalogKey"), pathParams.subList(0, 5),
+                            where + " addresses a catalog in a release registry by name, registry, namespace and catalogKey");
                     continue;
                 }
                 catalogScoped++;

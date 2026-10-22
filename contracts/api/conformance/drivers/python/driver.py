@@ -903,7 +903,7 @@ def _list_registry_releases(base_url: str, config: dict) -> None:
     ``null``."""
     try:
         releases = CatalogsApi(_client(base_url, config)).list_registry_releases(
-            config["tenantKey"], config["name"], config["namespace"], config["catalogKey"]
+            config["tenantKey"], config["name"], config["registry"], config["namespace"], config["catalogKey"]
         )
     except ProblemDetailException as exc:
         _report_problem_only(base_url, exc)
@@ -916,6 +916,7 @@ def _list_registry_releases(base_url: str, config: dict) -> None:
     _report(
         base_url,
         {
+            "releaseRegistry": _show(releases.release_registry),
             "registry": _show(releases.registry),
             "namespace": _show(releases.namespace),
             "catalogKey": _show(releases.catalog_key),
@@ -930,7 +931,12 @@ def _install_registry_release(base_url: str, config: dict) -> None:
     """Installs a release from a release registry (alpha). A refusal is reported by its problem."""
     try:
         installed = CatalogsApi(_client(base_url, config)).install_registry_release(
-            config["tenantKey"], config["name"], config["namespace"], config["catalogKey"], config["version"]
+            config["tenantKey"],
+            config["name"],
+            config["registry"],
+            config["namespace"],
+            config["catalogKey"],
+            config["version"],
         )
     except ProblemDetailException as exc:
         _report_problem_only(base_url, exc)
@@ -966,7 +972,7 @@ def _publish_release_to_registry(base_url: str, config: dict) -> None:
         base_url,
         {
             "status": _show(_enum(published.status)),
-            "registry": _show(published.registry),
+            "releaseRegistry": _show(published.release_registry),
             "version": _show(published.version),
             "digest": _show(published.digest),
         },

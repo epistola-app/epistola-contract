@@ -1010,7 +1010,7 @@ public static class Driver
         try
         {
             releases = new CatalogsApi(http, apiBase).ListRegistryReleases(
-                Str(config, "tenantKey"), Str(config, "name"), Str(config, "namespace"), Str(config, "catalogKey"));
+                Str(config, "tenantKey"), Str(config, "name"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"));
         }
         catch (ProblemDetailException e)
         {
@@ -1020,6 +1020,7 @@ public static class Driver
 
         Report(baseUrl, new Dictionary<string, object>
         {
+            ["releaseRegistry"] = Show(releases.ReleaseRegistry),
             ["registry"] = Show(releases.Registry),
             ["namespace"] = Show(releases.Namespace),
             ["catalogKey"] = Show(releases.CatalogKey),
@@ -1039,7 +1040,7 @@ public static class Driver
         try
         {
             installed = new CatalogsApi(http, apiBase).InstallRegistryRelease(
-                Str(config, "tenantKey"), Str(config, "name"), Str(config, "namespace"), Str(config, "catalogKey"),
+                Str(config, "tenantKey"), Str(config, "name"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"),
                 Str(config, "version"));
         }
         catch (ProblemDetailException e)
@@ -1079,7 +1080,7 @@ public static class Driver
         Report(baseUrl, new Dictionary<string, object>
         {
             ["status"] = Wire(published.Status),
-            ["registry"] = Show(published.Registry),
+            ["releaseRegistry"] = Show(published.ReleaseRegistry),
             ["version"] = Show(published.Version),
             ["digest"] = Show(published.Digest),
         });

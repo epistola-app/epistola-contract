@@ -292,6 +292,32 @@ only the releases it lacks:
 The archive's own release is installed by the same rules, last. Installing never fills or creates a
 draft.
 
+## In a Container Registry
+
+A container registry (OCI distribution) keeps catalog releases for the `container` kind of release
+registry (contract ADR 0008, amendment of 2026-10-22). One layout, for every producer and consumer
+(`CatalogContainerLayout`; `catalogContainerRepository`, `CATALOG_CONTAINER_*`):
+
+| Part | Value |
+| --- | --- |
+| Repository | `<prefix>/<authority>/<namespace>/<catalogKey>`: the configured prefix (empty, or path components), then the catalog's full name, its authority (`registry`, a domain or `local`) included. Each part a repository path component, at most 255 characters in all |
+| Tag | the release number (`1.4.0`, `1.3.1-gemeente-x.1`); every valid release number is a valid tag. The tag is the binding's number, not the release's identity |
+| Manifest | an OCI image manifest (`application/vnd.oci.image.manifest.v1+json`), `artifactType` `application/vnd.epistola.catalog.release.v1`, a config blob `application/vnd.epistola.catalog.release.config.v1+json`, and one layer, the catalog archive exactly as exported, `application/vnd.epistola.catalog.archive.v1+zip` |
+| Annotations | `app.epistola.catalog.version`, `.fingerprint`, `.contentHash`, `.registry`, `.namespace`, `.catalogKey`, and `org.opencontainers.image.version` and `.title`: labels for listings, never evidence |
+
+Catalogs that differ only in their authority (`acme.com/acme/letters` and
+`exchange.epistola.app/acme/letters`) have different repositories.
+
+**Resolving by digest.** A receiver resolves a tag to the manifest's digest once and fetches the
+manifest and its layer by that digest, so the archive it verifies is the one it installs. The
+release verifies itself: its content hash is recomputed from the archive, whatever the annotations
+say, and receiving is decided by it (one number names one release in a catalog).
+
+**Mirroring** copies the manifest, its blobs and its tag unchanged to the same repository path
+under another registry's prefix: the same content, name and number, so the same digest. It needs no
+namespace. A `local` release may be kept in, and mirrored between, the organisation's own
+registries; it is never published to an Exchange.
+
 ## Deterministic Output
 
 The writer emits normalized forward-slash paths in sorted order with fixed

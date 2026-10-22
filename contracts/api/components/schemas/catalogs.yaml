@@ -62,7 +62,7 @@ CatalogDto:
       maxLength: 2048
       description: |
         Where the catalog's releases come from, as a URI: `exchange:acme-corp/letters` (an exchange,
-        the catalog's registry), `oci:registry.example.org/acme-corp/letters` (a container
+        the catalog's registry), `oci:registry.example.org/epistola/exchange.epistola.app/acme-corp/letters` (a container
         registry), `https://catalogs.example.org/letters/catalog.json` (a manifest URL), or
         `classpath:…` (supplied by the server itself). The scheme names the route; a client treats
         an unknown one as opaque. Null when releases only arrive by import (`importCatalog`) or are

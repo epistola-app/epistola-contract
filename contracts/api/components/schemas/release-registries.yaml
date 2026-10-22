@@ -90,14 +90,21 @@ RegistryReleaseListResponse:
   type: object
   description: The releases of one catalog a release registry holds (alpha)
   required:
+    - releaseRegistry
     - registry
     - namespace
     - catalogKey
     - items
   properties:
-    registry:
+    releaseRegistry:
       $ref: './identifiers.yaml#/ReleaseRegistryName'
       description: The release registry asked, by its name
+    registry:
+      $ref: './identifiers.yaml#/Registry'
+      description: |
+        Registry of the catalog, the authority of its name, written in full (the default registry
+        by its name, never `~`)
+      example: exchange.epistola.app
     namespace:
       $ref: './identifiers.yaml#/Namespace'
       description: Namespace of the catalog
@@ -148,12 +155,12 @@ ReleasePublicationDto:
   description: What publishing a release to a release registry did (alpha)
   required:
     - status
-    - registry
+    - releaseRegistry
     - version
   properties:
     status:
       $ref: '#/ReleasePublicationStatus'
-    registry:
+    releaseRegistry:
       $ref: './identifiers.yaml#/ReleaseRegistryName'
       description: The release registry it was published to, by its name
     version:

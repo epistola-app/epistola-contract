@@ -409,6 +409,23 @@ libraries.
 
 ### Changed
 
+- **BREAKING (API 2.0, alpha release registries, changed in place): a container registry keeps a
+  release under its full name, and the release-registry paths name the authority** (contract ADR
+  0008, amendment of 2026-10-22). The layout is now the contract's: `CatalogContainerLayout`
+  (Kotlin) and `catalogContainerRepository`, `CATALOG_CONTAINER_*` (npm), documented in
+  `catalog-archive.md` ("In a Container Registry"): repository
+  `<prefix>/<authority>/<namespace>/<catalogKey>`, the release number as the tag (every valid
+  release number is a valid OCI tag), resolved to a digest once and fetched by digest, the media
+  types and annotations Epistola Suite writes, plus `app.epistola.catalog.contentHash`. API:
+  `listRegistryReleases` and `installRegistryRelease` are now
+  `…/release-registries/{name}/catalogs/{registry}/{namespace}/{catalogKey}/releases[/{version}/install]`,
+  since namespace and key cannot tell apart two catalogs that differ only in their authority, and
+  the segment could not be added after 2.0 without a break. `registry` now always means the
+  authority: `RegistryReleaseListResponse` names the release registry `releaseRegistry` and the
+  catalog's authority `registry`; `ReleasePublicationDto.registry` is renamed `releaseRegistry`.
+  Jakarta's `GeneratedApiContractTest` checks the new path order. Conformance:
+  `list-registry-releases` and `install-registry-release` send `config.registry` and report
+  `releaseRegistry`; `publish-release-to-registry` reports `releaseRegistry`.
 - **The `local` authority** (contract ADR 0003, amendment of 2026-10-22; Epistola Suite ADR 0034).
   A registry is `local` or a DNS name with at least one dot: `local` names catalogs that never leave
   the organisation (`local/acme-hr/letters`), valid within its own installations and refused by an

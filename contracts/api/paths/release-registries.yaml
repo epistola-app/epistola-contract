@@ -26,7 +26,11 @@ release-registries:
 
       A release registry is not the `{registry}` of a catalog's path, which is part of the
       catalog's name (ADR 0003): a container registry carries releases without granting names, and
-      the catalogs it carries keep the names their archives give them.
+      the catalogs it carries keep the names their archives give them. A release registry's paths
+      name a catalog in full, `{registry}` (its authority) included, under the release registry
+      `{name}`: a container registry keeps a catalog's releases at
+      `<prefix>/<authority>/<namespace>/<catalogKey>`, tagged by release number, so two catalogs that
+      differ only in their authority are two repositories (ADR 0008, amendment of 2026-10-22).
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_VIEW]
@@ -51,6 +55,7 @@ registry-releases:
       schema:
         $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     - $ref: '../components/parameters/release-registries.yaml#/ReleaseRegistryName'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
 
@@ -61,8 +66,8 @@ registry-releases:
     description: |
       **Alpha** (`x-experimental`, ADR 0008): may still change in a minor release.
 
-      The releases of the catalog `{namespace}/{catalogKey}` that the release registry `{name}`
-      holds, highest version first, each with what the registry says of it: its fingerprint, and
+      The releases of the catalog `{registry}/{namespace}/{catalogKey}` that the release registry
+      `{name}` holds, highest version first, each with what the registry says of it: its fingerprint, and
       its content hash, id and base when the registry records them. Best effort: what the registry can say, and
       only a label, never trusted; installing checks the release itself. Nothing is installed by
       reading it.
@@ -103,6 +108,7 @@ registry-release-install:
       schema:
         $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     - $ref: '../components/parameters/release-registries.yaml#/ReleaseRegistryName'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
     - name: version
@@ -119,8 +125,8 @@ registry-release-install:
     description: |
       **Alpha** (`x-experimental`, ADR 0008): may still change in a minor release.
 
-      Fetches release `{version}` of the catalog `{namespace}/{catalogKey}` from the release
-      registry `{name}` and installs it exactly as `importCatalog` installs the release an archive
+      Fetches release `{version}` of the catalog `{registry}/{namespace}/{catalogKey}` from the
+      release registry `{name}` and installs it exactly as `importCatalog` installs the release an archive
       carries: an immutable release, side by side with the releases of the catalog the tenant has,
       whether its version is above theirs or below, with nothing updated in place or removed. The
       catalog is the one the release's archive names (registry, namespace and key); what the

@@ -270,3 +270,15 @@ for (const path of carried.pathCases.valid) {
 for (const path of carried.pathCases.invalid) {
   assert.equal(catalog.parseCatalogDependencyArchivePath(path), undefined, `${path} is not a carried-release path`);
 }
+
+// A container registry keeps a release at <prefix>/<authority>/<namespace>/<catalogKey>:<version> (ADR 0008).
+assert.equal(
+  catalog.catalogContainerRepository('epistola/catalogs', { registry: 'exchange.epistola.app', namespace: 'acme', catalogKey: 'letters' }),
+  'epistola/catalogs/exchange.epistola.app/acme/letters',
+);
+assert.equal(catalog.catalogContainerRepository('', { registry: 'local', namespace: 'acme-hr', catalogKey: 'letters' }), 'local/acme-hr/letters');
+assert.throws(() => catalog.catalogContainerRepository('cat', { registry: 'localhost', namespace: 'acme', catalogKey: 'letters' }));
+assert.throws(() => catalog.catalogContainerRepository('Bad', { registry: 'acme.com', namespace: 'acme', catalogKey: 'letters' }));
+const containerTag = new RegExp(catalog.CATALOG_CONTAINER_TAG_PATTERN);
+assert.ok(containerTag.test('1.3.1-gemeente-x.1') && containerTag.test('1.0.' + '1'.repeat(catalog.MAX_CATALOG_RELEASE_VERSION_LENGTH - 4)), 'every release number is a tag');
+assert.equal(catalog.CATALOG_CONTAINER_ANNOTATIONS.contentHash, 'app.epistola.catalog.contentHash');
