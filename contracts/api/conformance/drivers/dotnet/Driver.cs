@@ -932,6 +932,9 @@ public static class Driver
                 $"{Show(r.ResourceType)}/{Show(r.ResourceKey)}:{Wire(r.Outcome)}"
                 + $":{(r.DraftChange is { } ours ? Wire(ours) : "null")}:{(r.ReleaseChange is { } theirs ? Wire(theirs) : "null")}")),
             ["resourceNames"] = string.Join("|", resources.Select(r => Show(r.Name))),
+            ["resourceNeeds"] = string.Join(";", resources
+                .Where(r => r.Needs is { Count: > 0 })
+                .Select(r => $"{Show(r.ResourceType)}/{Show(r.ResourceKey)}={string.Join("+", r.Needs)}")),
             ["unchanged"] = Show(preview.Unchanged),
             ["token"] = Show(preview.Token),
             ["missingBase"] = preview.MissingBase is { } missingBase ? $"{missingBase.Version}@{missingBase.Fingerprint}" : "null",

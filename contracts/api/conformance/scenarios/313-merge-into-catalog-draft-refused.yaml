@@ -1,0 +1,57 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: merge-into-catalog-draft-refused
+title: A merge whose result would leave a reference unresolved is refused, saying what to choose
+why: >
+  Merging is alpha (ADR 0005). Every reference in a merge's result resolves: within the catalog,
+  and into another catalog through a declared dependency, against the release it pins. A merge that
+  would leave one unresolved (here the release's default theme is a theme of catalog `shared`, and
+  the draft kept its own dependencies, which do not declare `shared`) is refused with
+  `merge-refused`, and nothing changes. The problem is a plain one: its `detail` names what is
+  missing and what to choose. A client surfaces the slug and status, so a caller can tell it from
+  unresolved conflicts, and reports no conflicts, reason or merge base the body does not carry.
+
+action:
+  name: merge-into-catalog-draft
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: k7m2x9qa
+    version: 1.0.1
+    resolutions:
+      catalog/defaultTheme: theirs
+      catalogDependency/shared: ours
+
+script:
+  - status: 409
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/merge-refused
+      title: Merge Refused
+      status: 409
+      detail: >-
+        Cannot merge v1.0.1 into Redesign 2027: the default theme 'brand' of 'shared' needs 'shared'
+        as a dependency: take v1.0.1's dependency on 'shared' too, or keep your default theme.
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/merge
+      body:
+        json:
+          release: { equals: 1.0.1 }
+          resolutions:
+            catalog/defaultTheme: theirs
+            catalogDependency/shared: ours
+  report:
+    problemTypeSlug: merge-refused
+    problemStatus: 409
+    problemUnresolvedConflicts: ''
+    problemReadOnlyReason: 'null'
+    problemMissingBase: 'null'

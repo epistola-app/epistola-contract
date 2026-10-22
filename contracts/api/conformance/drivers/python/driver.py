@@ -826,6 +826,11 @@ def _preview_catalog_draft_merge(base_url: str, config: dict) -> None:
                 for r in preview.resources
             ),
             "resourceNames": "|".join(_show(r.name) for r in preview.resources),
+            "resourceNeeds": ";".join(
+                f"{_show(r.resource_type)}/{_show(r.resource_key)}={'+'.join(r.needs)}"
+                for r in preview.resources
+                if r.needs
+            ),
             "unchanged": _show(preview.unchanged),
             "token": _show(preview.token),
             "missingBase": (

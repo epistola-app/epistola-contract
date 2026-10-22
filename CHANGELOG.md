@@ -11,6 +11,13 @@ libraries.
 
 ### Added
 
+- **A merge preview says what goes together (alpha, `x-experimental`, ADR 0005).**
+  `CatalogDraftMergeResource.needs` (optional array of `resourceType/resourceKey`): the other
+  entries of the preview the entry's value refers to, so a choice is made with them in view (a
+  template needs a stencil or theme it uses; `catalog/defaultTheme` needs
+  `catalogDependency/shared` when the theme is in catalog `shared`). Empty or absent when none.
+  Conformance: `preview-catalog-draft-merge` carries it, and every driver reports `resourceNeeds`.
+
 - **Release registries (alpha, `x-experimental`, ADR 0008).** One way to move releases between
   installations, whatever carries them: an Epistola Exchange (`exchange`) or a container registry
   (`container`). `listReleaseRegistries` (`GET /tenants/{tenantKey}/release-registries`, `{items:
@@ -352,6 +359,32 @@ libraries.
   different releases of one catalog. `CatalogChangesDto` reports `dependenciesChanged`.
 
 ### Changed
+
+- **One merge entry per catalog dependency (alpha, `x-experimental`, ADR 0005).** The single
+  `catalog/dependencies` entry of `previewCatalogDraftMerge` and `mergeIntoCatalogDraft` is now one
+  entry per catalog the release uses: `resourceType` `catalogDependency`, `resourceKey` the
+  catalog's key (registry and namespace are in the declaration; a full name does not fit the
+  50-character key), resolved and reported as `catalogDependency/<catalogKey>`. Adding, removing or
+  re-pinning a dependency is its own change; only both sides changing the same catalog differently
+  is a conflict. A dependency the release no longer declares is listed in `removed`; one nothing
+  uses any more is kept, as editing keeps one. Conformance: `preview-catalog-draft-merge` and
+  `merge-into-catalog-draft` carry such entries.
+- **`merge-refused` covers every unresolved reference (alpha).** Besides a release removing a
+  resource the draft still uses, a merge is refused when its result would hold a reference that
+  does not resolve: within the catalog, or into another catalog through a declared dependency,
+  checked against the release it pins (the catalog's default theme included), or into a catalog the
+  result does not declare. The problem's `detail` names what is missing and what to choose.
+  Registry text, `error-types.md`, `MergeConflictError`, both operations and ADR 0005 updated.
+  Conformance: new scenario `merge-into-catalog-draft-refused`.
+- **`release-number-taken` on receiving a release too.** `importCatalog`, `installCatalogRelease`
+  and `installRegistryRelease` now refuse a release whose number the tenant has with another
+  fingerprint (its own, or one it pins), or whose release id another release or a draft of the
+  catalog has, with 409 `release-number-taken` instead of `conflict`: one number and one id name
+  one release. Other conflicts stay `conflict`. Their 409 response (`ReleaseDependenciesMissingError`)
+  declares it with an example; registry text, `error-types.md`, the client READMEs and ADR 0008
+  updated. A client switching on `conflict` for these cases must also handle `release-number-taken`.
+  Conformance: `import-catalog-fingerprint-conflict` now expects it, and new scenarios
+  `install-catalog-release-number-taken` and `install-registry-release-number-taken`.
 
 - **ADR 0001 (hotfixing) is superseded** by Epistola Suite's ADR 0032 and contract ADR 0005: with
   no catalog types, any installation that allows editing fixes a release the ordinary way and the

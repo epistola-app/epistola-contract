@@ -192,7 +192,10 @@ MergeConflictError:
   description: >-
     The request conflicts with the current state of the draft (alpha). When conflicts of the merge
     have no resolution, the problem is `merge-conflicts-unresolved` and `unresolvedConflicts` lists
-    each. When the release removes a resource the draft still uses, it is `merge-refused`. When the
+    each. When the result would hold a reference that does not resolve (a resource the release
+    removes that the draft still uses, or a reference within the catalog or into another catalog,
+    through the release a declared dependency pins, that the result lacks), it is `merge-refused`,
+    and its `detail` names what is missing and what to choose. When the
     draft or the release changed since the preview named by `expectedToken`, it is
     `merge-preview-outdated`. When this installation does not have the merge base (the closest
     release both lines descend from), it is `merge-base-missing`, and `version` and `fingerprint`
@@ -242,26 +245,41 @@ ResourceModifiedError:
 
 ReleaseDependenciesMissingError:
   description: >-
-    The request conflicts with the current state of the resource. When the release renders with
-    releases of other catalogs that the tenant does not have, that an imported archive does not
-    carry, and that cannot be fetched, the problem is
-    `release-dependencies-missing` and `missingDependencies` lists each one and why. Other conflicts
-    use `conflict`.
+    The release cannot be received (`importCatalog`, `installCatalogRelease`,
+    `installRegistryRelease`), and nothing was installed. When the release renders with releases of
+    other catalogs that the tenant does not have, that an imported archive does not carry, and that
+    cannot be fetched, the problem is `release-dependencies-missing` and `missingDependencies` lists
+    each one and why. When its number or id names another release here (the tenant has this
+    version of the catalog, or of a release it pins, with another fingerprint, or another release
+    or a draft of the catalog has its release id), it is `release-number-taken`: one number and one
+    id name one release. Other conflicts (the tenant has a catalog under that key in another
+    registry or namespace, one that receives its releases from another source, or a catalog without
+    a source to install from) use `conflict`.
   content:
     application/problem+json:
       schema:
         $ref: './errors.yaml#/ReleaseDependenciesMissingProblemDetail'
-      example:
-        type: https://epistola.app/errors/release-dependencies-missing
-        title: Release Dependencies Missing
-        status: 409
-        detail: "letters 1.4.0 renders with releases that cannot be had: exchange.epistola.app/epistola/system@3.2.0"
-        missingDependencies:
-          - registry: exchange.epistola.app
-            namespace: epistola
-            catalogKey: system
-            version: 3.2.0
-            reason: unavailable
+      examples:
+        releaseDependenciesMissing:
+          summary: Releases it pins cannot be had
+          value:
+            type: https://epistola.app/errors/release-dependencies-missing
+            title: Release Dependencies Missing
+            status: 409
+            detail: "letters 1.4.0 renders with releases that cannot be had: exchange.epistola.app/epistola/system@3.2.0"
+            missingDependencies:
+              - registry: exchange.epistola.app
+                namespace: epistola
+                catalogKey: system
+                version: 3.2.0
+                reason: unavailable
+        releaseNumberTaken:
+          summary: The tenant has this version with other content
+          value:
+            type: https://epistola.app/errors/release-number-taken
+            title: Release Number Taken
+            status: 409
+            detail: "This tenant has letters 1.4.0 with other content (fingerprint v5:9f3a…, the archive's v5:1c2b…); one number names one release."
 
 ReleaseDependenciesUnreleasedError:
   description: >-

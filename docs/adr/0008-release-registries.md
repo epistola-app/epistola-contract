@@ -61,7 +61,8 @@ so two catalogs that differ only in the registry part of their names cannot shar
 `installRegistryRelease` installs the release exactly as `importCatalog` installs an archive's,
 with the same checks and refusals: the fingerprint recomputed from the content (what a registry
 says of a release is a label, never trusted), one number and one id name one release (409
-`conflict`), missing dependencies (409 `release-dependencies-missing`), an invalid archive or not
+`conflict`; amended 2026-10-22: 409 `release-number-taken`, as publishing refuses a number taken,
+for every way of receiving a release), missing dependencies (409 `release-dependencies-missing`), an invalid archive or not
 the catalog asked for (400 `bad-request`), rendering defaults this installation lacks (400
 `catalog-rendering-defaults-too-new`). A catalog the tenant does not have is created with the
 release registry as its source; one that is another catalog under the same key, or receives its

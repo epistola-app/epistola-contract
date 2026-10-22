@@ -135,8 +135,8 @@ registry-release-install:
         409 `conflict` before anything is fetched.
 
       Refused as importing is, with nothing installed: the same version with a different
-      fingerprint, or a release id another release of the catalog has here (one number and one id
-      name one release), with 409 `conflict`; releases it pins that cannot be had with 409
+      fingerprint, or a release id another release or a draft of the catalog has here (one number
+      and one id name one release), with 409 `release-number-taken`; releases it pins that cannot be had with 409
       `release-dependencies-missing`; a release that is not a valid catalog archive, or not the
       catalog and version asked for, with 400 `bad-request`; one rendering with rendering defaults
       this installation does not have with 400 `catalog-rendering-defaults-too-new`. The same

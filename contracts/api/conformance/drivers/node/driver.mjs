@@ -722,6 +722,10 @@ async function previewCatalogDraftMerge(baseUrl, config) {
       .map((r) => `${show(r.resourceType)}/${show(r.resourceKey)}:${show(r.outcome)}:${show(r.draftChange)}:${show(r.releaseChange)}`)
       .join(','),
     resourceNames: preview.resources.map((r) => show(r.name)).join('|'),
+    resourceNeeds: preview.resources
+      .filter((r) => r.needs && r.needs.length > 0)
+      .map((r) => `${show(r.resourceType)}/${show(r.resourceKey)}=${r.needs.join('+')}`)
+      .join(';'),
     unchanged: show(preview.unchanged),
     token: show(preview.token),
     missingBase: preview.missingBase ? `${preview.missingBase.version}@${preview.missingBase.fingerprint}` : 'null',

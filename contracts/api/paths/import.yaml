@@ -29,6 +29,10 @@ import-catalog:
       - **The same number with the same fingerprint** is the release the tenant already has: nothing
         changes, and the response says it was already present (`newlyInstalled: false`).
       - **The same number with a different fingerprint** is different content under one name: the
+        import is refused with 409 `release-number-taken`, and nothing changes. So is a release
+        whose id (`release.releaseId`) another release or a draft of the catalog has here: one
+        number and one id name one release.
+      - **A catalog under the same key in another registry or namespace** is another catalog: the
         import is refused with 409 `conflict`, and nothing changes.
       - **A new catalog** is created by the import, holding that release: a catalog received from
         elsewhere, like any other. There are no catalog types. Whether it can be changed here
@@ -64,8 +68,8 @@ import-catalog:
       (`installedDependencies`); those it has already, with the same fingerprint, are left alone
       (`presentDependencies`). Each is installed side by side with the releases of that catalog the
       tenant has, which are left as they are. A release the tenant has with the same number but a
-      different fingerprint refuses the whole import with 409 `conflict`, naming each, and nothing
-      changes. A pin the archive does not carry is resolved from what the tenant has or the server
+      different fingerprint refuses the whole import with 409 `release-number-taken`, naming it,
+      and nothing changes. A pin the archive does not carry is resolved from what the tenant has or the server
       can fetch from its registry, or from the mirrors of that registry the server is configured
       with; one that
       cannot be had, because its source could not be reached, answered with an error, or offered

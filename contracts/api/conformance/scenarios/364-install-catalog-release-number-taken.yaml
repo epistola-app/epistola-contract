@@ -1,0 +1,44 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: install-catalog-release-number-taken
+title: Installing a release whose id another release has here is refused as a number taken
+why: >
+  One number and one id name one release. Installing a release from the catalog's source is
+  receiving it as an import does, so a release the tenant has under the same version with other
+  content, or whose release id another release or a draft of the catalog has here, is refused with
+  409 `release-number-taken` and nothing is installed. A client surfaces the slug and the status,
+  so a caller can tell it from missing dependencies, and reports no missing dependencies.
+
+action:
+  name: install-catalog-release
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: registry.gemeente-x.nl
+    namespace: huisstijl
+    catalogKey: branding
+    version: 1.5.0
+
+script:
+  - status: 409
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/release-number-taken
+      title: Release Number Taken
+      status: 409
+      detail: >-
+        branding 1.5.0 has the release id 'k7m2x9qa', which release 1.4.0 of this catalog has
+        here; one id names one release.
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/registry.gemeente-x.nl/huisstijl/branding/available-releases/1.5.0/install
+      query: ""
+  report:
+    problemTypeSlug: release-number-taken
+    problemStatus: 409
+    problemMissingDependencies: ''

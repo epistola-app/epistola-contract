@@ -1032,8 +1032,9 @@ CatalogMergeSide:
 CatalogDraftMergeResource:
   type: object
   description: |
-    One entry a merge would change or has to ask about (alpha): a resource, or one of the
-    release's catalog settings, which are merged like resources (ADR 0005).
+    One entry a merge would change or has to ask about (alpha): a resource, one of the release's
+    catalog settings, or one catalog the release declares it uses, which are merged like resources
+    (ADR 0005).
   required:
     - resourceType
     - resourceKey
@@ -1044,9 +1045,9 @@ CatalogDraftMergeResource:
       type: string
       description: |
         What the entry is: a resource type as the portable catalog format names it (`template`,
-        `theme`, `stencil`, `attribute`, `code-list`, `font`, `image`, …), or `catalog` for a
-        setting of the release (its default theme, presets or dependency declarations). A string,
-        not an enum: a client keeps a type it does not know.
+        `theme`, `stencil`, `attribute`, `code-list`, `font`, `image`, …), `catalog` for a setting
+        of the release (its default theme or presets), or `catalogDependency` for one catalog the
+        release declares it uses. A string, not an enum: a client keeps a type it does not know.
       example: template
     resourceKey:
       type: string
@@ -1054,10 +1055,13 @@ CatalogDraftMergeResource:
       maxLength: 50
       description: |
         The entry's key within its type. For a resource, its key (`ResourceKey`). For `catalog`, the
-        setting: `defaultTheme` (the theme a template that names none renders with), `presets` (the
-        block style presets) or `dependencies` (the catalogs it uses, each with the release it
-        pins); these are not resource keys and do not follow that rule. A resolution names the
-        entry as `resourceType/resourceKey` (`template/invoice`, `catalog/defaultTheme`).
+        setting: `defaultTheme` (the theme a template that names none renders with) or `presets`
+        (the block style presets); these are not resource keys and do not follow that rule. For
+        `catalogDependency`, the key of the catalog used (`CatalogKey`), one entry per catalog: its
+        registry and namespace are part of the declaration, the entry's value, not of its key, since
+        a catalog key is unique in a tenant and a full name does not fit 50 characters. A
+        resolution names the entry as `resourceType/resourceKey` (`template/invoice`,
+        `catalog/defaultTheme`, `catalogDependency/shared`).
       example: invoice
     name:
       type: [string, "null"]
@@ -1080,13 +1084,31 @@ CatalogDraftMergeResource:
       description: |
         How the release changed the entry since the merge base; null or absent when it did not
       example: modified
+    needs:
+      type: array
+      description: |
+        The other entries of this preview, as `resourceType/resourceKey`, that this entry's value
+        (the draft's or the release's) refers to, so that a choice for it is made with them in view:
+        a template needs the theme or stencil it uses when the merge also changes that one, and an
+        entry referring into another catalog needs that catalog's dependency entry
+        (`catalog/defaultTheme` needs `catalogDependency/shared` when the default theme is a theme
+        of catalog `shared`). Only entries this preview lists, never the entry itself. Empty or
+        absent when there are none. Choosing a side of an entry without the side of what it needs
+        can leave a reference that does not resolve, which the merge refuses (409
+        `merge-refused`), saying what to choose.
+      items:
+        type: string
+        minLength: 1
+        maxLength: 128
+      example: ["stencil/footer", "theme/corporate"]
 
 CatalogDraftMergePreview:
   type: object
   description: |
     What merging a release into a draft would do, entry by entry, **without merging it** (alpha,
-    ADR 0005). The entries are the resources and the release's catalog settings (default theme,
-    presets, dependency declarations; `resourceType` `catalog`). Each is compared in three states
+    ADR 0005). The entries are the resources, the release's catalog settings (default theme and
+    presets; `resourceType` `catalog`) and each catalog it declares it uses (`resourceType`
+    `catalogDependency`, keyed by that catalog's key). Each is compared in three states
     by its fingerprint: the merge base (the closest release the draft and the release both descend
     from), the draft (ours) and the release (theirs). Only entries a side changed differently from
     the other are listed; the rest are counted in `unchanged`.
@@ -1129,9 +1151,9 @@ CatalogDraftMergePreview:
     resources:
       type: array
       description: |
-        The entries (resources and `catalog` settings) whose outcome is `ours`, `theirs` or
-        `conflict`, ordered by type, then key. Every `conflict` needs a resolution in
-        `mergeIntoCatalogDraft`.
+        The entries (resources, `catalog` settings and `catalogDependency` entries) whose outcome
+        is `ours`, `theirs` or `conflict`, ordered by type, then key, each with the other entries
+        it goes with (`needs`). Every `conflict` needs a resolution in `mergeIntoCatalogDraft`.
       items:
         $ref: '#/CatalogDraftMergeResource'
     unchanged:
@@ -1196,8 +1218,8 @@ MergeIntoCatalogDraftRequest:
       type: object
       description: |
         Each conflict of the merge (`previewCatalogDraftMerge`), named `resourceType/resourceKey`
-        (`template/invoice`, or a setting such as `catalog/defaultTheme`, `catalog/presets` or
-        `catalog/dependencies`), resolved to `ours` or `theirs`. Every conflict needs one, or the merge
+        (`template/invoice`, a setting, `catalog/defaultTheme` or `catalog/presets`, or a catalog
+        used, `catalogDependency/shared`), resolved to `ours` or `theirs`. Every conflict needs one, or the merge
         is refused with 409 `merge-conflicts-unresolved`; naming a resource that is not a conflict
         is refused with 422 `merge-not-applicable`. Omitted: no resolutions.
       additionalProperties:
@@ -1218,9 +1240,9 @@ MergeIntoCatalogDraftRequest:
 MergeIntoCatalogDraftResponse:
   type: object
   description: |
-    What the merge did, each entry as `resourceType/resourceKey` (alpha): resources, and the
-    release's catalog settings as `catalog/defaultTheme`, `catalog/presets` and
-    `catalog/dependencies`
+    What the merge did, each entry as `resourceType/resourceKey` (alpha): resources, the release's
+    catalog settings as `catalog/defaultTheme` and `catalog/presets`, and each catalog used as
+    `catalogDependency/<catalogKey>`
   required:
     - release
     - taken
@@ -1235,14 +1257,17 @@ MergeIntoCatalogDraftResponse:
       type: array
       description: |
         The entries written into the draft as the release has them (outcome `theirs`, or a
-        conflict resolved to `theirs`): resources, marked ready, and settings, which then are the
-        release's
+        conflict resolved to `theirs`): resources, marked ready, settings, which then are the
+        release's, and dependencies, declared as the release declares them (added or re-pinned)
       items:
         type: string
-      example: ["catalog/presets", "template/invoice", "theme/corporate"]
+      example: ["catalog/presets", "catalogDependency/shared", "template/invoice", "theme/corporate"]
     removed:
       type: array
-      description: The resources removed from the draft because the release removed them
+      description: |
+        The entries removed from the draft because the release removed them: resources, and
+        dependencies the release no longer declares. A dependency is never removed because nothing
+        refers to it after the merge: it stays declared, as editing keeps one.
       items:
         type: string
       example: []

@@ -172,7 +172,9 @@ try {
         log.warn(`upgrade Epistola: the release needs ${e.extensions.renderingDefaultsVersion}, this has up to ${e.extensions.supportedVersion}`)
         break
       case KnownProblemSlugs.RELEASE_NUMBER_TAKEN:
-        // publishReleaseToRegistry (alpha): the registry has this version with other content
+        // publishReleaseToRegistry (alpha): the registry has this version with other content;
+        // importCatalog, installCatalogRelease, installRegistryRelease: the tenant has this version
+        // with another fingerprint, or this release id as another release
         log.warn('release the changes under a new version')
         break
       case KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE:

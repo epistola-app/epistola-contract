@@ -36,10 +36,10 @@ Clients must ignore members they do not recognize.
 | `https://epistola.app/errors/release-dependencies-unreleased` | `release-dependencies-unreleased` | 409 | `ProblemDetail` + `unreleasedDependencies` | a draft cannot be released because its dependency declarations name drafts of other catalogs, and a release pins only releases; release them first, or along with it (`releaseDependencies`). The `unreleasedDependencies` member lists each such draft (`registry`, `namespace`, `catalogKey`, `releaseId`, `releaseName`) |
 | `https://epistola.app/errors/catalog-read-only` | `catalog-read-only` | 409 | `ProblemDetail` + `readOnlyReason` | the catalog cannot be changed in this installation (`CatalogDto.editable` is false), so a write to it was refused and nothing changed; `readOnlyReason` is `editing-disabled` (the installation only receives and runs releases) or `supplied-by-epistola` (the server supplies the catalog and replaces it on upgrade) |
 | `https://epistola.app/errors/merge-conflicts-unresolved` | `merge-conflicts-unresolved` | 409 | `ProblemDetail` + `unresolvedConflicts` | merging a release into a draft (`mergeIntoCatalogDraft`, alpha) was refused because conflicts have no resolution; `unresolvedConflicts` lists each as `resourceType/resourceKey`. Nothing changed |
-| `https://epistola.app/errors/merge-refused` | `merge-refused` | 409 | `ProblemDetail` | merging a release into a draft (alpha) cannot be applied as asked: the release removes a resource the draft still uses. Nothing changed; keep it (`ours`) or stop using it first |
+| `https://epistola.app/errors/merge-refused` | `merge-refused` | 409 | `ProblemDetail` | merging a release into a draft (alpha) cannot be applied as asked: the result would leave a reference that does not resolve, within the catalog (a resource the release removes that the draft still uses, or one a taken or kept entry refers to that the result lacks) or into another catalog through a declared dependency, checked against the release that declaration pins (the catalog's default theme included), or into a catalog the result does not declare. The `detail` names what is missing and what to choose. Nothing changed; keep the draft's side (`ours`), or take the release's side of what it needs too |
 | `https://epistola.app/errors/merge-preview-outdated` | `merge-preview-outdated` | 409 | `ProblemDetail` | merging a release into a draft (alpha) was refused because the draft or the release changed since the preview whose `token` the request sent as `expectedToken`. Nothing changed; preview again and choose again |
 | `https://epistola.app/errors/merge-base-missing` | `merge-base-missing` | 409 | `ProblemDetail` + `version`, `fingerprint` | merging a release into a draft (alpha) was refused because this installation does not have the merge base, the closest release both the draft and the release descend from; `version` and `fingerprint` name that release, to install first. Nothing changed |
-| `https://epistola.app/errors/release-number-taken` | `release-number-taken` | 409 | `ProblemDetail` | publishing a release to a release registry (`publishReleaseToRegistry`, alpha) was refused because the registry holds this version of the catalog with other content: one number names one release. Nothing was sent; release the changes under a new version |
+| `https://epistola.app/errors/release-number-taken` | `release-number-taken` | 409 | `ProblemDetail` | a release's number or id names another release: publishing a release to a release registry (`publishReleaseToRegistry`, alpha) was refused because the registry holds this version of the catalog with other content; receiving one (`importCatalog`, `installCatalogRelease`, `installRegistryRelease`) was refused because the tenant has this version of the catalog, or of a release it pins, with another fingerprint, or another release or a draft of the catalog has its release id. One number and one id name one release. Nothing was sent or installed; release the changes under a new version |
 | `https://epistola.app/errors/namespace-not-granted` | `namespace-not-granted` | 409 | `ProblemDetail` | publishing a release to a release registry that grants namespaces (the Exchange, alpha) was refused because it does not grant this installation the catalog's namespace. Nothing was sent |
 | `https://epistola.app/errors/environment-deployment-refused` | `environment-deployment-refused` | 409 | `ProblemDetail` | a production environment serves only releases: a draft is deployed to it, or it is marked production while it serves a draft |
 | `https://epistola.app/errors/resource-modified` | `resource-modified` | 412 | `ProblemDetail` | an update sent `If-Match` with an `ETag` that is no longer current: the resource changed since it was read, and nothing changed. Read it again, reapply the change and retry with the new `ETag` |
@@ -174,9 +174,17 @@ Retrying does not help; a client offers no write on a catalog whose `editable` i
 `mergeIntoCatalogDraft` (ADR 0005) is all or nothing. It is refused, with nothing changed, by:
 
 - 409 `merge-conflicts-unresolved`: conflicts have no resolution. `unresolvedConflicts` lists each
-  as `resourceType/resourceKey` (a catalog setting as `catalog/defaultTheme`, `catalog/presets` or
-  `catalog/dependencies`); resolve each to `ours` or `theirs` and send the merge again.
-- 409 `merge-refused`: the release removes a resource the draft still uses.
+  as `resourceType/resourceKey` (a catalog setting as `catalog/defaultTheme` or `catalog/presets`, a
+  catalog used as `catalogDependency/<catalogKey>`); resolve each to `ours` or `theirs` and send the
+  merge again.
+- 409 `merge-refused`: the result would leave a reference that does not resolve. Within the catalog:
+  the release removes a resource the draft still uses, or an entry taken or kept refers to one the
+  result does not have. Into another catalog: the result does not declare that catalog, or the
+  release its declaration pins (or the draft it names) does not have what is referred to; the
+  catalog's default theme is checked the same way. Only what the merge leaves unresolved is refused.
+  The `detail` names what is missing and what to choose, for example "the default theme 'brand' of
+  'shared' needs 'shared' as a dependency: take v1.0.1's dependency on 'shared' too, or keep your
+  default theme". The preview lists with each entry the entries it goes with (`needs`).
 - 409 `merge-preview-outdated`: the request sent the preview's `token` as `expectedToken`, and the
   draft or the release changed since that preview. Preview again and choose again.
 - 409 `merge-base-missing`: this installation does not have the merge base, the closest release both
