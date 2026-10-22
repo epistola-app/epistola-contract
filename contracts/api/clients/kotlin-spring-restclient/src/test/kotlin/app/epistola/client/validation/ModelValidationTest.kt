@@ -307,6 +307,19 @@ class ModelValidationTest {
             ).validate()
         }
 
+        // a versionRange holds an exact release number of any valid length, up to 256 characters
+        val exact = GenerateDocumentRequest(
+            namespace = "acme-corp",
+            catalogKey = "default",
+            templateKey = "invoice",
+            data = emptyMap<String, Any>(),
+            versionRange = "1.0." + "1".repeat(124),
+        )
+        assertEquals(exact, exact.validate())
+        val longest = exact.copy(versionRange = "x".repeat(256))
+        assertEquals(longest, longest.validate())
+        assertFailsWith<IllegalArgumentException> { exact.copy(versionRange = "x".repeat(257)).validate() }
+
         // null environmentKey: skipped
         GenerateDocumentRequest(
             namespace = "acme-corp",

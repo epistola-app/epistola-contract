@@ -53,7 +53,7 @@ PreviewDocumentRequest:
     versionRange:
       type: [string, "null"]
       minLength: 1
-      maxLength: 100
+      maxLength: 256
       description: |
         Which release of the template's catalog to render, as a version range (see "Version
         ranges" in the API description); the highest release that satisfies it is rendered.
@@ -196,7 +196,7 @@ GenerateDocumentRequest:
     versionRange:
       type: [string, "null"]
       minLength: 1
-      maxLength: 100
+      maxLength: 256
       description: |
         Which release of the template's catalog to render, as a version range (see "Version
         ranges" in the API description); the highest release that satisfies it is rendered.
@@ -320,7 +320,7 @@ BatchGenerationItem:
     versionRange:
       type: [string, "null"]
       minLength: 1
-      maxLength: 100
+      maxLength: 256
       description: |
         Which release of the template's catalog to render, as a version range (see "Version
         ranges" in the API description); the highest release that satisfies it is rendered.

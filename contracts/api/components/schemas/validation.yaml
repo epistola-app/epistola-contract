@@ -19,7 +19,7 @@ ValidateTemplateDataRequest:
     versionRange:
       type: [string, "null"]
       minLength: 1
-      maxLength: 100
+      maxLength: 256
       description: |
         Version range for the release of the template's catalog to check against (see "Version
         ranges" in the API description). Combines with `environmentKey`.

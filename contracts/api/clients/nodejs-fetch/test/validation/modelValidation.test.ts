@@ -69,6 +69,13 @@ test('a patch release number is a release number, labelled with a namespace and 
   }
 })
 
+test('a version range holds an exact release number of any valid length, up to 256 characters', () => {
+  const request = { namespace: 'acme-corp', catalogKey: 'letters', templateKey: 'invoice', data: {} }
+  validateModel('GenerateDocumentRequest', { ...request, versionRange: '1.0.' + '1'.repeat(124) })
+  validateModel('GenerateDocumentRequest', { ...request, versionRange: 'x'.repeat(256) })
+  assert.throws(() => validateModel('GenerateDocumentRequest', { ...request, versionRange: 'x'.repeat(257) }), /versionRange: /)
+})
+
 test('a content hash is a V6 fingerprint, whatever algorithm the recorded fingerprint names', () => {
   const hex = '0123456789abcdef'.repeat(4)
   const release = { version: '1.0.0', releaseId: 'v1x9q2', status: 'released', behind: [], dependencies: [], deployedTo: [], fingerprint: `v5:${hex}` }

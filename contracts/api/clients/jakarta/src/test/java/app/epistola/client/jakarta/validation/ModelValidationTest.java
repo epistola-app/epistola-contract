@@ -360,6 +360,12 @@ class ModelValidationTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> ModelValidation.validate(baseGenerationRequest().versionRange("")));
+        // A range holds an exact release number of any valid length, up to 256 characters.
+        ModelValidation.validate(baseGenerationRequest().versionRange("1.0." + "1".repeat(124)));
+        ModelValidation.validate(baseGenerationRequest().versionRange("x".repeat(256)));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> ModelValidation.validate(baseGenerationRequest().versionRange("x".repeat(257))));
 
         ModelValidation.validate(baseGenerationRequest().environmentKey(null));
         assertThrows(
