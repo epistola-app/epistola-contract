@@ -122,6 +122,7 @@ object Driver {
                 "delete-catalog-release" -> deleteCatalogRelease(baseUrl, config)
                 "release-catalog-draft" -> releaseCatalogDraft(baseUrl, config)
                 "preview-catalog-draft-merge" -> previewCatalogDraftMerge(baseUrl, config)
+                "get-catalog-draft-merge-sides" -> getCatalogDraftMergeSides(baseUrl, config)
                 "merge-into-catalog-draft" -> mergeIntoCatalogDraft(baseUrl, config)
                 "list-release-registries" -> listReleaseRegistries(baseUrl, config)
                 "list-registry-releases" -> listRegistryReleases(baseUrl, config)
@@ -958,6 +959,32 @@ object Driver {
         )
     }
 
+    /** Reads the three sides of `config.entry` in merging `config.version` into the draft `config.release` (alpha). */
+    private fun getCatalogDraftMergeSides(baseUrl: String, config: ObjectNode) {
+        val sides = CatalogsApi(restClient(baseUrl, config)).getCatalogDraftMergeSides(
+            config["tenantKey"].asText(),
+            config["registry"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["release"].asText(),
+            config["version"].asText(),
+            config["entry"].asText(),
+        )
+        fun side(content: Map<String, Any?>?): String = content?.let { "${it["type"]}/${it["key"]}:${it["name"]}" } ?: "null"
+        report(
+            baseUrl,
+            mapOf(
+                "entry" to sides.entry,
+                "mergeBase" to (sides.mergeBase ?: "null"),
+                "token" to sides.token,
+                "base" to side(sides.base),
+                "draft" to side(sides.draft),
+                "release" to side(sides.release),
+                "draftMembers" to (sides.draft?.keys?.sorted()?.joinToString(",") ?: "null"),
+            ),
+        )
+    }
+
     /** Lists the release registries (alpha), each as `name:kind`. */
     private fun listReleaseRegistries(baseUrl: String, config: ObjectNode) {
         val registries = CatalogsApi(restClient(baseUrl, config)).listReleaseRegistries(config["tenantKey"].asText())
@@ -1065,6 +1092,12 @@ object Driver {
                 MergeIntoCatalogDraftRequest(
                     release = config["version"].asText(),
                     resolutions = resolutions,
+                    mergedContent = config.get("mergedContent")?.takeUnless { it.isNull }?.let { node ->
+                        node.fieldNames().asSequence().associateWith {
+                            @Suppress("UNCHECKED_CAST")
+                            (mapper.convertValue(node[it], Map::class.java) as Map<String, Any>)
+                        }
+                    },
                     expectedToken = config.get("expectedToken")?.takeUnless { it.isNull }?.asText(),
                 ),
             )
@@ -1088,6 +1121,7 @@ object Driver {
                 "taken" to merged.taken.joinToString(","),
                 "removed" to merged.removed.joinToString(","),
                 "kept" to merged.kept.joinToString(","),
+                "merged" to merged.merged.orEmpty().joinToString(","),
             ),
         )
     }

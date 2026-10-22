@@ -66,6 +66,7 @@ const ACTIONS = {
   'delete-catalog-release': deleteCatalogRelease,
   'release-catalog-draft': releaseCatalogDraft,
   'preview-catalog-draft-merge': previewCatalogDraftMerge,
+  'get-catalog-draft-merge-sides': getCatalogDraftMergeSides,
   'merge-into-catalog-draft': mergeIntoCatalogDraft,
   'list-release-registries': listReleaseRegistries,
   'list-registry-releases': listRegistryReleases,
@@ -732,6 +733,29 @@ async function previewCatalogDraftMerge(baseUrl, config) {
   })
 }
 
+/** Reads the three sides of `config.entry` in merging `config.version` into the draft `config.release` (alpha). */
+async function getCatalogDraftMergeSides(baseUrl, config) {
+  const sides = await new CatalogsApi(client(baseUrl, config)).getCatalogDraftMergeSides({
+    tenantKey: config.tenantKey,
+    registry: config.registry,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+    release: config.release,
+    version: config.version,
+    entry: config.entry,
+  })
+  const side = (content) => (content == null ? 'null' : `${show(content.type)}/${show(content.key)}:${show(content.name)}`)
+  await report(baseUrl, {
+    entry: show(sides.entry),
+    mergeBase: show(sides.mergeBase),
+    token: show(sides.token),
+    base: side(sides.base),
+    draft: side(sides.draft),
+    release: side(sides.release),
+    draftMembers: sides.draft == null ? 'null' : Object.keys(sides.draft).sort().join(','),
+  })
+}
+
 /** Reports only a problem's slug and status. */
 async function reportProblemOnly(baseUrl, error) {
   if (!(error instanceof ProblemDetailException)) throw error
@@ -828,6 +852,7 @@ async function publishReleaseToRegistry(baseUrl, config) {
 async function mergeIntoCatalogDraft(baseUrl, config) {
   const request = { release: config.version }
   if (config.resolutions !== undefined) request.resolutions = config.resolutions
+  if (config.mergedContent !== undefined) request.mergedContent = config.mergedContent
   if (config.expectedToken !== undefined) request.expectedToken = config.expectedToken
   let merged
   try {
@@ -855,6 +880,7 @@ async function mergeIntoCatalogDraft(baseUrl, config) {
     taken: merged.taken.map(show).join(','),
     removed: merged.removed.map(show).join(','),
     kept: merged.kept.map(show).join(','),
+    merged: (merged.merged ?? []).map(show).join(','),
   })
 }
 

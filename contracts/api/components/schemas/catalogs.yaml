@@ -1029,6 +1029,85 @@ CatalogMergeSide:
     release's (writing it as the release has it, or removing it when the release removed it).
   example: theirs
 
+CatalogMergeEntryContent:
+  type: object
+  additionalProperties: true
+  description: |
+    One side of a merge entry, or the content merged from its sides, in the portable catalog format
+    (catalog wire v8; the `epistola-catalog` schemas define it, and the API does not repeat them),
+    as a JSON object (alpha, ADR 0005):
+
+    - a resource (`template/invoice`): the resource as a resource detail document carries it, the
+      object under its `resource` member (with its `type` and `key`; resource-detail-v8);
+    - `catalog/defaultTheme`: `{"defaultTheme": …}`, the manifest's `catalog.defaultTheme`, a theme
+      reference or null when the side has no default theme;
+    - `catalog/presets`: `{"presets": […]}`, the manifest's `catalog.presets`;
+    - `catalogDependency/<catalogKey>`: the declaration as an entry of the manifest's
+      `catalogDependencies` has it (`registry`, `namespace`, `catalogKey`, `releaseVersion`,
+      `releaseFingerprint`). A draft's declaration that names a draft of that catalog, which no
+      archive carries, has `releaseId` naming that draft and `releaseVersion` and
+      `releaseFingerprint` null.
+
+    A member whose value is null and an absent member mean the same: merged content may leave
+    nulls out, and a client may drop them when it sends it. A client keeps members it does not know.
+  example:
+    type: stencil
+    key: footer
+    name: Footer
+
+CatalogDraftMergeSides:
+  type: object
+  description: |
+    The three sides of one entry of a merge (alpha, ADR 0005), each its content in the portable
+    catalog format (`CatalogMergeEntryContent`), or null (or absent) when that side does not have
+    the entry, for a person, an assistant or a tool to combine them into merged content.
+  # base, draft and release are not required: a required nullable free-form object makes the
+  # Jakarta generator emit an empty initializer that does not compile.
+  required:
+    - entry
+    - mergeBase
+    - token
+  properties:
+    entry:
+      type: string
+      minLength: 3
+      maxLength: 128
+      description: The entry, as `resourceType/resourceKey`
+      example: template/invoice
+    mergeBase:
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
+      description: |
+        The version of the merge base the `base` side is read from, as the preview reports it
+        (`CatalogDraftMergePreview.base`); null when no common release is known, and `base` is
+        then null too
+      example: "1.4.0"
+    base:
+      type: [object, "null"]
+      additionalProperties: true
+      description: |
+        The entry in the merge base; null or absent when the merge base does not have it, or there is none, in the form `CatalogMergeEntryContent` describes
+    draft:
+      type: [object, "null"]
+      additionalProperties: true
+      description: |
+        The entry in the draft (ours); null or absent when the draft does not have it, in the form `CatalogMergeEntryContent` describes
+    release:
+      type: [object, "null"]
+      additionalProperties: true
+      description: |
+        The entry in the release merged in (theirs); null or absent when the release does not have it, in the form `CatalogMergeEntryContent` describes
+    token:
+      type: string
+      minLength: 1
+      maxLength: 128
+      description: |
+        The `token` of the preview these sides belong to (`previewCatalogDraftMerge`), the same for
+        every entry of one preview. Send it as the merge's `expectedToken`, so merged content made
+        from these sides is applied only to the draft and the release they were read from.
+      example: m1.k7m2x9qa.42.1-5-0.9f3a1c2b
+
 CatalogDraftMergeResource:
   type: object
   description: |
@@ -1219,13 +1298,41 @@ MergeIntoCatalogDraftRequest:
       description: |
         Each conflict of the merge (`previewCatalogDraftMerge`), named `resourceType/resourceKey`
         (`template/invoice`, a setting, `catalog/defaultTheme` or `catalog/presets`, or a catalog
-        used, `catalogDependency/shared`), resolved to `ours` or `theirs`. Every conflict needs one, or the merge
-        is refused with 409 `merge-conflicts-unresolved`; naming a resource that is not a conflict
-        is refused with 422 `merge-not-applicable`. Omitted: no resolutions.
+        used, `catalogDependency/shared`), resolved to `ours` or `theirs`; or resolved to merged
+        content instead, in `mergedContent`. Every conflict needs one resolution, here or in
+        `mergedContent` and not in both, or the merge is refused with 409
+        `merge-conflicts-unresolved` (a conflict in both is 400 `validation-error`); naming an
+        entry that is not a conflict is refused with 422 `merge-not-applicable`. Omitted: no
+        resolutions.
       additionalProperties:
         $ref: '#/CatalogMergeSide'
       example:
         template/invoice: theirs
+    mergedContent:
+      type: object
+      description: |
+        Conflicts resolved to merged content rather than to a side (alpha): each named
+        `resourceType/resourceKey`, as in `resolutions`, to the entry as the draft is to hold it,
+        combined from its sides (`getCatalogDraftMergeSides`) by a person, an assistant or a tool,
+        in the form that operation returns a side (`CatalogMergeEntryContent`). Its own member, not
+        a third value of `resolutions`, so that every client keeps reading and sending a resolution
+        as a plain string.
+
+        Merged content is written into the draft as given; a resource is not marked ready, so it is
+        reviewed before the draft is released. It is validated as an import validates content,
+        against the portable catalog format and the server's rules: invalid content, or content
+        for another entry (another `type` or `key`), is refused with 400 `validation-error`, each
+        failure's `field` naming the entry (`mergedContent.template/invoice`, then the path within
+        it). The merge's result is checked like any merge's: a reference it leaves unresolved is
+        refused with 409 `merge-refused`. Naming an entry that is not a conflict is refused with 422
+        `merge-not-applicable`. Omitted: none.
+      additionalProperties:
+        $ref: '#/CatalogMergeEntryContent'
+      example:
+        stencil/footer:
+          type: stencil
+          key: footer
+          name: Footer
     expectedToken:
       type: string
       minLength: 1
@@ -1274,6 +1381,15 @@ MergeIntoCatalogDraftResponse:
     kept:
       type: array
       description: The conflicts resolved to `ours`, resources or settings, kept as the draft has them
+      items:
+        type: string
+      example: ["stencil/header"]
+    merged:
+      type: array
+      description: |
+        The conflicts resolved to merged content (`mergedContent`), written into the draft as
+        given; a resource among them is not marked ready, so it is reviewed before the draft is
+        released. Absent or empty when there are none.
       items:
         type: string
       example: ["stencil/footer"]

@@ -35,6 +35,7 @@ import app.epistola.client.jakarta.model.CatalogDependencyListResponse;
 import app.epistola.client.jakarta.model.CatalogDependencyRequirement;
 import app.epistola.client.jakarta.model.CatalogDraftMergePreview;
 import app.epistola.client.jakarta.model.CatalogDraftMergeResource;
+import app.epistola.client.jakarta.model.CatalogDraftMergeSides;
 import app.epistola.client.jakarta.model.CatalogDraftReleasePreview;
 import app.epistola.client.jakarta.model.CatalogMergeSide;
 import app.epistola.client.jakarta.model.CatalogPresetDto;
@@ -165,6 +166,7 @@ public final class Driver {
                 case "delete-catalog-release" -> deleteCatalogRelease(baseUrl, config);
                 case "release-catalog-draft" -> releaseCatalogDraft(baseUrl, config);
                 case "preview-catalog-draft-merge" -> previewCatalogDraftMerge(baseUrl, config);
+                case "get-catalog-draft-merge-sides" -> getCatalogDraftMergeSides(baseUrl, config);
                 case "merge-into-catalog-draft" -> mergeIntoCatalogDraft(baseUrl, config);
                 case "list-release-registries" -> listReleaseRegistries(baseUrl, config);
                 case "list-registry-releases" -> listRegistryReleases(baseUrl, config);
@@ -1089,6 +1091,42 @@ public final class Driver {
                                                 + preview.getMissingBase().getFingerprint()));
     }
 
+    /**
+     * Reads the three sides of {@code config.entry} in merging {@code config.version} into the draft
+     * {@code config.release} (alpha).
+     */
+    private static void getCatalogDraftMergeSides(String baseUrl, JsonObject config) {
+        CatalogDraftMergeSides sides = clients(baseUrl, config)
+                .api(CatalogsApi.class)
+                // The generator puts the operation's own query parameters before the path's parameters.
+                .getCatalogDraftMergeSides(
+                        config.getString("version"),
+                        config.getString("entry"),
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("release"));
+        report(
+                baseUrl,
+                Map.of(
+                        "entry", String.valueOf(sides.getEntry()),
+                        "mergeBase", String.valueOf(sides.getMergeBase()),
+                        "token", String.valueOf(sides.getToken()),
+                        "base", mergeSide(sides.getBase()),
+                        "draft", mergeSide(sides.getDraft()),
+                        "release", mergeSide(sides.getRelease()),
+                        "draftMembers",
+                                sides.getDraft() == null
+                                        ? "null"
+                                        : sides.getDraft().keySet().stream().sorted().collect(Collectors.joining(","))));
+    }
+
+    /** One side of a merge entry as {@code type/key:name}, or {@code null} when the side lacks it. */
+    private static String mergeSide(Map<String, Object> content) {
+        return content == null ? "null" : content.get("type") + "/" + content.get("key") + ":" + content.get("name");
+    }
+
     /** Lists the release registries (alpha), each as {@code name:kind}. */
     private static void listReleaseRegistries(String baseUrl, JsonObject config) {
         ReleaseRegistryListResponse registries =
@@ -1205,6 +1243,15 @@ public final class Driver {
                             key, CatalogMergeSide.fromValue(((jakarta.json.JsonString) side).getString())));
             request.resolutions(resolutions);
         }
+        if (config.containsKey("mergedContent") && !config.isNull("mergedContent")) {
+            Map<String, Map<String, Object>> mergedContent = new java.util.LinkedHashMap<>();
+            config.getJsonObject("mergedContent").forEach((key, content) -> {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> plain = (Map<String, Object>) freeForm(content);
+                mergedContent.put(key, plain);
+            });
+            request.mergedContent(mergedContent);
+        }
         if (config.containsKey("expectedToken") && !config.isNull("expectedToken")) {
             request.expectedToken(config.getString("expectedToken"));
         }
@@ -1239,7 +1286,8 @@ public final class Driver {
                         "release", String.valueOf(merged.getRelease()),
                         "taken", String.join(",", merged.getTaken() == null ? List.of() : merged.getTaken()),
                         "removed", String.join(",", merged.getRemoved() == null ? List.of() : merged.getRemoved()),
-                        "kept", String.join(",", merged.getKept() == null ? List.of() : merged.getKept())));
+                        "kept", String.join(",", merged.getKept() == null ? List.of() : merged.getKept()),
+                        "merged", String.join(",", merged.getMerged() == null ? List.of() : merged.getMerged())));
     }
 
     /** A timestamp as ISO 8601 in UTC with its seconds, or {@code null}; offsets and precision vary by parser. */

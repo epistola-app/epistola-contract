@@ -38,7 +38,7 @@ Clients must ignore members they do not recognize.
 | `https://epistola.app/errors/merge-conflicts-unresolved` | `merge-conflicts-unresolved` | 409 | `ProblemDetail` + `unresolvedConflicts` | merging a release into a draft (`mergeIntoCatalogDraft`, alpha) was refused because conflicts have no resolution; `unresolvedConflicts` lists each as `resourceType/resourceKey`. Nothing changed |
 | `https://epistola.app/errors/merge-refused` | `merge-refused` | 409 | `ProblemDetail` | merging a release into a draft (alpha) cannot be applied as asked: the result would leave a reference that does not resolve, within the catalog (a resource the release removes that the draft still uses, or one a taken or kept entry refers to that the result lacks) or into another catalog through a declared dependency, checked against the release that declaration pins (the catalog's default theme included), or into a catalog the result does not declare. The `detail` names what is missing and what to choose. Nothing changed; keep the draft's side (`ours`), or take the release's side of what it needs too |
 | `https://epistola.app/errors/merge-preview-outdated` | `merge-preview-outdated` | 409 | `ProblemDetail` | merging a release into a draft (alpha) was refused because the draft or the release changed since the preview whose `token` the request sent as `expectedToken`. Nothing changed; preview again and choose again |
-| `https://epistola.app/errors/merge-base-missing` | `merge-base-missing` | 409 | `ProblemDetail` + `version`, `fingerprint` | merging a release into a draft (alpha) was refused because this installation does not have the merge base, the closest release both the draft and the release descend from; `version` and `fingerprint` name that release, to install first. Nothing changed |
+| `https://epistola.app/errors/merge-base-missing` | `merge-base-missing` | 409 | `ProblemDetail` + `version`, `fingerprint` | merging a release into a draft (alpha), or reading the sides of one of its entries (`getCatalogDraftMergeSides`), was refused because this installation does not have the merge base, the closest release both the draft and the release descend from; `version` and `fingerprint` name that release, to install first. Nothing changed |
 | `https://epistola.app/errors/release-number-taken` | `release-number-taken` | 409 | `ProblemDetail` | a release's number or id names another release: publishing a release to a release registry (`publishReleaseToRegistry`, alpha) was refused because the registry holds this version of the catalog with other content; receiving one (`importCatalog`, `installCatalogRelease`, `installRegistryRelease`) was refused because the tenant has this version of the catalog, or of a release it pins, with another fingerprint, or another release or a draft of the catalog has its release id. One number and one id name one release. Nothing was sent or installed; release the changes under a new version |
 | `https://epistola.app/errors/namespace-not-granted` | `namespace-not-granted` | 409 | `ProblemDetail` | publishing a release to a release registry that grants namespaces (the Exchange, alpha) was refused because it does not grant this installation the catalog's namespace. Nothing was sent |
 | `https://epistola.app/errors/environment-deployment-refused` | `environment-deployment-refused` | 409 | `ProblemDetail` | a production environment serves only releases: a draft is deployed to it, or it is marked production while it serves a draft |
@@ -173,6 +173,10 @@ Retrying does not help; a client offers no write on a catalog whose `editable` i
 
 `mergeIntoCatalogDraft` (ADR 0005) is all or nothing. It is refused, with nothing changed, by:
 
+- 400 `validation-error`: merged content (`mergedContent`) is not valid for its entry, validated as
+  an import validates content; each failure's `field` names the entry (`mergedContent.template/invoice`)
+  and the path within it. Also a conflict resolved both in `resolutions` and in `mergedContent`.
+
 - 409 `merge-conflicts-unresolved`: conflicts have no resolution. `unresolvedConflicts` lists each
   as `resourceType/resourceKey` (a catalog setting as `catalog/defaultTheme` or `catalog/presets`, a
   catalog used as `catalogDependency/<catalogKey>`); resolve each to `ours` or `theirs` and send the
@@ -190,8 +194,8 @@ Retrying does not help; a client offers no write on a catalog whose `editable` i
 - 409 `merge-base-missing`: this installation does not have the merge base, the closest release both
   the draft and the release descend from. `version` and `fingerprint` name it; install that release
   (`importCatalog`, `installCatalogRelease`) and merge again. The preview names it as `missingBase`.
-- 422 `merge-not-applicable`: the draft already contains the release, or a resolution names a
-  resource that is not a conflict.
+- 422 `merge-not-applicable`: the draft already contains the release, or a resolution or merged
+  content names an entry that is not a conflict.
 - 409 `catalog-read-only`: the catalog cannot be changed in this installation.
 
 ```json

@@ -77,9 +77,23 @@ side changed a resource (`draftChange`, `releaseChange`: `added`, `modified`, `r
 The preview lists the resources whose outcome is `ours`, `theirs` or `conflict` and counts the rest
 (`unchanged`).
 
-- **A conflict is resolved per resource**, to `ours` (the draft's stays) or `theirs` (the
-  release's is taken). Every conflict needs a resolution, and a resolution may only name a
-  conflict. Combining both sides within one resource is later work (step two below).
+- **A conflict is resolved per resource**, to `ours` (the draft's stays), `theirs` (the release's
+  is taken) or **merged content** (amended 2026-10-22): the entry as the draft is to hold it,
+  combined from the sides by a person, an assistant or a tool. Every conflict needs one resolution,
+  and a resolution may only name a conflict. The server does not combine sides itself; that is
+  step two below.
+- **Merged content is read from the sides and goes back whole** (2026-10-22).
+  `getCatalogDraftMergeSides` returns one listed entry's content in the merge base, the draft and the
+  release, each in the portable catalog format (a resource as a resource detail carries it; a
+  setting's or a dependency's value), null when a side does not have it, with the preview's `token`.
+  The merged result goes back in `mergeIntoCatalogDraft`'s `mergedContent` (`type/key` to that
+  content), beside `resolutions`, which stays a map of plain `ours`/`theirs` strings: a `oneOf` of
+  a string and an object in `resolutions` generates no usable type in the Kotlin and Jakarta clients
+  (both reduced it to an object with only the content), and would have changed the type of a member
+  existing clients use. The content is validated as an import validates it (the portable format and
+  the server's rules; 400 `validation-error`) and the merge's result is checked as every merge's is
+  (`merge-refused`). It lands in the draft as given and is not marked ready: it is reviewed like
+  any edit before the draft is released. The response lists such entries in `merged`.
 - **Taken resources are marked ready**: they are released content.
 - **A release's catalog settings are merged like resources** (amended 2026-10-21; it said the
   draft's settings stay its own): its default theme and its presets, one entry per setting, of type
@@ -131,13 +145,16 @@ Under the draft, with the release merged in named by its version:
 | Operation | Request | Notes |
 | --- | --- | --- |
 | `previewCatalogDraftMerge` | `GET …/releases/{release}/merge-preview?version=` | `draft`, `base` (the merge base), `release`, `alreadyMerged`, `resources` (`resourceType`, `resourceKey`, `name`, `outcome`, `draftChange`, `releaseChange`, `needs`), `unchanged`, `token`, `missingBase` |
-| `mergeIntoCatalogDraft` | `POST …/releases/{release}/merge` `{release, resolutions, expectedToken}` | `resolutions` maps `type/key` (a setting as `catalog/<setting>`, a catalog used as `catalogDependency/<catalogKey>`) to `ours` or `theirs`; returns `release`, `taken`, `removed`, `kept`, each as `type/key` |
+| `getCatalogDraftMergeSides` | `GET …/releases/{release}/merge-sides?version=&entry=` | `entry`, `mergeBase`, `base`, `draft`, `release` (each the entry's content in the portable catalog format, or null), `token` |
+| `mergeIntoCatalogDraft` | `POST …/releases/{release}/merge` `{release, resolutions, mergedContent, expectedToken}` | `resolutions` maps `type/key` (a setting as `catalog/<setting>`, a catalog used as `catalogDependency/<catalogKey>`) to `ours` or `theirs`, `mergedContent` maps `type/key` to merged content; returns `release`, `taken`, `removed`, `kept`, `merged`, each as `type/key` |
 
 The release to merge is the query parameter `version` because `{release}` in the path already names
 the draft; in the bodies it is `release`.
 
 Refusals, as RFC 9457 problems:
 
+- 400 `validation-error`: merged content is not valid for its entry (each failure's `field` names
+  `mergedContent.<type/key>` and the path within it), or a conflict is resolved twice;
 - 409 `merge-conflicts-unresolved`: conflicts without a resolution, listed in `unresolvedConflicts`;
 - 409 `merge-refused`: the result would hold a reference that does not resolve, within the catalog
   (a resource the release removes that the draft still uses included) or into another catalog
@@ -150,7 +167,7 @@ Refusals, as RFC 9457 problems:
 - 409 `merge-base-missing` (`version`, `fingerprint`): this installation does not have the merge
   base (see "The merge base travels with the release");
 - 422 `merge-not-applicable`: the draft already contains the release (its base, or merged before),
-  or a resolution names a resource that is not a conflict;
+  or a resolution or merged content names an entry that is not a conflict;
 - 409 `catalog-read-only` (`readOnlyReason`): the catalog cannot be changed in this installation;
 - 409 `conflict`: the path names a released release, not a draft; 404: no such draft or release.
 
@@ -190,9 +207,8 @@ share. The base is not covered by any fingerprint, and a receiver keeps it as re
 Per node of a template variant's document, per style key and preset of a theme, per code of a code
 list, per attribute value. Images and fonts stay whole. It needs rules for moved and reordered
 children in a slot, a node removed on one side while a child was edited on the other, and the data
-model. Step two only turns some step-one conflicts into clean merges; the operations do not change,
-though a resolution may gain an `edited` value (the author combined both through the normal
-operations).
+model. Step two only turns some step-one conflicts into clean merges; the operations do not change.
+Until then, merged content (`mergedContent`) is how both sides of a conflict are combined.
 
 ## Consequences
 

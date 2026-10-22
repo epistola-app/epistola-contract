@@ -42,6 +42,7 @@ test('a release is addressed by its id or by its version, and its sub-resources 
   // Merging a release into a draft (alpha, ADR 0005).
   assert.equal(findOperation('GET', `${base}/${releaseId}/merge-preview`)!.operationId, 'previewCatalogDraftMerge')
   assert.equal(findOperation('POST', `${base}/${releaseId}/merge`)!.operationId, 'mergeIntoCatalogDraft')
+  assert.equal(findOperation('GET', `${base}/${releaseId}/merge-sides`)!.operationId, 'getCatalogDraftMergeSides')
   assert.equal(findOperation('GET', `${base}/${releaseId}/templates`)!.operationId, 'listTemplates')
   // A draft gets its version when it is released, so there is nothing to renumber.
   assert.equal(findOperation('GET', `${base}/${releaseId}/renumber-preview`), undefined)

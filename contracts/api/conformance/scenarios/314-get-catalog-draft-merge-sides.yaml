@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: get-catalog-draft-merge-sides
+title: The sides of a merge entry arrive as free-form objects, a missing side as null
+why: >
+  Merging is alpha (ADR 0005). So that a person, an assistant or a tool can combine the sides of a
+  conflict, `getCatalogDraftMergeSides` returns the entry's content in the merge base, the draft and
+  the release, each in the portable catalog format, as a JSON object the API does not type. The
+  release merged in and the entry are query parameters, because `{release}` in the path names the
+  draft. A client keeps every member of a side, those it has no type for included (`variants`,
+  `x-tool`), and reads a side the release does not have (null) as no side, not as an empty object.
+  The `token` is the preview's, to send back as the merge's `expectedToken`.
+
+action:
+  name: get-catalog-draft-merge-sides
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: k7m2x9qa
+    version: 1.5.0
+    entry: template/invoice
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      entry: template/invoice
+      mergeBase: 1.4.0
+      base:
+        type: template
+        key: invoice
+        name: Invoice
+        variants: [{ key: nl, title: Factuur }]
+      draft:
+        type: template
+        key: invoice
+        name: Invoice (draft)
+        description: null
+        variants: [{ key: nl, title: Factuur }, { key: en, title: Invoice }]
+        x-tool: { reviewed: true }
+      release: null
+      token: m1.k7m2x9qa.42.1-5-0.9f3a1c2b
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/merge-sides
+      queryParams:
+        version: 1.5.0
+        entry: template/invoice
+  report:
+    entry: template/invoice
+    mergeBase: 1.4.0
+    token: m1.k7m2x9qa.42.1-5-0.9f3a1c2b
+    base: template/invoice:Invoice
+    draft: template/invoice:Invoice (draft)
+    release: 'null'
+    draftMembers: description,key,name,type,variants,x-tool

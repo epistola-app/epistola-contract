@@ -214,6 +214,24 @@ MergeConflictError:
         unresolvedConflicts:
           - template/invoice
 
+MergeSidesConflictError:
+  description: >-
+    The sides of the entry cannot be read (alpha). When this installation does not have the merge
+    base (the closest release both lines descend from), the problem is `merge-base-missing`, and
+    `version` and `fingerprint` name that release, to install first. Other conflicts (the path names
+    a released release, not a draft) use `conflict`.
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/MergeBaseMissingProblemDetail'
+      example:
+        type: https://epistola.app/errors/merge-base-missing
+        title: Merge Base Missing
+        status: 409
+        detail: "To merge v1.0.1, this installation needs v1.0.0, the release both come from."
+        version: 1.0.0
+        fingerprint: v5:9f3a1c2b9f3a1c2b9f3a1c2b9f3a1c2b9f3a1c2b9f3a1c2b9f3a1c2b9f3a1c2b
+
 MergeNotApplicableError:
   description: >-
     The merge does not apply (alpha): the draft already contains the release (its base, or merged
