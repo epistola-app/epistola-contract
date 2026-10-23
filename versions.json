@@ -2,6 +2,13 @@
   "latest": "v1.4.0",
   "versions": [
     {
+      "version": "v2.0.0-alpha.1",
+      "path": "/v2.0.0-alpha.1/",
+      "label": "2.0.0-alpha.1",
+      "releaseDate": "2026-10-23",
+      "status": "prerelease"
+    },
+    {
       "version": "v1.4.0",
       "path": "/v1.4.0/",
       "label": "1.4.0",
