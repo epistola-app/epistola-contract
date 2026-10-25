@@ -1104,6 +1104,10 @@ libraries.
 
 ### Removed
 
+- **BREAKING: `uploadImage`'s `sensitive` form field.** It chose a tenant-isolated deduplication
+  scope for an image's bytes. Epistola Suite 2.0 keeps every image's bytes in one store,
+  deduplicated alike, so the field had nothing left to choose. A server ignores a client that
+  still sends it; conformance scenario `image-upload` now requires that it is not sent.
 - **BREAKING: the `X-API-Key` header** (`apiKeyAuth` security scheme). An API key is sent as
   `Authorization: ApiKey <key>`, the only API-key transport the contract defines; no client sent
   `X-API-Key`, and their READMEs no longer mention it.

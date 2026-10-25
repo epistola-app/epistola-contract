@@ -285,7 +285,7 @@ key, and the draft it goes into, by its `releaseId`:
 ImagesApi imagesApi;
 
 ImageDto image = imagesApi.uploadImage(
-        "acme-corp", "~", "acme-corp", "main", releaseId, new File("logo.png"), "Logo", null, null);
+        "acme-corp", "~", "acme-corp", "main", releaseId, new File("logo.png"), "Logo", null);
 ```
 
 For content that is not a file on disk, or a media type the filename does not imply, build the parts
