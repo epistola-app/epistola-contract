@@ -36,4 +36,13 @@ class CatalogV8AdditionsTest {
         assertEquals(setOf("type", "key", "name"), CatalogV8Additions.withoutAdditions(template).propertyNames().toSet())
         assertTrue(CatalogV8Additions.withoutAdditions(stencil).has("tags"), "a stencil had tags before v8")
     }
+
+    @Test
+    fun `a variant's description is not legacy content`() {
+        val template = mapper.readTree(
+            """{"type":"template","key":"invoice","name":"I","variants":[{"key":"formal","description":"For courts.","metadata":{"app.example":{}}}]}""",
+        ) as ObjectNode
+
+        assertEquals(setOf("key"), CatalogV8Additions.withoutAdditions(template)["variants"][0].propertyNames().toSet())
+    }
 }

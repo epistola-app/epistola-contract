@@ -15,7 +15,7 @@ import tools.jackson.databind.node.ObjectNode
  * | --- | --- |
  * | a template's data examples | `key` (assigned from the name by [CatalogV7ToV8Migration]) |
  * | a template | `description` |
- * | a template's variants | `metadata` |
+ * | a template's variants | `metadata`, `description` |
  * | a stencil | `readsTemplateData` |
  * | every type but a stencil | `tags` |
  *
@@ -36,7 +36,12 @@ internal object CatalogV8Additions {
         copy.remove("tags")
         copy.remove("description")
         (copy["dataExamples"] as? ArrayNode)?.forEach { (it as? ObjectNode)?.remove("key") }
-        (copy["variants"] as? ArrayNode)?.forEach { (it as? ObjectNode)?.remove("metadata") }
+        (copy["variants"] as? ArrayNode)?.forEach {
+            (it as? ObjectNode)?.let { variant ->
+                variant.remove("metadata")
+                variant.remove("description")
+            }
+        }
         return copy
     }
 }

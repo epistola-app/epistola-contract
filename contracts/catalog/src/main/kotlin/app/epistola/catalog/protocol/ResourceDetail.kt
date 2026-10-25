@@ -404,6 +404,9 @@ data class DataExampleEntry(
  * ([CatalogVariantMetadata]). It binds the way the other free-form JSON in the model does
  * ([TemplateResource.dataModel]): plain maps, lists and scalars, written back member for member, with
  * numbers normalized as Jackson binds them. Omitted when null or empty, since the wire forbids `{}`.
+ *
+ * [description] (wire v8) is plain text for the variant's authors: what it is for. Not rendered.
+ * Omitted when null or empty, so a variant without one serializes, and fingerprints, as before.
  */
 data class VariantEntry(
     @JsonAlias("slug")
@@ -414,4 +417,6 @@ data class VariantEntry(
     val isDefault: Boolean = false,
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val metadata: Map<String, Map<String, Any?>>? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    val description: String? = null,
 )
