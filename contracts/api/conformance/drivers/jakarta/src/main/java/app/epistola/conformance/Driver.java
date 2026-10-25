@@ -553,7 +553,7 @@ public final class Driver {
         try {
             ImageDto image = clients(baseUrl, config)
                     .api(ImagesApi.class)
-                    .uploadImage(config.getString("tenantKey"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("release"), file, config.getString("name"), null, null);
+                    .uploadImage(config.getString("tenantKey"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("release"), file, config.getString("name"), null);
             report(baseUrl, Map.of("imageKey", image.getKey(), "imageName", image.getName()));
         } finally {
             Files.deleteIfExists(file.toPath());
