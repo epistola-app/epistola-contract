@@ -118,6 +118,13 @@
           "items": {
             "$ref": "#/$defs/VariantEntry"
           }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels for finding the resource. Left out when there are none."
         }
       },
       "required": [
@@ -185,6 +192,13 @@
             "number",
             "null"
           ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels for finding the resource. Left out when there are none."
         }
       },
       "required": [
@@ -275,6 +289,13 @@
               "type": "null"
             }
           ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels for finding the resource. Left out when there are none."
         }
       },
       "required": [
@@ -324,6 +345,13 @@
         "contentHash": {
           "type": "string",
           "pattern": "^[0-9a-f]{64}$"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels for finding the resource. Left out when there are none."
         }
       },
       "required": [
@@ -362,6 +390,13 @@
           "items": {
             "$ref": "#/$defs/CodeListEntryEntry"
           }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels for finding the resource. Left out when there are none."
         }
       },
       "required": [
@@ -396,6 +431,13 @@
           "items": {
             "$ref": "#/$defs/FontVariantEntry"
           }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels for finding the resource. Left out when there are none."
         }
       },
       "required": [
