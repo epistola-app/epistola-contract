@@ -20,6 +20,12 @@ libraries.
   each type, the same shape as a stencil's; a reader on `2.0.0-alpha.1` refuses a resource that
   carries them on another type, which wire v8, alpha, allows itself.
 
+- **A template's variant carries a `description`** (wire v8): plain text for the variant's authors,
+  optional, at most 2000 characters. Left out when there is none (`NON_EMPTY`), so no V5 or V6
+  fingerprint and no content hash moves; the legacy algorithms (V1 to V4) leave it out too
+  (`CatalogV8Additions`). A reader on `2.0.0-alpha.1` refuses a variant that carries one, which wire
+  v8, alpha, allows itself.
+
 - **A release carries its content hash, and is found by it** (contract ADR 0003, amendment of
   2026-10-22; Epistola Suite ADR 0034). New identifier `ContentHash`, the V6 fingerprint (`v6:` and
   64 lowercase hex digits), which identifies a release whatever its name or number.

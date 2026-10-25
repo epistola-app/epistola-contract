@@ -94,4 +94,16 @@ class ResourceDetailTest {
         assertTrue(mapper.writeValueAsString(stencil).contains("\"tags\":[]"))
         assertEquals(emptyList(), stencil.tags)
     }
+
+    @Test
+    fun `a variant carries a description, left out when it has none`() {
+        val plain = VariantEntry(key = "default")
+        val described = VariantEntry(key = "formal", description = "For letters to courts.")
+
+        // Left out when empty, so a variant without one serializes, and fingerprints, as before.
+        assertFalse(mapper.writeValueAsString(plain).contains("description"))
+        assertFalse(mapper.writeValueAsString(VariantEntry(key = "default", description = "")).contains("description"))
+        assertTrue(mapper.writeValueAsString(described).contains("\"description\":\"For letters to courts.\""))
+        assertEquals("For letters to courts.", mapper.readValue(mapper.writeValueAsString(described), VariantEntry::class.java).description)
+    }
 }
