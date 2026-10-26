@@ -265,6 +265,17 @@ class TemplateValidatorStyleTest {
 
     // -- helpers -------------------------------------------------------------------------------
 
+    // -- #58: keepWithNext on an image -------------------------------------------------------
+
+    @Test
+    fun `an image accepts keepWithNext and still refuses a style it has no use for`() {
+        val keep = Node("img", "image", styles = mapOf("keepWithNext" to true))
+        assertEquals(emptyList(), TemplateValidator.validate(documentWith(keep)).findings)
+
+        val font = Node("img", "image", styles = mapOf("fontSize" to "12pt"))
+        assertEquals(listOf(TEMPLATE_STYLE_NOT_APPLICABLE), TemplateValidator.validate(documentWith(font)).findings.map { it.code })
+    }
+
     private fun documentWith(node: Node, vararg slots: Slot) = TemplateDocument(
         root = "root",
         nodes = mapOf("root" to Node("root", "root", listOf("root-slot")), node.id to node),

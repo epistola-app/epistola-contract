@@ -11,6 +11,11 @@ libraries.
 
 ### Added
 
+- **An image accepts `keepWithNext`** (#58): the `image` component lists it in its
+  `applicableStyles`, so an image can be kept on the page of the block after it, and the validator
+  no longer warns `TEMPLATE_STYLE_NOT_APPLICABLE` for it. `keepTogether` is not added: an image is
+  one unbreakable block already.
+
 - **Every catalog resource carries producer `metadata`, and no hash covers it** (wire v8).
   `CatalogResource.metadata` is common to every type: producer-specific JSON objects keyed by a
   reverse-DNS namespace the producer owns, one to sixteen namespaces, at most 8 KiB serialized
