@@ -72,7 +72,7 @@ needs a new wire version:
   when absent so V5 stays put for content that does not use it.
 
 Define rules that consumers also enforce (such as `CatalogKeys`, `CatalogKeywords`, `CatalogNamespaces`,
-`CatalogArchivePaths` and `CatalogVariantMetadata`) once in the catalog module,
+`CatalogArchivePaths` and `CatalogMetadata`) once in the catalog module,
 and export them to Kotlin and TypeScript with parity tests against the schema. Enforce them in the
 migrator and validator, never in model constructors: consumers rebind stored manifests.
 

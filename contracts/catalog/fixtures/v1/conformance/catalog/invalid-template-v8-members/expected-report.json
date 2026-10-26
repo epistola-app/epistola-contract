@@ -14,9 +14,9 @@
       "message": "template description differs from manifest"
     },
     {
-      "code": "CATALOG_VARIANT_METADATA_TOO_LARGE",
+      "code": "CATALOG_RESOURCE_METADATA_TOO_LARGE",
       "severity": "ERROR",
-      "path": "resources/template/letter.json.resource.variants[0].metadata",
+      "path": "resources/template/letter.json.resource.metadata",
       "message": "metadata is 8237 bytes serialized; at most 8192 are allowed"
     }
   ]

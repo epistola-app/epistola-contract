@@ -173,6 +173,18 @@ object CatalogMigrationCodes {
     const val DEPENDENCY_CATALOG_VERSION_INVALID = "CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID"
 
     /**
+     * Notice: an early wire-v8 template's variant metadata moved to the template's own metadata,
+     * under each namespace's `variants.<variant key>` ([VariantMetadataFold]).
+     */
+    const val VARIANT_METADATA_FOLDED = "CATALOG_VARIANT_METADATA_FOLDED"
+
+    /**
+     * An early wire-v8 template's variant metadata cannot move to the template's metadata without
+     * overwriting a value there, or it is not an object on a keyed variant ([VariantMetadataFold]).
+     */
+    const val VARIANT_METADATA_UNFOLDABLE = "CATALOG_VARIANT_METADATA_UNFOLDABLE"
+
+    /**
      * A catalog-v6 asset dependency names no catalog, and catalog-v7 requires one.
      *
      * Not repairable: the archive says which asset is depended on but not whose, and guessing
@@ -420,7 +432,11 @@ object CatalogSchemaMigrator {
             }
             .orEmpty()
         if (wireFindings.isNotEmpty()) return CatalogMigrationResult(null, source, wireFindings, migration.notices)
-        return bind(tree, ResourceDetail::class.java, source, path, migration.notices)
+        val foldFindings = mutableListOf<CatalogMigrationFinding>()
+        val notices = migration.notices.toMutableList()
+        (tree["resource"] as? ObjectNode)?.let { VariantMetadataFold.fold(it, "$path.resource", foldFindings, notices) }
+        if (foldFindings.isNotEmpty()) return CatalogMigrationResult(null, source, foldFindings, notices)
+        return bind(tree, ResourceDetail::class.java, source, path, notices)
     }
 
     private fun parse(input: InputStream): ObjectNode? = try {

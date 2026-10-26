@@ -83,19 +83,18 @@ class CatalogWireParityTest {
     }
 
     @Test
-    fun `a v8 template's description, example keys and variant metadata are written back member for member`() {
+    fun `a v8 template's description, example keys and metadata are written back member for member`() {
         val source = fixture("wire-v8/resources/template/letter.json").use(mapper::readTree)
         val detail = mapper.treeToValue(source, ResourceDetail::class.java)
         val template = detail.resource as TemplateResource
 
         assertEquals("standard-letter", template.dataExamples.orEmpty().single().key)
-        assertEquals(mapOf("app.epistola.suite" to mapOf("renderingDefaultsVersion" to 6)), template.variants.single().metadata)
+        assertEquals(mapOf("com.example.authoring" to mapOf("reviewedBy" to "design")), template.metadata)
         assertTrue(template.description.orEmpty().startsWith("A one-page letter"))
         val written = mapper.valueToTree<JsonNode>(detail)["resource"]
-        for (member in listOf("description", "dataExamples")) {
+        for (member in listOf("description", "dataExamples", "metadata")) {
             assertEquals(source["resource"][member], written[member], member)
         }
-        assertEquals(source["resource"]["variants"][0]["metadata"], written["variants"][0]["metadata"])
         assertEquals(detail, mapper.readValue(mapper.writeValueAsBytes(detail), ResourceDetail::class.java))
     }
 
@@ -120,23 +119,23 @@ class CatalogWireParityTest {
 
     @Test
     fun `a namespace the reader does not recognise is kept as it is`() {
-        val json = """{"key":"english","metadata":{"com.example.renderer":{"nested":{"list":[1,"two",null,{"x":false}]},"n":1.5},
-            "app.epistola.suite":{"renderingDefaultsVersion":6}}}"""
-        val variant = mapper.readValue(json, VariantEntry::class.java)
+        val json = """{"type":"theme","key":"default","name":"Default","metadata":{"com.example.renderer":
+            {"nested":{"list":[1,"two",null,{"x":false}]},"n":1.5},"app.epistola.suite":{"authoredWith":"editor"}}}"""
+        val theme = mapper.readValue(json, ThemeResource::class.java)
 
-        assertEquals(mapper.readTree(json)["metadata"], mapper.valueToTree<JsonNode>(variant)["metadata"])
+        assertEquals(mapper.readTree(json)["metadata"], mapper.valueToTree<JsonNode>(theme)["metadata"])
     }
 
     @Test
     fun `members wire v8 added bind when absent, so documents stored earlier still load, and are then omitted`() {
         val example = mapper.readValue("""{"name":"Standard letter","data":{}}""", DataExampleEntry::class.java)
-        val variant = mapper.readValue("""{"key":"english"}""", VariantEntry::class.java)
+        val theme = mapper.readValue("""{"type":"theme","key":"default","name":"Default"}""", ThemeResource::class.java)
 
         assertEquals(null, example.key)
-        assertEquals(null, variant.metadata)
+        assertEquals(null, theme.metadata)
         assertTrue(!mapper.valueToTree<JsonNode>(example).has("key"))
-        assertTrue(!mapper.valueToTree<JsonNode>(variant).has("metadata"))
-        assertTrue(!mapper.valueToTree<JsonNode>(variant.copy(metadata = emptyMap())).has("metadata"), "empty metadata is omitted")
+        assertTrue(!mapper.valueToTree<JsonNode>(theme).has("metadata"))
+        assertTrue(!mapper.valueToTree<JsonNode>(theme.copy(metadata = emptyMap())).has("metadata"), "empty metadata is omitted")
         assertEquals(listOf("key", "name", "data"), mapper.valueToTree<JsonNode>(example.copy(key = "standard-letter")).propertyNames().toList())
     }
 

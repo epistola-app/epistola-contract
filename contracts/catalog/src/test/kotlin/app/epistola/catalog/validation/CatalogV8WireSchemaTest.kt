@@ -8,9 +8,9 @@ import app.epistola.catalog.canonical.QualifiedCatalogFingerprint
 import app.epistola.catalog.protocol.CatalogArchivePaths
 import app.epistola.catalog.protocol.CatalogKeys
 import app.epistola.catalog.protocol.CatalogManifest
+import app.epistola.catalog.protocol.CatalogMetadata
 import app.epistola.catalog.protocol.CatalogPresets
 import app.epistola.catalog.protocol.CatalogReleaseVersions
-import app.epistola.catalog.protocol.CatalogVariantMetadata
 import app.epistola.catalog.protocol.ReleaseBase
 import app.epistola.catalog.protocol.TemplateResource
 import com.networknt.schema.InputFormat
@@ -76,11 +76,15 @@ class CatalogV8WireSchemaTest {
         assertEquals(CatalogKeys.CATALOG, CatalogKeys.Rule(catalogKey["pattern"].asString(), catalogKey["minLength"].asInt(), catalogKey["maxLength"].asInt()))
         assertTrue("key" in detail["DataExampleEntry"]["required"].toList().map { it.asString() })
 
-        val metadata = detail["VariantEntry"]["properties"]["metadata"]
-        assertEquals(listOf(CatalogVariantMetadata.NAMESPACE_PATTERN), metadata["patternProperties"].propertyNames().toList())
-        assertEquals(CatalogVariantMetadata.NAMESPACE_MAX_LENGTH, metadata["propertyNames"]["maxLength"].asInt())
-        assertEquals(CatalogVariantMetadata.MIN_NAMESPACES, metadata["minProperties"].asInt())
-        assertEquals(CatalogVariantMetadata.MAX_NAMESPACES, metadata["maxProperties"].asInt())
+        val metadata = detail["ProducerMetadata"]
+        listOf("TemplateResource", "ThemeResource", "StencilResource", "AttributeResource", "CodeListResource", "ImageResource", "FontResource").forEach { type ->
+            assertEquals("#/\$defs/ProducerMetadata", detail[type]["properties"]["metadata"]["\$ref"].asString(), type)
+        }
+        assertTrue(!detail["VariantEntry"]["properties"].has("metadata"), "a variant carries no metadata of its own")
+        assertEquals(listOf(CatalogMetadata.NAMESPACE_PATTERN), metadata["patternProperties"].propertyNames().toList())
+        assertEquals(CatalogMetadata.NAMESPACE_MAX_LENGTH, metadata["propertyNames"]["maxLength"].asInt())
+        assertEquals(CatalogMetadata.MIN_NAMESPACES, metadata["minProperties"].asInt())
+        assertEquals(CatalogMetadata.MAX_NAMESPACES, metadata["maxProperties"].asInt())
 
         assertEquals(TemplateResource.MAX_DESCRIPTION_LENGTH, detail["TemplateResource"]["properties"]["description"]["maxLength"].asInt())
     }
@@ -102,7 +106,7 @@ class CatalogV8WireSchemaTest {
     }
 
     @Test
-    fun `a template's description, example keys and variant metadata follow the v8 schema`() {
+    fun `a template's description, example keys and metadata follow the v8 schema`() {
         assertEquals(emptyList(), detailErrors(tree("fixtures/v1/wire-v8/resources/template/letter.json")))
 
         val invalid = mapOf<String, (ObjectNode) -> Unit>(
@@ -110,12 +114,13 @@ class CatalogV8WireSchemaTest {
             "an uppercase example key" to { (it["dataExamples"][0] as ObjectNode).put("key", "Standard") },
             "a 65-character example key" to { (it["dataExamples"][0] as ObjectNode).put("key", "a".repeat(65)) },
             "a 2001-character description" to { it.put("description", "a".repeat(2001)) },
-            "empty metadata" to { (it["variants"][0] as ObjectNode).putObject("metadata") },
-            "a namespace that is not reverse-DNS" to { (it["variants"][0]["metadata"] as ObjectNode).putObject("suite") },
-            "an uppercase namespace" to { (it["variants"][0]["metadata"] as ObjectNode).putObject("App.epistola.suite") },
-            "a 101-character namespace" to { (it["variants"][0]["metadata"] as ObjectNode).putObject("a." + "b".repeat(99)) },
-            "a namespace whose value is not an object" to { (it["variants"][0]["metadata"] as ObjectNode).put("com.example.x", 6) },
-            "17 namespaces" to { variant -> (1..16).forEach { (variant["variants"][0]["metadata"] as ObjectNode).putObject("com.example.n$it") } },
+            "empty metadata" to { it.putObject("metadata") },
+            "metadata on a variant" to { (it["variants"][0] as ObjectNode).putObject("metadata").putObject("com.example.x") },
+            "a namespace that is not reverse-DNS" to { (it["metadata"] as ObjectNode).putObject("suite") },
+            "an uppercase namespace" to { (it["metadata"] as ObjectNode).putObject("App.epistola.suite") },
+            "a 101-character namespace" to { (it["metadata"] as ObjectNode).putObject("a." + "b".repeat(99)) },
+            "a namespace whose value is not an object" to { (it["metadata"] as ObjectNode).put("com.example.x", 6) },
+            "17 namespaces" to { variant -> (1..16).forEach { (variant["metadata"] as ObjectNode).putObject("com.example.n$it") } },
         )
         invalid.forEach { (description, edit) ->
             val detail = tree("fixtures/v1/wire-v8/resources/template/letter.json")
@@ -125,9 +130,9 @@ class CatalogV8WireSchemaTest {
         val valid = mapOf<String, (ObjectNode) -> Unit>(
             "no description" to { it.remove("description") },
             "a null description" to { it.putNull("description") },
-            "no metadata" to { (it["variants"][0] as ObjectNode).remove("metadata") },
-            "16 namespaces" to { variant -> (1..15).forEach { (variant["variants"][0]["metadata"] as ObjectNode).putObject("com.example.n$it") } },
-            "a namespace of any content" to { (it["variants"][0]["metadata"] as ObjectNode).putObject("com.example.x").putArray("list").add(1).add("two") },
+            "no metadata" to { it.remove("metadata") },
+            "16 namespaces" to { variant -> (1..15).forEach { (variant["metadata"] as ObjectNode).putObject("com.example.n$it") } },
+            "a namespace of any content" to { (it["metadata"] as ObjectNode).putObject("com.example.x").putArray("list").add(1).add("two") },
             "an example key with a leading digit" to { (it["dataExamples"][0] as ObjectNode).put("key", "1e-brief") },
         )
         valid.forEach { (description, edit) ->
