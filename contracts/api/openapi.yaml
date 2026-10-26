@@ -91,6 +91,18 @@ info:
     to the node that asked for it and acknowledged when handled. That is the advanced path; the client
     libraries' result collectors implement it.
 
+    ## Template model
+
+    A variant's content (`getVariantContent`, `updateVariantContent`) and a stencil's are a template
+    document: a flat graph of nodes and slots, linked by id. A node is one block, of a component
+    type such as `text`, `table` or `conditional`; a slot is a named place in a node that holds child
+    nodes, such as a table's `cell-0-1` or a conditional's `body` and `else`. The catalog contract's
+    [component registry](https://github.com/epistola-app/epistola-contract/blob/main/contracts/catalog/registry/component-registry.json)
+    and [style registry](https://github.com/epistola-app/epistola-contract/blob/main/contracts/catalog/registry/style-registry.json)
+    define every component and style, with examples, and the
+    [template model guide](https://github.com/epistola-app/epistola-contract/blob/main/contracts/api/docs/template-model.md)
+    walks through a complete letter: the example `updateVariantContent` shows.
+
     ## Media types
 
     The media type carries the API's major version. Contract 2.x uses

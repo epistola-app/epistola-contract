@@ -248,6 +248,8 @@ This is a clean pre-1.0 coordinate rename. Consumers must replace
 published.
 
 See [contracts/catalog/docs/catalog-registry.md](contracts/catalog/docs/catalog-registry.md) for registry details.
+See [contracts/api/docs/template-model.md](contracts/api/docs/template-model.md) for the template model,
+explained end to end with a worked example, for building templates through the API.
 See [contracts/catalog/docs/catalog-compatibility.md](contracts/catalog/docs/catalog-compatibility.md) for the
 explicit breaking changes and required producer/consumer migrations.
 
