@@ -2707,7 +2707,8 @@
       "applicableStyles": [
         "padding",
         "margin",
-        "marginBottom"
+        "marginBottom",
+        "keepWithNext"
       ],
       "inspector": [
         {
