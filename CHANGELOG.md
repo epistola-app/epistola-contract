@@ -11,6 +11,14 @@ libraries.
 
 ### Added
 
+- **A conditional has an optional `else` branch** (#97). The `conditional` component declares a
+  second static slot, `else`, beside `body`: when the condition holds the body renders, and
+  otherwise the `else` slot does, so one boolean no longer needs two mirrored conditionals. The
+  slot is optional, so every existing document stays valid; `inverse` still flips the condition
+  first, which swaps the two branches. A four-way choice nests conditionals; a `choose`/`when`
+  component can follow if one is needed. The registry gains a `with-else` example. Epistola Suite
+  may not render the `else` slot yet.
+
 - **Every catalog resource carries `tags`** (wire v8). `CatalogResource.tags` is common to every
   type, so a consumer can tag and filter templates, themes, attributes, images, code lists and fonts
   as it already did stencils. A type that had no tags leaves them out of its JSON when there are
