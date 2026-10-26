@@ -1326,6 +1326,18 @@ libraries.
   the Node.js client with a stale `package.json` version, so the local server stubs named a catalog
   version that was never published.
 
+### Documentation
+
+- **The template model, explained for building templates through the API** (#18). A guide,
+  [`contracts/api/docs/template-model.md`](contracts/api/docs/template-model.md), explains the
+  node/slot graph end to end with a worked letter: a heading, a paragraph with an expression, a
+  conditional with an `else` branch, a table and a stencil instance. It points to the component and
+  style registries as the source of truth rather than copying them. The API reference shows the same
+  letter as the example of `updateVariantContent`, the template document schema's descriptions say
+  what nodes, slots, props and styles are, and the spec's introduction has a "Template model"
+  section. Tests keep the example a valid template, the spec's copy equal to it, and the guide's
+  excerpts quoted from it.
+
 ## [1.4.0] - 2026-09-30
 
 ### Added

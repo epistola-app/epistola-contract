@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://epistola.app/schemas/template-document.schema.json",
   "title": "TemplateDocument",
-  "description": "Root schema for an Epistola template document using the node/slot graph model.",
+  "description": "An Epistola template document: a flat graph of nodes (blocks) and slots (named places in a node that hold child nodes), linked by id. root names the one node of type root, whose children slot is the document body. Which component types exist, their slots, properties and applicable styles are defined by the catalog's component registry (contracts/catalog/registry/component-registry.json), with an example per component; the template model guide (https://github.com/epistola-app/epistola-contract/blob/main/contracts/api/docs/template-model.md) walks through a complete letter.",
   "type": "object",
 
   "properties": {
@@ -17,12 +17,12 @@
     "nodes": {
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/Node" },
-      "description": "Flat map of all nodes keyed by NodeId."
+      "description": "Every node of the document, keyed by its id. A node appears in exactly one slot's children, except the root."
     },
     "slots": {
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/Slot" },
-      "description": "Flat map of all slots keyed by SlotId."
+      "description": "Every slot of the document, keyed by its id. A slot belongs to the node named by its nodeId and is listed in that node's slots."
     },
     "themeRef": {
       "$ref": "template-shared.schema.json#/$defs/ThemeRef"
@@ -47,16 +47,16 @@
         "type": {
           "type": "string",
           "minLength": 1,
-          "description": "Node type identifier (e.g. 'text', 'container', 'columns')."
+          "description": "The component type, one of the component registry's types (contracts/catalog/registry/component-registry.json): text, container, columns, table, conditional, loop, stencil, image and so on. It decides which slots, props and styles the node may have."
         },
         "slots": {
           "type": "array",
           "items": { "$ref": "template-shared.schema.json#/$defs/SlotId" },
-          "description": "Ordered slot IDs owned by this node."
+          "description": "The ids of the slots this node owns, in order. Their names follow the component's slot rules: children for a container, body and else for a conditional, cell-<row>-<col> for a table."
         },
         "styles": {
           "type": "object",
-          "description": "Inline style overrides (CSS-like key/value pairs)."
+          "description": "Style properties for this node only, CSS-like key and value pairs from the catalog's style registry (contracts/catalog/registry/style-registry.json): marginBottom, fontSize, backgroundColor. They override what the theme and preset supply. Lengths are pt or sp (spacing units of the theme), and some also take %."
         },
         "stylePreset": {
           "type": "string",
@@ -64,7 +64,7 @@
         },
         "props": {
           "type": "object",
-          "description": "Type-specific properties (content, expression, columns config, etc.)."
+          "description": "The component's own properties, as its registry entry declares them: a text node's content (a rich-text document whose expression nodes insert JSONata values from the data), a conditional's condition, a table's rows and columns, a stencil instance's stencilKey and parameterBindings."
         }
       },
       "required": ["id", "type", "slots"],
@@ -84,7 +84,7 @@
         "name": {
           "type": "string",
           "minLength": 1,
-          "description": "Semantic slot name (e.g. 'children', 'column-0', 'cell-0-1', 'body')."
+          "description": "The slot's name, as the owning component defines its slots: children, column-0, cell-0-1, body, else, fill."
         },
         "children": {
           "type": "array",
