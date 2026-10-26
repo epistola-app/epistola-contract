@@ -1469,6 +1469,9 @@
       "slots": [
         {
           "name": "body"
+        },
+        {
+          "name": "else"
         }
       ],
       "allowedChildren": {
@@ -1491,7 +1494,7 @@
         },
         {
           "key": "inverse",
-          "label": "Inverse (else)",
+          "label": "Inverse",
           "type": "boolean",
           "defaultValue": false
         }
@@ -1613,6 +1616,90 @@
                 "name": "body",
                 "children": [
                   "n-cond-else-text"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "name": "with-else",
+          "description": "Render the body when the condition holds, and the else slot when it does not: one conditional instead of two mirrored ones. The else slot is optional; inverse flips the condition first, so the two branches swap.",
+          "fragment": {
+            "rootNodeId": "n-cond-ifelse",
+            "nodes": {
+              "n-cond-ifelse": {
+                "id": "n-cond-ifelse",
+                "type": "conditional",
+                "slots": [
+                  "s-cond-ifelse-body",
+                  "s-cond-ifelse-else"
+                ],
+                "props": {
+                  "condition": {
+                    "raw": "isPaid",
+                    "language": "jsonata"
+                  },
+                  "inverse": false
+                }
+              },
+              "n-cond-ifelse-paid": {
+                "id": "n-cond-ifelse-paid",
+                "type": "text",
+                "slots": [],
+                "props": {
+                  "content": {
+                    "type": "doc",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Thank you for your payment."
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              "n-cond-ifelse-due": {
+                "id": "n-cond-ifelse-due",
+                "type": "text",
+                "slots": [],
+                "props": {
+                  "content": {
+                    "type": "doc",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Please pay within 30 days."
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "slots": {
+              "s-cond-ifelse-body": {
+                "id": "s-cond-ifelse-body",
+                "nodeId": "n-cond-ifelse",
+                "name": "body",
+                "children": [
+                  "n-cond-ifelse-paid"
+                ]
+              },
+              "s-cond-ifelse-else": {
+                "id": "s-cond-ifelse-else",
+                "nodeId": "n-cond-ifelse",
+                "name": "else",
+                "children": [
+                  "n-cond-ifelse-due"
                 ]
               }
             }
