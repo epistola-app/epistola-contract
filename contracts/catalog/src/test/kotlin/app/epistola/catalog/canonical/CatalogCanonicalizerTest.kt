@@ -14,6 +14,7 @@ import app.epistola.catalog.protocol.CatalogLicense
 import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.CatalogPresentation
 import app.epistola.catalog.protocol.CatalogPresetDeclaration
+import app.epistola.catalog.protocol.CatalogResource
 import app.epistola.catalog.protocol.CatalogThemeRef
 import app.epistola.catalog.protocol.CompatibilityInfo
 import app.epistola.catalog.protocol.DependencyRef
@@ -24,6 +25,7 @@ import app.epistola.catalog.protocol.ReleaseInfo
 import app.epistola.catalog.protocol.ResourceDetail
 import app.epistola.catalog.protocol.StencilResource
 import app.epistola.catalog.protocol.TemplateResource
+import app.epistola.catalog.protocol.ThemeResource
 import app.epistola.template.model.Node
 import app.epistola.template.model.Slot
 import app.epistola.template.model.TemplateDocument
@@ -169,15 +171,12 @@ class CatalogCanonicalizerTest {
     }
 
     @Test
-    fun `v5 covers a template's description, data example keys and variant metadata, and the legacy algorithms do not`() {
+    fun `v5 covers a template's description and data example keys, and the legacy algorithms do not`() {
         val original = wireV8Archive()
         val template = original.resourceDetails.getValue("template/letter").resource as TemplateResource
-        val variant = template.variants.single()
         val changes = listOf(
             template.copy(description = "Another description."),
             template.copy(dataExamples = template.dataExamples.orEmpty().map { it.copy(key = "other-key") }),
-            template.copy(variants = listOf(variant.copy(metadata = mapOf("app.epistola.suite" to mapOf("renderingDefaultsVersion" to 7))))),
-            template.copy(variants = listOf(variant.copy(metadata = null))),
         )
 
         changes.forEach { changed ->
@@ -213,14 +212,9 @@ class CatalogCanonicalizerTest {
     fun `the complete per-resource form follows a change to only what wire v8 added, of that resource alone`() {
         val original = wireV8Archive()
         val template = original.resourceDetails.getValue("template/letter").resource as TemplateResource
-        val variant = template.variants.single()
         val changes = mapOf(
             "a template's description" to template.copy(description = "Another description."),
             "a data example's key" to template.copy(dataExamples = template.dataExamples.orEmpty().map { it.copy(key = "other-key") }),
-            "a variant's metadata" to template.copy(
-                variants = listOf(variant.copy(metadata = mapOf("app.epistola.suite" to mapOf("renderingDefaultsVersion" to 7)))),
-            ),
-            "a variant's metadata removed" to template.copy(variants = listOf(variant.copy(metadata = null))),
         )
 
         changes.forEach { (what, changed) ->
@@ -243,23 +237,19 @@ class CatalogCanonicalizerTest {
     fun `the complete per-resource form ignores key order and number spelling, and never equals an older form`() {
         val original = wireV8Archive()
         val template = original.resourceDetails.getValue("template/letter").resource as TemplateResource
-        fun withMetadata(json: String) = inMemory(
+        fun withDataModel(json: String) = inMemory(
             original,
             template.copy(
-                variants = listOf(
-                    template.variants.single().copy(
-                        metadata = mapper.readValue(json, Map::class.java).let {
-                            @Suppress("UNCHECKED_CAST")
-                            (it as Map<String, Map<String, Any?>>)
-                        },
-                    ),
-                ),
+                dataModel = mapper.readValue(json, Map::class.java).let {
+                    @Suppress("UNCHECKED_CAST")
+                    (it as Map<String, Any?>)
+                },
             ),
         )
 
         assertEquals(
-            CatalogCanonicalizer.completePerResourceFingerprints(withMetadata("""{"b.example":{"y":1,"x":[1,2]},"a.example":{"v":true}}""")),
-            CatalogCanonicalizer.completePerResourceFingerprints(withMetadata("""{"a.example":{"v":true},"b.example":{"x":[1,2],"y":1}}""")),
+            CatalogCanonicalizer.completePerResourceFingerprints(withDataModel("""{"type":"object","properties":{"b":{"type":"string"},"a":{"minimum":1.0}}}""")),
+            CatalogCanonicalizer.completePerResourceFingerprints(withDataModel("""{"properties":{"a":{"minimum":1.0},"b":{"type":"string"}},"type":"object"}""")),
         )
         val complete = CatalogCanonicalizer.completePerResourceFingerprints(original)
         val older = CatalogCanonicalizer.perResourceFingerprints(original).values + CatalogCanonicalizer.currentPerResourceFingerprints(original).values
@@ -271,31 +261,33 @@ class CatalogCanonicalizerTest {
     }
 
     @Test
-    fun `variant metadata canonicalizes with sorted keys and Jackson-normalized numbers`() {
+    fun `no fingerprint of any algorithm covers a resource's metadata`() {
         val original = wireV8Archive()
         val template = original.resourceDetails.getValue("template/letter").resource as TemplateResource
-        fun withMetadata(json: String) = inMemory(
-            original,
-            template.copy(
-                variants = listOf(
-                    template.variants.single().copy(
-                        metadata = mapper.readValue(json, Map::class.java).let {
-                            @Suppress("UNCHECKED_CAST")
-                            (it as Map<String, Map<String, Any?>>)
-                        },
-                    ),
-                ),
-            ),
+        val theme = original.resourceDetails.getValue("theme/default").resource as ThemeResource
+        val versions = listOf(
+            CatalogFingerprintVersion.V1,
+            CatalogFingerprintVersion.V2,
+            CatalogFingerprintVersion.V3,
+            CatalogFingerprintVersion.V4,
+            CatalogFingerprintVersion.V5,
+            CatalogFingerprintVersion.V6,
+        )
+        val base = inMemory(original, template.copy(metadata = null))
+        val variants = listOf(
+            inMemory(original, template.copy(metadata = mapOf("app.epistola.suite" to mapOf("renderingDefaultsVersion" to 7)))),
+            inMemory(original, template.copy(metadata = mapOf("a.example" to mapOf("v" to true), "b.example" to mapOf("x" to listOf(1, 2))))),
+            inMemory(base, theme.copy(metadata = mapOf("com.example.authoring" to mapOf("reviewedBy" to "design")))),
         )
 
-        assertEquals(
-            CatalogCanonicalizer.currentFingerprint(withMetadata("""{"b.example":{"y":1,"x":[1,2]},"a.example":{"v":true}}""")),
-            CatalogCanonicalizer.currentFingerprint(withMetadata("""{"a.example":{"v":true},"b.example":{"x":[1,2],"y":1}}""")),
-        )
-        assertNotEquals(
-            CatalogCanonicalizer.currentFingerprint(withMetadata("""{"a.example":{"x":[1,2]}}""")),
-            CatalogCanonicalizer.currentFingerprint(withMetadata("""{"a.example":{"x":[2,1]}}""")),
-        )
+        variants.forEach { changed ->
+            versions.forEach { version ->
+                assertEquals(CatalogCanonicalizer.fingerprint(base, version), CatalogCanonicalizer.fingerprint(changed, version), version.toString())
+            }
+            assertEquals(CatalogCanonicalizer.perResourceFingerprints(base), CatalogCanonicalizer.perResourceFingerprints(changed))
+            assertEquals(CatalogCanonicalizer.currentPerResourceFingerprints(base), CatalogCanonicalizer.currentPerResourceFingerprints(changed))
+            assertEquals(CatalogCanonicalizer.completePerResourceFingerprints(base), CatalogCanonicalizer.completePerResourceFingerprints(changed))
+        }
     }
 
     private fun wireV8Archive(): CatalogArchive {
@@ -311,13 +303,13 @@ class CatalogCanonicalizerTest {
         )
     }
 
-    /** [catalog] with [template] in place of its template, and no files, so every algorithm reads the model. */
+    /** [catalog] with [resource] in place of the one at its address, and no files, so every algorithm reads the model. */
     private fun inMemory(
         catalog: CatalogArchive,
-        template: TemplateResource,
+        resource: CatalogResource,
     ) = CatalogArchive(
         catalog.manifest,
-        catalog.resourceDetails + ("template/letter" to ResourceDetail(CURRENT_VERSION, template)),
+        catalog.resourceDetails + ("${resource.type}/${resource.key}" to ResourceDetail(CURRENT_VERSION, resource)),
         emptySet(),
         ArchiveContentProvider { error(it) },
     )

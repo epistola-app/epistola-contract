@@ -483,7 +483,7 @@ data class PublisherInfo(
  *   metadata like [version]: the fingerprint does not cover it. Omitted when null.
  * @param metadata producer-specific facts about the release (wire v8) that the contract carries
  *   but does not define, keyed by a reverse-DNS namespace the producer owns, each value a JSON
- *   object, under the same rules as a variant's metadata ([CatalogVariantMetadata]): Epistola Suite
+ *   object, under the rules of [CatalogMetadata], as a resource's metadata: Epistola Suite
  *   records the rendering-defaults version a release was cut with as
  *   `{"app.epistola.suite": {"renderingDefaultsVersion": 6}}`. Only the owning producer writes a
  *   namespace; every other reader keeps it, an unrecognised one included, member for member. Not

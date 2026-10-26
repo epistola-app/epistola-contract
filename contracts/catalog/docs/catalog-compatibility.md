@@ -150,19 +150,23 @@ Wire v8 also adds optional members, changed in place before v8 was released:
   2000 characters, not rendered. It is the source of the template's manifest entry `description`,
   which a listing shows without opening the detail: when both are present they must be equal
   (`CATALOG_RESOURCE_DESCRIPTION_MISMATCH`). An entry may carry one while the detail does not.
-- `VariantEntry.metadata` (#96): producer-specific data the contract carries but does not define.
-  Each member is named by a reverse-DNS namespace the producer owns, and its value is a JSON object.
-  The namespace names the producer, and no other producer writes into it; a consumer that does not
-  recognise a namespace keeps it, through reading, migration and writing. The contract does not
-  interpret the values. Epistola Suite, for example, can record the rendering-defaults version a
-  variant was authored and checked against as
-  `{"app.epistola.suite": {"renderingDefaultsVersion": 6}}`. A variant names one to sixteen
-  namespaces, each at most 100 characters (`CatalogVariantMetadata`), and its metadata is at most
-  8 KiB serialized (`CATALOG_VARIANT_METADATA_TOO_LARGE`, a limit the schema cannot state); other
-  breaches are `CATALOG_VARIANT_METADATA_INVALID`. Empty metadata is omitted, never written as `{}`.
-  The metadata is part of the release content and V5 and V6 cover it, so like the rest of a release it is
-  fixed once the release is cut. In Kotlin it binds as `Map<String, Map<String, Any?>>`, the plain
-  maps the model uses for other free-form JSON such as `dataModel`.
+- `CatalogResource.metadata`: producer-specific data the contract carries but does not define, on
+  every resource type. Each member is named by a reverse-DNS namespace the producer owns, and its
+  value is a JSON object. The namespace names the producer, and no other producer writes into it; a
+  consumer that does not recognise a namespace keeps it, through reading, migration and writing. The
+  contract does not interpret the values. A resource names one to sixteen namespaces, each at most
+  100 characters (`CatalogMetadata`), and its metadata is at most 8 KiB serialized
+  (`CATALOG_RESOURCE_METADATA_TOO_LARGE`, a limit the schema cannot state); other breaches are
+  `CATALOG_RESOURCE_METADATA_INVALID`. Empty metadata is omitted, never written as `{}`. Metadata is
+  what a producer says about the resource, not its content: no fingerprint covers it. In Kotlin it
+  binds as `Map<String, Map<String, Any?>>`, the plain maps the model uses for other free-form JSON
+  such as `dataModel`.
+
+  A template variant carries no metadata of its own. An early wire-v8 archive that put metadata on
+  a variant (`variants[].metadata`) has it folded into the template's when read: a variant's
+  `{"<namespace>": V}` becomes the template's `{"<namespace>": {"variants": {"<variant key>": V}}}`,
+  with the notice `CATALOG_VARIANT_METADATA_FOLDED`. Folding that would overwrite a value already
+  there is the finding `CATALOG_VARIANT_METADATA_UNFOLDABLE`, never a choice.
 - `ReleaseInfo.releaseId`: the release's id, by the API's `CatalogReleaseId` rule (lowercase
   letters, digits and single hyphens, 4 to 36 characters, `CatalogReleaseIds`;
   `CATALOG_RELEASE_ID_INVALID`). It is unique among the releases of the catalog's name and kept when
@@ -175,13 +179,16 @@ Wire v8 also adds optional members, changed in place before v8 was released:
   `CORE_PATTERN` and `CATALOG_RELEASE_VERSION_CORE_PATTERN`). A carried release's path accepts it
   too. A release number is at most 128 characters, so that every valid namespace (up to 63) can
   label one. The API's `ReleaseVersion` is the same rule, with the same 128-character limit.
-- `ReleaseInfo.metadata`: producer-specific facts about the release, under the rules of a variant's
+- `ReleaseInfo.metadata`: producer-specific facts about the release, under the rules of a resource's
   `metadata` (a reverse-DNS namespace per producer, one to sixteen of them, at most 8 KiB
   serialized; `CATALOG_RELEASE_METADATA_INVALID`, `CATALOG_RELEASE_METADATA_TOO_LARGE`). Epistola
   Suite records the rendering-defaults version a release was cut with as
   `{"app.epistola.suite": {"renderingDefaultsVersion": 6}}`. A consumer keeps every namespace, one it
   does not recognise included, member for member, when it installs, migrates or re-exports the
-  release.
+  release. The rendering-defaults version is a property of the generator that renders, not of the
+  catalog: another generator may render the same release with defaults of its own, so it stays
+  release metadata outside every fingerprint (#96). An installation that lacks the defaults a release
+  names refuses it (`catalog-rendering-defaults-too-new`, ADR 0008).
 - `ReleaseInfo.base` (`ReleaseBase`): the release this one was made from, its draft's base, by
   identity only (ADR 0005, "The merge base travels with the release"): `version`, a release number,
   and `fingerprint`, that release's content hash, its catalog fingerprint in the qualified form (`v6:<hex>` for a base made under V6, any known

@@ -11,6 +11,28 @@ libraries.
 
 ### Added
 
+- **Every catalog resource carries producer `metadata`, and no hash covers it** (wire v8).
+  `CatalogResource.metadata` is common to every type: producer-specific JSON objects keyed by a
+  reverse-DNS namespace the producer owns, one to sixteen namespaces, at most 8 KiB serialized
+  (`CatalogMetadata`; `CATALOG_RESOURCE_METADATA_INVALID`, `CATALOG_RESOURCE_METADATA_TOO_LARGE`),
+  omitted when empty. Every reader keeps it member for member. Metadata, at resource or release
+  level, is what a producer says about the content, not the content: no fingerprint of any algorithm,
+  catalog or per-resource, covers it, so two resources or releases that differ only in metadata have
+  the same fingerprint. The rendering-defaults version a release was cut with stays release metadata
+  (#96): another generator may render the same catalog with defaults of its own.
+
+  **Breaking (wire v8, alpha): `VariantEntry.metadata` is removed**, with its codes
+  `CATALOG_VARIANT_METADATA_INVALID` and `CATALOG_VARIANT_METADATA_TOO_LARGE` (now the resource
+  codes) and the npm constants `CATALOG_VARIANT_METADATA_NAMESPACE_PATTERN` and
+  `MAX_CATALOG_VARIANT_METADATA_*` (now `CATALOG_METADATA_NAMESPACE_PATTERN` and
+  `MAX_CATALOG_METADATA_*`); Kotlin's `CatalogVariantMetadata` is now `CatalogMetadata`. A wire-v8
+  archive that still carries metadata on a variant has it folded into its template's when read, a
+  variant's `{"<ns>": V}` becoming the template's `{"<ns>": {"variants": {"<variant key>": V}}}`
+  (notice `CATALOG_VARIANT_METADATA_FOLDED`; `CATALOG_VARIANT_METADATA_UNFOLDABLE` when that would
+  overwrite a value). Because variant metadata was covered by V5 and V6 and metadata no longer is, a
+  release that carried non-empty variant metadata has a different V5 and V6 fingerprint than before;
+  the wire-v8 golden fingerprints move accordingly.
+
 - **A conditional has an optional `else` branch** (#97). The `conditional` component declares a
   second static slot, `else`, beside `body`: when the condition holds the body renders, and
   otherwise the `else` slot does, so one boolean no longer needs two mirrored conditionals. The

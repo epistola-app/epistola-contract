@@ -161,7 +161,7 @@ for (const [where, properties] of [
 assert.equal(templateSchema.themeRegistry, undefined, 'a template names its theme\'s catalog by alias alone');
 assert.equal(templateSchema.themeNamespace, undefined, 'a template names its theme\'s catalog by alias alone');
 
-// Wire v8 (#95, #96, #97): paths into the catalog, data example keys, variant metadata, template descriptions.
+// Wire v8 (#95, #97): paths into the catalog, data example keys, resource metadata, template descriptions.
 const manifestPaths = [['manifest detailUrl', manifestSchema.$defs.ResourceEntry.properties.detailUrl]];
 const detailPaths = [
   ['image contentUrl', detailSchema.$defs.ImageResource.properties.contentUrl],
@@ -203,27 +203,27 @@ assert.equal(
   templateSchema.description.maxLength,
   'npm and schema template description limits must agree',
 );
-const metadataSchema = detailSchema.$defs.VariantEntry.properties.metadata;
+const metadataSchema = detailSchema.$defs.ProducerMetadata;
 assert.deepEqual(
   Object.keys(metadataSchema.patternProperties),
-  [catalog.CATALOG_VARIANT_METADATA_NAMESPACE_PATTERN],
-  'npm and schema variant metadata namespace patterns must agree',
+  [catalog.CATALOG_METADATA_NAMESPACE_PATTERN],
+  'npm and schema metadata namespace patterns must agree',
 );
 assert.equal(
-  catalog.MAX_CATALOG_VARIANT_METADATA_NAMESPACE_LENGTH,
+  catalog.MAX_CATALOG_METADATA_NAMESPACE_LENGTH,
   metadataSchema.propertyNames.maxLength,
-  'npm and schema variant metadata namespace lengths must agree',
+  'npm and schema metadata namespace lengths must agree',
 );
 assert.equal(
-  catalog.MAX_CATALOG_VARIANT_METADATA_NAMESPACES,
+  catalog.MAX_CATALOG_METADATA_NAMESPACES,
   metadataSchema.maxProperties,
-  'npm and schema variant metadata namespace counts must agree',
+  'npm and schema metadata namespace counts must agree',
 );
-assert.equal(catalog.MAX_CATALOG_VARIANT_METADATA_BYTES, 8 * 1024, 'variant metadata is limited to 8 KiB serialized');
-// A release's metadata follows the variant metadata rules.
+assert.equal(catalog.MAX_CATALOG_METADATA_BYTES, 8 * 1024, 'metadata is limited to 8 KiB serialized');
+// A release's metadata follows the resource metadata rules.
 const releaseMetadataSchema = manifestSchema.$defs.ReleaseInfo.properties.metadata;
 for (const member of ['type', 'patternProperties', 'propertyNames', 'additionalProperties', 'minProperties', 'maxProperties']) {
-  assert.deepEqual(releaseMetadataSchema[member], metadataSchema[member], `release and variant metadata ${member} must agree`);
+  assert.deepEqual(releaseMetadataSchema[member], metadataSchema[member], `release and resource metadata ${member} must agree`);
 }
 
 const registry = await import(`${packageName}/registry`);

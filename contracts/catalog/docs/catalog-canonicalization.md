@@ -56,8 +56,8 @@ notices.
 
 `CatalogCanonicalizer` hashes canonical catalog content. It sorts resources and JSON object keys,
 normalizes numeric JSON representation, includes streamed asset digests, and excludes the release
-metadata (its timestamp, version, id, producer `metadata` and `base`), resource URLs, and ZIP
-metadata. Therefore equivalent archives have identical fingerprints even when their entry order,
+metadata (its timestamp, version, id, producer `metadata` and `base`), every resource's producer
+`metadata`, resource URLs, and ZIP metadata. Therefore equivalent archives have identical fingerprints even when their entry order,
 timestamps, compression, or JSON property order differ. What each algorithm covers of the manifest
 differs; see the list below.
 
@@ -162,14 +162,22 @@ fingerprint, and a v7 archive's V4 fingerprint still verifies after migration. T
 fingerprints `perResourceFingerprints` and `currentPerResourceFingerprints` belong to V1 and V3 and
 keep the old names too.
 
-**Members wire v8 added to a template.** A data example's `key`, a template's `description` and a
-variant's `metadata` are release content, and V5 covers them like the rest of the resource: object
-keys sorted, numbers as JSON binding normalizes them, as for any other free-form JSON such as
-`dataModel`. `description` and `metadata` are omitted from the canonical JSON when absent (and
-`metadata` when empty), so a template that uses neither hashes as before; a data example's `key` is
-part of every v8 example. V1 to V4 leave all three out (`CatalogV8Additions`): they canonicalize a
-resource as a v7 producer serialized it, so the key the v7-to-v8 migration derives for each example
-moves no published fingerprint.
+**Members wire v8 added to a template.** A data example's `key` and a template's `description`
+are release content, and V5 covers them like the rest of the resource: object keys sorted, numbers
+as JSON binding normalizes them, as for any other free-form JSON such as `dataModel`.
+`description` is omitted from the canonical JSON when absent, so a template without one hashes as
+before; a data example's `key` is part of every v8 example. V1 to V4 leave both out
+(`CatalogV8Additions`): they canonicalize a resource as a v7 producer serialized it, so the key the
+v7-to-v8 migration derives for each example moves no published fingerprint.
+
+**Metadata never counts in a hash.** Producer metadata, at release level (`release.metadata`) or
+resource level (every resource's `metadata`), is what a producer says about the content, not the
+content. No algorithm covers it, V1 to V6, catalog or per-resource: two releases, or two resources,
+that differ only in their metadata have the same fingerprint. That is why a producer-specific fact
+such as the rendering defaults a release was cut with (`release.metadata`, #96) changes no hash:
+another generator may render the same catalog with defaults of its own. An early wire-v8 archive
+that carried metadata on a template variant has it folded into the template's metadata when read
+(`CATALOG_VARIANT_METADATA_FOLDED`), and moves no fingerprint the folding would not.
 
 **Per-resource fingerprints.** Three forms map every `type/key` resource to a lowercase hex
 SHA-256 over that resource alone, an image's bytes included:
@@ -183,8 +191,7 @@ SHA-256 over that resource alone, an image's bytes included:
 **To tell resources apart when merging or diffing, use `completePerResourceFingerprints`.** It is
 the per-resource counterpart of V5 and of the current catalog fingerprint, V6, which covers each
 resource exactly as V5 does: it names every member as wire
-v8 does and covers what v8 added (a template's `description`, a variant's `metadata`, a data
-example's `key`), so a change to only those changes the value of that resource and of no other.
+v8 does and covers what v8 added (a template's `description`, a data example's `key`), so a change to only those changes the value of that resource and of no other.
 The V1 and V3 forms leave them out (`CatalogV8Additions`), so a resource changed only there looks
 unchanged. Its values are hashed under their own domain prefix, `resource sha256-v5`, and never
 equal a V1 or V3 value; compare them only with each other. The older forms are kept, with the values
@@ -226,6 +233,6 @@ algorithm's fingerprint of the wire-v4 golden catalog (`catalogFingerprints`; `c
 is the V6 one) and, as `wireV8CatalogFingerprints`, the V5 and V6 fingerprints of the wire-v8 golden
 catalog (`currentWireV8CatalogFingerprint` is the V6 one; the V5 value is the one published before
 V6 and aliases existed), whose declared dependency records a release and
-its fingerprint, and whose template carries a description, a keyed data example and variant
-metadata. `completeWireV8ResourceFingerprints` pins `completePerResourceFingerprints` of that
+its fingerprint, and whose template carries a description, a keyed data example and resource
+metadata (which no fingerprint covers). `completeWireV8ResourceFingerprints` pins `completePerResourceFingerprints` of that
 catalog.
