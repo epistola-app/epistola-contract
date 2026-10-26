@@ -1,0 +1,10 @@
+# Lint findings Redocly's linter ignores, each one location and rule, with why.
+#
+# UpdateVariantContentRequest's example is the template model guide's worked letter. Redocly cannot
+# validate it: the catalog schema it is checked against resolves its references relative to its
+# own $id (template-shared.schema.json#/$defs/NodeId), which Redocly's example validator does not
+# follow ("can't resolve reference"). The example is checked instead by the server stubs'
+# ExampleTemplateModelTest, against the catalog's TemplateValidator and the guide's source file.
+components/schemas/variants.yaml:
+  no-invalid-schema-examples:
+    - '#/UpdateVariantContentRequest/schema'
