@@ -9,6 +9,14 @@ records contract changes; this file records changes to the hand-written library 
 
 ## [Unreleased]
 
+### Fixed
+
+- `ResultCollector.collect_once()` raises a `ProblemDetailException` for an
+  `application/problem+json` error response, and the generated `ApiException` with the status and
+  body for any other non-2xx, as the client does for every other call (#30). It raised a bare
+  `RuntimeError` that dropped the problem detail, because the collector reads the response itself
+  and the client's problem handler never sees it.
+
 ### Added
 
 - `ProblemDetailException.missing_base_version`, `missing_base_fingerprint` and

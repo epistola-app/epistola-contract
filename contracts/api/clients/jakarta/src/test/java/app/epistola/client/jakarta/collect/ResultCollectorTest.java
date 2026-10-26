@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import app.epistola.client.jakarta.EpistolaRestClients;
 import app.epistola.client.jakarta.StubServer;
+import app.epistola.client.jakarta.error.ProblemDetailException;
 import app.epistola.client.jakarta.model.GenerationResult;
 import app.epistola.client.jakarta.model.PartitionAssignment;
 import java.io.ByteArrayOutputStream;
@@ -80,6 +81,23 @@ class ResultCollectorTest {
             assertEquals(GenerationResult.StatusEnum.COMPLETED, handled.get(0).getStatus());
             assertEquals("order-2", handled.get(1).getCorrelationId());
             assertEquals(GenerationResult.StatusEnum.FAILED, handled.get(1).getStatus());
+        }
+    }
+
+    @Test
+    void a_problem_response_is_raised_as_a_problem_detail_exception_and_reaches_no_handler() {
+        String problem = "{\"type\":\"https://epistola.app/errors/permission-denied\",\"title\":\"Permission Denied\","
+                + "\"status\":403,\"detail\":\"Insufficient permissions\"}";
+        List<GenerationResult> handled = new ArrayList<>();
+
+        try (StubServer stub = StubServer.start(
+                request -> StubServer.StubResponse.of(403, "application/problem+json", problem))) {
+            ProblemDetailException error =
+                    assertThrows(ProblemDetailException.class, () -> collector(stub, handled::add).collectOnce());
+
+            assertEquals(403, error.getResponse().getStatus());
+            assertEquals("Insufficient permissions", error.getProblem().getDetail());
+            assertTrue(handled.isEmpty());
         }
     }
 
