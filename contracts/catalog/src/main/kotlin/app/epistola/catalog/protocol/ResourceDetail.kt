@@ -127,6 +127,12 @@ data class TemplateResource(
  *
  * Style keys and preset usage are checked against the registries shipped in
  * this artifact.
+ *
+ * `defaultBlockStyles` is the theme's baseline block spacing (#59): the margin a flow block gets
+ * when nothing more specific sets one. Only margin keys take effect. It sits in the cascade below
+ * the document styles, a block style preset and a node's own styles, and above a component's
+ * structural defaults; margins are never inherited, so it is not a document style. Absent, the
+ * renderer supplies its own fallback, which the contract does not fix.
  */
 data class ThemeResource(
     @JsonAlias("slug")
@@ -141,6 +147,8 @@ data class ThemeResource(
     override val tags: List<String> = emptyList(),
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     override val metadata: Map<String, Map<String, Any?>>? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    val defaultBlockStyles: Map<String, Any?>? = null,
 ) : CatalogResource {
     override val type: String get() = "theme"
 }
