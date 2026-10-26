@@ -402,7 +402,7 @@
           "maxLength": 36
         },
         "metadata": {
-          "description": "Producer-specific facts about the release that the contract carries but does not define, by namespace, as a variant's metadata is: each property name is a reverse-DNS namespace the producer owns (app.epistola.suite records its renderingDefaultsVersion there); only that producer writes into it, and every other reader, one that does not recognise the namespace included, keeps it as it is, member for member, when it installs, migrates or re-exports the release. Each value is a JSON object the contract does not interpret. Omitted rather than empty. Release metadata: the fingerprint does not cover it. At most 8 KiB serialized, which the validator checks.",
+          "description": "Producer-specific facts about the release that the contract carries but does not define, by namespace, as a resource's metadata is: each property name is a reverse-DNS namespace the producer owns (app.epistola.suite records its renderingDefaultsVersion there); only that producer writes into it, and every other reader, one that does not recognise the namespace included, keeps it as it is, member for member, when it installs, migrates or re-exports the release. Each value is a JSON object the contract does not interpret. Omitted rather than empty. Release metadata: the fingerprint does not cover it. At most 8 KiB serialized, which the validator checks.",
           "type": "object",
           "patternProperties": {
             "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$": {

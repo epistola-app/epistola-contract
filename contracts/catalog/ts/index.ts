@@ -249,21 +249,22 @@ export const MAX_CATALOG_PRESET_DESCRIPTION_LENGTH = 500
 export const MAX_TEMPLATE_DESCRIPTION_LENGTH = 2000
 
 /**
- * Pattern a variant metadata namespace must match (wire v8, #96): a lowercase reverse-DNS name the
+ * Pattern a producer metadata namespace must match (wire v8): a lowercase reverse-DNS name the
  * producer owns, such as `app.epistola.suite`. Only the owner writes into its namespace; every other
- * reader keeps it as it is. A release's `metadata` follows the same rules (and the three limits
- * below); the fingerprint covers a variant's metadata but not a release's.
+ * reader keeps it as it is. A resource's and a release's `metadata` follow these rules (and the three
+ * limits below). No fingerprint covers metadata: it is what a producer says about the content, not
+ * the content.
  */
-export const CATALOG_VARIANT_METADATA_NAMESPACE_PATTERN = '^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$'
+export const CATALOG_METADATA_NAMESPACE_PATTERN = '^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$'
 
-/** Longest variant metadata namespace (wire v8). */
-export const MAX_CATALOG_VARIANT_METADATA_NAMESPACE_LENGTH = 100
+/** Longest metadata namespace (wire v8). */
+export const MAX_CATALOG_METADATA_NAMESPACE_LENGTH = 100
 
-/** Most namespaces one variant's metadata may hold (wire v8). Empty metadata is omitted, not written. */
-export const MAX_CATALOG_VARIANT_METADATA_NAMESPACES = 16
+/** Most namespaces one resource's or release's metadata may hold (wire v8). Empty metadata is omitted, not written. */
+export const MAX_CATALOG_METADATA_NAMESPACES = 16
 
-/** Largest serialized metadata of one variant, in UTF-8 bytes of its compact JSON (wire v8). */
-export const MAX_CATALOG_VARIANT_METADATA_BYTES = 8192
+/** Largest serialized metadata of one resource or release, in UTF-8 bytes of its compact JSON (wire v8). */
+export const MAX_CATALOG_METADATA_BYTES = 8192
 
 /** The directory, at a catalog archive's root, that holds the releases the archive carries (wire v8). */
 export const CATALOG_DEPENDENCY_ARCHIVE_DIRECTORY = 'dependencies/'

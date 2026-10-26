@@ -97,9 +97,11 @@ data class QualifiedCatalogFingerprint(
  * `themeId`, `stencilId`, `assetId`, `iconAssetSlug`, `imageAssetSlugs`, an attribute's `catalog`,
  * a font reference's `slug`), so they reproduce exactly the fingerprints producers computed before
  * the rename, whichever wire version the archive is read at. Likewise V5 is the only algorithm that
- * covers the members wire v8 added to a template -- a data example's `key`, a `description`, a
- * variant's `metadata` ([CatalogV8Additions]) -- so a key the v7-to-v8 migration derives moves no
- * legacy fingerprint.
+ * covers the members wire v8 added to a template -- a data example's `key`, a `description`
+ * ([CatalogV8Additions]) -- so a key the v7-to-v8 migration derives moves no legacy fingerprint.
+ *
+ * No algorithm covers producer metadata, a resource's `metadata` or the release's: it is what a
+ * producer says about the content, not the content ([app.epistola.catalog.protocol.CatalogMetadata]).
  */
 enum class CatalogFingerprintVersion {
     V1,
@@ -345,7 +347,7 @@ object CatalogCanonicalizer {
         }
         Entry(
             key = key,
-            canonicalJson = mapper.writeValueAsString(sortKeys(normalizeStencilProvenance(legacyResource(model), legacyV4 = false))),
+            canonicalJson = mapper.writeValueAsString(sortKeys(withoutMetadata(normalizeStencilProvenance(legacyResource(model), legacyV4 = false)))),
             assetHash = assetHash(catalog, detail),
         )
     }
@@ -735,7 +737,7 @@ object CatalogCanonicalizer {
      * Use this to tell resources apart when merging or diffing releases. Unlike
      * [perResourceFingerprints] (V1) and [currentPerResourceFingerprints] (V3), which canonicalize a
      * resource as a catalog-v7 producer serialized it, it covers what catalog v8 added to a resource
-     * (a template's `description`, a variant's `metadata`, a data example's `key`) and names every
+     * (a template's `description`, a data example's `key`) and names every
      * member as catalog v8 does, so a change to only those members changes the resource's value. Two
      * resources have the same value exactly when V5 covers them alike: object keys sorted, numbers
      * as JSON binding normalizes them, and an image's bytes included.
@@ -777,7 +779,7 @@ object CatalogCanonicalizer {
         }.orEmpty()
         Entry(
             key = key,
-            canonicalJson = mapper.writeValueAsString(sortKeys(resourceNode)),
+            canonicalJson = mapper.writeValueAsString(sortKeys(withoutMetadata(resourceNode))),
             assetHash = assetHash,
         )
     }
@@ -786,7 +788,7 @@ object CatalogCanonicalizer {
         val resourceNode = normalizeStencilProvenance(legacyResource(resourceNode(catalog, key, detail)), legacyV4 = false)
         Entry(
             key = key,
-            canonicalJson = mapper.writeValueAsString(sortKeys(resourceNode)),
+            canonicalJson = mapper.writeValueAsString(sortKeys(withoutMetadata(resourceNode))),
             assetHash = assetHash(catalog, detail),
         )
     }
@@ -800,7 +802,7 @@ object CatalogCanonicalizer {
         val resourceNode = normalizeStencilProvenance(if (currentNames) model else legacyResource(model), legacyV4 = false)
         Entry(
             key = key,
-            canonicalJson = mapper.writeValueAsString(sortKeys(resourceNode)),
+            canonicalJson = mapper.writeValueAsString(sortKeys(withoutMetadata(resourceNode))),
             assetHash = assetHash(catalog, detail),
         )
     }
@@ -809,7 +811,7 @@ object CatalogCanonicalizer {
         val resourceNode = normalizeStencilProvenance(legacyResource(resourceNode(catalog, key, detail)), legacyV4 = true)
         Entry(
             key = key,
-            canonicalJson = mapper.writeValueAsString(sortKeys(resourceNode)),
+            canonicalJson = mapper.writeValueAsString(sortKeys(withoutMetadata(resourceNode))),
             assetHash = assetHash(catalog, detail),
         )
     }
@@ -862,6 +864,13 @@ object CatalogCanonicalizer {
      * added ([CatalogV8Additions]).
      */
     private fun legacyResource(resource: JsonNode): JsonNode = CatalogV8Additions.withoutAdditions(CatalogKeyRenames.legacyResource(resource))
+
+    /**
+     * [resource] without its producer `metadata` (wire v8, [app.epistola.catalog.protocol.CatalogMetadata]):
+     * metadata never counts in a hash, at release or resource level, under any algorithm. It is what
+     * a producer says about the content, not the content.
+     */
+    private fun withoutMetadata(resource: JsonNode): JsonNode = if (resource is ObjectNode && resource.has("metadata")) resource.deepCopy().apply { remove("metadata") } else resource
 
     private fun CatalogInfo.identityLine(): String = "$key $name ${description.orEmpty()}\n"
 

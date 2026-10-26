@@ -16,11 +16,11 @@ import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogKeywords
 import app.epistola.catalog.protocol.CatalogLicense
 import app.epistola.catalog.protocol.CatalogManifest
+import app.epistola.catalog.protocol.CatalogMetadata
 import app.epistola.catalog.protocol.CatalogPresentation
 import app.epistola.catalog.protocol.CatalogPresetDeclaration
 import app.epistola.catalog.protocol.CatalogPresets
 import app.epistola.catalog.protocol.CatalogThemeRef
-import app.epistola.catalog.protocol.CatalogVariantMetadata
 import app.epistola.catalog.protocol.CodeListBindingRef
 import app.epistola.catalog.protocol.CodeListEntryEntry
 import app.epistola.catalog.protocol.CodeListResource
@@ -1170,21 +1170,21 @@ class CatalogValidatorTest {
     }
 
     @Test
-    fun `variant metadata names one to sixteen reverse-DNS namespaces and stays within 8 KiB`() {
+    fun `a resource's metadata names one to sixteen reverse-DNS namespaces and stays within 8 KiB`() {
         fun findings(metadata: Map<String, Map<String, Any?>>) = validateTemplate(letter(metadata = metadata)).findings.map { it.code to it.path }
-        val path = "resources/template/letter.json.resource.variants[0].metadata"
+        val path = "resources/template/letter.json.resource.metadata"
 
         assertEquals(emptyList(), findings(mapOf("app.epistola.suite" to mapOf("renderingDefaultsVersion" to 6))))
         assertEquals(emptyList(), findings((1..16).associate { "com.example.n$it" to emptyMap() }))
-        assertEquals(emptyList(), findings(mapOf("a.b" to mapOf("x" to "y".repeat(CatalogVariantMetadata.MAX_SERIALIZED_BYTES - 20)))))
-        assertEquals(listOf(CatalogValidationCodes.VARIANT_METADATA_INVALID to path), findings(emptyMap()))
-        assertEquals(listOf(CatalogValidationCodes.VARIANT_METADATA_INVALID to path), findings((1..17).associate { "com.example.n$it" to emptyMap() }))
+        assertEquals(emptyList(), findings(mapOf("a.b" to mapOf("x" to "y".repeat(CatalogMetadata.MAX_SERIALIZED_BYTES - 20)))))
+        assertEquals(listOf(CatalogValidationCodes.RESOURCE_METADATA_INVALID to path), findings(emptyMap()))
+        assertEquals(listOf(CatalogValidationCodes.RESOURCE_METADATA_INVALID to path), findings((1..17).associate { "com.example.n$it" to emptyMap() }))
         listOf("suite", "App.epistola.suite", "app..suite", "app.epistola.", "1app.suite", "app.epistola_suite", "app." + "a".repeat(97)).forEach { namespace ->
-            assertEquals(listOf(CatalogValidationCodes.VARIANT_METADATA_INVALID to "$path.$namespace"), findings(mapOf(namespace to emptyMap())), namespace)
+            assertEquals(listOf(CatalogValidationCodes.RESOURCE_METADATA_INVALID to "$path.$namespace"), findings(mapOf(namespace to emptyMap())), namespace)
         }
         assertEquals(
-            listOf(CatalogValidationCodes.VARIANT_METADATA_TOO_LARGE to path),
-            findings(mapOf("a.b" to mapOf("x" to "y".repeat(CatalogVariantMetadata.MAX_SERIALIZED_BYTES)))),
+            listOf(CatalogValidationCodes.RESOURCE_METADATA_TOO_LARGE to path),
+            findings(mapOf("a.b" to mapOf("x" to "y".repeat(CatalogMetadata.MAX_SERIALIZED_BYTES)))),
         )
     }
 
@@ -1247,8 +1247,9 @@ class CatalogValidatorTest {
         "Letter",
         dataExamples = dataExamples,
         templateModel = validDocument(),
-        variants = listOf(VariantEntry("english", metadata = metadata)),
+        variants = listOf(VariantEntry("english")),
         description = description,
+        metadata = metadata,
     )
 
     private fun validateTemplate(

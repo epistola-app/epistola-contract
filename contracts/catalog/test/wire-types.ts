@@ -28,11 +28,11 @@ import type { ReleaseBase } from '../ts/index.js'
 import {
   CATALOG_ARCHIVE_PATH_PATTERN,
   CATALOG_RESOURCE_KEY_PATTERN,
-  CATALOG_VARIANT_METADATA_NAMESPACE_PATTERN,
+  CATALOG_METADATA_NAMESPACE_PATTERN,
   MAX_CATALOG_RESOURCE_KEY_LENGTH,
-  MAX_CATALOG_VARIANT_METADATA_BYTES,
-  MAX_CATALOG_VARIANT_METADATA_NAMESPACE_LENGTH,
-  MAX_CATALOG_VARIANT_METADATA_NAMESPACES,
+  MAX_CATALOG_METADATA_BYTES,
+  MAX_CATALOG_METADATA_NAMESPACE_LENGTH,
+  MAX_CATALOG_METADATA_NAMESPACES,
   MAX_TEMPLATE_DESCRIPTION_LENGTH,
   MIN_CATALOG_RESOURCE_KEY_LENGTH,
   CATALOG_PRESET_KEY_PATTERN,
@@ -154,11 +154,13 @@ const example: DataExampleEntry = { key: 'standard-letter', name: 'Standard lett
 // @ts-expect-error a wire-v8 data example has a key
 const unkeyedExample: DataExampleEntry = { name: 'Standard letter', data: {} }
 
-// A variant may carry producer-specific metadata by reverse-DNS namespace (#96), each an object.
-const variant: VariantEntry = { key: 'english', metadata: { 'app.epistola.suite': { renderingDefaultsVersion: 6 } } }
+// A resource may carry producer-specific metadata by reverse-DNS namespace, each an object.
+const resourceMetadata: TemplateResource['metadata'] = { 'com.example.authoring': { reviewedBy: 'design' } }
 const plainVariant: VariantEntry = { key: 'english' }
+// @ts-expect-error a variant carries no metadata of its own
+const variantMetadata: VariantEntry = { key: 'english', metadata: { 'app.epistola.suite': {} } }
 // @ts-expect-error a namespace holds an object
-const scalarMetadata: VariantEntry = { key: 'english', metadata: { 'app.epistola.suite': 6 } }
+const scalarMetadata: TemplateResource['metadata'] = { 'app.epistola.suite': 6 }
 
 // A template may describe itself in plain text (#97).
 const description: TemplateResource['description'] = 'A one-page letter.'
@@ -191,15 +193,16 @@ const v8Rules: Array<string | number> = [
   MIN_CATALOG_RESOURCE_KEY_LENGTH,
   MAX_CATALOG_RESOURCE_KEY_LENGTH,
   MAX_TEMPLATE_DESCRIPTION_LENGTH,
-  CATALOG_VARIANT_METADATA_NAMESPACE_PATTERN,
-  MAX_CATALOG_VARIANT_METADATA_NAMESPACE_LENGTH,
-  MAX_CATALOG_VARIANT_METADATA_NAMESPACES,
-  MAX_CATALOG_VARIANT_METADATA_BYTES,
+  CATALOG_METADATA_NAMESPACE_PATTERN,
+  MAX_CATALOG_METADATA_NAMESPACE_LENGTH,
+  MAX_CATALOG_METADATA_NAMESPACES,
+  MAX_CATALOG_METADATA_BYTES,
 ]
 
 void example
 void unkeyedExample
-void variant
+void resourceMetadata
+void variantMetadata
 void plainVariant
 void scalarMetadata
 void description

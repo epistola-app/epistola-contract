@@ -161,7 +161,7 @@ accepted full SemVer; migrating a release numbered `1.0.0-beta.1` or `1.0.0+5` t
 (`CATALOG_RELEASE_VERSION_INVALID`), never a silent strip and never a patch release.
 A release's `releaseId`, when it carries one, is the API's `CatalogReleaseId` (`CatalogReleaseIds`;
 `CATALOG_RELEASE_ID_INVALID`, also raised by the migrator's wire check), and its `metadata` follows
-the rules of a variant's (`CATALOG_RELEASE_METADATA_INVALID`, `CATALOG_RELEASE_METADATA_TOO_LARGE`).
+the rules of a resource's (`CATALOG_RELEASE_METADATA_INVALID`, `CATALOG_RELEASE_METADATA_TOO_LARGE`).
 Its `base`, when it carries one (`ReleaseBase`), names a release number and a qualified
 fingerprint of a known algorithm (`CATALOG_RELEASE_BASE_INVALID`, also for a missing member; the
 migrator's wire check raises it too). Whether the receiver has that release, and whether it is below
@@ -194,10 +194,12 @@ when missing or malformed, `CATALOG_TEMPLATE_EXAMPLE_KEY_DUPLICATE`), alongside 
 that names are unique (`CATALOG_TEMPLATE_EXAMPLE_NAME_DUPLICATE`). A template's `description` is at
 most 2000 characters (`CATALOG_TEMPLATE_DESCRIPTION_INVALID`) and, when its manifest entry also has
 one, equal to it (`CATALOG_RESOURCE_DESCRIPTION_MISMATCH`): the template's own is the source the
-entry copies. A variant's `metadata` names one to sixteen reverse-DNS namespaces of at most 100
-characters (`CATALOG_VARIANT_METADATA_INVALID`) and is at most 8 KiB as compact UTF-8 JSON
-(`CATALOG_VARIANT_METADATA_TOO_LARGE`); what a namespace holds is its producer's business and is not
-checked. A `detailUrl` that is not a relative path below the manifest's directory is
+entry copies. A resource's `metadata`, of any type, names one to sixteen reverse-DNS namespaces of
+at most 100 characters (`CATALOG_RESOURCE_METADATA_INVALID`) and is at most 8 KiB as compact UTF-8
+JSON (`CATALOG_RESOURCE_METADATA_TOO_LARGE`); what a namespace holds is its producer's business and
+is not checked. A variant carries no metadata of its own; the migrator folds an early wire-v8
+variant's into its template's (`CATALOG_VARIANT_METADATA_FOLDED`, or `CATALOG_VARIANT_METADATA_UNFOLDABLE`
+when that would overwrite a value). A `detailUrl` that is not a relative path below the manifest's directory is
 `CATALOG_MANIFEST_DETAIL_URL_INVALID`, and a `contentUrl` `CATALOG_ASSET_PATH_INVALID`, for a catalog
 read at v8 (see `catalog-archive.md`, "Paths Into the Catalog"); a well-formed `detailUrl` that does
 not name the resource's canonical file is `CATALOG_MANIFEST_DETAIL_PATH_INVALID` at any version.
@@ -226,7 +228,7 @@ suite. Every entry identifies a directory containing the actual `catalog.json`, 
 files, and an exact `expected-report.json`. The set covers a minimal valid catalog, a
 missing detail document, a missing catalog-scoped reference, and a schema-valid template that
 breaks the wire-v8 rules the schema cannot state (a description that differs from its manifest
-entry, a repeated data example key, and variant metadata over 8 KiB). These files are language-neutral:
+entry, a repeated data example key, and resource metadata over 8 KiB). These files are language-neutral:
 another JVM implementation, a Python validator, or a browser client can load the same inputs and
 compare its complete ordered report with the expected result.
 

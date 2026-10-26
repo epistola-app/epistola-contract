@@ -10,16 +10,16 @@
     "V5": "720855657992f90e5b13423c36fe086cd09eaf285f1133299a7b0ab0bc725ac1",
     "V6": "4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb"
   },
-  "currentWireV8CatalogFingerprint": "332102ae9816ed0d53b0657b25f4b6a96ce09bb995b159c594154b49cd0b1818",
+  "currentWireV8CatalogFingerprint": "8b9baa56e331445ee816eb5d49108aa8dcecb0281cd3a209e685fbc31a5c248b",
   "wireV8CatalogFingerprints": {
-    "V5": "b2fd4b585b81b0eee4776033c02c991f43393fb8d6c655d688f4f924a0c3e520",
-    "V6": "332102ae9816ed0d53b0657b25f4b6a96ce09bb995b159c594154b49cd0b1818"
+    "V5": "883cd88cbb9e6c2dc125383691ea3a6828e9c5b0c9fa519fc432a049e329d746",
+    "V6": "8b9baa56e331445ee816eb5d49108aa8dcecb0281cd3a209e685fbc31a5c248b"
   },
   "resourceFingerprints": {
     "theme/default": "30edf3c18acf6882267ad37c7cddd60f12b2536c3517c618d36f9ce0610b3e95"
   },
   "completeWireV8ResourceFingerprints": {
-    "template/letter": "cbee031145e88408e65c6d0dcfe493277ca3c494787fd04f8414adc3334a0db5",
+    "template/letter": "5e7e91c8d51980bfa1795e7eb668bf058af86988048368bd71c1416a550d4d70",
     "theme/default": "2e5f86b774ffafabac9116a067dcef62d8eb246bda740c312c783a3132303766"
   }
 }

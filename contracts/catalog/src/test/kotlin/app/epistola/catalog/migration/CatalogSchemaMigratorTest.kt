@@ -1061,6 +1061,46 @@ class CatalogSchemaMigratorTest {
     /** A catalog's address is its `key` from wire v8, its `slug` before. */
     private fun keyMember(version: Int) = if (version >= 8) "key" else "slug"
 
+    @Test
+    fun `an early wire-v8 variant's metadata folds into its template's, keyed by the variant, and an overwrite is refused`() {
+        val path = "resources/template/letter.json"
+        fun migrate(edit: (ObjectNode) -> Unit): CatalogMigrationResult<ResourceDetail> {
+            val tree = resource("wire-v8/resources/template/letter.json").use(mapper::readTree) as ObjectNode
+            edit(tree["resource"] as ObjectNode)
+            return CatalogSchemaMigrator.migrateResourceDetail("template", ByteArrayInputStream(mapper.writeValueAsBytes(tree)), CatalogMigrationContext(8, emptyManifest()), path)
+        }
+        fun variantMetadata(resource: ObjectNode) = (resource["variants"][0] as ObjectNode).putObject("metadata")
+            .also { it.putObject("app.epistola.suite").put("renderingDefaultsVersion", 6) }
+
+        val folded = migrate { variantMetadata(it) }
+        assertEquals(emptyList(), folded.findings)
+        val template = assertNotNull(folded.value).resource as TemplateResource
+        assertEquals(
+            mapOf(
+                "com.example.authoring" to mapOf("reviewedBy" to "design"),
+                "app.epistola.suite" to mapOf("variants" to mapOf("english" to mapOf("renderingDefaultsVersion" to 6))),
+            ),
+            template.metadata,
+        )
+        assertEquals(
+            listOf(CatalogMigrationCodes.VARIANT_METADATA_FOLDED to "$path.resource.variants[0].metadata"),
+            folded.notices.map { it.code to it.path },
+        )
+
+        val unchanged = migrate { }
+        assertEquals(emptyList(), unchanged.notices.filter { it.code == CatalogMigrationCodes.VARIANT_METADATA_FOLDED })
+
+        val overwrite = migrate { resource ->
+            variantMetadata(resource)
+            (resource["metadata"] as ObjectNode).putObject("app.epistola.suite").putObject("variants").putObject("english")
+        }
+        assertNull(overwrite.value)
+        assertEquals(
+            listOf(CatalogMigrationCodes.VARIANT_METADATA_UNFOLDABLE to "$path.resource.variants[0].metadata.app.epistola.suite"),
+            overwrite.findings.map { it.code to it.path },
+        )
+    }
+
     private fun resource(path: String) = requireNotNull(javaClass.getResourceAsStream("/META-INF/epistola-catalog/fixtures/v1/$path"))
 
     /** A manifest with no resources: enough for a migration that does not look anything up. */
