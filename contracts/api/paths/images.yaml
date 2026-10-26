@@ -83,10 +83,6 @@ images:
               mediaType:
                 type: string
                 description: Optional MIME override; defaults to the part content type.
-              sensitive:
-                type: boolean
-                default: false
-                description: Store content in a tenant-isolated deduplication scope.
     responses:
       '201':
         description: Image uploaded.

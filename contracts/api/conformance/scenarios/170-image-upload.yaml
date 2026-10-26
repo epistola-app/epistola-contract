@@ -18,10 +18,6 @@ why: >
   the string `null`, which a server reads as a media type override it cannot resolve, or an empty
   value the contract gives no meaning.
 
-  `sensitive` was not set either. Its contract default is false, so a client may send `false` or
-  leave it out. It may not send `true`, and it may not send `False`, which is not a boolean in a form
-  field.
-
   The response carries a readable `key`, which the client must deserialize and hand back intact.
 
   A write goes to a draft, addressed by its `releaseId` (ADR 0002); a released release's version would
@@ -83,9 +79,9 @@ expect:
             value: Municipality mark
           mediaType:
             absent: true
+          # Removed in 2.0 with the content scope it chose: every image's bytes are deduplicated alike.
           sensitive:
-            whenPresent:
-              value: 'false'
+            absent: true
   report:
     imageKey: municipality-mark
     imageName: Municipality mark
