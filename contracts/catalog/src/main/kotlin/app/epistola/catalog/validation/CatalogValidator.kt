@@ -955,6 +955,8 @@ object CatalogValidator {
             dependencyResolver = policy.dependencyResolver,
             catalogDependencies = manifest.catalogDependencies.orEmpty(),
             sourceSchemaVersion = catalog.sourceSchemaVersion,
+            // The archive's bytes, so a binary's declared contentHash is checked against them (#91).
+            content = catalog.content,
         )
         manifest.catalog.defaultTheme?.let { validateDefaultTheme(manifest, it, context, findings) }
         catalog.resourceDetails.toSortedMap().forEach { (key, detail) ->

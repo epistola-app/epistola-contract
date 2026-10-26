@@ -590,9 +590,11 @@ class CatalogValidatorTest {
 
     @Test
     fun `catalog presentation resolves same-catalog image assets`() {
+        // The fixture archive serves `{}` for every file, and its hash is checked (#91).
+        val hash = sha256Hex("{}".toByteArray())
         val details = mapOf(
-            "image/icon" to ResourceDetail(CURRENT_VERSION, ImageResource("icon", "Icon", "image/svg+xml", contentUrl = "./resources/asset/icon.svg", contentHash = "0000000000000000000000000000000000000000000000000000000000000000")),
-            "image/hero" to ResourceDetail(CURRENT_VERSION, ImageResource("hero", "Hero", "IMAGE/PNG", contentUrl = "./resources/asset/hero.png", contentHash = "0000000000000000000000000000000000000000000000000000000000000000")),
+            "image/icon" to ResourceDetail(CURRENT_VERSION, ImageResource("icon", "Icon", "image/svg+xml", contentUrl = "./resources/asset/icon.svg", contentHash = hash)),
+            "image/hero" to ResourceDetail(CURRENT_VERSION, ImageResource("hero", "Hero", "IMAGE/PNG", contentUrl = "./resources/asset/hero.png", contentHash = hash)),
         )
         val entries = details.map { (key, detail) ->
             ResourceEntry(detail.resource.type, detail.resource.key, detail.resource.name, detailUrl = "./resources/$key.json")
@@ -660,6 +662,40 @@ class CatalogValidatorTest {
             }
         }
     }
+
+    /**
+     * The hash is checked, not believed (#91): validating an archive hashes each binary's bytes and
+     * refuses a `contentHash` they do not produce. Before, the archive's content never reached the
+     * resource checks, so a catalog could claim bytes it does not carry.
+     */
+    @Test
+    fun `a binary whose bytes do not hash to its declared contentHash is refused`() {
+        val actual = "the bytes in the archive".toByteArray()
+        fun reportFor(declared: String): CatalogValidationReport {
+            val image = ImageResource("logo", "Logo", "image/png", contentHash = declared)
+            val manifest = manifest(resources = listOf(ResourceEntry("image", "logo", "Logo", detailUrl = "./resources/image/logo.json")))
+            val details = mapOf("image/logo" to ResourceDetail(CURRENT_VERSION, image))
+            val binaryPath = "bin/$declared"
+            val catalog = CatalogArchive(
+                manifest,
+                details,
+                setOf("catalog.json", "resources/image/logo.json", binaryPath),
+                ArchiveContentProvider { path ->
+                    check(path == binaryPath) { "unexpected read of $path" }
+                    ByteArrayInputStream(actual)
+                },
+            )
+            return CatalogValidator.validate(catalog)
+        }
+
+        val mismatch = reportFor(sha256Hex("some other bytes".toByteArray()))
+        assertTrue(CatalogValidationCodes.ASSET_CONTENT_HASH_MISMATCH in mismatch.codes(), "findings: ${mismatch.findings}")
+
+        val match = reportFor(sha256Hex(actual))
+        assertTrue(CatalogValidationCodes.ASSET_CONTENT_HASH_MISMATCH !in match.codes(), "findings: ${match.findings}")
+    }
+
+    private fun sha256Hex(bytes: ByteArray): String = java.security.MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 
     /** Every type admits a leading digit (wire v8), because an image's key may be a UUID string. */
     @Test

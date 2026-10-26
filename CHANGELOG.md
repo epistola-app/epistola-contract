@@ -1149,6 +1149,12 @@ libraries.
 
 ### Fixed
 
+- **Validating an archive checks each binary's bytes against its `contentHash`** (#91).
+  `CatalogValidator.validate` built the resource checks' context without the archive's content, so
+  `CATALOG_ASSET_CONTENT_HASH_MISMATCH` could never fire and a catalog could claim bytes it does not
+  carry. The archive's content now reaches them, so a binary whose bytes hash to something else is
+  refused.
+
 - **The `entry` parameter of `getCatalogDraftMergeSides` matched nothing in generated servers.** Its
   pattern held a star followed by a slash, which the Kotlin generator rewrites so it does not end a
   comment, changing the regular expression; every request was refused. The pattern now bounds the
