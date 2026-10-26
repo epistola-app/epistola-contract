@@ -59,10 +59,10 @@ class MultipartFormTest {
     void a_field_is_a_text_part_and_not_a_file() {
         List<EntityPart> parts = MultipartForm.create()
                 .field("name", "Municipality mark")
-                .field("sensitive", false)
+                .field("pdfaEnabled", false)
                 .build();
 
-        assertEquals(List.of("name", "sensitive"), parts.stream().map(EntityPart::getName).toList());
+        assertEquals(List.of("name", "pdfaEnabled"), parts.stream().map(EntityPart::getName).toList());
         assertTrue(parts.get(0).getFileName().isEmpty(), "a text field must not look like a file part");
         assertTrue(parts.get(1).getFileName().isEmpty(), "a text field must not look like a file part");
     }
