@@ -11,6 +11,21 @@ libraries.
 
 ### Added
 
+- **Every catalog resource carries `tags`** (wire v8). `CatalogResource.tags` is common to every
+  type, so a consumer can tag and filter templates, themes, attributes, images, code lists and fonts
+  as it already did stencils. A type that had no tags leaves them out of its JSON when there are
+  none (`NON_EMPTY`), so no V5 or V6 fingerprint and no content hash moves; the legacy algorithms
+  (V1 to V4) leave them out too (`CatalogV8Additions`). A stencil writes its tags as before, an empty
+  list included, so its fingerprints stay put. The v8 resource schema gains an optional `tags` on
+  each type, the same shape as a stencil's; a reader on `2.0.0-alpha.1` refuses a resource that
+  carries them on another type, which wire v8, alpha, allows itself.
+
+- **A template's variant carries a `description`** (wire v8): plain text for the variant's authors,
+  optional, at most 2000 characters. Left out when there is none (`NON_EMPTY`), so no V5 or V6
+  fingerprint and no content hash moves; the legacy algorithms (V1 to V4) leave it out too
+  (`CatalogV8Additions`). A reader on `2.0.0-alpha.1` refuses a variant that carries one, which wire
+  v8, alpha, allows itself.
+
 - **A release carries its content hash, and is found by it** (contract ADR 0003, amendment of
   2026-10-22; Epistola Suite ADR 0034). New identifier `ContentHash`, the V6 fingerprint (`v6:` and
   64 lowercase hex digits), which identifies a release whatever its name or number.

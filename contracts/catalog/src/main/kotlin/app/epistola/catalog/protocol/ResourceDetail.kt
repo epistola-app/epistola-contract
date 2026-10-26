@@ -49,6 +49,13 @@ sealed interface CatalogResource {
     val type: String
     val key: String
     val name: String
+
+    /**
+     * Labels for finding the resource (wire v8). Every type carries them; a type that did not before
+     * leaves them out of its JSON when there are none, so its fingerprints stay put. A stencil,
+     * which always had them, writes them even when empty, as it always did.
+     */
+    val tags: List<String>
 }
 
 /**
@@ -92,6 +99,8 @@ data class TemplateResource(
     val variants: List<VariantEntry>,
     @get:JsonInclude(JsonInclude.Include.NON_NULL)
     val description: String? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    override val tags: List<String> = emptyList(),
 ) : CatalogResource {
     override val type: String get() = "template"
 
@@ -116,6 +125,8 @@ data class ThemeResource(
     val pageSettings: PageSettings? = null,
     val blockStylePresets: Map<String, BlockStylePreset>? = null,
     val spacingUnit: Float? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    override val tags: List<String> = emptyList(),
 ) : CatalogResource {
     override val type: String get() = "theme"
 }
@@ -146,7 +157,7 @@ data class StencilResource(
     override val key: String,
     override val name: String,
     val description: String? = null,
-    val tags: List<String> = emptyList(),
+    override val tags: List<String> = emptyList(),
     val content: TemplateDocument,
     val parameterSchema: Map<String, Any?>? = null,
     /**
@@ -172,6 +183,8 @@ data class AttributeResource(
     override val name: String,
     val allowedValues: List<String> = emptyList(),
     val codeListBinding: CodeListBindingRef? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    override val tags: List<String> = emptyList(),
 ) : CatalogResource {
     override val type: String get() = "attribute"
 }
@@ -233,6 +246,8 @@ data class CodeListResource(
     override val name: String,
     val description: String? = null,
     val entries: List<CodeListEntryEntry>,
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    override val tags: List<String> = emptyList(),
 ) : CatalogResource {
     override val type: String get() = "codeList"
 }
@@ -300,6 +315,8 @@ data class ImageResource(
     override val contentHash: String,
     @get:JsonInclude(JsonInclude.Include.NON_NULL)
     override val contentUrl: String? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    override val tags: List<String> = emptyList(),
 ) : CatalogResource,
     BinaryRef {
     override val type: String get() = "image"
@@ -323,6 +340,8 @@ data class FontResource(
     override val name: String,
     val kind: String,
     val variants: List<FontVariantEntry>,
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    override val tags: List<String> = emptyList(),
 ) : CatalogResource {
     override val type: String get() = "font"
 }
@@ -385,6 +404,9 @@ data class DataExampleEntry(
  * ([CatalogVariantMetadata]). It binds the way the other free-form JSON in the model does
  * ([TemplateResource.dataModel]): plain maps, lists and scalars, written back member for member, with
  * numbers normalized as Jackson binds them. Omitted when null or empty, since the wire forbids `{}`.
+ *
+ * [description] (wire v8) is plain text for the variant's authors: what it is for. Not rendered.
+ * Omitted when null or empty, so a variant without one serializes, and fingerprints, as before.
  */
 data class VariantEntry(
     @JsonAlias("slug")
@@ -395,4 +417,6 @@ data class VariantEntry(
     val isDefault: Boolean = false,
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val metadata: Map<String, Map<String, Any?>>? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    val description: String? = null,
 )
