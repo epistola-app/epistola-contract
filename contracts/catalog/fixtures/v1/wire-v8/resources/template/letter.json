@@ -54,13 +54,13 @@
       {
         "key": "english",
         "title": "English",
-        "isDefault": true,
-        "metadata": {
-          "app.epistola.suite": {
-            "renderingDefaultsVersion": 6
-          }
-        }
+        "isDefault": true
       }
-    ]
+    ],
+    "metadata": {
+      "com.example.authoring": {
+        "reviewedBy": "design"
+      }
+    }
   }
 }

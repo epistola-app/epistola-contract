@@ -90,9 +90,9 @@ versions catalogs as a whole:
   display `name`; the v7-to-v8 migration derives one from the name with a notice
   (`CATALOG_DATA_EXAMPLE_KEY_ASSIGNED`). A template may carry a plain-text `description` (at most
   2000 characters), the source of its manifest entry's `description`.
-- A template variant may carry `metadata`: producer-specific JSON objects keyed by a reverse-DNS
-  namespace the producer owns (`{"app.epistola.suite": {"renderingDefaultsVersion": 6}}`), which
-  the contract carries without interpreting and every reader keeps.
+- Every resource may carry `metadata`: producer-specific JSON objects keyed by a reverse-DNS
+  namespace the producer owns (`{"com.example.authoring": {"reviewedBy": "design"}}`), which the
+  contract carries without interpreting and every reader keeps. No fingerprint covers it.
 - A manifest `detailUrl`, and a binary's deprecated `contentUrl`, is a relative path below the
   manifest's directory (`./resources/template/letter.json`, `bin/<sha256>`), resolved against the
   archive root or the manifest's URL; see [Archive format](docs/catalog-archive.md).
@@ -111,9 +111,8 @@ rules are defined the same way: `CatalogNamespaces` in Kotlin, and `CATALOG_REGI
 `MAX_CATALOG_REGISTRY_LENGTH`, `CATALOG_NAMESPACE_PATTERN`, `MIN_CATALOG_NAMESPACE_LENGTH`,
 and `MAX_CATALOG_NAMESPACE_LENGTH` in TypeScript; and the alias rule, `CatalogAliases` and
 `CATALOG_ALIAS_PATTERN`, `MIN_CATALOG_ALIAS_LENGTH` and `MAX_CATALOG_ALIAS_LENGTH`.
-Paths into the catalog are `CatalogArchivePaths` and `CATALOG_ARCHIVE_PATH_PATTERN`; variant
-metadata is `CatalogVariantMetadata` and the `…VARIANT_METADATA…` constants, whose rules a
-release's `metadata` follows too; a release id is `CatalogReleaseIds` and
+Paths into the catalog are `CatalogArchivePaths` and `CATALOG_ARCHIVE_PATH_PATTERN`; resource
+and release metadata are `CatalogMetadata` and the `…CATALOG_METADATA…` constants; a release id is `CatalogReleaseIds` and
 `CATALOG_RELEASE_ID_PATTERN`, `MIN_CATALOG_RELEASE_ID_LENGTH` and `MAX_CATALOG_RELEASE_ID_LENGTH`; a
 release's base (`ReleaseBase`) follows the release number and fingerprint rules
 (`ReleaseBase.FINGERPRINT_PATTERN` and `isValidFingerprint`); resource keys, data

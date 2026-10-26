@@ -15,7 +15,7 @@ import tools.jackson.databind.node.ObjectNode
  * | --- | --- |
  * | a template's data examples | `key` (assigned from the name by [CatalogV7ToV8Migration]) |
  * | a template | `description` |
- * | a template's variants | `metadata`, `description` |
+ * | a template's variants | `description`; and `metadata`, which an early wire-v8 archive may still carry |
  * | a stencil | `readsTemplateData` |
  * | every type but a stencil | `tags` |
  *

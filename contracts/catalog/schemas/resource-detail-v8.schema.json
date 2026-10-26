@@ -18,6 +18,21 @@
   ],
   "additionalProperties": false,
   "$defs": {
+    "ProducerMetadata": {
+      "description": "Producer-specific facts about the resource that the contract carries but does not define, by namespace: each property name is a reverse-DNS namespace the producer owns (app.epistola.suite); only that producer writes into it, and every other reader, one that does not recognise the namespace included, keeps it as it is, member for member. Each value is a JSON object the contract does not interpret. Omitted rather than empty. Metadata is what a producer says about the content, not the content: no fingerprint covers it. At most 8 KiB serialized, which the validator checks.",
+      "type": "object",
+      "patternProperties": {
+        "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$": {
+          "type": "object"
+        }
+      },
+      "propertyNames": {
+        "maxLength": 100
+      },
+      "additionalProperties": false,
+      "minProperties": 1,
+      "maxProperties": 16
+    },
     "CatalogResource": {
       "oneOf": [
         {
@@ -125,6 +140,9 @@
             "type": "string"
           },
           "description": "Labels for finding the resource. Left out when there are none."
+        },
+        "metadata": {
+          "$ref": "#/$defs/ProducerMetadata"
         }
       },
       "required": [
@@ -199,6 +217,9 @@
             "type": "string"
           },
           "description": "Labels for finding the resource. Left out when there are none."
+        },
+        "metadata": {
+          "$ref": "#/$defs/ProducerMetadata"
         }
       },
       "required": [
@@ -235,6 +256,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "metadata": {
+          "$ref": "#/$defs/ProducerMetadata"
         },
         "content": {
           "$ref": "template-document.schema.json"
@@ -296,6 +320,9 @@
             "type": "string"
           },
           "description": "Labels for finding the resource. Left out when there are none."
+        },
+        "metadata": {
+          "$ref": "#/$defs/ProducerMetadata"
         }
       },
       "required": [
@@ -352,6 +379,9 @@
             "type": "string"
           },
           "description": "Labels for finding the resource. Left out when there are none."
+        },
+        "metadata": {
+          "$ref": "#/$defs/ProducerMetadata"
         }
       },
       "required": [
@@ -397,6 +427,9 @@
             "type": "string"
           },
           "description": "Labels for finding the resource. Left out when there are none."
+        },
+        "metadata": {
+          "$ref": "#/$defs/ProducerMetadata"
         }
       },
       "required": [
@@ -438,6 +471,9 @@
             "type": "string"
           },
           "description": "Labels for finding the resource. Left out when there are none."
+        },
+        "metadata": {
+          "$ref": "#/$defs/ProducerMetadata"
         }
       },
       "required": [
@@ -600,21 +636,6 @@
         },
         "isDefault": {
           "type": "boolean"
-        },
-        "metadata": {
-          "description": "Producer-specific data the contract carries but does not define, by namespace. Each property name is a reverse-DNS namespace the producer owns (app.epistola.suite); only that producer writes into it, and every other reader keeps it as it is. Each value is a JSON object the contract does not interpret. Omitted rather than empty. A release is immutable, so the values are fixed with it. At most 8 KiB serialized per variant, which the validator checks.",
-          "type": "object",
-          "patternProperties": {
-            "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$": {
-              "type": "object"
-            }
-          },
-          "propertyNames": {
-            "maxLength": 100
-          },
-          "additionalProperties": false,
-          "minProperties": 1,
-          "maxProperties": 16
         },
         "description": {
           "description": "Plain text for the variant's authors: what it is for. Not rendered. Left out when there is none.",

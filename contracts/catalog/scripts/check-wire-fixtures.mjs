@@ -394,8 +394,8 @@ assert.equal(
   `v7 schema was tightened: ${ajv.errorsText(validateV7Detail.errors)}`,
 );
 
-// Wire v8 data examples have a key, a template may have a description, and a variant may carry
-// namespaced metadata (#96, #97).
+// Wire v8 data examples have a key, a template may have a description, and a resource may carry
+// namespaced metadata; a variant carries none of its own (#97).
 const v8Letter = await readJson('fixtures/v1/wire-v8/resources/template/letter.json');
 const editLetter = (edit) => {
   const detail = structuredClone(v8Letter);
@@ -407,12 +407,13 @@ for (const [description, edit] of [
   ['an uppercase example key', (r) => { r.dataExamples[0].key = 'Standard'; }],
   ['a 65-character example key', (r) => { r.dataExamples[0].key = 'a'.repeat(65); }],
   ['a 2001-character description', (r) => { r.description = 'a'.repeat(2001); }],
-  ['empty metadata', (r) => { r.variants[0].metadata = {}; }],
-  ['a namespace that is not reverse-DNS', (r) => { r.variants[0].metadata.suite = {}; }],
-  ['an uppercase namespace', (r) => { r.variants[0].metadata['App.epistola.suite'] = {}; }],
-  ['a 101-character namespace', (r) => { r.variants[0].metadata[`a.${'b'.repeat(99)}`] = {}; }],
-  ['a namespace whose value is not an object', (r) => { r.variants[0].metadata['com.example.x'] = 6; }],
-  ['17 namespaces', (r) => { for (let i = 1; i <= 16; i++) r.variants[0].metadata[`com.example.n${i}`] = {}; }],
+  ['empty metadata', (r) => { r.metadata = {}; }],
+  ['a namespace that is not reverse-DNS', (r) => { r.metadata.suite = {}; }],
+  ['an uppercase namespace', (r) => { r.metadata['App.epistola.suite'] = {}; }],
+  ['a 101-character namespace', (r) => { r.metadata[`a.${'b'.repeat(99)}`] = {}; }],
+  ['a namespace whose value is not an object', (r) => { r.metadata['com.example.x'] = 6; }],
+  ['17 namespaces', (r) => { for (let i = 1; i <= 16; i++) r.metadata[`com.example.n${i}`] = {}; }],
+  ['metadata on a variant', (r) => { r.variants[0].metadata = { 'com.example.x': {} }; }],
 ]) {
   assert.equal(validateV8Detail(editLetter(edit)), false, `v8 template accepted ${description}`);
 }
@@ -420,9 +421,9 @@ for (const [description, edit] of [
   ['no description', (r) => { delete r.description; }],
   ['a null description', (r) => { r.description = null; }],
   ['a 2000-character description', (r) => { r.description = 'a'.repeat(2000); }],
-  ['no metadata', (r) => { delete r.variants[0].metadata; }],
-  ['16 namespaces', (r) => { for (let i = 1; i <= 15; i++) r.variants[0].metadata[`com.example.n${i}`] = {}; }],
-  ['a namespace of any content', (r) => { r.variants[0].metadata['com.example.x'] = { list: [1, 'two', null, { x: false }], n: 1.5 }; }],
+  ['no metadata', (r) => { delete r.metadata; }],
+  ['16 namespaces', (r) => { for (let i = 1; i <= 15; i++) r.metadata[`com.example.n${i}`] = {}; }],
+  ['a namespace of any content', (r) => { r.metadata['com.example.x'] = { list: [1, 'two', null, { x: false }], n: 1.5 }; }],
   ['an example key with a leading digit', (r) => { r.dataExamples[0].key = '1e-brief'; }],
 ]) {
   assert.equal(validateV8Detail(editLetter(edit)), true, `v8 template rejected ${description}: ${ajv.errorsText(validateV8Detail.errors)}`);
