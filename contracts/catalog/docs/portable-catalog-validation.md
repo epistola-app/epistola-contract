@@ -76,11 +76,12 @@ appear:
 | A component's style map: a table's `cellStyles`, a columns node's `columnStyles` | `nodes.<id>.props.cellStyles.<row>-<col>.<key>`, `nodes.<id>.props.columnStyles[<i>].<key>` | The style map's `applicableStyles` |
 | `documentStylesOverride` | `documentStylesOverride.<key>` | Any registry key (only unknown keys are reported) |
 | A theme's `documentStyles` | `documentStyles.<key>` | Any registry key (only unknown keys are reported) |
+| A theme's `defaultBlockStyles` | `defaultBlockStyles.<key>` | Margin keys only (#59) |
 | A theme's block style preset | `blockStylePresets.<name>.styles.<key>` | Keys at least one component in the preset's `applicableTo` accepts, or any component when that is empty |
 
 Until #97 the first row was an error under the same two codes; nothing else checked style keys, and
 renderers ignored the keys. Theme styles are checked by
-`TemplateValidator.validateThemeStyles(documentStyles, blockStylePresets)`, which
+`TemplateValidator.validateThemeStyles(documentStyles, blockStylePresets, defaultBlockStyles)`, which
 `CatalogValidator` runs for every theme resource. `TemplateValidationCodes.WARNINGS` lists the codes
 that are only ever warnings. A report's `valid` counts errors only, for templates and whole
 catalogs alike.

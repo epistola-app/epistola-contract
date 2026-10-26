@@ -288,22 +288,28 @@ object TemplateValidator {
     }
 
     /**
-     * Validates the style maps of a theme: its `documentStyles` and the `styles` of each block
-     * style preset. Every finding is a [ValidationSeverity.WARNING], so the report is always valid.
+     * Validates the style maps of a theme: its `documentStyles`, its `defaultBlockStyles` and the
+     * `styles` of each block style preset. Every finding is a [ValidationSeverity.WARNING], so the
+     * report is always valid.
      *
-     * A document style key is reported only when the style registry does not define it. A preset
-     * style key is also reported when no component the preset applies to accepts it: the
-     * components in its `applicableTo`, or every component when that is empty.
+     * A document style key is reported only when the style registry does not define it. A default
+     * block style key is also reported when it is not a margin (#59): only margins take effect
+     * there. A preset style key is also reported when no component the preset applies to accepts
+     * it: the components in its `applicableTo`, or every component when that is empty.
      *
-     * Paths are relative to the theme: `documentStyles.<key>` and
+     * Paths are relative to the theme: `documentStyles.<key>`, `defaultBlockStyles.<key>` and
      * `blockStylePresets.<name>.styles.<key>`.
      */
     fun validateThemeStyles(
         documentStyles: Map<String, Any?>?,
         blockStylePresets: Map<String, BlockStylePreset>?,
+        defaultBlockStyles: Map<String, Any?>? = null,
     ): TemplateValidationReport {
         val findings = mutableListOf<TemplateValidationFinding>()
         documentStyles?.let { findings.checkStyleKeys(it.keys, "documentStyles", target = null, applicable = null) }
+        defaultBlockStyles?.let {
+            findings.checkStyleKeys(it.keys, "defaultBlockStyles", "a theme's default block styles, which take margins only") { key -> key.startsWith("margin") }
+        }
         blockStylePresets.orEmpty().toSortedMap().forEach { (name, preset) ->
             val named = preset.applicableTo.orEmpty()
             val candidates = if (named.isEmpty()) {

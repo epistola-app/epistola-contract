@@ -135,6 +135,40 @@ class TemplateValidatorStyleTest {
         )
     }
 
+    @Test
+    fun `a theme's default block styles take margins only`() {
+        val report = TemplateValidator.validateThemeStyles(
+            documentStyles = null,
+            blockStylePresets = null,
+            defaultBlockStyles = mapOf("marginBottom" to "6pt", "marginTop" to "0pt", "margin" to "1sp", "fontSize" to "10pt", "marginBotom" to "1pt"),
+        )
+
+        assertTrue(report.valid)
+        assertEquals(
+            listOf(
+                "defaultBlockStyles.fontSize" to TEMPLATE_STYLE_NOT_APPLICABLE,
+                "defaultBlockStyles.marginBotom" to TEMPLATE_STYLE_UNKNOWN,
+            ),
+            report.findings.map { it.path to it.code },
+        )
+    }
+
+    // -- the registry's block spacing (#59) ----------------------------------------------------
+
+    @Test
+    fun `flow blocks carry no visual-rhythm margin of their own, the separator and list spacing keep theirs`() {
+        val registry = javaClass.getResourceAsStream("/META-INF/epistola-catalog/component-registry.json")!!.use(mapper::readTree)
+        val defaults = registry["components"].associate { it["type"].asString() to it["defaultStyles"] }
+        val flow = listOf("text", "richTextVariable", "container", "columns", "table", "datatable", "qrcode", "image")
+        flow.forEach { type ->
+            val keys = defaults[type]?.propertyNames()?.toSet().orEmpty()
+            assertFalse(keys.any { it.startsWith("margin") }, "$type: $keys")
+        }
+        assertEquals("1.5sp", defaults["separator"]?.get("marginTop")?.asString())
+        assertEquals("1.5sp", defaults["separator"]?.get("marginBottom")?.asString())
+        assertEquals("0.5sp", defaults["text"]?.get("listItemSpacing")?.asString())
+    }
+
     // -- cellStyles ----------------------------------------------------------------------------
 
     @Test

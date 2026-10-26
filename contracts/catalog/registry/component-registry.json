@@ -118,7 +118,6 @@
       "applicableStyles": "all",
       "inspector": [],
       "defaultStyles": {
-        "marginBottom": "1.5sp",
         "listItemSpacing": "0.5sp"
       },
       "defaultProps": {
@@ -253,7 +252,6 @@
         }
       ],
       "defaultStyles": {
-        "marginBottom": "1.5sp",
         "listItemSpacing": "0.5sp"
       },
       "defaultProps": {
@@ -316,9 +314,6 @@
         "minHeight"
       ],
       "inspector": [],
-      "defaultStyles": {
-        "marginBottom": "1.5sp"
-      },
       "examples": [
         {
           "name": "with-children",
@@ -523,9 +518,6 @@
           "defaultValue": 0
         }
       ],
-      "defaultStyles": {
-        "marginBottom": "1.5sp"
-      },
       "defaultProps": {
         "columnSizes": [
           1,
@@ -749,9 +741,6 @@
         }
       ],
       "inspector": [],
-      "defaultStyles": {
-        "marginBottom": "1.5sp"
-      },
       "defaultProps": {
         "rows": 2,
         "columns": 2,
@@ -1000,9 +989,6 @@
           "defaultValue": true
         }
       ],
-      "defaultStyles": {
-        "marginBottom": "1.5sp"
-      },
       "defaultProps": {
         "expression": {
           "raw": "",
@@ -1280,9 +1266,6 @@
           "defaultValue": "120pt"
         }
       ],
-      "defaultStyles": {
-        "marginBottom": "1.5sp"
-      },
       "defaultProps": {
         "value": {
           "raw": "",
@@ -2748,9 +2731,6 @@
           "defaultValue": true
         }
       ],
-      "defaultStyles": {
-        "marginBottom": "1.5sp"
-      },
       "defaultProps": {
         "imageKey": null,
         "catalogKey": null,
