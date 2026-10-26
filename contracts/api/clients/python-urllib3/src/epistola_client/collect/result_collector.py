@@ -367,7 +367,7 @@ class ResultCollector:
         )
         try:
             if response.status < 200 or response.status > 299:
-                raise RuntimeError(f"collect failed: HTTP {response.status}")
+                raise _error_for(response)
 
             encoding = response.headers.get("content-encoding")
             stream = _decompress(response, encoding)
@@ -461,6 +461,25 @@ def _supported_encodings() -> str:
     encodings.append("gzip")
     return ", ".join(encodings)
 
+
+
+def _error_for(response) -> Exception:
+    """The exception a non-2xx collect response raises, as the client raises it for every other
+    call: a :class:`ProblemDetailException` for a parseable problem+json body, else the generated
+    ``ApiException`` with the status and body. The collector reads the response itself, so the
+    client's problem handler never sees it; without this a 403 surfaced as a bare RuntimeError."""
+    from epistola_client_generated.exceptions import ApiException
+
+    from epistola_client.error.problem_detail_handler import PROBLEM_JSON, parse_problem
+
+    raw = response.read()
+    body = raw.decode("utf-8", errors="replace") if raw else ""
+    content_type = (response.headers.get("content-type") or "").split(";")[0].strip().lower()
+    if content_type == PROBLEM_JSON and body.strip():
+        problem = parse_problem(body, response.status, response.headers)
+        if problem is not None:
+            return problem
+    return ApiException(status=response.status, reason=f"collect failed: HTTP {response.status}", body=body or None)
 
 def _decompress(response, encoding: Optional[str]):
     if encoding == "gzip":
