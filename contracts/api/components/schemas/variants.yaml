@@ -208,12 +208,266 @@ VariantListResponse:
 
 UpdateVariantContentRequest:
   type: object
-  description: The variant's new template model, replacing its content in the draft
+  description: |
+    The variant's new template model, replacing its content in the draft. The model is a flat graph
+    of nodes and slots; the
+    [template model guide](https://github.com/epistola-app/epistola-contract/blob/main/contracts/api/docs/template-model.md)
+    explains it with this example, a letter with a heading, an expression, a conditional with an
+    `else` branch, a table and a stencil instance.
   required:
     - templateModel
   properties:
     templateModel:
       $ref: '../../../catalog/schemas/template-document.schema.json'
+  # Generated from docs/examples/template-letter.json; ExampleTemplateModelTest keeps the two equal.
+  example:
+    templateModel:
+      modelVersion: 1
+      root: root
+      nodes:
+        root:
+          id: root
+          type: root
+          slots:
+          - root-children
+        heading:
+          id: heading
+          type: text
+          slots: []
+          props:
+            content:
+              type: doc
+              content:
+              - type: heading
+                attrs:
+                  level: 1
+                content:
+                - type: text
+                  text: Order confirmation
+        greeting:
+          id: greeting
+          type: text
+          slots: []
+          props:
+            content:
+              type: doc
+              content:
+              - type: paragraph
+                content:
+                - type: text
+                  text: 'Dear '
+                - type: expression
+                  attrs:
+                    expression: customer.name
+                - type: text
+                  text: ', thank you for your order '
+                - type: expression
+                  attrs:
+                    expression: order.number
+                - type: text
+                  text: .
+        paid-check:
+          id: paid-check
+          type: conditional
+          slots:
+          - paid-check-body
+          - paid-check-else
+          props:
+            condition:
+              raw: order.paid
+              language: jsonata
+            inverse: false
+        paid-text:
+          id: paid-text
+          type: text
+          slots: []
+          props:
+            content:
+              type: doc
+              content:
+              - type: paragraph
+                content:
+                - type: text
+                  text: We have received your payment.
+        unpaid-text:
+          id: unpaid-text
+          type: text
+          slots: []
+          props:
+            content:
+              type: doc
+              content:
+              - type: paragraph
+                content:
+                - type: text
+                  text: 'Please pay '
+                - type: expression
+                  attrs:
+                    expression: $formatNumber(order.total, '#,##0.00')
+                - type: text
+                  text: ' within 14 days.'
+        order-table:
+          id: order-table
+          type: table
+          slots:
+          - order-table-cell-0-0
+          - order-table-cell-0-1
+          - order-table-cell-1-0
+          - order-table-cell-1-1
+          styles:
+            marginBottom: 6pt
+          props:
+            rows: 2
+            columns: 2
+            columnWidths:
+            - 70
+            - 30
+            headerRows: 1
+            merges: []
+            cellStyles:
+              0-0:
+                backgroundColor: '#f1f5f9'
+              0-1:
+                backgroundColor: '#f1f5f9'
+        cell-item-h:
+          id: cell-item-h
+          type: text
+          slots: []
+          props:
+            content:
+              type: doc
+              content:
+              - type: paragraph
+                content:
+                - type: text
+                  text: Item
+        cell-amount-h:
+          id: cell-amount-h
+          type: text
+          slots: []
+          props:
+            content:
+              type: doc
+              content:
+              - type: paragraph
+                content:
+                - type: text
+                  text: Amount
+        cell-item:
+          id: cell-item
+          type: text
+          slots: []
+          props:
+            content:
+              type: doc
+              content:
+              - type: paragraph
+                content:
+                - type: expression
+                  attrs:
+                    expression: order.item
+        cell-amount:
+          id: cell-amount
+          type: text
+          slots: []
+          props:
+            content:
+              type: doc
+              content:
+              - type: paragraph
+                content:
+                - type: expression
+                  attrs:
+                    expression: $formatNumber(order.total, '#,##0.00')
+        signature:
+          id: signature
+          type: stencil
+          slots:
+          - signature-children
+          props:
+            stencilKey: signature-block
+            parameterBindings:
+              signerName: sender.name
+        signature-closing:
+          id: signature-closing
+          type: placeholder
+          slots:
+          - signature-closing-fill
+          props:
+            name: closing
+        closing-text:
+          id: closing-text
+          type: text
+          slots: []
+          props:
+            content:
+              type: doc
+              content:
+              - type: paragraph
+                content:
+                - type: text
+                  text: Kind regards,
+      slots:
+        root-children:
+          id: root-children
+          nodeId: root
+          name: children
+          children:
+          - heading
+          - greeting
+          - paid-check
+          - order-table
+          - signature
+        paid-check-body:
+          id: paid-check-body
+          nodeId: paid-check
+          name: body
+          children:
+          - paid-text
+        paid-check-else:
+          id: paid-check-else
+          nodeId: paid-check
+          name: else
+          children:
+          - unpaid-text
+        order-table-cell-0-0:
+          id: order-table-cell-0-0
+          nodeId: order-table
+          name: cell-0-0
+          children:
+          - cell-item-h
+        order-table-cell-0-1:
+          id: order-table-cell-0-1
+          nodeId: order-table
+          name: cell-0-1
+          children:
+          - cell-amount-h
+        order-table-cell-1-0:
+          id: order-table-cell-1-0
+          nodeId: order-table
+          name: cell-1-0
+          children:
+          - cell-item
+        order-table-cell-1-1:
+          id: order-table-cell-1-1
+          nodeId: order-table
+          name: cell-1-1
+          children:
+          - cell-amount
+        signature-children:
+          id: signature-children
+          nodeId: signature
+          name: children
+          children:
+          - signature-closing
+        signature-closing-fill:
+          id: signature-closing-fill
+          nodeId: signature-closing
+          name: fill
+          children:
+          - closing-text
+      themeRef:
+        type: inherit
 
 VariantContentDto:
   type: object
