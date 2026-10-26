@@ -1196,6 +1196,17 @@ libraries.
 
 ### Fixed
 
+- **A failed collect call raises its error instead of a parse failure** (#30, Kotlin Spring
+  RestClient client). `ResultCollector.collectOnce()` read the body of every response as NDJSON
+  results, because `exchange {}` does not raise on an error status: a 403 problem then surfaced as a
+  `NullPointerException` on its missing `sequence`. It now checks the status first and raises a
+  `ProblemDetailException` for an `application/problem+json` body, else Spring's
+  `HttpClientErrorException`/`HttpServerErrorException`, as the client does for every other call. A
+  result line that lacks `sequence`, `requestId`, `status` or the catalog it names is refused with an
+  `IllegalStateException` naming the line. The Python client's collector raised a bare
+  `RuntimeError` there; it now raises the same typed exceptions (see its changelog). The Jakarta,
+  .NET and Node.js collectors already checked the status; a test now pins the Jakarta one.
+
 - **Validating an archive checks each binary's bytes against its `contentHash`** (#91).
   `CatalogValidator.validate` built the resource checks' context without the archive's content, so
   `CATALOG_ASSET_CONTENT_HASH_MISMATCH` could never fire and a catalog could claim bytes it does not

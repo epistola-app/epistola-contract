@@ -163,3 +163,57 @@ def test_each_result_names_its_template_and_variant_by_key(server):
 
     assert (handled[0].template_key, handled[0].variant_key) == ("invoice", "nl-nl")
     assert (handled[1].template_key, handled[1].variant_key) == (None, None)
+
+
+def _error_server(status, content_type, body: bytes):
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    httpd = HTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    return httpd
+
+
+def test_a_problem_response_is_raised_as_a_problem_detail_exception_and_reaches_no_handler():
+    from epistola_client.error.problem_detail_exception import ProblemDetailException
+
+    problem = {
+        "type": "https://epistola.app/errors/permission-denied",
+        "title": "Permission Denied",
+        "status": 403,
+        "detail": "Insufficient permissions",
+    }
+    httpd = _error_server(403, "application/problem+json", json.dumps(problem).encode("utf-8"))
+    handled = []
+    try:
+        with pytest.raises(ProblemDetailException) as raised:
+            _collector(f"http://127.0.0.1:{httpd.server_address[1]}", handled).collect_once()
+    finally:
+        httpd.shutdown()
+
+    assert raised.value.status == 403
+    assert raised.value.problem.detail == "Insufficient permissions"
+    assert handled == []
+
+
+def test_an_error_response_that_is_not_a_problem_is_raised_as_an_api_exception_with_its_status():
+    from epistola_client_generated.exceptions import ApiException
+
+    httpd = _error_server(503, "text/html", b"<html>maintenance</html>")
+    handled = []
+    try:
+        with pytest.raises(ApiException) as raised:
+            _collector(f"http://127.0.0.1:{httpd.server_address[1]}", handled).collect_once()
+    finally:
+        httpd.shutdown()
+
+    assert raised.value.status == 503
+    assert handled == []

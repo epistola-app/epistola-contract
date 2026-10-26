@@ -5,6 +5,7 @@
 package app.epistola.client.collect
 
 import app.epistola.client.ContractMediaTypes
+import app.epistola.client.error.handleErrorResponse
 import app.epistola.protocol.Compression
 import app.epistola.protocol.PartitionRouting
 import app.epistola.protocol.PollBackoff
@@ -306,6 +307,11 @@ class ResultCollector private constructor(
                 .header("Accept-Encoding", Compression.acceptEncoding())
                 .body(requestBody)
                 .exchange { _, response ->
+                    // `exchange` does not raise on an error status, so an error body would otherwise
+                    // be read as result lines: a 403 problem then surfaced as a NullPointerException
+                    // on its missing `sequence`. Raise it as the client raises every API error: a
+                    // ProblemDetailException for problem+json, else Spring's HTTP error.
+                    if (!response.statusCode.is2xxSuccessful) handleErrorResponse(response)
                     // Sniffs the stream's leading bytes rather than trusting Content-Encoding,
                     // which is only correct if every request factory this client might be configured
                     // with either leaves the body encoded or strips the header when it decodes.
@@ -366,18 +372,18 @@ class ResultCollector private constructor(
     }
 
     private fun parseResult(node: com.fasterxml.jackson.databind.JsonNode) = GenerationResult(
-        sequence = node["sequence"].asLong(),
-        requestId = node["requestId"].asText(),
+        sequence = node.resultField("sequence").asLong(),
+        requestId = node.resultField("requestId").asText(),
         batchId = node["batchId"]?.asText(),
-        status = node["status"].asText(),
+        status = node.resultField("status").asText(),
         documentId = node["documentId"]?.asText(),
         correlationId = node["correlationId"]?.asText(),
         routingKey = node["routingKey"]?.asText(),
         templateKey = node["templateKey"]?.asText(),
         variantKey = node["variantKey"]?.asText(),
-        registry = node["registry"].asText(),
-        namespace = node["namespace"].asText(),
-        catalogKey = node["catalogKey"].asText(),
+        registry = node.resultField("registry").asText(),
+        namespace = node.resultField("namespace").asText(),
+        catalogKey = node.resultField("catalogKey").asText(),
         version = node["version"]?.takeUnless { it.isNull }?.asText(),
         filename = node["filename"]?.asText(),
         contentType = node["contentType"]?.asText(),
@@ -385,6 +391,9 @@ class ResultCollector private constructor(
         error = node["error"]?.asText(),
         completedAt = node["completedAt"]?.asText(),
     )
+
+    /** [field] of a result line, or a refusal naming the line instead of a bare NullPointerException. */
+    private fun com.fasterxml.jackson.databind.JsonNode.resultField(field: String): com.fasterxml.jackson.databind.JsonNode = get(field)?.takeUnless { it.isNull } ?: throw IllegalStateException("Unexpected collect line without '$field': $this")
 
     private fun removeShutdownHook() {
         shutdownHook?.let {

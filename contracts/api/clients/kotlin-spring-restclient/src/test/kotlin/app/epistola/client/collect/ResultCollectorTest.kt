@@ -4,11 +4,15 @@
 
 package app.epistola.client.collect
 
+import app.epistola.client.error.ProblemDetailException
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import io.mockk.every
 import io.mockk.mockk
 import org.springframework.http.HttpHeaders
+import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
+import org.springframework.web.client.HttpServerErrorException
 import org.springframework.web.client.RestClient
 import java.io.ByteArrayInputStream
 import java.time.Duration
@@ -120,6 +124,42 @@ class ResultCollectorTest {
         assertEquals("team-a", results[1].namespace)
         assertEquals("letters", results[1].catalogKey)
         assertNull(results[1].version)
+    }
+
+    @Test
+    fun `a problem response is raised as a ProblemDetailException carrying its status, not parsed as results`() {
+        val problem = """{"type":"https://epistola.app/errors/permission-denied","title":"Permission Denied","status":403,"detail":"Insufficient permissions","instance":"/api/tenants/demo/generation/collect"}"""
+        val headers = HttpHeaders().apply { contentType = MediaType.APPLICATION_PROBLEM_JSON }
+        val handled = AtomicInteger()
+        val restClient = mockRestClient(ByteArrayInputStream(problem.toByteArray()), HttpStatus.FORBIDDEN, headers)
+
+        val collector = buildCollector(restClient) { handled.incrementAndGet() }
+        val error = assertFailsWith<ProblemDetailException> { collector.collectOnce() }
+
+        assertEquals(403, error.statusCode.value())
+        assertEquals("Permission Denied", error.title)
+        assertEquals("Insufficient permissions", error.detail)
+        assertEquals(0, handled.get())
+    }
+
+    @Test
+    fun `an error response that is not a problem is raised as Spring's HTTP error, not parsed as results`() {
+        val restClient = mockRestClient(ByteArrayInputStream("<html>maintenance</html>".toByteArray()), HttpStatus.SERVICE_UNAVAILABLE)
+
+        val collector = buildCollector(restClient) { }
+        val error = assertFailsWith<HttpServerErrorException> { collector.collectOnce() }
+
+        assertEquals(503, error.statusCode.value())
+    }
+
+    @Test
+    fun `a result line without a sequence is refused with a message naming the line`() {
+        val restClient = mockRestClient(ndjsonResponse("""{"requestId":"r1","status":"completed"}"""))
+
+        val collector = buildCollector(restClient) { }
+        val error = assertFailsWith<IllegalStateException> { collector.collectOnce() }
+
+        assertTrue(error.message!!.contains("sequence"), error.message)
     }
 
     @Test
@@ -511,6 +551,8 @@ class ResultCollectorTest {
         val convertibleResponse = mockk<RestClient.RequestHeadersSpec.ConvertibleClientHttpResponse> {
             every { body } answers { nextBody() }
             every { headers } returns HttpHeaders()
+            every { statusCode } returns HttpStatus.OK
+            every { statusText } returns HttpStatus.OK.reasonPhrase
         }
 
         val requestBodyUriSpec = mockk<RestClient.RequestBodyUriSpec>()
@@ -533,10 +575,16 @@ class ResultCollectorTest {
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun mockRestClient(responseBody: ByteArrayInputStream): RestClient {
+    private fun mockRestClient(
+        responseBody: ByteArrayInputStream,
+        status: HttpStatus = HttpStatus.OK,
+        responseHeaders: HttpHeaders = HttpHeaders(),
+    ): RestClient {
         val convertibleResponse = mockk<RestClient.RequestHeadersSpec.ConvertibleClientHttpResponse> {
             every { body } returns responseBody
-            every { headers } returns HttpHeaders()
+            every { headers } returns responseHeaders
+            every { statusCode } returns status
+            every { statusText } returns status.reasonPhrase
         }
 
         val requestBodyUriSpec = mockk<RestClient.RequestBodyUriSpec>()
