@@ -18,6 +18,7 @@ import tools.jackson.databind.node.ObjectNode
  * | a template's variants | `description`; and `metadata`, which an early wire-v8 archive may still carry |
  * | a stencil | `readsTemplateData` |
  * | every type but a stencil | `tags` |
+ * | a theme | `defaultBlockStyles` (#59) |
  *
  * V1 to V4 canonicalize a resource as a catalog-v7 producer serialized it, so they leave these out:
  * otherwise a key the migration derived would move every fingerprint a v7 producer published. V5
@@ -30,6 +31,14 @@ internal object CatalogV8Additions {
         when (resource["type"]?.takeIf { it.isString }?.asString()) {
             "template" -> Unit
             "stencil" -> return resource.deepCopy().apply { remove("readsTemplateData") }
+            "theme" -> return if (resource.has("tags") || resource.has("defaultBlockStyles")) {
+                resource.deepCopy().apply {
+                    remove("tags")
+                    remove("defaultBlockStyles")
+                }
+            } else {
+                resource
+            }
             else -> return if (resource.has("tags")) resource.deepCopy().apply { remove("tags") } else resource
         }
         val copy = resource.deepCopy()

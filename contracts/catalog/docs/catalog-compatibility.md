@@ -211,3 +211,28 @@ Here, backwards compatibility applies to catalog JSON. Common Kotlin constructio
 patterns remain source-compatible where practical, but the Kotlin API is a recompile-on-upgrade
 boundary. Epistola Suite and Exchange recompile against each upgrade; the 1.x artifact does not
 promise that an already-compiled JVM application can replace the catalog JAR without recompilation.
+
+### A theme's default block spacing (#59)
+
+Until #59 the component registry gave eight flow components (`text`, `richTextVariable`,
+`container`, `columns`, `table`, `datatable`, `qrcode`, `image`) a `marginBottom: 1.5sp` default,
+so a theme's `spacingUnit` magnified a margin nobody chose: 6pt at 4pt, 24pt at 16pt. That
+visual-rhythm default is gone from the registry; a theme owns it now.
+
+- `ThemeResource.defaultBlockStyles` (wire v8): the theme's baseline block spacing, one style map for
+  every listed block, margin keys only (`margin`, `marginTop`, `marginRight`, `marginBottom`,
+  `marginLeft`). Another key is a `TEMPLATE_STYLE_NOT_APPLICABLE` warning and has no effect. Omitted
+  when empty. A map per component type may be added later, additively.
+- The cascade, lowest first: a component's structural defaults; the theme's `defaultBlockStyles`;
+  the inheritable document styles; the block's style preset; the node's own styles. Margins are
+  never inherited, so the baseline is not a document style.
+- **No baseline:** when the theme names none, or there is no theme, the renderer supplies its own
+  fallback. The contract fixes no value: spacing is the generator's, like its rendering defaults.
+- **What stays in the registry:** structural defaults, such as `listItemSpacing: 0.5sp` on lists, and the
+  `separator`'s own `marginTop` and `marginBottom` (`1.5sp`), which do not follow the baseline.
+- **Earlier releases:** a renderer may keep the defaults a release was cut with, the registry's former
+  `1.5sp` included, for releases made before it adopted this rule; Epistola Suite does so through
+  the rendering-defaults version it records in `ReleaseInfo.metadata`. Readers that took the margin
+  from the registry lose it: that is the breaking part of this change.
+- V5 and V6 cover `defaultBlockStyles`; the legacy algorithms (V1 to V4) leave it out
+  (`CatalogV8Additions`), so no fingerprint published before it moves.

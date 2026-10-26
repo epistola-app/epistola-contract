@@ -459,6 +459,18 @@ libraries.
 
 ### Changed
 
+- **Breaking: a theme owns the default block spacing** (#59). The component registry no longer
+  gives `text`, `richTextVariable`, `container`, `columns`, `table`, `datatable`, `qrcode` and
+  `image` a `marginBottom: 1.5sp` default, which a theme's `spacingUnit` magnified (24pt at 16pt).
+  A theme sets the baseline in the new optional `ThemeResource.defaultBlockStyles` (wire v8; also
+  on the REST theme DTOs): one style map for every listed block, margin keys only, below the
+  document styles, a preset and a node's own styles, and never inherited. Without one the renderer
+  supplies its own fallback; the contract fixes no value. The `separator` keeps its own margins and
+  lists keep `listItemSpacing`. A renderer may keep the former defaults for releases cut before it
+  adopted the rule. V5 and V6 cover the new member; V1 to V4 leave it out, so no published
+  fingerprint moves. `TemplateValidator.validateThemeStyles` takes `defaultBlockStyles` and warns
+  for a key that is not a margin. See `catalog-compatibility.md`.
+
 - **BREAKING (API 2.0, alpha release registries, changed in place): a container registry keeps a
   release under its full name, and the release-registry paths name the authority** (contract ADR
   0008, amendment of 2026-10-22). The layout is now the contract's: `CatalogContainerLayout`

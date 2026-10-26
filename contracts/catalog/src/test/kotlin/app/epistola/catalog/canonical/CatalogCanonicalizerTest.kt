@@ -290,6 +290,23 @@ class CatalogCanonicalizerTest {
         }
     }
 
+    @Test
+    fun `a theme's default block styles are content to V5 and V6, and absent to the legacy algorithms`() {
+        val original = wireV8Archive()
+        val theme = original.resourceDetails.getValue("theme/default").resource as ThemeResource
+        val base = inMemory(original, theme.copy(defaultBlockStyles = null))
+        val spaced = inMemory(original, theme.copy(defaultBlockStyles = mapOf("marginBottom" to "6pt")))
+        val empty = inMemory(original, theme.copy(defaultBlockStyles = emptyMap()))
+
+        listOf(CatalogFingerprintVersion.V1, CatalogFingerprintVersion.V2, CatalogFingerprintVersion.V3, CatalogFingerprintVersion.V4).forEach { version ->
+            assertEquals(CatalogCanonicalizer.fingerprint(base, version), CatalogCanonicalizer.fingerprint(spaced, version), version.toString())
+        }
+        listOf(CatalogFingerprintVersion.V5, CatalogFingerprintVersion.V6).forEach { version ->
+            assertNotEquals(CatalogCanonicalizer.fingerprint(base, version), CatalogCanonicalizer.fingerprint(spaced, version), version.toString())
+            assertEquals(CatalogCanonicalizer.fingerprint(base, version), CatalogCanonicalizer.fingerprint(empty, version), "empty is omitted ($version)")
+        }
+    }
+
     private fun wireV8Archive(): CatalogArchive {
         val manifest = resource("wire-v8/catalog.json").use { mapper.readValue(it, CatalogManifest::class.java) }
         val details = listOf("theme/default", "template/letter").associateWith { key ->
