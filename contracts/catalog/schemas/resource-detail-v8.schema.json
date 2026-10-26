@@ -211,6 +211,9 @@
             "null"
           ]
         },
+        "defaultBlockStyles": {
+          "$ref": "theme.schema.json#/$defs/DefaultBlockStyles"
+        },
         "tags": {
           "type": "array",
           "items": {

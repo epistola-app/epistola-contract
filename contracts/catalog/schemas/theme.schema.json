@@ -37,11 +37,19 @@
       "maximum": 16,
       "description": "Base spacing unit in points for the spacing scale. All sp values (e.g. 2sp, 4sp) are multiples of this value. Absent means default (4pt)."
     }
+,
+    "defaultBlockStyles": {
+      "$ref": "#/$defs/DefaultBlockStyles"
+    }
   },
   "required": ["id", "name"],
   "additionalProperties": false,
 
   "$defs": {
+    "DefaultBlockStyles": {
+      "type": "object",
+      "description": "The theme's baseline block spacing (#59): the margin a flow block (text, rich text variable, container, columns, table, datatable, QR code, image) gets when nothing more specific sets one. Only margin keys take effect (margin, marginTop, marginRight, marginBottom, marginLeft); others are reported. Below the document styles, a block style preset and a node's own styles in the cascade, above a component's structural defaults; never inherited. Absent, the renderer supplies its own fallback, which the contract does not fix. One baseline for every listed block; a per-type map may be added later."
+    },
     "BlockStylePreset": {
       "type": "object",
       "properties": {

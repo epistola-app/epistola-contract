@@ -51,6 +51,14 @@ ThemeDto:
           styles:
             fontSize: "9pt"
             color: "#666666"
+    defaultBlockStyles:
+      $ref: '../../../catalog/schemas/theme.schema.json#/$defs/DefaultBlockStyles'
+      description: |
+        The theme's baseline block spacing: the margin a flow block gets when nothing more specific
+        sets one. Margin keys only. Absent when the theme sets none; the renderer then uses its own
+        fallback.
+      example:
+        marginBottom: "6pt"
     spacingUnit:
       type: number
       minimum: 1
@@ -146,6 +154,9 @@ CreateThemeRequest:
           styles:
             fontSize: "18pt"
             fontWeight: bold
+    defaultBlockStyles:
+      $ref: '../../../catalog/schemas/theme.schema.json#/$defs/DefaultBlockStyles'
+      description: The theme's baseline block spacing, margin keys only. Omitted for none.
     spacingUnit:
       type: number
       minimum: 1
@@ -187,6 +198,14 @@ UpdateThemeRequest:
       description: |
         Named block style presets, replacing the current ones as a whole. Key is the preset name.
         Omitted or null keeps them; an empty object removes every preset.
+    defaultBlockStyles:
+      type:
+        - object
+        - 'null'
+      additionalProperties: true
+      description: |
+        The theme's baseline block spacing, margin keys only, replacing the current one as a whole.
+        Omitted or null keeps it; an empty object removes it.
     spacingUnit:
       type:
         - number
