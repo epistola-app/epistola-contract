@@ -25,4 +25,24 @@ class CatalogV8AdditionsTest {
         assertTrue(stencil.has("readsTemplateData"), "the input is not changed")
         assertEquals(setOf("type", "key", "name"), legacy.propertyNames().toSet())
     }
+
+    @Test
+    fun `tags on a type other than a stencil are not legacy content`() {
+        val theme = mapper.readTree("""{"type":"theme","key":"brand","name":"B","tags":["letter"]}""") as ObjectNode
+        val template = mapper.readTree("""{"type":"template","key":"invoice","name":"I","tags":["letter"]}""") as ObjectNode
+        val stencil = mapper.readTree("""{"type":"stencil","key":"letterhead","name":"L","tags":["letter"]}""") as ObjectNode
+
+        assertEquals(setOf("type", "key", "name"), CatalogV8Additions.withoutAdditions(theme).propertyNames().toSet())
+        assertEquals(setOf("type", "key", "name"), CatalogV8Additions.withoutAdditions(template).propertyNames().toSet())
+        assertTrue(CatalogV8Additions.withoutAdditions(stencil).has("tags"), "a stencil had tags before v8")
+    }
+
+    @Test
+    fun `a variant's description is not legacy content`() {
+        val template = mapper.readTree(
+            """{"type":"template","key":"invoice","name":"I","variants":[{"key":"formal","description":"For courts.","metadata":{"app.example":{}}}]}""",
+        ) as ObjectNode
+
+        assertEquals(setOf("key"), CatalogV8Additions.withoutAdditions(template)["variants"][0].propertyNames().toSet())
+    }
 }

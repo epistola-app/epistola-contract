@@ -15,8 +15,9 @@ import tools.jackson.databind.node.ObjectNode
  * | --- | --- |
  * | a template's data examples | `key` (assigned from the name by [CatalogV7ToV8Migration]) |
  * | a template | `description` |
- * | a template's variants | `metadata` |
+ * | a template's variants | `metadata`, `description` |
  * | a stencil | `readsTemplateData` |
+ * | every type but a stencil | `tags` |
  *
  * V1 to V4 canonicalize a resource as a catalog-v7 producer serialized it, so they leave these out:
  * otherwise a key the migration derived would move every fingerprint a v7 producer published. V5
@@ -29,12 +30,18 @@ internal object CatalogV8Additions {
         when (resource["type"]?.takeIf { it.isString }?.asString()) {
             "template" -> Unit
             "stencil" -> return resource.deepCopy().apply { remove("readsTemplateData") }
-            else -> return resource
+            else -> return if (resource.has("tags")) resource.deepCopy().apply { remove("tags") } else resource
         }
         val copy = resource.deepCopy()
+        copy.remove("tags")
         copy.remove("description")
         (copy["dataExamples"] as? ArrayNode)?.forEach { (it as? ObjectNode)?.remove("key") }
-        (copy["variants"] as? ArrayNode)?.forEach { (it as? ObjectNode)?.remove("metadata") }
+        (copy["variants"] as? ArrayNode)?.forEach {
+            (it as? ObjectNode)?.let { variant ->
+                variant.remove("metadata")
+                variant.remove("description")
+            }
+        }
         return copy
     }
 }

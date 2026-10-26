@@ -75,4 +75,35 @@ class ResourceDetailTest {
         assertFalse(mapper.writeValueAsString(plain).contains("readsTemplateData"))
         assertTrue(mapper.writeValueAsString(reading).contains("\"readsTemplateData\":true"))
     }
+
+    @Test
+    fun `every resource carries tags, left out when empty except on a stencil`() {
+        val theme = ThemeResource(key = "brand", name = "Brand")
+        val tagged = ThemeResource(key = "brand", name = "Brand", tags = listOf("letter"))
+        val content = """{"root":"n-root","nodes":{"n-root":{"id":"n-root","type":"root"}},"slots":{}}"""
+        val stencil = mapper.readValue(
+            """{"schemaVersion":8,"resource":{"type":"stencil","key":"letterhead","name":"Letterhead","content":$content}}""",
+            ResourceDetail::class.java,
+        ).resource
+
+        // A type that had no tags writes none when empty, so its fingerprints do not move.
+        assertFalse(mapper.writeValueAsString(theme).contains("tags"))
+        assertTrue(mapper.writeValueAsString(tagged).contains("\"tags\":[\"letter\"]"))
+        assertEquals(listOf("letter"), (mapper.readValue(mapper.writeValueAsString(ResourceDetail(8, tagged)), ResourceDetail::class.java).resource).tags)
+        // A stencil writes them as it always did, so neither do its fingerprints.
+        assertTrue(mapper.writeValueAsString(stencil).contains("\"tags\":[]"))
+        assertEquals(emptyList(), stencil.tags)
+    }
+
+    @Test
+    fun `a variant carries a description, left out when it has none`() {
+        val plain = VariantEntry(key = "default")
+        val described = VariantEntry(key = "formal", description = "For letters to courts.")
+
+        // Left out when empty, so a variant without one serializes, and fingerprints, as before.
+        assertFalse(mapper.writeValueAsString(plain).contains("description"))
+        assertFalse(mapper.writeValueAsString(VariantEntry(key = "default", description = "")).contains("description"))
+        assertTrue(mapper.writeValueAsString(described).contains("\"description\":\"For letters to courts.\""))
+        assertEquals("For letters to courts.", mapper.readValue(mapper.writeValueAsString(described), VariantEntry::class.java).description)
+    }
 }
