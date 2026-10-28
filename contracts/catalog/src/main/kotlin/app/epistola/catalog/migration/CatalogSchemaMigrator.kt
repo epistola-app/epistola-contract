@@ -280,6 +280,13 @@ object CatalogMigrationCodes {
     const val STENCIL_VERSION_REMOVED = "CATALOG_STENCIL_VERSION_REMOVED"
 
     /**
+     * Notice: a catalog-v7 stencil keeps the scope v7 rendered it with. It reads the template's data
+     * (`readsTemplateData`), and each of its placeholders passes the stencil's parameters to its fill
+     * (`passParameters`). One per stencil; the path names `readsTemplateData`.
+     */
+    const val STENCIL_SCOPE_KEPT = "CATALOG_STENCIL_SCOPE_KEPT"
+
+    /**
      * Notice: a catalog-v7 data example was given a key derived from its name, unique within its
      * template. The path names the new `key`, and the message the key chosen.
      */

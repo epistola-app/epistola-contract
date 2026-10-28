@@ -16,7 +16,7 @@ import tools.jackson.databind.node.ObjectNode
  * | a template's data examples | `key` (assigned from the name by [CatalogV7ToV8Migration]) |
  * | a template | `description` |
  * | a template's variants | `description`; and `metadata`, which an early wire-v8 archive may still carry |
- * | a stencil | `readsTemplateData` |
+ * | a stencil | `readsTemplateData`; and a placeholder's `passParameters` in its content (both given by [CatalogV7ToV8Migration]) |
  * | every type but a stencil | `tags` |
  * | a theme | `defaultBlockStyles` (#59) |
  *
@@ -30,7 +30,12 @@ internal object CatalogV8Additions {
         if (resource !is ObjectNode) return resource
         when (resource["type"]?.takeIf { it.isString }?.asString()) {
             "template" -> Unit
-            "stencil" -> return resource.deepCopy().apply { remove("readsTemplateData") }
+            "stencil" -> return resource.deepCopy().apply {
+                remove("readsTemplateData")
+                (get("content")?.get("nodes") as? ObjectNode)?.forEach { node ->
+                    if (node["type"]?.takeIf { it.isString }?.asString() == "placeholder") (node["props"] as? ObjectNode)?.remove("passParameters")
+                }
+            }
             "theme" -> return if (resource.has("tags") || resource.has("defaultBlockStyles")) {
                 resource.deepCopy().apply {
                     remove("tags")
