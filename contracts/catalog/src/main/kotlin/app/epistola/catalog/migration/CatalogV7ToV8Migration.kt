@@ -39,6 +39,10 @@ import tools.jackson.databind.node.ObjectNode
  *   author pins one rather than the migrator guessing one.
  * - **Stencil versions** are removed, both a stencil's own `version` and a stencil reference's
  *   `version` and `draftVersion`. A stencil reference resolves through its catalog's dependency.
+ * - **Stencil scope.** A v7 stencil saw the template's data, and every fill saw the instance's
+ *   parameters; v8 isolates a stencil unless it says otherwise. So a stencil gets
+ *   `readsTemplateData`, and each of its placeholders `passParameters`
+ *   ([CatalogMigrationCodes.STENCIL_SCOPE_KEPT]).
  * - **Keys.** A resource's public address is called its `key`, and so are references to one:
  *   `slug` becomes `key` (a font reference's too), `themeId` `themeKey`, a stencil node's
  *   `stencilId` `stencilKey`, an image node's `assetId` `imageKey`, the presentation's
@@ -318,7 +322,33 @@ internal class CatalogV7ToV8Migration : CatalogSchemaMigration {
         }
         StencilReferenceVersions.strip(resource, "$path.resource", notices)
         if (resource["type"]?.takeIf { it.isString }?.asString() == "template") assignExampleKeys(resource, "$path.resource", notices)
+        if (resource["type"]?.takeIf { it.isString }?.asString() == "stencil") keepStencilScope(resource, "$path.resource", notices)
         return CatalogMigrationStepResult(notices = notices)
+    }
+
+    /**
+     * Gives a v7 stencil the scope v7 rendered it with: one scope per instance, holding the
+     * template's data and the instance's parameters, seen by the stencil's content and by every fill
+     * alike. Catalog v8 isolates a stencil unless it reads the template's data, and shows a fill the
+     * parameters only through a placeholder that passes them (ADR 0006), so the stencil reads the
+     * template's data and every placeholder passes the parameters. Which fills read them is not in the
+     * stencil's archive, since the templates filling its placeholders are often in another one.
+     */
+    private fun keepStencilScope(resource: ObjectNode, path: String, notices: MutableList<CatalogMigrationNotice>) {
+        (resource["content"]?.get("nodes") as? ObjectNode)?.let { nodes ->
+            nodes.propertyNames().forEach { id ->
+                val node = nodes[id] as? ObjectNode ?: return@forEach
+                if (node["type"]?.takeIf { it.isString }?.asString() != "placeholder") return@forEach
+                val props = node["props"] as? ObjectNode ?: node.putObject("props")
+                props.put("passParameters", true)
+            }
+        }
+        resource.put("readsTemplateData", true)
+        notices += CatalogMigrationNotice(
+            CatalogMigrationCodes.STENCIL_SCOPE_KEPT,
+            "$path.readsTemplateData",
+            "the stencil reads the template's data and passes its parameters to every placeholder, as catalog v7 rendered it",
+        )
     }
 
     /**

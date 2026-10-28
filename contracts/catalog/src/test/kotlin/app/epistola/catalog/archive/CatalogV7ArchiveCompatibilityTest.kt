@@ -57,12 +57,15 @@ class CatalogV7ArchiveCompatibilityTest {
                 .filter { it.type == "stencil" }
             assertEquals(3, stencilNodes.size)
             assertTrue(stencilNodes.none { it.props.orEmpty().keys.any { key -> key == "version" || key == "draftVersion" } })
+            // The stencil keeps the scope v7 rendered it with.
+            assertTrue(stencil.readsTemplateData)
             assertEquals(
                 setOf(
                     CatalogMigrationCodes.REGISTRY_ASSIGNED,
                     CatalogMigrationCodes.NAMESPACE_ASSIGNED,
                     CatalogMigrationCodes.DEPENDENCY_CATALOG_DECLARED,
                     CatalogMigrationCodes.STENCIL_VERSION_REMOVED,
+                    CatalogMigrationCodes.STENCIL_SCOPE_KEPT,
                 ),
                 result.migrationNotices.mapTo(mutableSetOf()) { it.code },
             )
