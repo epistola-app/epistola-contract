@@ -50,6 +50,10 @@ The v7-to-v8 migration gives the catalog an identity and versions it as a whole:
   and `draftVersion`, in template, variant, and stencil content (`CATALOG_STENCIL_VERSION_REMOVED`).
   A stencil node's `isDraft`, which v5 already rejected, is left in place and remains a validation
   finding.
+- **Stencil scope** is kept: in v7 a stencil's content saw the template's data and every fill saw
+  the instance's parameters, so a stencil gets `readsTemplateData` and each of its placeholders
+  `passParameters` (`CATALOG_STENCIL_SCOPE_KEPT`). Every placeholder passes them, since the
+  templates filling a stencil's placeholders are often in another archive.
 
 The published `migrations/v7-to-v8/` fixtures pin the manifest and stencil conversions and their
 notices.

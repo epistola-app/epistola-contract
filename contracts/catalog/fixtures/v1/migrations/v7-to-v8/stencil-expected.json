@@ -32,6 +32,18 @@
             "stencilKey": "footer",
             "catalogKey": "shared"
           }
+        },
+        "greeting": {
+          "id": "greeting",
+          "type": "placeholder",
+          "slots": [
+            "greeting-default"
+          ],
+          "props": {
+            "name": "greeting",
+            "kind": "block",
+            "passParameters": true
+          }
         }
       },
       "slots": {
@@ -41,13 +53,21 @@
           "name": "children",
           "children": [
             "nested",
-            "shared-footer"
+            "shared-footer",
+            "greeting"
           ]
+        },
+        "greeting-default": {
+          "id": "greeting-default",
+          "nodeId": "greeting",
+          "name": "default",
+          "children": []
         }
       },
       "themeRef": {
         "type": "inherit"
       }
-    }
+    },
+    "readsTemplateData": true
   }
 }

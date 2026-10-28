@@ -1196,6 +1196,15 @@ libraries.
 
 ### Fixed
 
+- **A v7 stencil keeps the scope v7 rendered it with** (wire v8 migration). V8 isolates a stencil
+  unless it declares `readsTemplateData`, and shows a fill the stencil's parameters only through a
+  placeholder that declares `passParameters` (ADR 0006); the v7-to-v8 migration set neither, so a
+  migrated stencil lost the template's data and every fill its parameters. It now gives a v7
+  stencil `readsTemplateData`, and each of its placeholders `passParameters`, with the notice
+  `CATALOG_STENCIL_SCOPE_KEPT`: in v7 a stencil's content and every fill saw both. Every placeholder
+  passes them because the templates filling a stencil's placeholders are often in another archive.
+  The v7 fingerprint still verifies against the source content.
+
 - **A failed collect call raises its error instead of a parse failure** (#30, Kotlin Spring
   RestClient client). `ResultCollector.collectOnce()` read the body of every response as NDJSON
   results, because `exchange {}` does not raise on an error status: a 403 problem then surfaced as a
