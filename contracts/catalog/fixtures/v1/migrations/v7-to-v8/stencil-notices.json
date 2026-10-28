@@ -13,5 +13,10 @@
     "code": "CATALOG_STENCIL_VERSION_REMOVED",
     "path": "resources/stencil/letter.json.resource.content.nodes.shared-footer.props.version",
     "message": "stencil reference version was removed; the stencil resolves through its catalog's dependency"
+  },
+  {
+    "code": "CATALOG_STENCIL_SCOPE_KEPT",
+    "path": "resources/stencil/letter.json.resource.readsTemplateData",
+    "message": "the stencil reads the template's data and passes its parameters to every placeholder, as catalog v7 rendered it"
   }
 ]

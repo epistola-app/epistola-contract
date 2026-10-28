@@ -10,6 +10,7 @@ import app.epistola.catalog.migration.CatalogMigrationCodes
 import app.epistola.catalog.migration.CatalogMigrationOptions
 import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.ResourceDetail
+import app.epistola.catalog.protocol.StencilResource
 import app.epistola.catalog.protocol.TemplateResource
 import app.epistola.catalog.validation.CatalogValidationCodes
 import app.epistola.catalog.validation.CatalogValidationPolicy
@@ -66,6 +67,23 @@ class CatalogV8AdditionsCompatibilityTest {
             assertEquals(listOf("standaard-brief", "arger-co", "standaard-brief-2", "example"), template.dataExamples.orEmpty().map { it.key })
             // The derived keys are new content: the legacy algorithms leave them out.
             assertEquals(LEGACY_FINGERPRINTS, legacyFingerprints(archive))
+        }
+        assertEquals(emptyList(), CatalogValidator.validate(ByteArrayInputStream(zip), POLICY).findings)
+    }
+
+    @Test
+    fun `a v7 archive signed over a stencil with a placeholder migrates, keeps the v7 scope, and still verifies`() {
+        val zip = zip(V7_STENCIL_FILES, signedWith = V7_STENCIL_PRODUCER_V4)
+
+        val read = CatalogArchiveReader.read(ByteArrayInputStream(zip), migration = MIGRATION)
+
+        assertEquals(emptyList(), read.findings)
+        assertNotNull(read.archive).use { archive ->
+            val stencil = archive.resourceDetails.getValue("stencil/letterhead").resource as StencilResource
+            assertTrue(stencil.readsTemplateData)
+            assertEquals(true, stencil.content.nodes.getValue("greeting").props?.get("passParameters"))
+            // The scope the migration gives is new content: the legacy algorithms leave it out.
+            assertEquals(V7_STENCIL_PRODUCER_V4, CatalogCanonicalizer.fingerprint(archive, CatalogFingerprintVersion.V4).value)
         }
         assertEquals(emptyList(), CatalogValidator.validate(ByteArrayInputStream(zip), POLICY).findings)
     }
@@ -164,6 +182,27 @@ class CatalogV8AdditionsCompatibilityTest {
         /** Per-resource fingerprints of [V7_FILES], computed before data examples had a key. */
         val LEGACY_RESOURCE_FINGERPRINTS = mapOf(
             "template/letter" to "654477219cb838e1820fb22bd798cf7068f25f465536a7aa2440646370951f2c",
+        )
+
+        /** The V4 fingerprint a catalog-v7 producer computed for [V7_STENCIL_FILES]. */
+        const val V7_STENCIL_PRODUCER_V4 = "801d895c874339c6e6caf9247d197c20ec5d7b9698498e3cd9053e13f9a748ae"
+
+        /** A catalog-v7 archive with a stencil that has a placeholder, which v7 gave no scope of its own. */
+        val V7_STENCIL_FILES: Map<String, String> = linkedMapOf(
+            "catalog.json" to """
+            {"schemaVersion":7,"catalog":{"slug":"letters","name":"Letters","keywords":[]},
+             "publisher":{"name":"Acme"},"release":{"version":"1.0.0","fingerprint":null},
+             "resources":[{"type":"stencil","slug":"letterhead","name":"Letterhead","detailUrl":"./resources/stencil/letterhead.json"}]}
+            """.trimIndent(),
+            "resources/stencil/letterhead.json" to """
+            {"schemaVersion":7,"resource":{"type":"stencil","slug":"letterhead","name":"Letterhead","version":2,"tags":[],
+             "content":{"modelVersion":1,"root":"root",
+              "nodes":{"root":{"id":"root","type":"root","slots":["children"]},
+               "greeting":{"id":"greeting","type":"placeholder","slots":["greeting-default"],"props":{"name":"greeting","kind":"block"}}},
+              "slots":{"children":{"id":"children","nodeId":"root","name":"children","children":["greeting"]},
+               "greeting-default":{"id":"greeting-default","nodeId":"greeting","name":"default","children":[]}},
+              "themeRef":{"type":"inherit"}}}}
+            """.trimIndent(),
         )
 
         /** A catalog-v7 archive whose template has data examples, which v7 gave no key. */
