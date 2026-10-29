@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://epistola.app/schemas/theme-v8.schema.json",
+  "title": "Theme",
+  "description": "Theme definition providing default styles, page settings, and named block style presets.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Theme identifier (slug format)."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable theme name."
+    },
+    "documentStyles": {
+      "$ref": "template-shared-v8.schema.json#/$defs/DocumentStyles",
+      "description": "Default document-level styles inherited by all templates using this theme."
+    },
+    "pageSettings": {
+      "$ref": "template-shared-v8.schema.json#/$defs/PageSettings",
+      "description": "Default page settings inherited by templates using this theme."
+    },
+    "blockStylePresets": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/BlockStylePreset"
+      },
+      "description": "Named block style presets (like CSS classes). Key is the preset name."
+    },
+    "spacingUnit": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 16,
+      "description": "Base spacing unit in points for the spacing scale. All sp values (e.g. 2sp, 4sp) are multiples of this value. Absent means default (4pt)."
+    },
+    "defaultBlockStyles": {
+      "$ref": "#/$defs/DefaultBlockStyles"
+    }
+  },
+  "required": [
+    "id",
+    "name"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "DefaultBlockStyles": {
+      "type": "object",
+      "description": "The theme's baseline block spacing (#59): the margin a flow block (text, rich text variable, container, columns, table, datatable, QR code, image) gets when nothing more specific sets one. Only margin keys take effect (margin, marginTop, marginRight, marginBottom, marginLeft); others are reported. Below the document styles, a block style preset and a node's own styles in the cascade, above a component's structural defaults; never inherited. Absent, the renderer supplies its own fallback, which the contract does not fix. One baseline for every listed block; a per-type map may be added later."
+    },
+    "BlockStylePreset": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "Human-readable label for the preset."
+        },
+        "styles": {
+          "type": "object",
+          "description": "CSS-like style properties for this preset."
+        },
+        "applicableTo": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Node types this preset can be applied to. Empty or absent means all types."
+        }
+      },
+      "required": [
+        "label",
+        "styles"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

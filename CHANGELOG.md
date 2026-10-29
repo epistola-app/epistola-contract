@@ -469,6 +469,22 @@ libraries.
 
 ### Changed
 
+- **A native wire-v8 document is held to the published v8 schemas before it binds** (catalog).
+  Binding alone is lenient: Jackson dropped a member the model did not know and a model default
+  filled one the schema requires, so a v8 document with a misspelled member passed, lost it, and
+  fingerprinted as if it were not there. `CatalogSchemaMigrator` now checks a document that
+  declares wire v8 against `catalog-manifest-v8` and `resource-detail-v8`, each resource against the
+  definition of the type it declares, and reports each unknown, missing or ill-typed member as
+  `CATALOG_SCHEMA_UNKNOWN` at its path. An explicit `null` counts as leaving the member out, so
+  archives earlier writers wrote still read; a document migrated from an older wire version is not
+  held to the newer schemas. `CatalogArchiveWriter` now leaves null properties out, so what it
+  writes passes the published schemas (it wrote `null` for optional template-document members,
+  which the schemas reject), except a dependency's `releaseVersion` and `releaseFingerprint`, which
+  the wire requires even when null. Fingerprints are computed over the bound model and do not
+  move. Wire v8 is also frozen: `resource-detail-v8` references new copies
+  `template-document-v8`, `template-shared-v8` and `theme-v8` rather than the live schemas, and a
+  test holds the copies equal to the live ones while v8 is current, so a later change to a template
+  document cannot change what wire v8 accepts.
 - **Every problem a caller can act on has its own type, and a server answers only with registered
   types.** (BREAKING) The registry gains `catalog-version-behind` (409, with `behind`, the versions
   to name in `acknowledgedBehind`; it was `conflict`), `release-in-use` (409, with `environments`
