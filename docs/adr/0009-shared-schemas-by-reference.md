@@ -1,0 +1,268 @@
+# ADR 0009: Shared schemas, included in data contracts by reference
+
+- **Status:** Proposed
+- **Date:** 2026-10-29
+- **Scope:** portable catalog contract (`contracts/catalog`, wire v8: a new resource type,
+  references inside JSON Schema, validation) and API contract (`contracts/api`), contract 2.0
+- **Related:** [ADR 0002](0002-intermediate-releases.md) (drafts, releases, what counts as
+  breaking), [ADR 0003](0003-catalog-identity-and-distribution.md) (catalog dependencies and
+  aliases), [ADR 0006](0006-stencil-instances-by-reference.md) (stencils by reference, lexical
+  scope)
+
+## Context
+
+Every template has its own data contract (`TemplateResource.dataModel`, a JSON Schema), and every
+stencil its own parameter schema (`StencilResource.parameterSchema`). Templates of one catalog
+mostly describe the same things: a customer, an address, an amount with a currency. Each template
+writes them out again, so they drift apart, and a correction has to be made in every template.
+
+What already exists:
+
+- `dataModel` is free-form JSON. The catalog validator checks that it is a valid schema, using
+  JSON Schema 2020-12 as its default dialect (`PortableJsonSchema`), and checks the template's data
+  examples against it. The contract itself does not name the dialect.
+- The validator preloads two built-in schemas by `$id`
+  (`https://epistola.app/schemas/richtext-inline-v1.json`, `…/richtext-block-v1.json`), and a
+  `dataModel` can `$ref` them. A `$ref` to anything else is not described by the contract.
+- A stencil's `parameterSchema` is a restricted subset (`ParameterSchemaValidator`): an object
+  whose properties are primitives (`string`, `number`, `integer`, `boolean`) or arrays of
+  primitives, with string formats `date` and `date-time`.
+- ADR 0006 settled how a reusable resource is used: by reference, resolved in the same release or
+  the dependency's pinned release, with breaks found when releasing.
+
+Every template must keep a data contract of its own: it is what the template promises its callers,
+and it is reviewed, marked ready and released with the template. Reuse must therefore not replace
+the template's contract. It has to work as an inclusion inside it.
+
+## Options
+
+### How a contract includes a shared part
+
+- **A. Copy on insert.** The editor offers shared snippets and copies them into the contract.
+  Nothing is linked, so this removes the typing but not the drift.
+- **B. An Epistola keyword** (`x-epistola-include: "address"`), expanded before validating. Every
+  JSON Schema tool would see an unknown keyword and ignore it, so the schema would only mean what
+  it says after Epistola has expanded it.
+- **C. Standard `$ref` to a catalog resource.** The shared part is a resource of its own. A
+  contract refers to it with `$ref` and a URI that names the resource. Any 2020-12 validator
+  resolves it once the referenced schemas are preloaded by `$id`, the same way the richtext
+  schemas already are.
+
+### What the API returns
+
+- **Stored.** The contract as written, references included.
+- **Dereferenced.** Every reference replaced by the schema it points to. Self-contained, but
+  impossible for recursive types, larger with every use, and it loses the shared names: a code
+  generator makes `CustomerAddress` and `BillingAddress` where there was one `Address`.
+- **Bundled.** The referenced schemas embedded once in `$defs`, and every reference rewritten to
+  point there. Self-contained, each schema included once, names kept.
+- **A switch** (`?resolved=true`) on the existing responses, choosing between stored and resolved.
+
+## Decision
+
+### 1. A shared schema is a catalog resource (option C)
+
+A new resource type, **`schema`**, holds one reusable JSON Schema: `address`, `party`, `money`.
+In wire v8, `SchemaResource` is
+`{ type: "schema", key, name, description, tags, metadata, schema }`. `key` follows the one
+resource key rule. `schema` is a JSON Schema object without `$id`; the identity comes from where
+the schema sits (part 3).
+
+A shared schema is content like any other resource. It is fingerprinted, edited in drafts,
+marked ready, and released with its catalog. It has no version of its own (ADR 0002).
+
+A shared schema is not a data contract. It promises nothing until a contract includes it. The API
+and the editor call it a *schema*, and keep *data contract* for a template's.
+
+### 2. Every schema is JSON Schema 2020-12
+
+A shared schema, and every `dataModel` or `parameterSchema` that includes one, is JSON Schema
+2020-12. That is the dialect the validator already uses by default; the contract now says so. A
+`$schema` naming another dialect there is refused. A contract without `epistola:` references keeps
+the dialect it declares, so existing contracts are not tightened by this rule. 2020-12 matters
+here for two reasons:
+
+- `$ref` may have sibling keywords, so a contract can include a schema and narrow it in one place:
+  `{ "$ref": "epistola:schema/party", "required": ["email"] }`. In draft-07 the siblings would be
+  ignored.
+- `unevaluatedProperties: false` closes an object composed with `allOf`. `additionalProperties:
+  false` cannot do that, because it only sees the properties declared next to it.
+
+### 3. A reference is `$ref` with an `epistola:` URI
+
+| `$ref` | Refers to |
+| --- | --- |
+| `epistola:schema/{key}` | the shared schema `key` in the catalog of the document the reference is written in |
+| `epistola:schema/{alias}/{key}` | the shared schema `key` in the catalog that the declaration `alias` names (ADR 0003) |
+| `https://epistola.app/schemas/…` | a built-in schema (the richtext schemas) |
+| `#…` | a location in the same schema, such as its own `$defs` |
+
+Nothing else is allowed. An `epistola:` URI is never fetched, and neither is anything else: a
+reference to `http(s)` outside the built-in set is refused, so rendering never touches the network
+and a release always means the same thing. A reference names a whole shared schema. A fragment
+into one (`epistola:schema/party#/properties/address`) is refused. Allowing fragments later is
+additive.
+
+`$ref` can appear anywhere in a schema: as a property (`"customer": { "$ref": … }`), as array
+`items`, or at the root through `allOf`. A shared schema may refer to other shared schemas.
+
+### 4. References resolve like stencils, by alias, lexically
+
+A reference resolves in the release that holds the document it is written in. For another
+catalog, it resolves in the release that the declaration of its alias pins. An alias belongs to
+the catalog whose content uses it: when catalog A includes `epistola:schema/common/address`, and
+`address` refers to `epistola:schema/geo/country`, then `geo` is the alias that `common` declares,
+resolved through common's pinned release, not A's.
+
+Aliases are release content (ADR 0003): they are declared in `catalogDependencies`, and the V6
+fingerprint covers them. They change only in a draft, and changing one rewrites no content. A
+reference therefore cannot point anywhere else without a new release.
+
+Diamonds are allowed. A may pin `geo` 1.0 while `common` pins `geo` 2.0. The template's contract
+then contains two different `country` schemas, and that is correct, because each part renders
+with what it was released against.
+
+### 5. Every reference is recorded as a resource dependency
+
+A template or stencil that includes a shared schema depends on it, and so does a shared schema
+that includes another. The manifest's resource index records these dependencies. A reference
+into another catalog is a `CatalogDependencyRef` with type `schema`. This lets the usage listing
+and the release check see the references without parsing every schema again. Because they are
+part of the index, V6 covers them.
+
+### 6. Releasing checks the resolved contracts
+
+A draft is not releasable while any schema, in a contract, a parameter schema or a shared schema,
+has:
+
+- a reference to a schema that does not exist, or through an alias that no declaration gives
+  (`CATALOG_DEPENDENCY_CATALOG_UNDECLARED`, as for every other reference);
+- a fragment, or a reference outside part 3;
+- a cycle of references, whether a schema includes itself directly or through others. Recursive
+  types are refused for now; allowing them later is additive;
+- a resolved contract that is not a valid schema.
+
+Each finding names the resource and a JSON Pointer to the reference
+(`template/invoice dataModel /properties/billingAddress/$ref`). A reference inside a schema is
+much harder to spot than a `themeCatalogKey`, especially after an alias was renamed.
+
+The other checks work on the **resolved** contract:
+
+- **Data examples** are validated against it. A change to a shared schema can therefore make
+  another template's examples invalid, which blocks the release and names that template.
+- **Defaults.** Rendering fills an absent property from its schema `default` before it validates
+  the data, and the validator does the same for examples (`withDefaults`). Both follow `$ref`
+  (and its siblings) to find the defaults. Composition (`allOf`, `oneOf`, `anyOf`) stays
+  unexpanded, as it is now.
+- **`readsTemplateData`** (ADR 0006, part 5) checks the paths a stencil reads against the
+  resolved contract of each template that uses it.
+- **Compatibility** (ADR 0002). Whether a change is `additive` or `breaking` is judged on each
+  template's resolved contract and each stencil's resolved parameter schema. Narrowing `address`
+  is a breaking change to every template that includes it. The release's reasons name the
+  template and the shared schema the change came from.
+
+Marking a shared schema ready marks only that schema. Changing it does not clear the ready mark
+of the templates that include it. This is the same rule as for stencils (ADR 0006): the release's
+change list names the templates the change reaches.
+
+### 7. Stencil parameters can include shared schemas, within the parameter subset
+
+A stencil's `parameterSchema` may `$ref` a shared schema as the schema of a parameter. The
+validator checks the parameter subset on the **resolved** schema. A shared schema that is a
+primitive or an array of primitives can therefore be a parameter (`currency` as a string enum,
+`iban` as a pattern), and an object such as `address` cannot.
+
+Object parameters are a separate decision: how a template binds an object, and how the editor
+shows it. Once they are allowed, shared object schemas work as parameters without another change
+here, and a stencil parameter and a template field that include the same schema can be bound
+without comparing their structure.
+
+### 8. The API returns what is stored; a separate operation returns the bundled contract
+
+**Authoring returns the stored form.** `TemplateDto.dataModel`, the stencil DTOs'
+`parameterSchema` and a shared schema's `schema` come back exactly as written, references
+included. Everything else would break round-tripping: an editor that received an inlined contract
+would write the copy back, and the reuse would be gone without anyone noticing. `ETag` and
+`If-Match` cover the stored form.
+
+**Callers get the bundled form from an operation of its own**, `getTemplateDataContract`, at
+`…/releases/{release}/templates/{templateKey}/data-contract`. It returns one self-contained
+JSON Schema 2020-12 document, the contract resolved in that release:
+
+- each shared schema the contract reaches, directly or transitively, is placed once in `$defs`,
+  and each reference to it is rewritten to `#/$defs/{name}`. No `$id` is embedded, so tools that
+  handle only local references can read it (quicktype, openapi-generator, older validators). A
+  built-in schema the contract reaches (the richtext schemas) is embedded the same way, so the
+  document needs nothing it does not contain;
+- `{name}` is the schema's key for the template's own catalog, and `{catalogKey}.{key}` for
+  another catalog, using that catalog's **real** key, never the alias. Aliases are internal
+  wiring. If names came from aliases, renaming one in the next release would rename the types
+  every caller generates, without any structural change;
+- only a genuine clash qualifies a name further: two different schemas that would get the same
+  name, from a diamond (part 4) or from two dependencies with the same key. The name then becomes
+  `{namespace}.{catalogKey}.{key}`, and then `…@{version}`. The template's own `$defs` keep their
+  names; a shared schema that collides with one is qualified in the same way;
+- it is read-only. Nothing stops a client from writing it back as a contract, but that stores a
+  copy, and the editor never does it.
+
+`validateTemplateData` validates against the resolved contract, so its behaviour for callers does
+not change.
+
+The **switch** option is rejected. One field would then mean two things depending on the request,
+generated clients would type it the same either way, and a resolved form would be one `PUT` away
+from replacing the stored one.
+
+The **catalog archive** always stores references. It carries the shared schemas as resources,
+and the schemas of dependencies come with the dependency's own release.
+
+### 9. Wire v8 changes in place
+
+The latest published contract is `v2.0.0-alpha.3`, and wire v8 has not shipped in a stable
+release. Like ADR 0006, this changes v8 in place instead of adding v9. Wire v7 has no shared
+schemas, so the migration has nothing to convert.
+
+One rule does tighten existing content: a reference outside part 3, such as a `dataModel` that
+refers to a schema on the web. The v7 → v8 migration reports such a reference as a finding and
+does not drop it. A contract that depends on fetching a schema has never been portable between
+installations, so it is reported rather than repaired.
+
+## Consequences
+
+- **Wire v8:** `SchemaResource` in `resource-detail-v8`, `schema` as a resource type in the
+  manifest's index and in `CatalogDependencyRef.type`, the generated TypeScript types, and the
+  conformance and golden fixtures. The dialect rule of part 2 applies to `dataModel` and
+  `parameterSchema`.
+- **Catalog validation:** reference parsing and resolution (part 3 and 4), the checks of part 6
+  with new codes for an unknown schema, a fragment, an external reference and a cycle, the
+  parameter subset on resolved schemas (part 7), and `withDefaults` following references. The
+  resolution and bundling live in the catalog module, exported to Kotlin and TypeScript, so Suite,
+  Exchange and the editor resolve a contract the same way.
+- **API:** schema operations within a release (`listSchemas`, `getSchema`, `createSchema`,
+  `updateSchema`, `deleteSchema`, `markSchemaReady`, `listSchemaUsage`), following the stencil
+  operations, `ETag` and `If-Match` included. A `schemas` consumer permission. A release's changes
+  list shared schemas. `getTemplateDataContract`. Every client, its README, and a conformance
+  driver action and scenario for each new operation.
+- **Deleting a shared schema** that is still referenced is allowed in a draft. It blocks the
+  release (part 6), as deleting a used stencil does.
+- **A change to a shared schema reaches every template that includes it, at once.** The release's
+  change list, and the planned release preview (ADR 0006), name those templates.
+- **Implementations:** Suite and Exchange resolve references when they validate, render and
+  compare releases. The contract describes the behaviour; Suite may not implement it yet.
+
+## Open questions
+
+- **The name.** `schema` is short, but the word also means any JSON Schema, including a template's
+  own contract. Alternatives: `data-type`, `shared-schema`.
+- **The media type of `getTemplateDataContract`.** `application/schema+json` can be fed straight
+  into tools, but every other JSON response uses the versioned vendor media type
+  (`ContractMediaTypes`).
+- **Selecting a release by range or environment.** A caller can address a release by version or
+  id. A variant that selects the release the way `validateTemplateData` does (`versionRange`,
+  `environmentKey`) can be added if callers need it.
+- **Examples on shared schemas.** A shared schema could carry examples of its own, checked when it
+  is edited instead of only through the templates that include it.
+- **External references today.** What the validator currently does with a `$ref` outside the
+  built-in set has not been checked, and neither has how often existing contracts contain one.
+  Both decide how much part 9's finding costs in practice.
+- **`TemplateDto.schema` and `TemplateDto.dataModel`.** The template DTOs and requests have both,
+  with overlapping descriptions. Before references land, decide which one is the data contract.

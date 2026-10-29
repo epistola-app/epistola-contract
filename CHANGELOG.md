@@ -1358,6 +1358,13 @@ libraries.
   section. Tests keep the example a valid template, the spec's copy equal to it, and the guide's
   excerpts quoted from it.
 
+- **ADR 0009, shared schemas included in data contracts by reference (Proposed).** A catalog
+  resource holds a reusable JSON Schema. A template's data contract or a stencil's parameter schema
+  includes it with `$ref` and an `epistola:schema/[{alias}/]{key}` URI, resolved lexically like a
+  stencil (ADR 0006), and releasing checks the resolved contracts. The API returns contracts as
+  stored, references included, and a separate operation returns the contract bundled into one
+  self-contained schema. Nothing in the spec changes yet.
+
 ## [1.4.0] - 2026-09-30
 
 ### Added
