@@ -25,6 +25,7 @@ import java.util.zip.ZipInputStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -126,6 +127,22 @@ class CatalogKeyBoundsCompatibilityTest {
             // release pins every catalog it declares, so it is released again before it is shared.
             val findings = CatalogValidator.validate(current).findings
             assertTrue(findings.isNotEmpty() && findings.all { it.code == "CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID" }, findings.toString())
+        }
+    }
+
+    @Test
+    fun `a migrated catalog without a fingerprint is written with its current one`() {
+        val migrated = assertNotNull(CatalogArchiveReader.read(ByteArrayInputStream(zip(signed = false)), migration = MIGRATION).archive)
+        assertNull(migrated.manifest.release.fingerprint, "wire v7 allowed a release without one")
+        val expected = CatalogCanonicalizer.currentQualifiedFingerprint(migrated).toString()
+        val written = migrated.use { write(it) }
+
+        assertNotNull(CatalogArchiveReader.read(ByteArrayInputStream(written)).archive).use { current ->
+            assertEquals(expected, current.manifest.release.fingerprint)
+            // Its identity verifies; what is left is the pins wire v7 never had.
+            val findings = CatalogValidator.validate(current).findings
+            assertTrue(findings.none { it.code.startsWith("CATALOG_RELEASE_FINGERPRINT") }, findings.toString())
+            assertTrue(findings.all { it.code == "CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID" }, findings.toString())
         }
     }
 

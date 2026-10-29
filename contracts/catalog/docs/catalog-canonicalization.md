@@ -236,7 +236,7 @@ Whole-catalog validation chooses the rule by the archive's source wire version:
   is released again before it is shared as a v8 release. A pin (`releaseFingerprint`) or a base
   (`release.base.fingerprint`) may name any known algorithm, and is checked with exactly that one.
 
-Re-exporting a migrated catalog replaces a present legacy fingerprint with V6, as `v6:<hex>`.
+Re-exporting a migrated catalog writes its V6 fingerprint, as `v6:<hex>`, in place of a legacy one, or where wire v7 allowed none: a v8 release always carries its identity. Its dependency declarations stay unpinned, as the writer cannot know which releases the catalog was cut against; a migrated catalog with dependencies is released again before it is shared.
 
 Authoritative versioned inputs and expected hashes are published below
 `META-INF/epistola-catalog/fixtures/v1` in the Maven artifact and

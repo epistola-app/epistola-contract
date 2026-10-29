@@ -489,6 +489,9 @@ libraries.
   editor divides by it), reported as the new
   `CATALOG_THEME_SPACING_UNIT_INVALID`, while an archive written before wire v8 keeps "any positive
   number". The golden wire-v8 catalog and the conformance catalogs now carry their fingerprints.
+  `CatalogArchiveWriter` writes a migrated catalog with its V6 fingerprint whether or not its source
+  carried one: it replaced a legacy fingerprint but left one wire v7 never had absent, so the
+  re-export of such a catalog would have been refused.
   Epistola Suite may not write the fingerprint and pins on every export yet.
 - **The V6 fingerprint leaves out where a binary sits, and a release's algorithm is fixed by its wire
   version** (catalog, wire v8). V6 covered an image's and a font face's `contentUrl`, a location,
