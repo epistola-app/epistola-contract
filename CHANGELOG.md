@@ -469,6 +469,15 @@ libraries.
 
 ### Changed
 
+- **The V6 fingerprint leaves out where a binary sits, and a release's algorithm is fixed by its wire
+  version** (catalog, wire v8). V6 covered an image's and a font face's `contentUrl`, a location,
+  not content: the same bytes at `./assets/logo.png` (an archive migrated from wire v6) and at
+  `bin/<hash>` fingerprinted differently. V6 now covers the bytes by `contentHash` only; V5 keeps
+  covering the path, so its published values do not move. The validator required a v8 release's
+  fingerprint to name the library's newest algorithm, so a later algorithm would have invalidated
+  every v8 release; it now requires the one the wire version fixes,
+  `CatalogCanonicalizer.releaseFingerprintVersion` (`v6` for wire v8). Wire versions and
+  fingerprint algorithms are numbered separately.
 - **A catalog never names itself by its own key** (catalog, wire v8, BREAKING). Content may name the
   catalog itself only by naming no alias. Wire v8 allowed the catalog's own key as well, which made
   a release depend on its name, which the V6 fingerprint deliberately leaves out: the same release

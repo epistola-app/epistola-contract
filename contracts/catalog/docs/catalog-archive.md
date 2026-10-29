@@ -135,8 +135,11 @@ fingerprint replaces it with the current algorithm's, in the form that names it 
 
 From wire v8 a fingerprint is written as the algorithm that computed it, a colon and the lowercase
 SHA-256 hex: `v6:58f4…` (`QualifiedCatalogFingerprint`, pattern `^v[1-9][0-9]*:[0-9a-f]{64}$`). An
-archive's own `release.fingerprint` must name the current algorithm, `v6`. Before wire v8 it is
-bare hex, and the wire version implies the algorithm.
+archive's own `release.fingerprint` must name the algorithm its wire version fixes: `v6` for wire v8
+(`CatalogCanonicalizer.releaseFingerprintVersion`). The two numbers count different things, wire
+versions and fingerprint algorithms; a later algorithm comes with a later wire version and never
+invalidates a release fingerprinted at an earlier one. Before wire v8 it is bare hex, and the wire
+version implies the algorithm.
 
 V6 covers the release's content only (see [canonicalization](catalog-canonicalization.md)): not
 the catalog's name, the release block or the catalog's presentation. A release's fingerprint is
