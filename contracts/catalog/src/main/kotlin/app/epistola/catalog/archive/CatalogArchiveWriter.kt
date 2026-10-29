@@ -74,7 +74,10 @@ object CatalogArchiveWriter {
         require(catalog.resourceDetails.values.all { it.schemaVersion == CatalogWireSchema.CURRENT_VERSION }) {
             "catalog resource details must all use schemaVersion ${CatalogWireSchema.CURRENT_VERSION}"
         }
-        val fingerprinted = if (catalog.sourceSchemaVersion < CatalogWireSchema.CURRENT_VERSION && catalog.manifest.release.fingerprint != null) {
+        // A catalog migrated from an older wire version is written with the fingerprint wire v8
+        // requires, computed from its content, whether its source carried a legacy one or, as wire
+        // v7 allowed, none: a v8 release always carries its identity.
+        val fingerprinted = if (catalog.sourceSchemaVersion < CatalogWireSchema.CURRENT_VERSION) {
             catalog.manifest.copy(
                 release = catalog.manifest.release.copy(
                     fingerprint = CatalogCanonicalizer.currentQualifiedFingerprint(catalog).toString(),
