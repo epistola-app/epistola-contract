@@ -49,10 +49,10 @@ class StubTemplatesApi implements TemplateSchemaSource {
   fetches = 0
   requested: Parameters<TemplateSchemaSource['getTemplate']>[0][] = []
   constructor(private readonly schema: object | undefined) {}
-  async getTemplate(requestParameters: Parameters<TemplateSchemaSource['getTemplate']>[0]): Promise<{ schema?: object }> {
+  async getTemplate(requestParameters: Parameters<TemplateSchemaSource['getTemplate']>[0]): Promise<{ dataModel?: object }> {
     this.fetches += 1
     this.requested.push(requestParameters)
-    return this.schema === undefined ? {} : { schema: this.schema }
+    return this.schema === undefined ? {} : { dataModel: this.schema }
   }
 }
 

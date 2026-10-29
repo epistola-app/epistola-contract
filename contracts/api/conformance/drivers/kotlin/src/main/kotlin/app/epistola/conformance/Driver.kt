@@ -32,6 +32,7 @@ import app.epistola.client.model.CatalogReleaseStatus
 import app.epistola.client.model.CatalogThemeReference
 import app.epistola.client.model.CreateCatalogReleaseRequest
 import app.epistola.client.model.CreateEnvironmentRequest
+import app.epistola.client.model.DataExampleDto
 import app.epistola.client.model.EnvironmentDto
 import app.epistola.client.model.GenerateDocumentRequest
 import app.epistola.client.model.MergeIntoCatalogDraftRequest
@@ -49,6 +50,7 @@ import app.epistola.client.model.UpdateCodeListEntryHiddenRequest
 import app.epistola.client.model.UpdateConsumerRequest
 import app.epistola.client.model.UpdateEnvironmentRequest
 import app.epistola.client.model.UpdateStencilContentRequest
+import app.epistola.client.model.UpdateTemplateRequest
 import app.epistola.client.model.UpdateTenantRequest
 import app.epistola.client.model.UpdateVariantContentRequest
 import app.epistola.client.model.VariantSelectionAttribute
@@ -134,6 +136,7 @@ object Driver {
                 "create-environment" -> createEnvironment(baseUrl, config)
                 "update-environment" -> updateEnvironment(baseUrl, config)
                 "update-tenant" -> updateTenant(baseUrl, config)
+                "update-template" -> updateTemplate(baseUrl, config)
                 "update-code-list-entry-hidden" -> updateCodeListEntryHidden(baseUrl, config)
                 "update-attribute" -> updateAttribute(baseUrl, config)
                 "update-variant-content" -> updateVariantContent(baseUrl, config)
@@ -357,6 +360,41 @@ object Driver {
             ifMatch = config.optionalText("ifMatch"),
         )
     }) { tenant -> mapOf("key" to tenant.key, "name" to tenant.name) }
+
+    /**
+     * Replaces a template's data contract with `config.dataModel` and `config.dataExamples`, each only
+     * when present, conditionally when `config.ifMatch` is set. The data model is free-form JSON,
+     * passed as a caller holding that JSON would.
+     */
+    private fun updateTemplate(baseUrl: String, config: ObjectNode) = conditionalUpdate(baseUrl, {
+        TemplatesApi(restClient(baseUrl, config)).updateTemplateWithHttpInfo(
+            config["tenantKey"].asText(),
+            config["registry"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["release"].asText(),
+            config["templateKey"].asText(),
+            UpdateTemplateRequest(
+                dataModel = config.get("dataModel")?.takeUnless { it.isNull }?.let { mapper.convertValue(it, Map::class.java) },
+                dataExamples = config.get("dataExamples")?.takeUnless { it.isNull }?.map { example ->
+                    DataExampleDto(
+                        key = example["key"].asText(),
+                        name = example["name"].asText(),
+                        data = mapper.convertValue(example["data"], Map::class.java),
+                    )
+                },
+            ),
+            ifMatch = config.optionalText("ifMatch"),
+        )
+    }) { template ->
+        val dataModel = template.dataModel as? Map<*, *>
+        mapOf(
+            "key" to template.key,
+            "dataModelType" to (dataModel?.get("type")?.toString() ?: "null"),
+            "dataModelRequired" to ((dataModel?.get("required") as? List<*>)?.joinToString(",") ?: "null"),
+            "dataExampleKeys" to template.dataExamples.orEmpty().joinToString(",") { it.key },
+        )
+    }
 
     /** Hides or shows one code list entry, conditionally when `config.ifMatch` is set. */
     private fun updateCodeListEntryHidden(baseUrl: String, config: ObjectNode) = conditionalUpdate(baseUrl, {

@@ -1,0 +1,112 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: update-template
+title: Updating a template's data contract sends it as dataModel, references untouched, and reads it back
+why: >
+  A template has one data contract, `dataModel`; contract 2.0 removed the `schema` member that sat
+  next to it, which no server stored. The contract is free-form JSON Schema, and the client must
+  send it as the caller wrote it: a `$ref` stays a reference (ADR 0009 stores contracts with their
+  references), and a pattern keeps its backslashes. The examples go with it, each by its key. The
+  update is conditional, so the client sends the ETag it read as `If-Match` byte for byte and
+  exposes the new one.
+
+action:
+  name: update-template
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: k7m2x9qa
+    templateKey: invoice
+    ifMatch: '"4"'
+    dataModel:
+      type: object
+      required: [customer, invoiceNumber]
+      properties:
+        customer:
+          type: object
+          required: [name]
+          properties:
+            name: { type: string }
+        invoiceNumber: { type: string, pattern: '^INV-\d{4}-\d{3}$' }
+        notes: { $ref: 'https://epistola.app/schemas/richtext-block-v1.json' }
+    dataExamples:
+      - key: standard-invoice
+        name: Standard Invoice
+        data:
+          customer: { name: Jane Smith }
+          invoiceNumber: INV-2026-001
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    headers:
+      ETag: '"5"'
+    body:
+      key: invoice
+      tenantKey: acme-corp
+      name: Monthly Invoice
+      description: null
+      dataModel:
+        type: object
+        required: [customer, invoiceNumber]
+        properties:
+          customer:
+            type: object
+            required: [name]
+            properties:
+              name: { type: string }
+          invoiceNumber: { type: string, pattern: '^INV-\d{4}-\d{3}$' }
+          notes: { $ref: 'https://epistola.app/schemas/richtext-block-v1.json' }
+      dataExamples:
+        - key: standard-invoice
+          name: Standard Invoice
+          data:
+            customer: { name: Jane Smith }
+            invoiceNumber: INV-2026-001
+      variants:
+        - { key: english, title: English Invoice, attributes: { locale: en-GB }, isDefault: true, status: modified }
+      createdAt: "2026-01-21T10:00:00Z"
+      lastModified: "2026-10-29T11:00:00Z"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PATCH
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/templates/invoice
+      query: ""
+      headers:
+        Content-Type:
+          matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
+        if-match: '"4"'
+      body:
+        json:
+          dataModel:
+            type: object
+            required: [customer, invoiceNumber]
+            properties:
+              customer:
+                type: object
+                required: [name]
+                properties:
+                  name: { type: string }
+              invoiceNumber: { type: string, pattern: '^INV-\d{4}-\d{3}$' }
+              notes: { $ref: 'https://epistola.app/schemas/richtext-block-v1.json' }
+          dataExamples:
+            - key: standard-invoice
+              name: Standard Invoice
+              data:
+                customer: { name: Jane Smith }
+                invoiceNumber: INV-2026-001
+        jsonAbsent: [schema]
+        jsonNullOrAbsent: [name, description]
+  report:
+    key: invoice
+    dataModelType: object
+    dataModelRequired: customer,invoiceNumber
+    dataExampleKeys: standard-invoice
+    etag: '"5"'

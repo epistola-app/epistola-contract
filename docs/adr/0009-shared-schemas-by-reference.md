@@ -18,6 +18,9 @@ writes them out again, so they drift apart, and a correction has to be made in e
 
 What already exists:
 
+- A template's data contract is its `dataModel`. Until 2.0 the API also had a `schema` member on
+  the template DTOs, which no installation stored; contract 2.0 removes it, so there is one
+  contract per template.
 - `dataModel` is free-form JSON. The catalog validator checks that it is a valid schema, using
   JSON Schema 2020-12 as its default dialect (`PortableJsonSchema`), and checks the template's data
   examples against it. The contract itself does not name the dialect.
@@ -303,12 +306,3 @@ throws a `SchemaException` instead of reporting a finding. Part 6 turns both int
 - **Selecting a release by range or environment.** A caller can address a release by version or
   id. A variant that selects the release the way `validateTemplateData` does (`versionRange`,
   `environmentKey`) can be added if callers need it.
-- **`TemplateDto.schema` and `TemplateDto.dataModel`.** Both have been in the API since the
-  repository's first commit, and neither is required. `TemplateDto` and `UpdateTemplateRequest`
-  carry both, while `CreateTemplateRequest` carries only `schema`. The catalog wire format has only
-  `dataModel`: the examples are validated against it, the problem types are named after it
-  (`DataModelValidationProblemDetail`), and `updateTemplate` is described as editing it. No
-  conformance scenario, client README or hand-written client code uses `schema`. `schema` thus has
-  no place in an archive, and whatever is written to it does not survive an export. What Suite does
-  with it is not known here. Unless Suite relies on it, `dataModel` is the data contract and only it
-  may include shared schemas.

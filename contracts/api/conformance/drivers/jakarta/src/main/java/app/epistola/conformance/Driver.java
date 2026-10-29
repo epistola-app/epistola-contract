@@ -46,6 +46,7 @@ import app.epistola.client.jakarta.model.CodeListEntryDto;
 import app.epistola.client.jakarta.model.ConsumerDto;
 import app.epistola.client.jakarta.model.CreateCatalogReleaseRequest;
 import app.epistola.client.jakarta.model.CreateEnvironmentRequest;
+import app.epistola.client.jakarta.model.DataExampleDto;
 import app.epistola.client.jakarta.model.DeploymentDto;
 import app.epistola.client.jakarta.model.DeploymentEventDto;
 import app.epistola.client.jakarta.model.DeploymentHistoryResponse;
@@ -90,6 +91,7 @@ import app.epistola.client.jakarta.model.UpdateCodeListEntryHiddenRequest;
 import app.epistola.client.jakarta.model.UpdateConsumerRequest;
 import app.epistola.client.jakarta.model.UpdateEnvironmentRequest;
 import app.epistola.client.jakarta.model.UpdateStencilContentRequest;
+import app.epistola.client.jakarta.model.UpdateTemplateRequest;
 import app.epistola.client.jakarta.model.UpdateTenantRequest;
 import app.epistola.client.jakarta.model.UpdateVariantContentRequest;
 import app.epistola.client.jakarta.model.VariantContentDto;
@@ -179,6 +181,7 @@ public final class Driver {
                 case "create-environment" -> createEnvironment(baseUrl, config);
                 case "update-environment" -> updateEnvironment(baseUrl, config);
                 case "update-tenant" -> updateTenant(baseUrl, config);
+                case "update-template" -> updateTemplate(baseUrl, config);
                 case "update-code-list-entry-hidden" -> updateCodeListEntryHidden(baseUrl, config);
                 case "update-attribute" -> updateAttribute(baseUrl, config);
                 case "update-variant-content" -> updateVariantContent(baseUrl, config);
@@ -1770,6 +1773,53 @@ public final class Driver {
                     return Map.of(
                             "key", String.valueOf(tenant.getKey()),
                             "name", String.valueOf(tenant.getName()));
+                });
+    }
+
+    /**
+     * Replaces a template's data contract with {@code config.dataModel} and {@code config.dataExamples},
+     * each only when present, sending {@code config.ifMatch} as {@code If-Match} when present. The
+     * data model is free-form JSON, passed as a caller holding that JSON would.
+     */
+    private static void updateTemplate(String baseUrl, JsonObject config) {
+        UpdateTemplateRequest request = new UpdateTemplateRequest();
+        if (config.containsKey("dataModel") && !config.isNull("dataModel")) {
+            request.dataModel(freeForm(config.get("dataModel")));
+        }
+        if (config.containsKey("dataExamples") && !config.isNull("dataExamples")) {
+            request.dataExamples(config.getJsonArray("dataExamples").stream()
+                    .map(JsonValue::asJsonObject)
+                    .map(example -> new DataExampleDto()
+                            .key(example.getString("key"))
+                            .name(example.getString("name"))
+                            .data(freeForm(example.get("data"))))
+                    .toList());
+        }
+        conditionalUpdate(
+                baseUrl,
+                () -> clients(baseUrl, config)
+                        .api(TemplatesApi.class)
+                        .updateTemplateWithHttpInfo(
+                                config.getString("tenantKey"),
+                                config.getString("registry"),
+                                config.getString("namespace"),
+                                config.getString("catalogKey"),
+                                config.getString("release"),
+                                config.getString("templateKey"),
+                                request,
+                                optional(config, "ifMatch")),
+                response -> {
+                    TemplateDto template = response.readEntity(TemplateDto.class);
+                    Map<?, ?> dataModel = template.getDataModel() instanceof Map<?, ?> map ? map : null;
+                    Object required = dataModel == null ? null : dataModel.get("required");
+                    List<DataExampleDto> examples = template.getDataExamples() == null ? List.of() : template.getDataExamples();
+                    return Map.of(
+                            "key", String.valueOf(template.getKey()),
+                            "dataModelType", dataModel == null ? "null" : String.valueOf(dataModel.get("type")),
+                            "dataModelRequired", required instanceof List<?> list
+                                    ? list.stream().map(String::valueOf).collect(Collectors.joining(","))
+                                    : "null",
+                            "dataExampleKeys", examples.stream().map(DataExampleDto::getKey).collect(Collectors.joining(",")));
                 });
     }
 

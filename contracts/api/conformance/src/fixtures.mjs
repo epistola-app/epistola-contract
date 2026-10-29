@@ -120,6 +120,10 @@ const ACTION_OPERATIONS = {
   },
   'list-available-catalog-releases': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/available-releases' },
   'update-tenant': { method: 'patch', path: '/tenants/{tenantKey}' },
+  'update-template': {
+    method: 'patch',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates/{templateKey}',
+  },
   'update-code-list-entry-hidden': {
     method: 'patch',
     path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/code-lists/{codeListKey}/entries/{code}/hidden',

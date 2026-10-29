@@ -8,7 +8,7 @@ import { loadAjv, type AjvErrorLike, type AjvInstanceLike, type AjvRuntime, type
 
 /** The one call on `TemplatesApi` this adapter needs. */
 export interface TemplateSchemaSource {
-  getTemplate(requestParameters: { tenantKey: string; registry: string; namespace: string; catalogKey: string; release: string; templateKey: string }): Promise<{ schema?: object }>
+  getTemplate(requestParameters: { tenantKey: string; registry: string; namespace: string; catalogKey: string; release: string; templateKey: string }): Promise<{ dataModel?: object }>
 }
 
 /**
@@ -51,7 +51,7 @@ export class AjvTemplateDataValidator implements TemplateDataValidator {
   async validate(tenantKey: string, registry: string, namespace: string, catalogKey: string, templateKey: string, data: unknown): Promise<readonly ValidationFailure[]> {
     const schema = await this.cache.getOrLoad(tenantKey, registry, namespace, catalogKey, templateKey, async () => {
       const template = await this.templatesApi.getTemplate({ tenantKey, registry, namespace, catalogKey, release: this.release, templateKey })
-      return template.schema ?? undefined
+      return template.dataModel ?? undefined
     })
     // No schema on the template means nothing is claimed about the data, so nothing is wrong with
     // it. Same answer the server gives.

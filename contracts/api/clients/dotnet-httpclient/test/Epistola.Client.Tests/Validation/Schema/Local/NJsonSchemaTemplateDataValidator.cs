@@ -135,9 +135,9 @@ public sealed class NJsonSchemaTemplateDataValidator : ITemplateDataValidator
             return entry.Schema;
         }
         var template = _templatesApi.GetTemplate(tenantKey, registry, @namespace, catalogKey, _release, templateKey);
-        var schema = template.Schema == null
+        var schema = template.DataModel == null
             ? null
-            : JsonSchema.FromJsonAsync(JsonConvert.SerializeObject(template.Schema)).GetAwaiter().GetResult();
+            : JsonSchema.FromJsonAsync(JsonConvert.SerializeObject(template.DataModel)).GetAwaiter().GetResult();
         _cache[key] = (schema, DateTimeOffset.UtcNow);
         return schema;
     }

@@ -207,9 +207,9 @@ template-validate:
     operationId: validateTemplateData
     summary: Validate template input data
     description: |
-      Validate input data against the template's JSON Schema before submitting a generation job.
-      This endpoint provides pre-flight validation to catch schema violations early, enabling
-      faster feedback during development and before batch submission.
+      Validate input data against the template's data contract (`dataModel`) before submitting a
+      generation job. This endpoint provides pre-flight validation to catch schema violations early,
+      enabling faster feedback during development and before batch submission.
 
       Besides `errors`, the result says which fields are missing (`missingFields`) and which supplied
       values are wrong (`invalidFields`), each with a JSON Pointer into `data` and the field's JSON
