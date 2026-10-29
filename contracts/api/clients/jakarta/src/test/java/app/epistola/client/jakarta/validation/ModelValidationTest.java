@@ -15,13 +15,13 @@ import app.epistola.client.jakarta.model.FontVariantDto;
 import app.epistola.client.jakarta.model.BatchGenerationItem;
 import app.epistola.client.jakarta.model.CreateCatalogReleaseRequest;
 import app.epistola.client.jakarta.model.CreateEnvironmentRequest;
-import app.epistola.client.jakarta.model.CreateTemplateRequest;
 import app.epistola.client.jakarta.model.CreateTenantRequest;
 import app.epistola.client.jakarta.model.GenerateBatchRequest;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
 import app.epistola.client.jakarta.model.PreviewDocumentRequest;
 import app.epistola.client.jakarta.model.ReleaseCatalogDraftRequest;
 import app.epistola.client.jakarta.model.UpdateCatalogReleaseRequest;
+import app.epistola.client.jakarta.model.UpdateTemplateRequest;
 import app.epistola.client.jakarta.model.UpdateTenantRequest;
 import app.epistola.client.jakarta.model.ResourceStatus;
 import app.epistola.client.jakarta.model.VariantContentDto;
@@ -421,11 +421,10 @@ class ModelValidationTest {
     }
 
     @Test
-    void a_template_with_a_nested_json_schema_passes() {
-        CreateTemplateRequest request = new CreateTemplateRequest()
-                .key("monthly-invoice")
+    void a_template_with_a_nested_json_schema_data_model_passes() {
+        UpdateTemplateRequest request = new UpdateTemplateRequest()
                 .name("Monthly Invoice")
-                .schema(Map.of(
+                .dataModel(Map.of(
                         "type", "object",
                         "required", List.of("customerName"),
                         "properties", Map.of("customerName", Map.of("type", "string"))));

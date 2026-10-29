@@ -1166,6 +1166,20 @@ libraries.
 
 ### Removed
 
+- **BREAKING: `TemplateDto.schema`, `CreateTemplateRequest.schema` and
+  `UpdateTemplateRequest.schema`.** A template had two JSON Schema members, `schema` ("input
+  parameters") and `dataModel`. Only `dataModel` is a data contract: it is the one the catalog
+  wire format carries, the one examples and `validateTemplateData` are checked against, and the
+  one shared schemas will be included into (ADR 0009). Epistola Suite has never stored `schema`:
+  it ignored it on create and update and always returned `null`. `dataModel` takes over the
+  invoice example `schema` had, which is the one the template's example `dataExamples` satisfy.
+  A template is created without a data contract and gets one through `updateTemplate`. Each
+  client's worked in-process validator read `schema`, so against a real server it had no schema
+  and claimed nothing about the data; the Kotlin, Jakarta, .NET, Python and Node adapters now read
+  `dataModel`. A consumer that falls back from `dataModel` to `schema` drops the fallback. The
+  conformance scenario `update-template` (driver action `update-template`) holds all five clients
+  to sending the contract as `dataModel`, a `$ref` and a pattern's backslashes untouched, with its
+  examples and `If-Match`, and to reading it and the new `ETag` back.
 - **BREAKING: `uploadImage`'s `sensitive` form field.** It chose a tenant-isolated deduplication
   scope for an image's bytes. Epistola Suite 2.0 keeps every image's bytes in one store,
   deduplicated alike, so the field had nothing left to choose. A server ignores a client that

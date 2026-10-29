@@ -117,10 +117,10 @@ public final class NetworkntTemplateDataValidator implements TemplateDataValidat
 
     private JsonSchema loadSchema(String tenantKey, String registry, String namespace, String catalogKey, String templateKey) {
         TemplateDto template = templatesApi.getTemplate(tenantKey, registry, namespace, catalogKey, release, templateKey);
-        if (template.getSchema() == null) {
+        if (template.getDataModel() == null) {
             return null;
         }
-        String schemaJson = EpistolaJson.jsonb().toJson(template.getSchema());
+        String schemaJson = EpistolaJson.jsonb().toJson(template.getDataModel());
         SchemaValidatorsConfig config =
                 SchemaValidatorsConfig.builder().pathType(PathType.JSON_POINTER).build();
         return JsonSchemaFactory.getInstance(dialectOf(schemaJson)).getSchema(schemaJson, InputFormat.JSON, config);

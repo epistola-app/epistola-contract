@@ -83,6 +83,7 @@ public static class Driver
                 case "create-environment": CreateEnvironment(baseUrl, config); break;
                 case "update-environment": UpdateEnvironment(baseUrl, config); break;
                 case "update-tenant": UpdateTenant(baseUrl, config); break;
+                case "update-template": UpdateTemplate(baseUrl, config); break;
                 case "update-code-list-entry-hidden": UpdateCodeListEntryHidden(baseUrl, config); break;
                 case "update-variant-content": UpdateVariantContent(baseUrl, config); break;
                 case "get-variant-content": GetVariantContent(baseUrl, config); break;
@@ -312,6 +313,54 @@ public static class Driver
             ["id"] = Show(response.Data.Id),
             ["name"] = Show(response.Data.Name),
             ["lastModified"] = Show(Iso(response.Data.LastModified)),
+            ["etag"] = Header(response, "ETag"),
+        });
+    }
+
+    /// <summary>
+    /// Replaces a template's data contract with <c>config.dataModel</c> and <c>config.dataExamples</c>,
+    /// each only when present, sending <c>config.ifMatch</c> as <c>If-Match</c> when present. The data
+    /// model is free-form JSON, passed through the client's own serializer as a caller holding that
+    /// JSON would.
+    /// </summary>
+    private static void UpdateTemplate(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        object? dataModel = null;
+        if (config.TryGetProperty("dataModel", out var rawModel) && rawModel.ValueKind == JsonValueKind.Object)
+        {
+            dataModel = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, object>>(rawModel.GetRawText());
+        }
+        List<DataExampleDto>? dataExamples = null;
+        if (config.TryGetProperty("dataExamples", out var rawExamples) && rawExamples.ValueKind == JsonValueKind.Array)
+        {
+            dataExamples = rawExamples.EnumerateArray().Select(example => new DataExampleDto(
+                key: Str(example, "key"),
+                name: Str(example, "name"),
+                data: Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, object>>(example.GetProperty("data").GetRawText())!)).ToList();
+        }
+        ApiResponse<TemplateDto> response;
+        try
+        {
+            response = new TemplatesApi(http, apiBase).UpdateTemplateWithHttpInfo(
+                Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"), Str(config, "templateKey"),
+                new UpdateTemplateRequest(dataModel: dataModel!, dataExamples: dataExamples!),
+                ifMatch: OptStr(config, "ifMatch"));
+        }
+        catch (ProblemDetailException e)
+        {
+            ReportProblem(baseUrl, e);
+            return;
+        }
+
+        var model = response.Data.DataModel as Newtonsoft.Json.Linq.JObject;
+        var required = model?["required"] as Newtonsoft.Json.Linq.JArray;
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["key"] = Show(response.Data.Key),
+            ["dataModelType"] = Show(model?["type"]),
+            ["dataModelRequired"] = required == null ? "null" : string.Join(",", required.Select(value => value.ToString())),
+            ["dataExampleKeys"] = string.Join(",", (response.Data.DataExamples ?? new List<DataExampleDto>()).Select(example => example.Key)),
             ["etag"] = Header(response, "ETag"),
         });
     }

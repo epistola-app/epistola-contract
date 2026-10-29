@@ -77,6 +77,7 @@ const ACTIONS = {
   'create-environment': createEnvironment,
   'update-environment': updateEnvironment,
   'update-tenant': updateTenant,
+  'update-template': updateTemplate,
   'update-code-list-entry-hidden': updateCodeListEntryHidden,
   'update-attribute': updateAttribute,
   'update-variant-content': updateVariantContent,
@@ -1231,6 +1232,38 @@ async function updateTenant(baseUrl, config) {
       ...ifMatch(config),
     }),
     (tenant) => ({ key: show(tenant.key), name: show(tenant.name) }),
+  )
+}
+
+/**
+ * Replaces a template's data contract with `config.dataModel` and `config.dataExamples`, each only
+ * when present, conditional on `ifMatch` when the scenario gives one. The data model is free-form
+ * JSON, passed as a caller holding that JSON would.
+ */
+async function updateTemplate(baseUrl, config) {
+  const updateTemplateRequest = {}
+  if (config.dataModel != null) updateTemplateRequest.dataModel = config.dataModel
+  if (config.dataExamples != null) {
+    updateTemplateRequest.dataExamples = config.dataExamples.map(({ key, name, data }) => ({ key, name, data }))
+  }
+  await conditionalUpdate(
+    baseUrl,
+    () => new TemplatesApi(client(baseUrl, config)).updateTemplateRaw({
+      tenantKey: config.tenantKey,
+      registry: config.registry,
+      namespace: config.namespace,
+      catalogKey: config.catalogKey,
+      release: config.release,
+      templateKey: config.templateKey,
+      updateTemplateRequest,
+      ...ifMatch(config),
+    }),
+    (template) => ({
+      key: show(template.key),
+      dataModelType: show(template.dataModel?.type),
+      dataModelRequired: Array.isArray(template.dataModel?.required) ? template.dataModel.required.join(',') : 'null',
+      dataExampleKeys: (template.dataExamples ?? []).map((example) => example.key).join(','),
+    }),
   )
 }
 
