@@ -469,6 +469,12 @@ libraries.
 
 ### Changed
 
+- **The standalone `Theme` type names its theme by `key`** (catalog, BREAKING). `theme.schema.json`
+  (and its frozen `theme-v8` copy) still required `id`, a free string, where every resource is
+  addressed by a `key` under the one resource key rule; the generated `Theme` type, exported by
+  `@epistola.app/epistola-catalog` and the Kotlin `app.epistola.template.model` package, follows.
+  The wire's `ThemeResource` already said `key`. Epistola Suite's theme editor reads `theme.id` and
+  needs to read `key`.
 - **A v8 release carries its fingerprint and pins every catalog it declares; a theme's spacing unit
   has one rule** (catalog, wire v8). `release.fingerprint` was optional in a v8 archive, although
   it is the release's identity, which a pin and a base name; an archive written at wire v8 without
