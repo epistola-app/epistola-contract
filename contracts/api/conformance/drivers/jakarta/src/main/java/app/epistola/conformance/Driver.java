@@ -23,6 +23,10 @@ import app.epistola.client.jakarta.error.ProblemDetailException;
 import app.epistola.client.jakarta.identity.ClientIdentity;
 import app.epistola.client.jakarta.api.CodeListsApi;
 import app.epistola.client.jakarta.api.TenantsApi;
+import app.epistola.client.jakarta.model.DocumentGenerationItemDto;
+import app.epistola.client.jakarta.model.GenerationItemStatus;
+import app.epistola.client.jakarta.model.GenerationJobItemListResponse;
+import app.epistola.client.jakarta.model.DocumentGenerationJobDto;
 import app.epistola.client.jakarta.model.AttributeDto;
 import app.epistola.client.jakarta.model.CodeListBindingRef;
 import app.epistola.client.jakarta.model.AvailableCatalogReleases;
@@ -153,6 +157,8 @@ public final class Driver {
                 case "update-consumer" -> updateConsumer(baseUrl, config);
                 case "download-document" -> downloadDocument(baseUrl, config);
                 case "list-documents" -> listDocuments(baseUrl, config);
+                case "get-generation-job-status" -> getGenerationJobStatus(baseUrl, config);
+                case "list-generation-job-items" -> listGenerationJobItems(baseUrl, config);
                 case "list-images" -> listImages(baseUrl, config);
                 case "upload-image" -> uploadImage(baseUrl, config);
                 case "import-catalog" -> importCatalog(baseUrl, config);
@@ -510,6 +516,44 @@ public final class Driver {
      * Lists documents with the catalog and template filters the scenario sets, each sent only when
      * set, and reports what the client made of the page.
      */
+    /** Reads a generation job's status and reports its counts; the job carries no items. */
+    private static void getGenerationJobStatus(String baseUrl, JsonObject config) {
+        DocumentGenerationJobDto job = clients(baseUrl, config)
+                .api(GenerationApi.class)
+                .getGenerationJobStatus(config.getString("tenantKey"), java.util.UUID.fromString(config.getString("requestId")));
+        report(
+                baseUrl,
+                Map.of(
+                        "requestId", String.valueOf(job.getRequestId()),
+                        "status", String.valueOf(job.getStatus()),
+                        "jobType", String.valueOf(job.getJobType()),
+                        "total", job.getTotal(),
+                        "completedCount", job.getCompletedCount(),
+                        "failedCount", job.getFailedCount()));
+    }
+
+    /** Lists a page of a generation job's items, {@code status}, {@code page} and {@code size} each sent only when set. */
+    private static void listGenerationJobItems(String baseUrl, JsonObject config) {
+        String status = optional(config, "status");
+        GenerationJobItemListResponse response = clients(baseUrl, config)
+                .api(GenerationApi.class)
+                .listGenerationJobItems(
+                        config.getString("tenantKey"),
+                        java.util.UUID.fromString(config.getString("requestId")),
+                        status == null ? null : GenerationItemStatus.fromValue(status),
+                        config.containsKey("page") && !config.isNull("page") ? config.getInt("page") : null,
+                        config.containsKey("size") && !config.isNull("size") ? config.getInt("size") : null);
+        List<DocumentGenerationItemDto> items = response.getItems();
+        report(
+                baseUrl,
+                Map.of(
+                        "itemIds", items.stream().map(item -> String.valueOf(item.getItemId())).collect(Collectors.joining(",")),
+                        "statuses", items.stream().map(item -> String.valueOf(item.getStatus())).collect(Collectors.joining(",")),
+                        "documentIds", items.stream().map(item -> String.valueOf(item.getDocumentId())).collect(Collectors.joining(",")),
+                        "correlationIds", items.stream().map(item -> String.valueOf(item.getCorrelationId())).collect(Collectors.joining(",")),
+                        "total", String.valueOf(response.getPage().getTotal())));
+    }
+
     private static void listDocuments(String baseUrl, JsonObject config) {
         List<DocumentDto> documents = clients(baseUrl, config)
                 .api(GenerationApi.class)
