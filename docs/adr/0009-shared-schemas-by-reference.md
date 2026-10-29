@@ -94,7 +94,7 @@ here for two reasons:
 | --- | --- |
 | `epistola:schema/{key}` | the shared schema `key` in the catalog of the document the reference is written in |
 | `epistola:schema/{alias}/{key}` | the shared schema `key` in the catalog that the declaration `alias` names (ADR 0003) |
-| `https://epistola.app/schemas/…` | a built-in schema (the richtext schemas) |
+| `https://epistola.app/schemas/…` | a built-in schema in the contract's set (part 3a) |
 | `#…` | a location in the same schema, such as its own `$defs` |
 
 Nothing else is allowed. An `epistola:` URI is never fetched, and neither is anything else: a
@@ -104,7 +104,32 @@ into one (`epistola:schema/party#/properties/address`) is refused. Allowing frag
 additive.
 
 `$ref` can appear anywhere in a schema: as a property (`"customer": { "$ref": … }`), as array
-`items`, or at the root through `allOf`. A shared schema may refer to other shared schemas.
+`items`, or at the root through `allOf`. A shared schema may refer to other shared schemas, and to
+built-in schemas (part 3a).
+
+### 3a. Built-in schemas belong to the engine, not to a catalog
+
+Some schemas describe what the renderer accepts, not anyone's content. One example is the
+rich-text documents that a `richTextVariable` node renders. A catalog author cannot define these
+differently. They are therefore not catalog resources, not even in the system catalog. The contract
+defines them, as it defines the component and style registries in `contracts/catalog/registry/`:
+
+- **The set belongs to the contract.** Today it is `https://epistola.app/schemas/richtext-inline-v1.json`
+  and `…/richtext-block-v1.json`, from `contracts/catalog/schemas/`. They are preloaded and never
+  fetched. No catalog can provide or override a schema with one of their `$id`s.
+- **They are versioned in their id**, because no catalog release versions them. A changed format
+  gets a new id (`-v2`), shipped with an Epistola version. Content that uses it says so in
+  `compatibility.epistolaVersions`, which V6 covers. The old id keeps validating.
+- **Their identity is global.** An editor or a bundler recognizes rich text by its `$id`, without
+  resolving an alias.
+- **The ids keep their `https:` form.** They are identifiers, not locations. Changing them would
+  rewrite every contract that uses rich text, for no gain.
+
+Shipping them as shared schemas in the system catalog was considered and rejected. A content
+release would then pin what is really the renderer's input format. Whether a field is rich text
+would depend on which alias names the system catalog. And an archive migration could not rewrite
+existing references, because pointing them at the system catalog needs a pinned declaration of it,
+which the migration cannot create without knowing a system release's fingerprint.
 
 ### 4. References resolve like stencils, by alias, lexically
 
@@ -192,8 +217,9 @@ JSON Schema 2020-12 document, the contract resolved in that release:
 - each shared schema the contract reaches, directly or transitively, is placed once in `$defs`,
   and each reference to it is rewritten to `#/$defs/{name}`. No `$id` is embedded, so tools that
   handle only local references can read it (quicktype, openapi-generator, older validators). A
-  built-in schema the contract reaches (the richtext schemas) is embedded the same way, so the
-  document needs nothing it does not contain;
+  built-in schema that the contract reaches (part 3a) is embedded the same way, named by its id's
+  file name without `.json` (`richtext-block-v1`), so the document needs nothing it does not
+  contain;
 - `{name}` is the schema's key for the template's own catalog, and `{catalogKey}.{key}` for
   another catalog, using that catalog's **real** key, never the alias. Aliases are internal
   wiring. If names came from aliases, renaming one in the next release would rename the types
@@ -236,7 +262,8 @@ installations, so it is reported rather than repaired.
   with new codes for an unknown schema, a fragment, an external reference and a cycle, the
   parameter subset on resolved schemas (part 7), and `withDefaults` following references. The
   resolution and bundling live in the catalog module, exported to Kotlin and TypeScript, so Suite,
-  Exchange and the editor resolve a contract the same way.
+  Exchange and the editor resolve a contract the same way. The module also exports the built-in
+  set of part 3a, instead of keeping it as a list inside the validator.
 - **API:** schema operations within a release (`listSchemas`, `getSchema`, `createSchema`,
   `updateSchema`, `deleteSchema`, `markSchemaReady`, `listSchemaUsage`), following the stencil
   operations, `ETag` and `If-Match` included. A `schemas` consumer permission. A release's changes
@@ -262,7 +289,8 @@ installations, so it is reported rather than repaired.
 - **Examples on shared schemas.** A shared schema could carry examples of its own, checked when it
   is edited instead of only through the templates that include it.
 - **External references today.** What the validator currently does with a `$ref` outside the
-  built-in set has not been checked, and neither has how often existing contracts contain one.
+  built-in set (part 3a) has not been checked, and neither has how often existing contracts
+  contain one.
   Both decide how much part 9's finding costs in practice.
 - **`TemplateDto.schema` and `TemplateDto.dataModel`.** The template DTOs and requests have both,
   with overlapping descriptions. Before references land, decide which one is the data contract.
