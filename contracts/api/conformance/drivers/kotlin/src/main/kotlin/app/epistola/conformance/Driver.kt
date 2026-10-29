@@ -41,6 +41,7 @@ import app.epistola.client.model.Node
 import app.epistola.client.model.PingRequest
 import app.epistola.client.model.PublishReleaseToRegistryRequest
 import app.epistola.client.model.ReleaseCatalogDraftRequest
+import app.epistola.client.model.InstalledCatalogReleaseDto
 import app.epistola.client.model.TemplateDocument
 import app.epistola.client.model.TemplateDto
 import app.epistola.client.model.ThemeRef
@@ -280,7 +281,7 @@ object Driver {
                 "handledSequences" to handled.joinToString(",") { it.sequence.toString() },
                 "partitionTotal" to (collector.partitionAssignment?.total ?: -1),
                 "releases" to handled.joinToString(",") {
-                    "${it.registry}/${it.namespace}/${it.catalogKey}@${it.version ?: "null"}"
+                    "${it.registry}/${it.namespace}/${it.catalogKey}@${it.version ?: "null"}#${it.releaseId ?: "null"}:${it.draftLabel ?: "null"}"
                 },
             ),
         )
@@ -679,8 +680,8 @@ object Driver {
                 "version" to installed.version,
                 "newlyInstalled" to installed.newlyInstalled.toString(),
                 "total" to installed.total.toString(),
-                "installedDependencies" to installed.installedDependencies.orEmpty().joinToString(","),
-                "presentDependencies" to installed.presentDependencies.orEmpty().joinToString(","),
+                "installedDependencies" to installed.installedDependencies.orEmpty().joinToString(",") { installedRelease(it) },
+                "presentDependencies" to installed.presentDependencies.orEmpty().joinToString(",") { installedRelease(it) },
             ),
         )
     }
@@ -1571,6 +1572,10 @@ object Driver {
             ),
         )
     }
+
+    /** An installed release as `registry/namespace/catalogKey@version#releaseId`. */
+    private fun installedRelease(release: InstalledCatalogReleaseDto) =
+        "${release.registry}/${release.namespace}/${release.catalogKey}@${release.version}#${release.releaseId}"
 
     /** Creates an environment; `production` is sent only when configured. */
     private fun createEnvironment(baseUrl: String, config: ObjectNode) {

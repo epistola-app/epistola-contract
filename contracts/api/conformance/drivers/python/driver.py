@@ -276,6 +276,7 @@ def _collect(base_url: str, config: dict) -> None:
             "partitionTotal": assignment.total if assignment is not None else -1,
             "releases": ",".join(
                 f"{_show(r.registry)}/{_show(r.namespace)}/{_show(r.catalog_key)}@{_show(r.version)}"
+                f"#{_show(r.release_id)}:{_show(r.draft_label)}"
                 for r in handled
             ),
         },
@@ -489,8 +490,8 @@ def _install_catalog_release(base_url: str, config: dict) -> None:
             "version": _show(installed.version),
             "newlyInstalled": _show_bool(installed.newly_installed),
             "total": _show(installed.total),
-            "installedDependencies": ",".join(installed.installed_dependencies or []),
-            "presentDependencies": ",".join(installed.present_dependencies or []),
+            "installedDependencies": ",".join(_installed_release(release) for release in installed.installed_dependencies or []),
+            "presentDependencies": ",".join(_installed_release(release) for release in installed.present_dependencies or []),
         },
     )
 
@@ -1335,6 +1336,11 @@ def _list_deployment_history(base_url: str, config: dict) -> None:
             "total": _show(response.page.total),
         },
     )
+
+
+def _installed_release(release) -> str:
+    """An installed release as ``registry/namespace/catalogKey@version#releaseId``."""
+    return f"{release.registry}/{release.namespace}/{release.catalog_key}@{release.version}#{release.release_id}"
 
 
 def _create_environment(base_url: str, config: dict) -> None:

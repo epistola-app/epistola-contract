@@ -76,8 +76,9 @@ DataModelValidationProblemDetail:
         validationErrors:
           type: object
           description: >-
-            Map of data-example name to the list of failures that example produced
-            when validated against the template's data model.
+            Map of each failing data example's `key` to the list of failures that example
+            produced when validated against the template's data model. Keyed by `key`, not by
+            `name`: a name is display text and need not be unique.
           additionalProperties:
             type: array
             items:

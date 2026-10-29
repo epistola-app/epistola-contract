@@ -11,6 +11,9 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Fixed
 
+- `GenerationResult` carries `release_id` and `draft_label`, after `version`. The collector
+  parsed result lines by hand and dropped both, so a consumer could not tell which draft rendered
+  a document.
 - `ResultCollector.collect_once()` raises a `ProblemDetailException` for an
   `application/problem+json` error response, and the generated `ApiException` with the status and
   body for any other non-2xx, as the client does for every other call (#30). It raised a bare

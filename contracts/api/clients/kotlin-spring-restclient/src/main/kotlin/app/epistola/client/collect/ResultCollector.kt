@@ -127,6 +127,10 @@ class ResultCollector private constructor(
         val catalogKey: String,
         /** Release of the template's catalog used; null when the document was rendered from a draft. */
         val version: String?,
+        /** Id of the release rendered: the draft's when [version] is null. */
+        val releaseId: String?,
+        /** Name of that draft at render time; null when rendered from a released one. */
+        val draftLabel: String?,
         val filename: String?,
         val contentType: String?,
         val sizeBytes: Long?,
@@ -374,23 +378,28 @@ class ResultCollector private constructor(
     private fun parseResult(node: com.fasterxml.jackson.databind.JsonNode) = GenerationResult(
         sequence = node.resultField("sequence").asLong(),
         requestId = node.resultField("requestId").asText(),
-        batchId = node["batchId"]?.asText(),
+        batchId = node.optionalField("batchId")?.asText(),
         status = node.resultField("status").asText(),
-        documentId = node["documentId"]?.asText(),
-        correlationId = node["correlationId"]?.asText(),
-        routingKey = node["routingKey"]?.asText(),
-        templateKey = node["templateKey"]?.asText(),
-        variantKey = node["variantKey"]?.asText(),
+        documentId = node.optionalField("documentId")?.asText(),
+        correlationId = node.optionalField("correlationId")?.asText(),
+        routingKey = node.optionalField("routingKey")?.asText(),
+        templateKey = node.optionalField("templateKey")?.asText(),
+        variantKey = node.optionalField("variantKey")?.asText(),
         registry = node.resultField("registry").asText(),
         namespace = node.resultField("namespace").asText(),
         catalogKey = node.resultField("catalogKey").asText(),
-        version = node["version"]?.takeUnless { it.isNull }?.asText(),
-        filename = node["filename"]?.asText(),
-        contentType = node["contentType"]?.asText(),
-        sizeBytes = node["sizeBytes"]?.asLong(),
-        error = node["error"]?.asText(),
-        completedAt = node["completedAt"]?.asText(),
+        version = node.optionalField("version")?.asText(),
+        releaseId = node.optionalField("releaseId")?.asText(),
+        draftLabel = node.optionalField("draftLabel")?.asText(),
+        filename = node.optionalField("filename")?.asText(),
+        contentType = node.optionalField("contentType")?.asText(),
+        sizeBytes = node.optionalField("sizeBytes")?.asLong(),
+        error = node.optionalField("error")?.asText(),
+        completedAt = node.optionalField("completedAt")?.asText(),
     )
+
+    /** [field] of a result line, or null when it is absent or JSON `null` (which `asText()` would make `"null"`). */
+    private fun com.fasterxml.jackson.databind.JsonNode.optionalField(field: String): com.fasterxml.jackson.databind.JsonNode? = get(field)?.takeUnless { it.isNull }
 
     /** [field] of a result line, or a refusal naming the line instead of a bare NullPointerException. */
     private fun com.fasterxml.jackson.databind.JsonNode.resultField(field: String): com.fasterxml.jackson.databind.JsonNode = get(field)?.takeUnless { it.isNull } ?: throw IllegalStateException("Unexpected collect line without '$field': $this")

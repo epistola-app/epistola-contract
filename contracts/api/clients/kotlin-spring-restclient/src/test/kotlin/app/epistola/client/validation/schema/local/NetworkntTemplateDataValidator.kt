@@ -102,7 +102,7 @@ class NetworkntTemplateDataValidator(
 
     private fun loadSchema(key: Key): JsonSchema? {
         val template = templatesApi.getTemplate(key.tenantKey, key.registry, key.namespace, key.catalogKey, key.release, key.templateKey)
-        val schemaObject = template.dataModel ?: return null
+        val schemaObject = template.dataModel
         val schemaNode: JsonNode = objectMapper.valueToTree(schemaObject)
         val config = SchemaValidatorsConfig.builder().pathType(PathType.JSON_POINTER).build()
         return JsonSchemaFactory.getInstance(dialectOf(schemaNode)).getSchema(schemaNode, config)

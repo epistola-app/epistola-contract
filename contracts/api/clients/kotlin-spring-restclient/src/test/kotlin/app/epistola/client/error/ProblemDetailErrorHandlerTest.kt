@@ -88,7 +88,7 @@ class ProblemDetailErrorHandlerTest {
             {"type":"https://epistola.app/errors/data-model-validation-error",
              "title":"Data Model Validation Error","status":422,
              "detail":"Data examples failed validation against schema",
-             "validationErrors":{"Example 1":[{"path":"/name","message":"required property 'name' not found"}]}}
+             "validationErrors":{"standard-invoice":[{"path":"/name","message":"required property 'name' not found"}]}}
         """.trimIndent()
 
         val ex = assertFailsWith<ProblemDetailException> {
@@ -97,8 +97,8 @@ class ProblemDetailErrorHandlerTest {
         assertTrue(ex.isDataModelValidationProblem)
         assertFalse(ex.isValidationProblem)
         assertEquals(KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR, ex.typeSlug)
-        assertEquals(1, ex.validationErrors["Example 1"]?.size)
-        assertEquals("/name", ex.validationErrors.getValue("Example 1")[0].path)
+        assertEquals(1, ex.validationErrors["standard-invoice"]?.size)
+        assertEquals("/name", ex.validationErrors.getValue("standard-invoice")[0].path)
     }
 
     @Test

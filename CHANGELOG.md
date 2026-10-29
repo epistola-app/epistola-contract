@@ -469,6 +469,21 @@ libraries.
 
 ### Changed
 
+- **Install and import name each dependency release in full.** (BREAKING)
+  `InstallCatalogReleaseResponse` and `ImportCatalogResponse` list `installedDependencies` and
+  `presentDependencies` as `InstalledCatalogReleaseDto` objects (`registry`, `namespace`,
+  `catalogKey`, `version`, `releaseId`), not as `catalogKey vVERSION` strings. A catalog's key
+  alone is not unique, so two `shared` catalogs in different namespaces could not be told apart,
+  and a client had to parse a label to read a version. Epistola Suite may not implement it yet.
+  Conformance scenario `install-catalog-release` requires every member.
+- **A template's `dataModel` is always present.** (BREAKING) `TemplateDto.dataModel` is required:
+  a template without constraints has the empty schema `{}`, so a consumer needs no null check. On
+  `CreateTemplateRequest` and `UpdateTemplateRequest` it is omitted, not null, to leave it to the
+  server. Each client's worked in-process validator treats `{}` as claiming nothing. Epistola Suite
+  may not implement it yet.
+- **`validationErrors` is keyed by each data example's `key`.** (BREAKING) The
+  `data-model-validation-error` problem mapped each example's display `name` to its failures; a
+  name need not be unique, so failures could merge. Epistola Suite may not implement it yet.
 - **Breaking: a theme owns the default block spacing** (#59). The component registry no longer
   gives `text`, `richTextVariable`, `container`, `columns`, `table`, `datatable`, `qrcode` and
   `image` a `marginBottom: 1.5sp` default, which a theme's `spacingUnit` magnified (24pt at 16pt).
@@ -1220,6 +1235,12 @@ libraries.
 
 ### Fixed
 
+- **The Kotlin, Python and .NET result collectors surface `releaseId` and `draftLabel`.** All three
+  parse result lines by hand and dropped the two members, so a consumer could not tell which draft
+  rendered a document; the Jakarta and Node collectors hand over the generated model and had them.
+  Conformance scenario `collect-result-release` now requires both from every client. The Kotlin
+  collector also read an optional member sent as JSON `null` (`batchId`, `documentId`,
+  `correlationId`, …) as the string `"null"`; it is now null.
 - **A v7 stencil keeps the scope v7 rendered it with** (wire v8 migration). V8 isolates a stencil
   unless it declares `readsTemplateData`, and shows a fill the stencil's parameters only through a
   placeholder that declares `passParameters` (ADR 0006); the v7-to-v8 migration set neither, so a

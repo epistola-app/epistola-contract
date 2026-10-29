@@ -539,7 +539,7 @@ x-problem-types:
       schema: DataModelValidationProblemDetail
       description: >-
         The request is well-formed but semantically invalid; the
-        `validationErrors` member maps each data-example name to its failures.
+        `validationErrors` member maps each data example's key to its failures.
     - slug: merge-not-applicable
       status: 422
       schema: ProblemDetail
@@ -992,6 +992,8 @@ components:
       $ref: './components/schemas/catalogs.yaml#/AvailableReleaseDependencyDto'
     InstallCatalogReleaseResponse:
       $ref: './components/schemas/catalogs.yaml#/InstallCatalogReleaseResponse'
+    InstalledCatalogReleaseDto:
+      $ref: './components/schemas/catalogs.yaml#/InstalledCatalogReleaseDto'
     ReleaseRegistryKind:
       $ref: './components/schemas/release-registries.yaml#/ReleaseRegistryKind'
     ReleaseRegistryDto:

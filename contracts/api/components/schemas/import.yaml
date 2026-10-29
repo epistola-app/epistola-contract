@@ -46,16 +46,15 @@ ImportCatalogResponse:
     installedDependencies:
       type: array
       description: |
-        The releases the archive carries (under `dependencies/`) that the import installed, as
-        `catalogKey vVERSION`, in the order it installed them. Empty when it carries none.
+        The releases the archive carries (under `dependencies/`) that the import installed, in the
+        order it installed them. Empty when it carries none.
       items:
-        type: string
-      example: ["shared v1.0.0"]
+        $ref: './catalogs.yaml#/InstalledCatalogReleaseDto'
     presentDependencies:
       type: array
       description: |
         The releases the archive carries (under `dependencies/`) that this tenant had already, with
-        the same fingerprint, as `catalogKey vVERSION`. Empty when it carries none.
+        the same fingerprint. Empty when it carries none.
       items:
-        type: string
+        $ref: './catalogs.yaml#/InstalledCatalogReleaseDto'
       example: []

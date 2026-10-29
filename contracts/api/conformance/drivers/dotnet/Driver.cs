@@ -234,7 +234,7 @@ public static class Driver
                 ["handledSequences"] = string.Join(",", handled.Select(r => r.Sequence)),
                 ["partitionTotal"] = collector.CurrentPartitionAssignment?.Total ?? -1,
                 ["releases"] = string.Join(",", handled.Select(r =>
-                    $"{Show(r.Registry)}/{Show(r.Namespace)}/{Show(r.CatalogKey)}@{Show(r.Version)}")),
+                    $"{Show(r.Registry)}/{Show(r.Namespace)}/{Show(r.CatalogKey)}@{Show(r.Version)}#{Show(r.ReleaseId)}:{Show(r.DraftLabel)}")),
             });
         }
     }
@@ -683,10 +683,14 @@ public static class Driver
             ["version"] = Show(installed.Version),
             ["newlyInstalled"] = Bool(installed.NewlyInstalled),
             ["total"] = Show(installed.Total),
-            ["installedDependencies"] = string.Join(",", installed.InstalledDependencies ?? new List<string>()),
-            ["presentDependencies"] = string.Join(",", installed.PresentDependencies ?? new List<string>()),
+            ["installedDependencies"] = string.Join(",", (installed.InstalledDependencies ?? new List<InstalledCatalogReleaseDto>()).Select(InstalledRelease)),
+            ["presentDependencies"] = string.Join(",", (installed.PresentDependencies ?? new List<InstalledCatalogReleaseDto>()).Select(InstalledRelease)),
         });
     }
+
+    /// <summary>An installed release as <c>registry/namespace/catalogKey@version#releaseId</c>.</summary>
+    private static string InstalledRelease(InstalledCatalogReleaseDto release) =>
+        $"{release.Registry}/{release.Namespace}/{release.CatalogKey}@{release.Version}#{release.ReleaseId}";
 
     /// <summary>
     /// Lists the releases a catalog's source offers that the tenant lacks, reporting
