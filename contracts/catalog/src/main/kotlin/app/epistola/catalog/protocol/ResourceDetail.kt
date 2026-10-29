@@ -431,13 +431,17 @@ data class DataExampleEntry(
  * defines is keyed `<alias>.<key>` (`system.locale`), by the alias the dependency list declares for
  * that catalog ([CatalogAliases], contract ADR 0003), like every other reference into another catalog.
  *
+ * [name] is the variant's human-readable name ("US English"), which tells it from the template's
+ * other variants. Until wire v8 it was called `title`.
+ *
  * [description] (wire v8) is plain text for the variant's authors: what it is for. Not rendered.
  * Omitted when null or empty, so a variant without one serializes, and fingerprints, as before.
  */
 data class VariantEntry(
     @JsonAlias("slug")
     val key: String,
-    val title: String? = null,
+    @JsonAlias("title")
+    val name: String? = null,
     val attributes: Map<String, String>? = null,
     val templateModel: TemplateDocument? = null,
     val isDefault: Boolean = false,

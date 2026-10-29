@@ -5,6 +5,7 @@
 package app.epistola.client.error
 
 import app.epistola.client.infrastructure.Serializer
+import app.epistola.client.model.CatalogReleaseRefDto
 import app.epistola.client.model.DataModelValidationError
 import app.epistola.client.model.InvalidDataField
 import app.epistola.client.model.MissingDataField
@@ -190,6 +191,45 @@ class ProblemDetailException(
 
     /** True when this problem named a merge base this installation does not have. */
     val isMergeBaseMissingProblem: Boolean get() = missingBaseVersion != null
+
+    /**
+     * The versions of the releases a `catalog-version-behind` problem (409, from
+     * `releaseCatalogDraft`) says the draft is behind and the request did not acknowledge: name each
+     * in `acknowledgedBehind` to release it anyway. Empty for any other problem; an entry that is
+     * not a string is skipped.
+     */
+    val behind: List<String>
+        get() = (extensions[ProblemExtensionMembers.BEHIND] as? List<*>).orEmpty().filterIsInstance<String>()
+
+    /** True when this problem said the draft is behind releases the request did not acknowledge. */
+    val isCatalogVersionBehindProblem: Boolean get() = typeSlug == KnownProblemSlugs.CATALOG_VERSION_BEHIND
+
+    /**
+     * The environments a `release-in-use` problem (409, from `deleteCatalogRelease`) says deploy the
+     * release; empty for any other problem, and when none does.
+     */
+    val environments: List<String>
+        get() = (extensions[ProblemExtensionMembers.ENVIRONMENTS] as? List<*>).orEmpty().filterIsInstance<String>()
+
+    /**
+     * The releases of other catalogs a `release-in-use` problem says pin the release, and render with
+     * it; empty for any other problem. An entry of an unexpected shape is skipped.
+     */
+    val pinnedBy: List<CatalogReleaseRefDto> get() = membersAt(ProblemExtensionMembers.PINNED_BY)
+
+    /** True when this problem said the release cannot be deleted while something uses it. */
+    val isReleaseInUseProblem: Boolean get() = typeSlug == KnownProblemSlugs.RELEASE_IN_USE
+
+    /**
+     * The keys of the variants an `ambiguous-variant` problem (409, from generating or previewing a
+     * document) says match the request's attributes equally well: name one by `variantKey`, or send
+     * attributes that tell them apart. Empty for any other problem.
+     */
+    val tiedVariants: List<String>
+        get() = (extensions[ProblemExtensionMembers.TIED_VARIANTS] as? List<*>).orEmpty().filterIsInstance<String>()
+
+    /** True when this problem said several variants match equally well. */
+    val isAmbiguousVariantProblem: Boolean get() = typeSlug == KnownProblemSlugs.AMBIGUOUS_VARIANT
 
     /**
      * One extension member's array of objects, converted to [T]. An entry of an unexpected shape

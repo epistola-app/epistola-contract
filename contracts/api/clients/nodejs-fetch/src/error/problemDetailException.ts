@@ -4,6 +4,7 @@
 
 import type {
   CatalogReadOnlyReason,
+  CatalogReleaseRefDto,
   DataModelValidationError,
   InvalidDataField,
   MissingDataField,
@@ -225,6 +226,55 @@ export class ProblemDetailException extends ResponseError {
     return this.missingBaseVersion !== undefined
   }
 
+  /**
+   * The versions of the releases a `catalog-version-behind` problem (409, from
+   * `releaseCatalogDraft`) says the draft is behind and the request did not acknowledge: name each
+   * in `acknowledgedBehind` to release it anyway. Empty for any other problem.
+   */
+  get behind(): readonly string[] {
+    return stringsAt(this.extensions, ProblemExtensionMembers.BEHIND)
+  }
+
+  /** True when this problem said the draft is behind releases the request did not acknowledge. */
+  get isCatalogVersionBehindProblem(): boolean {
+    return this.typeSlug === KnownProblemSlugs.CATALOG_VERSION_BEHIND
+  }
+
+  /**
+   * The environments a `release-in-use` problem (409, from `deleteCatalogRelease`) says deploy the
+   * release; empty for any other problem, and when none does.
+   */
+  get environments(): readonly string[] {
+    return stringsAt(this.extensions, ProblemExtensionMembers.ENVIRONMENTS)
+  }
+
+  /**
+   * The releases of other catalogs a `release-in-use` problem says pin the release, and render with
+   * it; empty for any other problem. An entry of an unexpected shape is dropped.
+   */
+  get pinnedBy(): readonly CatalogReleaseRef[] {
+    return objectsAt(this.extensions, ProblemExtensionMembers.PINNED_BY).filter(isCatalogReleaseRef)
+  }
+
+  /** True when this problem said the release cannot be deleted while something uses it. */
+  get isReleaseInUseProblem(): boolean {
+    return this.typeSlug === KnownProblemSlugs.RELEASE_IN_USE
+  }
+
+  /**
+   * The keys of the variants an `ambiguous-variant` problem (409, from generating or previewing a
+   * document) says match the request's attributes equally well: name one by `variantKey`, or send
+   * attributes that tell them apart. Empty for any other problem.
+   */
+  get tiedVariants(): readonly string[] {
+    return stringsAt(this.extensions, ProblemExtensionMembers.TIED_VARIANTS)
+  }
+
+  /** True when this problem said several variants match equally well. */
+  get isAmbiguousVariantProblem(): boolean {
+    return this.typeSlug === KnownProblemSlugs.AMBIGUOUS_VARIANT
+  }
+
   private mergeBaseMissingMember(member: string): string | undefined {
     if (this.typeSlug !== KnownProblemSlugs.MERGE_BASE_MISSING) return undefined
     const value = this.extensions[member]
@@ -260,6 +310,25 @@ const UNRELEASED_DEPENDENCY_MEMBERS = ['registry', 'namespace', 'catalogKey', 'r
 function isUnreleasedDependency(entry: object): entry is UnreleasedDependency {
   const record = entry as Record<string, unknown>
   return UNRELEASED_DEPENDENCY_MEMBERS.every((member) => typeof record[member] === 'string')
+}
+
+/**
+ * One release a problem names in full, such as each entry of a `release-in-use` problem's
+ * `pinnedBy` member: the generated `CatalogReleaseRefDto`.
+ */
+export type CatalogReleaseRef = Readonly<CatalogReleaseRefDto>
+
+const CATALOG_RELEASE_REF_MEMBERS = ['registry', 'namespace', 'catalogKey', 'version', 'releaseId'] as const
+
+function isCatalogReleaseRef(entry: object): entry is CatalogReleaseRef {
+  const record = entry as Record<string, unknown>
+  return CATALOG_RELEASE_REF_MEMBERS.every((member) => typeof record[member] === 'string')
+}
+
+/** One extension member's array of strings, or empty when absent; entries that are not strings are dropped. */
+function stringsAt(extensions: Readonly<Record<string, unknown>>, member: string): readonly string[] {
+  const value = extensions[member]
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : []
 }
 
 /**

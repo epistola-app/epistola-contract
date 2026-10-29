@@ -9,7 +9,8 @@ import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.ObjectNode
 
 /**
- * The members catalog wire v8 renamed so that a resource's public address is called its `key`.
+ * The members catalog wire v8 renamed so that a resource's public address is called its `key`, and
+ * its human-readable name its `name`.
  *
  * A `key` is a resource's public address within its parent; an `id` is a generated identifier that
  * is not an address. Until wire v7 the catalog called the address `slug`, and references to it
@@ -22,6 +23,7 @@ import tools.jackson.databind.node.ObjectNode
  * | `catalog.json` catalog presentation | `iconAssetSlug`, `imageAssetSlugs` | `iconImageKey`, `imageKeys` |
  * | `catalog.json` catalog attribute assignments | `catalog` | `catalogKey` |
  * | every resource, a template's variants, an attribute's code-list binding | `slug` | `key` |
+ * | a template's variants, their human-readable name | `title` | `name` |
  * | a template's default theme | `themeId` | `themeKey` |
  * | a template document's theme reference | `themeId` | `themeKey` |
  * | a stencil node's props | `stencilId` | `stencilKey` |
@@ -83,6 +85,7 @@ internal object CatalogKeyRenames {
                 (resource["variants"] as? ArrayNode)?.forEachIndexed { index, variant ->
                     if (variant !is ObjectNode) return@forEachIndexed
                     sites += Site(variant, "slug", "key", "$path.variants[$index]")
+                    sites += Site(variant, "title", "name", "$path.variants[$index]")
                     documentSites(variant["templateModel"], "$path.variants[$index].templateModel", sites)
                 }
             }

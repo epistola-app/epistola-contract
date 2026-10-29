@@ -227,3 +227,32 @@ test('isProblemJson ignores parameters and case', () => {
   assert.ok(!isProblemJson('application/json'))
   assert.ok(!isProblemJson(undefined))
 })
+
+test('a catalog-version-behind problem lists the versions to acknowledge', () => {
+  const problem = parse({ type: 'https://epistola.app/errors/catalog-version-behind', title: 'Catalog Version Behind', status: 409, behind: ['1.5.0', '1.6.0'] }, 409)!
+  assert.equal(problem.isCatalogVersionBehindProblem, true)
+  assert.deepEqual(problem.behind, ['1.5.0', '1.6.0'])
+})
+
+test('a release-in-use problem names what uses the release', () => {
+  const problem = parse({
+    type: 'https://epistola.app/errors/release-in-use',
+    title: 'Release In Use',
+    status: 409,
+    environments: ['production'],
+    pinnedBy: [
+      { registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'invoices', version: '2.1.0', releaseId: 'q8w2e4rt' },
+      { registry: 7 },
+    ],
+  }, 409)!
+  assert.equal(problem.isReleaseInUseProblem, true)
+  assert.deepEqual(problem.environments, ['production'])
+  assert.deepEqual(problem.pinnedBy.map((r) => `${r.catalogKey}@${r.version}#${r.releaseId}`), ['invoices@2.1.0#q8w2e4rt'])
+})
+
+test('an ambiguous-variant problem lists the tied variants', () => {
+  const problem = parse({ type: 'https://epistola.app/errors/ambiguous-variant', title: 'Ambiguous Variant', status: 409, tiedVariants: ['english', 'english-legal'] }, 409)!
+  assert.equal(problem.isAmbiguousVariantProblem, true)
+  assert.equal(problem.isReleaseInUseProblem, false)
+  assert.deepEqual(problem.tiedVariants, ['english', 'english-legal'])
+})

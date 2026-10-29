@@ -276,6 +276,7 @@ def _collect(base_url: str, config: dict) -> None:
             "partitionTotal": assignment.total if assignment is not None else -1,
             "releases": ",".join(
                 f"{_show(r.registry)}/{_show(r.namespace)}/{_show(r.catalog_key)}@{_show(r.version)}"
+                f"#{_show(r.release_id)}:{_show(r.release_name)}"
                 for r in handled
             ),
         },
@@ -316,16 +317,27 @@ def _generate_document(base_url: str, config: dict) -> None:
             )
             for attribute in config["attributes"]
         ]
-    response = GenerationApi(_client(base_url, config)).generate_document_with_http_info(
-        config["tenantKey"],
-        GenerateDocumentRequest(
-            namespace=config["namespace"],
-            catalogKey=config["catalogKey"],
-            templateKey=config["templateKey"],
-            data=config["data"],
-            **optional,
-        ),
-    )
+    try:
+        response = GenerationApi(_client(base_url, config)).generate_document_with_http_info(
+            config["tenantKey"],
+            GenerateDocumentRequest(
+                namespace=config["namespace"],
+                catalogKey=config["catalogKey"],
+                templateKey=config["templateKey"],
+                data=config["data"],
+                **optional,
+            ),
+        )
+    except ProblemDetailException as exc:
+        _report(
+            base_url,
+            {
+                "problemTypeSlug": exc.type_slug or "<null>",
+                "problemStatus": exc.status_code,
+                "problemTiedVariants": ",".join(exc.tied_variants),
+            },
+        )
+        return
     job = response.data
     _report(
         base_url,
@@ -394,7 +406,7 @@ def _list_images(base_url: str, config: dict) -> None:
             config["namespace"],
             config["catalogKey"],
             config["release"],
-            search=config["search"],
+            q=config["q"],
         )
         .items
     )
@@ -489,8 +501,8 @@ def _install_catalog_release(base_url: str, config: dict) -> None:
             "version": _show(installed.version),
             "newlyInstalled": _show_bool(installed.newly_installed),
             "total": _show(installed.total),
-            "installedDependencies": ",".join(installed.installed_dependencies or []),
-            "presentDependencies": ",".join(installed.present_dependencies or []),
+            "installedDependencies": ",".join(_installed_release(release) for release in installed.installed_dependencies or []),
+            "presentDependencies": ",".join(_installed_release(release) for release in installed.present_dependencies or []),
         },
     )
 
@@ -778,7 +790,21 @@ def _preview_catalog_draft_release(base_url: str, config: dict) -> None:
 
 
 def _delete_catalog_release(base_url: str, config: dict) -> None:
-    CatalogsApi(_client(base_url, config)).delete_catalog_release(*_release_address(config))
+    """Deletes a release. A refusal is reported by its problem, with what still uses the release."""
+    try:
+        CatalogsApi(_client(base_url, config)).delete_catalog_release(*_release_address(config))
+    except ProblemDetailException as exc:
+        _report(
+            base_url,
+            {
+                "problemTypeSlug": exc.type_slug or "<null>",
+                "problemStatus": exc.status_code,
+                "problemEnvironments": ",".join(exc.environments),
+                "problemPinnedBy": ",".join(
+                    f"{r.registry}/{r.namespace}/{r.catalog_key}@{r.version}#{r.release_id}" for r in exc.pinned_by
+                ),
+            },
+        )
 
 
 def _release_catalog_draft(base_url: str, config: dict) -> None:
@@ -804,6 +830,7 @@ def _release_catalog_draft(base_url: str, config: dict) -> None:
                     f"{d.registry}/{d.namespace}/{d.catalog_key}#{d.release_id}={d.release_name}"
                     for d in exc.unreleased_dependencies
                 ),
+                "problemBehind": ",".join(exc.behind),
             },
         )
         return
@@ -1335,6 +1362,11 @@ def _list_deployment_history(base_url: str, config: dict) -> None:
             "total": _show(response.page.total),
         },
     )
+
+
+def _installed_release(release) -> str:
+    """An installed release as ``registry/namespace/catalogKey@version#releaseId``."""
+    return f"{release.registry}/{release.namespace}/{release.catalog_key}@{release.version}#{release.release_id}"
 
 
 def _create_environment(base_url: str, config: dict) -> None:

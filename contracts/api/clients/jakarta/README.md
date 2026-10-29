@@ -209,6 +209,15 @@ try {
     } else if (KnownProblemSlugs.MERGE_BASE_MISSING.equals(slug)) {
         // the merge base is not installed here: install that release first, then merge again
         log.warn("install {} ({}) first", e.getMissingBaseVersion(), e.getMissingBaseFingerprint());
+    } else if (KnownProblemSlugs.CATALOG_VERSION_BEHIND.equals(slug)) {
+        // releaseCatalogDraft: name these in acknowledgedBehind to release anyway
+        log.warn("the draft is behind {}", e.getBehind());
+    } else if (KnownProblemSlugs.RELEASE_IN_USE.equals(slug)) {
+        // deleteCatalogRelease: undeploy it, and release the catalogs that pin it without it
+        log.warn("deployed to {}; pinned by {}", e.getEnvironments(), e.getPinnedBy());
+    } else if (KnownProblemSlugs.AMBIGUOUS_VARIANT.equals(slug)) {
+        // generateDocument / previewDocument: name one by variantKey
+        log.warn("several variants match: {}", e.getTiedVariants());
     } else if (KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW.equals(slug)) {
         // importCatalog / installCatalogRelease: the release renders with rendering defaults this
         // installation does not have (renderingDefaultsVersion, supportedVersion in the body)
@@ -222,8 +231,8 @@ try {
         // from installCatalogRelease / listAvailableCatalogReleases: 503 when the catalog's source
         // could not be reached (Retry-After may say when to retry), 502 when it answered badly
         log.warn("catalog source unavailable ({}): {}", e.getProblemStatus(), e.getDetail());
-    } else {                                // always keep a fallback: the API can add problem
-        log.error("{} {}", e.getProblemStatus(), e.getTitle());   // types without a client release
+    } else {                                // always keep a fallback: the API can add problem types
+        log.error("{} {}", e.getProblemStatus(), e.getTitle());   // without a client release; handle them by status
     }
 }
 ```

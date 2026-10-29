@@ -17,7 +17,7 @@ CodeListDto:
     - registry
     - namespace
     - catalogKey
-    - displayName
+    - name
     - sourceType
     - authType
     - readOnly
@@ -45,7 +45,7 @@ CodeListDto:
       $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog this resource lives in, unique within its registry and namespace
       example: system
-    displayName:
+    name:
       type: string
       example: BCP-47 Language Tags
     description:
@@ -109,7 +109,7 @@ CodeListDto:
     registry: exchange.epistola.app
     namespace: epistola
     catalogKey: system
-    displayName: BCP-47 Language Tags
+    name: BCP-47 Language Tags
     description: Curated subset of common BCP-47 language + region tags.
     sourceType: inline
     sourceUrl: null
@@ -200,13 +200,13 @@ CreateCodeListRequest:
     Writing to a catalog that cannot be changed (e.g. `system`) returns 409 `catalog-read-only`.
   required:
     - key
-    - displayName
+    - name
     - sourceType
   properties:
     key:
       $ref: './identifiers.yaml#/ResourceKey'
       example: priorities
-    displayName:
+    name:
       type: string
       example: Priorities
     description:
@@ -259,7 +259,7 @@ UpdateCodeListRequest:
     atomically. Updates to a code list of a catalog that cannot be changed return 409
     `catalog-read-only`.
   properties:
-    displayName:
+    name:
       type: string
     description:
       type:

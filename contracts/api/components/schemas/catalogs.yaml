@@ -266,19 +266,49 @@ InstallCatalogReleaseResponse:
       type: array
       description: |
         The releases the release pins, directly or through other pins, that were fetched and
-        installed, as `catalogKey vVERSION`, in the order it installed them. Empty when it installed
-        none.
+        installed, in the order it installed them. Empty when it installed none.
       items:
-        type: string
-      example: ["shared v1.1.0"]
+        $ref: '#/CatalogReleaseRefDto'
     presentDependencies:
       type: array
       description: |
         The releases the release pins, directly or through other pins, that this tenant had already,
-        with the same fingerprint, as `catalogKey vVERSION`. Empty when there are none.
+        with the same fingerprint. Empty when there are none.
       items:
-        type: string
-      example: []
+        $ref: '#/CatalogReleaseRefDto'
+
+CatalogReleaseRefDto:
+  type: object
+  description: |
+    A release of a catalog, named in full, because a catalog's key alone is not unique: one an
+    install or import installed or found present, or one that pins another release.
+  required:
+    - registry
+    - namespace
+    - catalogKey
+    - version
+    - releaseId
+  properties:
+    registry:
+      $ref: './identifiers.yaml#/Registry'
+      description: |
+        Registry of the catalog: the exchange or domain its namespace lives in. Always written in
+        full, the default registry by its name, never `~`.
+      example: exchange.epistola.app
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the catalog, within its registry
+      example: epistola
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the catalog, unique within its registry and namespace
+      example: shared
+    version:
+      $ref: './identifiers.yaml#/ReleaseVersion'
+      description: The version of the release
+    releaseId:
+      $ref: './identifiers.yaml#/CatalogReleaseId'
+      description: The release's id, which addresses it as its version does
 
 ReleaseDependencyDto:
   type: object

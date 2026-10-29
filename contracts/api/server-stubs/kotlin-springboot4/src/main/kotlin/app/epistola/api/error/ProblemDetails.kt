@@ -5,6 +5,7 @@
 package app.epistola.api.error
 
 import app.epistola.api.model.CatalogReadOnlyReason
+import app.epistola.api.model.CatalogReleaseRefDto
 import app.epistola.api.model.DataModelValidationError
 import app.epistola.api.model.MissingReleaseDependency
 import app.epistola.api.model.UnreleasedCatalogDependency
@@ -108,6 +109,21 @@ object ProblemDetails {
     /** Extension member naming the newest rendering defaults version this installation has. */
     const val SUPPORTED_VERSION_PROPERTY: String = ProblemExtensionMembers.SUPPORTED_VERSION
 
+    /**
+     * Extension member listing the versions of the releases a draft is behind that a release did not
+     * acknowledge. Generated from the `CatalogVersionBehindProblemDetail` schema.
+     */
+    const val BEHIND_PROPERTY: String = ProblemExtensionMembers.BEHIND
+
+    /** Extension member listing the environments that deploy a release (`ReleaseInUseProblemDetail`). */
+    const val ENVIRONMENTS_PROPERTY: String = ProblemExtensionMembers.ENVIRONMENTS
+
+    /** Extension member listing the releases of other catalogs that pin a release (`ReleaseInUseProblemDetail`). */
+    const val PINNED_BY_PROPERTY: String = ProblemExtensionMembers.PINNED_BY
+
+    /** Extension member listing the variants that match equally well (`AmbiguousVariantProblemDetail`). */
+    const val TIED_VARIANTS_PROPERTY: String = ProblemExtensionMembers.TIED_VARIANTS
+
     // The mapping is shared with the clients, which use it in the other direction.
     private val uris = ProblemTypeUris.of(TYPE_BASE)
 
@@ -147,6 +163,15 @@ object ProblemDetails {
          */
         const val CATALOG_RENDERING_DEFAULTS_TOO_NEW: String = KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW
 
+        /** 400 — a catalog archive's wire version is newer than this installation reads. */
+        const val CATALOG_SCHEMA_TOO_NEW: String = KnownProblemSlugs.CATALOG_SCHEMA_TOO_NEW
+
+        /** 400 — a catalog archive's wire version is older than the oldest this installation migrates. */
+        const val CATALOG_SCHEMA_TOO_OLD: String = KnownProblemSlugs.CATALOG_SCHEMA_TOO_OLD
+
+        /** 400 — the payload is not a catalog archive this installation recognizes. */
+        const val CATALOG_SCHEMA_UNKNOWN: String = KnownProblemSlugs.CATALOG_SCHEMA_UNKNOWN
+
         /** 401 — missing or invalid credentials. */
         const val UNAUTHORIZED: String = KnownProblemSlugs.UNAUTHORIZED
 
@@ -159,6 +184,9 @@ object ProblemDetails {
         /** 404 — the addressed resource does not exist. */
         const val NOT_FOUND: String = KnownProblemSlugs.NOT_FOUND
 
+        /** 404 — the template exists, but none of its variants matches the attributes required. */
+        const val NO_MATCHING_VARIANT: String = KnownProblemSlugs.NO_MATCHING_VARIANT
+
         /**
          * 404 — the release registry the request names (alpha) is not one this installation has
          * configured or is connected to.
@@ -167,6 +195,21 @@ object ProblemDetails {
 
         /** 409 — the request conflicts with the current state of the resource. */
         const val CONFLICT: String = KnownProblemSlugs.CONFLICT
+
+        /** 409 — the draft is behind releases the request did not acknowledge (use [catalogVersionBehind]). */
+        const val CATALOG_VERSION_BEHIND: String = KnownProblemSlugs.CATALOG_VERSION_BEHIND
+
+        /** 409 — the release is deployed or pinned, so it cannot be deleted (use [releaseInUse]). */
+        const val RELEASE_IN_USE: String = KnownProblemSlugs.RELEASE_IN_USE
+
+        /** 409 — another draft of the catalog has this name. */
+        const val CATALOG_DRAFT_NAME_IN_USE: String = KnownProblemSlugs.CATALOG_DRAFT_NAME_IN_USE
+
+        /** 409 — several variants match equally well (use [ambiguousVariant]). */
+        const val AMBIGUOUS_VARIANT: String = KnownProblemSlugs.AMBIGUOUS_VARIANT
+
+        /** 409 — the generation job has finished, so it cannot be cancelled. */
+        const val GENERATION_JOB_NOT_CANCELLABLE: String = KnownProblemSlugs.GENERATION_JOB_NOT_CANCELLABLE
 
         /**
          * 409 — publishing a release (alpha) was refused: the release registry holds this version
@@ -243,6 +286,9 @@ object ProblemDetails {
 
         /** 429 — too many requests; the client is being rate limited. */
         const val RATE_LIMITED: String = KnownProblemSlugs.RATE_LIMITED
+
+        /** 501 — the operation is part of the contract, but this server does not implement it yet. */
+        const val OPERATION_NOT_IMPLEMENTED: String = KnownProblemSlugs.OPERATION_NOT_IMPLEMENTED
 
         /**
          * 503 or 502 — a catalog's source could not be used, so its releases could not
@@ -330,6 +376,53 @@ object ProblemDetails {
     ): ProblemDetail {
         val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED), detail, instance)
         problem.setProperty(UNRELEASED_DEPENDENCIES_PROPERTY, unreleasedDependencies)
+        return problem
+    }
+
+    /**
+     * Builds a `catalog-version-behind` [ProblemDetail] (409): like [of] plus the [behind] extension
+     * member, the versions of the releases the draft is behind that the request did not acknowledge
+     * (the `CatalogVersionBehindProblemDetail` shape from the contract).
+     */
+    fun catalogVersionBehind(
+        behind: List<String>,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.CATALOG_VERSION_BEHIND), detail, instance)
+        problem.setProperty(BEHIND_PROPERTY, behind)
+        return problem
+    }
+
+    /**
+     * Builds a `release-in-use` [ProblemDetail] (409): like [of] plus the [environments] that deploy
+     * the release and the releases of other catalogs it is [pinnedBy] (the `ReleaseInUseProblemDetail`
+     * shape from the contract).
+     */
+    fun releaseInUse(
+        environments: List<String>,
+        pinnedBy: List<CatalogReleaseRefDto>,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.RELEASE_IN_USE), detail, instance)
+        problem.setProperty(ENVIRONMENTS_PROPERTY, environments)
+        problem.setProperty(PINNED_BY_PROPERTY, pinnedBy)
+        return problem
+    }
+
+    /**
+     * Builds an `ambiguous-variant` [ProblemDetail] (409): like [of] plus the [tiedVariants]
+     * extension member, the keys of the variants that match equally well (the
+     * `AmbiguousVariantProblemDetail` shape from the contract).
+     */
+    fun ambiguousVariant(
+        tiedVariants: List<String>,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.AMBIGUOUS_VARIANT), detail, instance)
+        problem.setProperty(TIED_VARIANTS_PROPERTY, tiedVariants)
         return problem
     }
 

@@ -85,6 +85,7 @@ class ResultCollectorTest {
         assertEquals(101, results[1].sequence)
         assertEquals("r2", results[1].requestId)
         assertEquals("failed", results[1].status)
+        assertNull(results[1].documentId, "an explicit JSON null is missing, not the string \"null\"")
     }
 
     @Test
@@ -99,6 +100,8 @@ class ResultCollectorTest {
                 "namespace" to "team-a",
                 "catalogKey" to "letters",
                 "version" to "1.4.0",
+                "releaseId" to "k7m2x9qa",
+                "releaseName" to null,
             ),
         )
         val fromDraft = objectMapper.writeValueAsString(
@@ -110,6 +113,8 @@ class ResultCollectorTest {
                 "namespace" to "team-a",
                 "catalogKey" to "letters",
                 "version" to null,
+                "releaseId" to "h3v9p6db",
+                "releaseName" to "Redesign 2027",
             ),
         )
         val restClient = mockRestClient(ndjsonResponse(current, fromDraft, metaLine(hasMore = false, count = 2, lastSequence = 101)))
@@ -120,10 +125,14 @@ class ResultCollectorTest {
         assertEquals("team-a", results[0].namespace)
         assertEquals("letters", results[0].catalogKey)
         assertEquals("1.4.0", results[0].version)
+        assertEquals("k7m2x9qa", results[0].releaseId)
+        assertNull(results[0].releaseName)
         assertEquals("exchange.example.org", results[1].registry)
         assertEquals("team-a", results[1].namespace)
         assertEquals("letters", results[1].catalogKey)
         assertNull(results[1].version)
+        assertEquals("h3v9p6db", results[1].releaseId)
+        assertEquals("Redesign 2027", results[1].releaseName)
     }
 
     @Test

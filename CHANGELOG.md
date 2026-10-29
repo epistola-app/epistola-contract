@@ -329,7 +329,7 @@ libraries.
   or `released`) and `releaseName` (the release's name, null only for an installed release, which
   has none), with a nullable `version` (null for a draft); the history's `action` is `deployed`,
   `undeployed` or `released`. Documents, generation items and collected results rendered from a
-  draft carry `draftLabel` (its name at render time) with a null `version`. Every client's problem-type helpers know the new slug.
+  draft carry `releaseName` (its name at render time) with a null `version`. Every client's problem-type helpers know the new slug.
   Conformance scenarios `deploy-catalog-draft`, `deploy-catalog-draft-refused`,
   `list-environment-deployments-with-draft`, `undeploy-catalog-draft` and
   `update-environment-production-refused`.
@@ -469,6 +469,61 @@ libraries.
 
 ### Changed
 
+- **Every problem a caller can act on has its own type, and a server answers only with registered
+  types.** (BREAKING) The registry gains `catalog-version-behind` (409, with `behind`, the versions
+  to name in `acknowledgedBehind`; it was `conflict`), `release-in-use` (409, with `environments`
+  and `pinnedBy`, from `deleteCatalogRelease`), `catalog-draft-name-in-use` (409, from
+  `createCatalogRelease` and `updateCatalogRelease`), `ambiguous-variant` (409, with
+  `tiedVariants`) and `no-matching-variant` (404), both from `generateDocument`,
+  `generateDocumentBatch` and `previewDocument`, which now declare the 409,
+  `generation-job-not-cancellable` (409, from `cancelGenerationJob`), `catalog-schema-too-new`,
+  `catalog-schema-too-old` and `catalog-schema-unknown` (400, from `importCatalog` and
+  `installCatalogRelease`), and `operation-not-implemented` (501, from any operation a server does
+  not implement yet). The contract now says that a server answers only with registered types:
+  anything without a type of its own is the generic type of its status, so a missing resource is
+  `not-found` whichever it is, and a refused authorization `forbidden`. A client handles a type it
+  does not know by its status, so a type added in a minor version breaks nothing. The server stubs
+  build each new problem with members (`catalogVersionBehind`, `releaseInUse`,
+  `ambiguousVariant`), and all five clients surface the members (`behind`, `environments`,
+  `pinnedBy`, `tiedVariants`) with an `is…Problem` flag each. Epistola Suite may not implement them
+  yet: it sends many types of its own. Conformance scenarios `release-catalog-draft-version-behind`,
+  `delete-catalog-release-in-use` and `generate-document-ambiguous-variant` hold all five clients to
+  the members.
+- **One name for a resource's human-readable name, and one for a reference to another object.**
+  (BREAKING) A resource's own human-readable name is `name` everywhere; a member naming another
+  object carries that object's type (`releaseName`, `releaseId`, `requestId`).
+  - `AttributeDto`, `CodeListDto` and their create and update requests: `displayName` is `name`,
+    as catalog wire v8 already called it.
+  - `VariantDto`, `VariantSummaryDto`, `CreateVariantRequest` and `UpdateVariantRequest`: `title`
+    is `name`. Catalog wire v8 renames it too (`VariantEntry.name`, still unreleased, changed in
+    place): the v7-to-v8 migration renames `title`, and a v8 document that still has it is not wire
+    v8. V1 to V5 fingerprints keep covering it as `title`, so their values do not move; the V6 value
+    of a catalog whose variants have names does. `UpdateVariantRequest` is a partial update like
+    every other: `name` is no longer required, and an omitted member keeps its value.
+  - `GenerationResult`, `DocumentGenerationItemDto` and `DocumentDto`: `draftLabel` is
+    `releaseName`, as deployments and their history call it, and names a released release too, which
+    keeps the name it had as a draft.
+  - `DocumentGenerationJobDto.id` is `requestId`, as `GenerationJobResponse` calls it;
+    `DocumentDto.id` is `documentId`; `DocumentGenerationItemDto.id` is `itemId`, beside its
+    `documentId`.
+  - `listImages` filters by `q`, as every other list does, not `search`.
+
+  Epistola Suite may not implement them yet.
+- **Install and import name each dependency release in full.** (BREAKING)
+  `InstallCatalogReleaseResponse` and `ImportCatalogResponse` list `installedDependencies` and
+  `presentDependencies` as `CatalogReleaseRefDto` objects (`registry`, `namespace`,
+  `catalogKey`, `version`, `releaseId`), not as `catalogKey vVERSION` strings. A catalog's key
+  alone is not unique, so two `shared` catalogs in different namespaces could not be told apart,
+  and a client had to parse a label to read a version. Epistola Suite may not implement it yet.
+  Conformance scenario `install-catalog-release` requires every member.
+- **A template's `dataModel` is always present.** (BREAKING) `TemplateDto.dataModel` is required:
+  a template without constraints has the empty schema `{}`, so a consumer needs no null check. On
+  `CreateTemplateRequest` and `UpdateTemplateRequest` it is omitted, not null, to leave it to the
+  server. Each client's worked in-process validator treats `{}` as claiming nothing. Epistola Suite
+  may not implement it yet.
+- **`validationErrors` is keyed by each data example's `key`.** (BREAKING) The
+  `data-model-validation-error` problem mapped each example's display `name` to its failures; a
+  name need not be unique, so failures could merge. Epistola Suite may not implement it yet.
 - **Breaking: a theme owns the default block spacing** (#59). The component registry no longer
   gives `text`, `richTextVariable`, `container`, `columns`, `table`, `datatable`, `qrcode` and
   `image` a `marginBottom: 1.5sp` default, which a theme's `spacingUnit` magnified (24pt at 16pt).
@@ -1220,6 +1275,12 @@ libraries.
 
 ### Fixed
 
+- **The Kotlin, Python and .NET result collectors surface `releaseId` and `releaseName`.** All three
+  parse result lines by hand and dropped the two members, so a consumer could not tell which draft
+  rendered a document; the Jakarta and Node collectors hand over the generated model and had them.
+  Conformance scenario `collect-result-release` now requires both from every client. The Kotlin
+  collector also read an optional member sent as JSON `null` (`batchId`, `documentId`,
+  `correlationId`, …) as the string `"null"`; it is now null.
 - **A v7 stencil keeps the scope v7 rendered it with** (wire v8 migration). V8 isolates a stencil
   unless it declares `readsTemplateData`, and shows a fill the stencil's parameters only through a
   placeholder that declares `passParameters` (ADR 0006); the v7-to-v8 migration set neither, so a

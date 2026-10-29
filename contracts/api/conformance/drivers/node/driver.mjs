@@ -220,7 +220,9 @@ async function collect(baseUrl, config) {
     correlationIds: handled.map((r) => r.correlationId ?? '').join(','),
     handledSequences: handled.map((r) => String(r.sequence)).join(','),
     partitionTotal: assignment ? assignment.total : -1,
-    releases: handled.map((r) => `${show(r.registry)}/${show(r.namespace)}/${show(r.catalogKey)}@${show(r.version)}`).join(','),
+    releases: handled
+      .map((r) => `${show(r.registry)}/${show(r.namespace)}/${show(r.catalogKey)}@${show(r.version)}#${show(r.releaseId)}:${show(r.releaseName)}`)
+      .join(','),
   })
 }
 
@@ -247,10 +249,21 @@ async function generateDocument(baseUrl, config) {
   if (config.environmentKey !== undefined) request.environmentKey = config.environmentKey
   // Attribute criteria pass through as the scenario writes them: each member it leaves out stays out.
   if (config.attributes !== undefined) request.attributes = config.attributes
-  const response = await new GenerationApi(client(baseUrl, config)).generateDocumentRaw({
-    tenantKey: config.tenantKey,
-    generateDocumentRequest: request,
-  })
+  let response
+  try {
+    response = await new GenerationApi(client(baseUrl, config)).generateDocumentRaw({
+      tenantKey: config.tenantKey,
+      generateDocumentRequest: request,
+    })
+  } catch (error) {
+    if (!(error instanceof ProblemDetailException)) throw error
+    await report(baseUrl, {
+      problemTypeSlug: error.typeSlug ?? '<null>',
+      problemStatus: error.statusCode,
+      problemTiedVariants: error.tiedVariants.join(','),
+    })
+    return
+  }
   const job = await response.value()
   await report(baseUrl, {
     requestId: show(job.requestId),
@@ -299,7 +312,7 @@ async function listImages(baseUrl, config) {
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     release: config.release,
-    search: config.search,
+    q: config.q,
   })
   await report(baseUrl, {
     imageKeys: items.map((image) => image.key).join(','),
@@ -389,9 +402,14 @@ async function installCatalogRelease(baseUrl, config) {
     version: show(installed.version),
     newlyInstalled: show(installed.newlyInstalled),
     total: show(installed.total),
-    installedDependencies: (installed.installedDependencies ?? []).map(show).join(','),
-    presentDependencies: (installed.presentDependencies ?? []).map(show).join(','),
+    installedDependencies: (installed.installedDependencies ?? []).map(installedRelease).join(','),
+    presentDependencies: (installed.presentDependencies ?? []).map(installedRelease).join(','),
   })
+}
+
+/** An installed release as `registry/namespace/catalogKey@version#releaseId`. */
+function installedRelease(release) {
+  return `${release.registry}/${release.namespace}/${release.catalogKey}@${release.version}#${release.releaseId}`
 }
 
 /**
@@ -657,14 +675,25 @@ async function previewCatalogDraftRelease(baseUrl, config) {
 }
 
 /** Discards a draft; the 204 has no body to parse. */
+/** Deletes a release. A refusal is reported by its problem, with what still uses the release. */
 async function deleteCatalogRelease(baseUrl, config) {
-  await new CatalogsApi(client(baseUrl, config)).deleteCatalogRelease({
-    tenantKey: config.tenantKey,
-    registry: config.registry,
-    namespace: config.namespace,
-    catalogKey: config.catalogKey,
-    release: config.release,
-  })
+  try {
+    await new CatalogsApi(client(baseUrl, config)).deleteCatalogRelease({
+      tenantKey: config.tenantKey,
+      registry: config.registry,
+      namespace: config.namespace,
+      catalogKey: config.catalogKey,
+      release: config.release,
+    })
+  } catch (error) {
+    if (!(error instanceof ProblemDetailException)) throw error
+    await report(baseUrl, {
+      problemTypeSlug: error.typeSlug ?? '<null>',
+      problemStatus: error.statusCode,
+      problemEnvironments: error.environments.join(','),
+      problemPinnedBy: error.pinnedBy.map(installedRelease).join(','),
+    })
+  }
 }
 
 /**
@@ -696,6 +725,7 @@ async function releaseCatalogDraft(baseUrl, config) {
       problemUnreleasedDependencies: error.unreleasedDependencies
         .map((d) => `${d.registry}/${d.namespace}/${d.catalogKey}#${d.releaseId}=${d.releaseName}`)
         .join('|'),
+      problemBehind: error.behind.join(','),
     })
     return
   }

@@ -5,6 +5,7 @@
 package app.epistola.api.error
 
 import app.epistola.api.model.CatalogReadOnlyReason
+import app.epistola.api.model.CatalogReleaseRefDto
 import app.epistola.api.model.DataModelValidationError
 import app.epistola.api.model.MissingReleaseDependency
 import app.epistola.api.model.MissingReleaseDependencyReason
@@ -104,6 +105,32 @@ class ProblemDetailsTest {
         assertEquals(URI.create("https://epistola.app/errors/catalog-read-only"), problem.type)
         assertEquals(409, problem.status)
         assertEquals("supplied-by-epistola", problem.properties?.get("readOnlyReason"))
+    }
+
+    @Test
+    fun `catalogVersionBehind lists the versions to acknowledge as a 409`() {
+        val problem = ProblemDetails.catalogVersionBehind(listOf("1.5.0", "1.6.0"))
+        assertEquals(URI.create("https://epistola.app/errors/catalog-version-behind"), problem.type)
+        assertEquals(409, problem.status)
+        assertEquals(listOf("1.5.0", "1.6.0"), problem.properties?.get("behind"))
+    }
+
+    @Test
+    fun `releaseInUse names the environments that deploy it and the releases that pin it as a 409`() {
+        val pin = CatalogReleaseRefDto(registry = "exchange.epistola.app", namespace = "acme-corp", catalogKey = "invoices", version = "2.1.0", releaseId = "q8w2e4rt")
+        val problem = ProblemDetails.releaseInUse(listOf("production"), listOf(pin))
+        assertEquals(URI.create("https://epistola.app/errors/release-in-use"), problem.type)
+        assertEquals(409, problem.status)
+        assertEquals(listOf("production"), problem.properties?.get("environments"))
+        assertEquals(listOf(pin), problem.properties?.get("pinnedBy"))
+    }
+
+    @Test
+    fun `ambiguousVariant lists the tied variants as a 409`() {
+        val problem = ProblemDetails.ambiguousVariant(listOf("english", "english-legal"))
+        assertEquals(URI.create("https://epistola.app/errors/ambiguous-variant"), problem.type)
+        assertEquals(409, problem.status)
+        assertEquals(listOf("english", "english-legal"), problem.properties?.get("tiedVariants"))
     }
 
     @Test

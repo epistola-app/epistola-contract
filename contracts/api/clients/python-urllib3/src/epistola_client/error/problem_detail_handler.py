@@ -31,6 +31,7 @@ from epistola_client_generated import (
 from epistola_client._generated.known_problem_slugs import KnownProblemSlugs
 from epistola_client.error import problem_types
 from epistola_client.error.problem_detail_exception import (
+    CatalogReleaseRef,
     MissingDependency,
     ProblemDetailException,
     UnreleasedDependency,
@@ -111,6 +112,10 @@ def parse_problem(
         # `version` and `fingerprint` are generic names, so they are read for this problem only.
         missing_base_version=_string(tree, "version") if merge_base_missing else None,
         missing_base_fingerprint=_string(tree, "fingerprint") if merge_base_missing else None,
+        behind=_strings(tree, "behind"),
+        environments=_strings(tree, "environments"),
+        pinned_by=_release_refs(tree, "pinnedBy"),
+        tied_variants=_strings(tree, "tiedVariants"),
     )
 
 
@@ -149,6 +154,29 @@ def _missing_dependencies(tree: Dict[str, Any]) -> List[MissingDependency]:
             return []
         dependencies.append(MissingDependency(*values))
     return dependencies
+
+
+def _release_refs(tree: Dict[str, Any], member: str) -> List[CatalogReleaseRef]:
+    """A member listing releases named in full, or ``[]`` when absent or malformed.
+
+    As with :func:`_missing_dependencies`, an entry missing one of its members makes the member
+    yield nothing.
+    """
+    raw = tree.get(member)
+    if not isinstance(raw, list):
+        return []
+    releases: List[CatalogReleaseRef] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        values = [
+            entry.get(name)
+            for name in ("registry", "namespace", "catalogKey", "version", "releaseId")
+        ]
+        if not all(isinstance(value, str) for value in values):
+            return []
+        releases.append(CatalogReleaseRef(*values))
+    return releases
 
 
 def _unreleased_dependencies(tree: Dict[str, Any]) -> List[UnreleasedDependency]:
