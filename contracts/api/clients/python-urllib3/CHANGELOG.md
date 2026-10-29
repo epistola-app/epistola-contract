@@ -22,6 +22,11 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Added
 
+- `ProblemDetailException.behind` and `is_catalog_version_behind_problem` (a
+  `catalog-version-behind` problem's versions to acknowledge), `environments`, `pinned_by` (each a
+  `CatalogReleaseRef`) and `is_release_in_use_problem` (what a `release-in-use` problem says uses
+  the release), and `tied_variants` and `is_ambiguous_variant_problem` (an `ambiguous-variant`
+  problem's variants).
 - `ProblemDetailException.missing_base_version`, `missing_base_fingerprint` and
   `is_merge_base_missing_problem` surface the `version` and `fingerprint` members of a
   `merge-base-missing` problem (409, from `merge_into_catalog_draft`, alpha): the release to install

@@ -805,7 +805,7 @@ GenerationJobListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - id: "550e8400-e29b-41d4-a716-446655440000"
+      - requestId: "550e8400-e29b-41d4-a716-446655440000"
         jobType: single
         status: completed
         total: 1
@@ -957,7 +957,7 @@ DocumentListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - id: "770e8400-e29b-41d4-a716-446655440002"
+      - documentId: "770e8400-e29b-41d4-a716-446655440002"
         tenantKey: acme-corp
         registry: exchange.epistola.app
         namespace: acme-corp

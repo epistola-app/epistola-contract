@@ -31,7 +31,12 @@ export * from './generated/index.js'
 // Hand-written glue.
 export { JwtSigner, JwtSignerBuilder, type JwtAlgorithm } from './auth/jwtSigner.js'
 export { ClientIdentity, ClientIdentityBuilder } from './identity/clientIdentity.js'
-export { ProblemDetailException, type MissingDependency, type UnreleasedDependency } from './error/problemDetailException.js'
+export {
+  ProblemDetailException,
+  type CatalogReleaseRef,
+  type MissingDependency,
+  type UnreleasedDependency,
+} from './error/problemDetailException.js'
 export { isProblemJson, parseProblem } from './error/problemDetailParser.js'
 export { BLANK_TYPE, PROBLEM_JSON, TYPE_BASE, slugFor, typeFor } from './error/problemTypes.js'
 export { EpistolaClient, EpistolaClientBuilder, type EpistolaClientOptions } from './http/epistolaClient.js'

@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import app.epistola.client.jakarta.EpistolaRestClients;
 import app.epistola.client.jakarta.StubServer;
+import app.epistola.client.jakarta.error.CatalogReleaseRef;
 import app.epistola.client.jakarta.error.KnownProblemSlugs;
 import app.epistola.client.jakarta.error.MissingDependency;
 import app.epistola.client.jakarta.error.ProblemDetailException;
@@ -273,6 +274,51 @@ class ApiExceptionMapperTest {
         assertEquals(KnownProblemSlugs.CATALOG_READ_ONLY, e.getTypeSlug());
         assertTrue(e.isCatalogReadOnlyProblem());
         assertEquals("editing-disabled", e.getReadOnlyReason());
+    }
+
+    @Test
+    void a_catalog_version_behind_problem_lists_the_versions_to_acknowledge() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(409, PROBLEM_JSON,
+                        """
+                        {"type": "https://epistola.app/errors/catalog-version-behind", "title": "Catalog Version Behind",
+                         "status": 409, "behind": ["1.5.0", "1.6.0"]}
+                        """)));
+
+        assertTrue(e.isCatalogVersionBehindProblem());
+        assertEquals(List.of("1.5.0", "1.6.0"), e.getBehind());
+    }
+
+    @Test
+    void a_release_in_use_problem_names_what_uses_the_release() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(409, PROBLEM_JSON,
+                        """
+                        {"type": "https://epistola.app/errors/release-in-use", "title": "Release In Use", "status": 409,
+                         "environments": ["production"],
+                         "pinnedBy": [{"registry": "exchange.epistola.app", "namespace": "acme-corp",
+                                       "catalogKey": "invoices", "version": "2.1.0", "releaseId": "q8w2e4rt"}]}
+                        """)));
+
+        assertTrue(e.isReleaseInUseProblem());
+        assertEquals(List.of("production"), e.getEnvironments());
+        assertEquals(
+                List.of(new CatalogReleaseRef("exchange.epistola.app", "acme-corp", "invoices", "2.1.0", "q8w2e4rt")),
+                e.getPinnedBy());
+    }
+
+    @Test
+    void an_ambiguous_variant_problem_lists_the_tied_variants() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(409, PROBLEM_JSON,
+                        """
+                        {"type": "https://epistola.app/errors/ambiguous-variant", "title": "Ambiguous Variant",
+                         "status": 409, "tiedVariants": ["english", "english-legal"]}
+                        """)));
+
+        assertTrue(e.isAmbiguousVariantProblem());
+        assertFalse(e.isReleaseInUseProblem());
+        assertEquals(List.of("english", "english-legal"), e.getTiedVariants());
     }
 
     @Test

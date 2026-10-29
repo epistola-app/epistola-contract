@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: delete-catalog-release-in-use
+title: A release that cannot be deleted says what still uses it
+why: >
+  A release an environment deploys, or another catalog's release pins, cannot be deleted. The
+  refusal is `release-in-use`, and its members say what to do first: `environments` to undeploy it
+  from, and `pinnedBy`, each release of another catalog that renders with it, named in full,
+  because a catalog's key alone is not unique.
+
+  A client's problem parser must surface both members, every entry in order, and a client that
+  treats any answer to a DELETE as success hides the refusal entirely.
+
+action:
+  name: delete-catalog-release
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: 1.4.0
+
+script:
+  - status: 409
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/release-in-use
+      title: Release In Use
+      status: 409
+      detail: letters 1.4.0 is deployed and pinned
+      environments: [staging, production]
+      pinnedBy:
+        - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: invoices, version: 2.1.0, releaseId: q8w2e4rt }
+        - { registry: registry.gemeente-x.nl, namespace: huisstijl, catalogKey: brieven, version: 1.0.3, releaseId: m5n7b9vc }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: DELETE
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/1.4.0
+  report:
+    problemTypeSlug: release-in-use
+    problemStatus: 409
+    problemEnvironments: staging,production
+    problemPinnedBy: exchange.epistola.app/acme-corp/invoices@2.1.0#q8w2e4rt,registry.gemeente-x.nl/huisstijl/brieven@1.0.3#m5n7b9vc

@@ -323,6 +323,12 @@ try {
             println("preview the merge again")
         KnownProblemSlugs.MERGE_BASE_MISSING ->          // the merge base is not installed here
             println("install ${e.missingBaseVersion} (${e.missingBaseFingerprint}) first")
+        KnownProblemSlugs.CATALOG_VERSION_BEHIND ->      // releaseCatalogDraft: name these in acknowledgedBehind
+            println("the draft is behind ${e.behind}")
+        KnownProblemSlugs.RELEASE_IN_USE ->              // deleteCatalogRelease
+            println("undeploy from ${e.environments}; pinned by ${e.pinnedBy.map { "${it.catalogKey}@${it.version}" }}")
+        KnownProblemSlugs.AMBIGUOUS_VARIANT ->           // generateDocument, previewDocument: name one by variantKey
+            println("several variants match: ${e.tiedVariants}")
         KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW -> // importCatalog, installCatalogRelease
             println("upgrade Epistola: the release renders with defaults ${e.extensions["renderingDefaultsVersion"]}, this has up to ${e.extensions["supportedVersion"]}")
         KnownProblemSlugs.RELEASE_NUMBER_TAKEN ->        // publishReleaseToRegistry (alpha), importCatalog, install…Release
@@ -331,7 +337,7 @@ try {
             // 503: the source could not be reached (Retry-After may say when to try again);
             // 502: it answered badly. Nothing was installed.
             log.warn("catalog source unavailable (${e.problemStatus}): ${e.detail}")
-        else                                          -> throw e   // unknown / framework error
+        else                                          -> throw e   // a type this client does not know: handle it by e.problemStatus
     }
 }
 ```
@@ -349,7 +355,11 @@ lists, which must be released first or along with the draft, `releaseDependencie
 conflicts of a merge a `merge-conflicts-unresolved` problem lists, as `resourceType/resourceKey`),
 `isMergeConflictsUnresolvedProblem`, `missingBaseVersion` and `missingBaseFingerprint` (the
 release a `merge-base-missing` problem asks to install first, read from that problem only),
-`isMergeBaseMissingProblem`, `isValidationProblem`,
+`isMergeBaseMissingProblem`, `behind` and `isCatalogVersionBehindProblem` (the versions a
+`catalog-version-behind` problem asks to name in `acknowledgedBehind`), `environments`, `pinnedBy`
+and `isReleaseInUseProblem` (what a `release-in-use` problem says still uses the release),
+`tiedVariants` and `isAmbiguousVariantProblem` (the variants an `ambiguous-variant` problem says
+match equally well), `isValidationProblem`,
 `isDataModelValidationProblem`, `isReleaseDependenciesMissingProblem`,
 `isReleaseDependenciesUnreleasedProblem`, `isCatalogReadOnlyProblem`, and `extensions`. See [error-types.md](../../docs/error-types.md) for the full list of problem `type`
 slugs.

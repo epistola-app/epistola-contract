@@ -130,6 +130,15 @@ except ProblemDetailException as e:
         case KnownProblemSlugs.MERGE_BASE_MISSING:
             # the merge base is not installed here: install that release first
             log.warning("install %s (%s) first", e.missing_base_version, e.missing_base_fingerprint)
+        case KnownProblemSlugs.CATALOG_VERSION_BEHIND:
+            # release_catalog_draft: name these in acknowledged_behind to release anyway
+            log.warning("the draft is behind %s", ", ".join(e.behind))
+        case KnownProblemSlugs.RELEASE_IN_USE:
+            # delete_catalog_release: undeploy it, and release the catalogs that pin it without it
+            log.warning("deployed to %s; pinned by %s", e.environments, [f"{r.catalog_key}@{r.version}" for r in e.pinned_by])
+        case KnownProblemSlugs.AMBIGUOUS_VARIANT:
+            # generate_document, preview_document: name one by variant_key
+            log.warning("several variants match: %s", ", ".join(e.tied_variants))
         case KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW:
             # import_catalog / install_catalog_release: the release renders with rendering
             # defaults this installation does not have (renderingDefaultsVersion, supportedVersion)
@@ -144,15 +153,21 @@ except ProblemDetailException as e:
             # source could not be reached (Retry-After may say when), 502 when it answered badly
             log.warning("catalog source unavailable (%s): %s", e.problem_status, e.detail)
         case _:
-            raise                              # unknown / framework error — fall back to status
+            raise                              # a type this client does not know: handle it by e.problem_status
 ```
 
 `ProblemDetailException` extends the generated `ApiException`, so existing
 `except ApiException` sites keep working. It exposes `type`, `type_slug`, `title`,
 `problem_status`, `detail`, `errors`, `validation_errors`, `missing_fields`, `invalid_fields`,
-`missing_dependencies`, `unreleased_dependencies`, `is_validation_problem`,
-`is_data_model_validation_problem`, `is_template_data_problem`,
-`is_release_dependencies_missing_problem` and `is_release_dependencies_unreleased_problem`. Each
+`missing_dependencies`, `unreleased_dependencies`, `read_only_reason`, `unresolved_conflicts`,
+`missing_base_version`, `missing_base_fingerprint`, `behind`, `environments`, `pinned_by`,
+`tied_variants`, `is_validation_problem`, `is_data_model_validation_problem`,
+`is_template_data_problem`, `is_release_dependencies_missing_problem`,
+`is_release_dependencies_unreleased_problem`, `is_catalog_read_only_problem`,
+`is_merge_conflicts_unresolved_problem`, `is_merge_base_missing_problem`,
+`is_catalog_version_behind_problem`, `is_release_in_use_problem` and
+`is_ambiguous_variant_problem`. Each `pinned_by` entry is a
+`CatalogReleaseRef(registry, namespace, catalog_key, version, release_id)`. Each
 `missing_dependencies` entry is a `MissingDependency` whose `reason` is the wire string, so a
 reason a later contract adds is reported rather than lost. Each `unreleased_dependencies` entry is
 an `UnreleasedDependency(registry, namespace, catalog_key, release_id, release_name)`: a draft of

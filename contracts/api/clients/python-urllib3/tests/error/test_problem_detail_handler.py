@@ -6,7 +6,7 @@
 
 import json
 
-from epistola_client import KnownProblemSlugs, MissingDependency, UnreleasedDependency
+from epistola_client import CatalogReleaseRef, KnownProblemSlugs, MissingDependency, UnreleasedDependency
 from epistola_client.error.problem_detail_handler import parse_problem
 
 
@@ -372,6 +372,40 @@ def test_parses_why_a_catalog_read_only_problem_refused_the_write():
     assert exc.type_slug == KnownProblemSlugs.CATALOG_READ_ONLY
     assert exc.is_catalog_read_only_problem
     assert exc.read_only_reason == "supplied-by-epistola"
+
+
+def test_a_catalog_version_behind_problem_lists_the_versions_to_acknowledge():
+    body = json.dumps({"type": "https://epistola.app/errors/catalog-version-behind", "title": "Catalog Version Behind", "status": 409, "behind": ["1.5.0", "1.6.0"]})
+    exc = parse_problem(body, 409)
+    assert exc is not None
+    assert exc.is_catalog_version_behind_problem
+    assert exc.behind == ["1.5.0", "1.6.0"]
+
+
+def test_a_release_in_use_problem_names_what_uses_the_release():
+    body = json.dumps(
+        {
+            "type": "https://epistola.app/errors/release-in-use",
+            "title": "Release In Use",
+            "status": 409,
+            "environments": ["production"],
+            "pinnedBy": [{"registry": "exchange.epistola.app", "namespace": "acme-corp", "catalogKey": "invoices", "version": "2.1.0", "releaseId": "q8w2e4rt"}],
+        }
+    )
+    exc = parse_problem(body, 409)
+    assert exc is not None
+    assert exc.is_release_in_use_problem
+    assert exc.environments == ["production"]
+    assert exc.pinned_by == [CatalogReleaseRef("exchange.epistola.app", "acme-corp", "invoices", "2.1.0", "q8w2e4rt")]
+
+
+def test_an_ambiguous_variant_problem_lists_the_tied_variants():
+    body = json.dumps({"type": "https://epistola.app/errors/ambiguous-variant", "title": "Ambiguous Variant", "status": 409, "tiedVariants": ["english", "english-legal"]})
+    exc = parse_problem(body, 409)
+    assert exc is not None
+    assert exc.is_ambiguous_variant_problem
+    assert not exc.is_release_in_use_problem
+    assert exc.tied_variants == ["english", "english-legal"]
 
 
 def test_a_read_only_reason_that_is_not_a_string_reads_as_none():

@@ -317,16 +317,27 @@ def _generate_document(base_url: str, config: dict) -> None:
             )
             for attribute in config["attributes"]
         ]
-    response = GenerationApi(_client(base_url, config)).generate_document_with_http_info(
-        config["tenantKey"],
-        GenerateDocumentRequest(
-            namespace=config["namespace"],
-            catalogKey=config["catalogKey"],
-            templateKey=config["templateKey"],
-            data=config["data"],
-            **optional,
-        ),
-    )
+    try:
+        response = GenerationApi(_client(base_url, config)).generate_document_with_http_info(
+            config["tenantKey"],
+            GenerateDocumentRequest(
+                namespace=config["namespace"],
+                catalogKey=config["catalogKey"],
+                templateKey=config["templateKey"],
+                data=config["data"],
+                **optional,
+            ),
+        )
+    except ProblemDetailException as exc:
+        _report(
+            base_url,
+            {
+                "problemTypeSlug": exc.type_slug or "<null>",
+                "problemStatus": exc.status_code,
+                "problemTiedVariants": ",".join(exc.tied_variants),
+            },
+        )
+        return
     job = response.data
     _report(
         base_url,
@@ -779,7 +790,21 @@ def _preview_catalog_draft_release(base_url: str, config: dict) -> None:
 
 
 def _delete_catalog_release(base_url: str, config: dict) -> None:
-    CatalogsApi(_client(base_url, config)).delete_catalog_release(*_release_address(config))
+    """Deletes a release. A refusal is reported by its problem, with what still uses the release."""
+    try:
+        CatalogsApi(_client(base_url, config)).delete_catalog_release(*_release_address(config))
+    except ProblemDetailException as exc:
+        _report(
+            base_url,
+            {
+                "problemTypeSlug": exc.type_slug or "<null>",
+                "problemStatus": exc.status_code,
+                "problemEnvironments": ",".join(exc.environments),
+                "problemPinnedBy": ",".join(
+                    f"{r.registry}/{r.namespace}/{r.catalog_key}@{r.version}#{r.release_id}" for r in exc.pinned_by
+                ),
+            },
+        )
 
 
 def _release_catalog_draft(base_url: str, config: dict) -> None:
@@ -805,6 +830,7 @@ def _release_catalog_draft(base_url: str, config: dict) -> None:
                     f"{d.registry}/{d.namespace}/{d.catalog_key}#{d.release_id}={d.release_name}"
                     for d in exc.unreleased_dependencies
                 ),
+                "problemBehind": ",".join(exc.behind),
             },
         )
         return

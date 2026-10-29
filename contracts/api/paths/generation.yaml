@@ -43,7 +43,9 @@ preview-document:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+        $ref: '../components/responses/problem-responses.yaml#/VariantSelectionNotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/AmbiguousVariantError'
       '429':
         $ref: '../components/responses/problem-responses.yaml#/RateLimitedError'
 
@@ -98,7 +100,9 @@ generate-document:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+        $ref: '../components/responses/problem-responses.yaml#/VariantSelectionNotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/AmbiguousVariantError'
       '429':
         $ref: '../components/responses/problem-responses.yaml#/RateLimitedError'
 
@@ -154,7 +158,9 @@ generate-batch:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+        $ref: '../components/responses/problem-responses.yaml#/VariantSelectionNotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/AmbiguousVariantError'
       '429':
         $ref: '../components/responses/problem-responses.yaml#/RateLimitedError'
 
@@ -251,7 +257,7 @@ job-detail:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+        $ref: '../components/responses/problem-responses.yaml#/GenerationJobNotCancellableError'
 
 documents:
   get:

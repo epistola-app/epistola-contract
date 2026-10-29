@@ -325,14 +325,22 @@ info:
     ignore members you do not recognize. The problem types are listed, machine-readably, in this
     document's `x-problem-types` extension, and in the
     [error type registry](https://github.com/epistola-app/epistola-contract/blob/main/contracts/api/docs/error-types.md).
-    New types may be added in a minor version, so keep a fallback when switching on them.
+
+    A server answers only with the types registered there. A type names a problem a caller can act
+    on differently; anything else is the generic type of its status, so a missing resource is
+    `not-found` whichever resource it is, and a refused authorization `forbidden`. New types may be
+    added in a minor version: handle a type you do not recognize by its `status`, as the generic
+    type of that status, and keep a fallback when switching on them.
 
     ## Experimental parts and server support
 
     Operations and members marked `x-experimental: true`, the consumer model (Bearer JWT and the
     Consumers API) among them, may still change. Epistola Suite, the server that implements this
-    contract, may not implement them yet, nor every part of the rest: deploying a draft, installing
-    missing dependency releases when deploying, and recording who requested a document among them.
+    contract, may not implement them yet, nor every part of the rest: installing missing dependency
+    releases when deploying, recording who requested a document, an attribute's `description`,
+    listing a stencil's usage in a released release, and a dependency alias other than the
+    catalog's key among them. An operation a server does not implement yet answers 501
+    `operation-not-implemented`.
   version: "2.0.0"
   contact:
     name: Epistola Team
@@ -406,6 +414,24 @@ x-problem-types:
         documents. Refused before anything was written; upgrade Epistola to
         receive it. `renderingDefaultsVersion` is what the release names,
         `supportedVersion` the newest this installation has.
+    - slug: catalog-schema-too-new
+      status: 400
+      schema: ProblemDetail
+      description: >-
+        The catalog archive (`importCatalog`, `installCatalogRelease`) was written in a wire
+        version newer than this installation reads; upgrade Epistola to receive it.
+    - slug: catalog-schema-too-old
+      status: 400
+      schema: ProblemDetail
+      description: >-
+        The catalog archive was written in a wire version older than the oldest this installation
+        migrates; export it again from a current source.
+    - slug: catalog-schema-unknown
+      status: 400
+      schema: ProblemDetail
+      description: >-
+        The payload is not a catalog archive this installation recognizes: not JSON, or its
+        `schemaVersion` is missing or not an integer.
     - slug: unauthorized
       status: 401
       schema: ProblemDetail
@@ -427,6 +453,12 @@ x-problem-types:
       status: 404
       schema: ProblemDetail
       description: The addressed resource does not exist.
+    - slug: no-matching-variant
+      status: 404
+      schema: ProblemDetail
+      description: >-
+        The template exists, but none of its variants matches the attributes the request requires;
+        the template and the request are both well-formed, the selection found nothing.
     - slug: release-registry-not-found
       status: 404
       schema: ProblemDetail
@@ -438,6 +470,35 @@ x-problem-types:
       status: 409
       schema: ProblemDetail
       description: The request conflicts with the current state of the resource.
+    - slug: catalog-version-behind
+      status: 409
+      schema: CatalogVersionBehindProblemDetail
+      description: >-
+        The draft is behind releases the request did not acknowledge (`releaseCatalogDraft`);
+        `behind` lists their versions, to name in `acknowledgedBehind`.
+    - slug: release-in-use
+      status: 409
+      schema: ReleaseInUseProblemDetail
+      description: >-
+        The release cannot be deleted while something uses it: `environments` deploy it, and
+        `pinnedBy` lists the releases of other catalogs that render with it.
+    - slug: catalog-draft-name-in-use
+      status: 409
+      schema: ProblemDetail
+      description: >-
+        Another draft of the catalog has this name; a name tells a catalog's drafts apart.
+    - slug: ambiguous-variant
+      status: 409
+      schema: AmbiguousVariantProblemDetail
+      description: >-
+        Several variants match the request's attributes equally well, and the server will not
+        choose; `tiedVariants` lists them.
+    - slug: generation-job-not-cancellable
+      status: 409
+      schema: ProblemDetail
+      description: >-
+        The generation job has finished (completed, failed or cancelled), so there is nothing left
+        to cancel.
     - slug: release-dependencies-missing
       status: 409
       schema: ReleaseDependenciesMissingProblemDetail
@@ -553,6 +614,12 @@ x-problem-types:
       description: >-
         Too many requests; the `Retry-After` header indicates how long to
         wait.
+    - slug: operation-not-implemented
+      status: 501
+      schema: ProblemDetail
+      description: >-
+        The operation is part of the contract, but this server does not implement it yet. Any
+        operation may answer it; it is not listed on each.
     - slug: catalog-source-unavailable
       status: 503
       schema: ProblemDetail
@@ -992,8 +1059,8 @@ components:
       $ref: './components/schemas/catalogs.yaml#/AvailableReleaseDependencyDto'
     InstallCatalogReleaseResponse:
       $ref: './components/schemas/catalogs.yaml#/InstallCatalogReleaseResponse'
-    InstalledCatalogReleaseDto:
-      $ref: './components/schemas/catalogs.yaml#/InstalledCatalogReleaseDto'
+    CatalogReleaseRefDto:
+      $ref: './components/schemas/catalogs.yaml#/CatalogReleaseRefDto'
     ReleaseRegistryKind:
       $ref: './components/schemas/release-registries.yaml#/ReleaseRegistryKind'
     ReleaseRegistryDto:
@@ -1202,6 +1269,12 @@ components:
       $ref: './components/responses/errors.yaml#/ReleaseDependenciesUnreleasedProblemDetail'
     CatalogReadOnlyProblemDetail:
       $ref: './components/responses/errors.yaml#/CatalogReadOnlyProblemDetail'
+    CatalogVersionBehindProblemDetail:
+      $ref: './components/responses/errors.yaml#/CatalogVersionBehindProblemDetail'
+    ReleaseInUseProblemDetail:
+      $ref: './components/responses/errors.yaml#/ReleaseInUseProblemDetail'
+    AmbiguousVariantProblemDetail:
+      $ref: './components/responses/errors.yaml#/AmbiguousVariantProblemDetail'
     MergeConflictsUnresolvedProblemDetail:
       $ref: './components/responses/errors.yaml#/MergeConflictsUnresolvedProblemDetail'
     MergeBaseMissingProblemDetail:

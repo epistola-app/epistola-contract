@@ -248,7 +248,10 @@ public static class Driver
     private static void GenerateDocument(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
-        var response = new GenerationApi(http, apiBase).GenerateDocumentWithHttpInfo(
+        ApiResponse<GenerationJobResponse> response;
+        try
+        {
+        response = new GenerationApi(http, apiBase).GenerateDocumentWithHttpInfo(
             Str(config, "tenantKey"),
             new GenerateDocumentRequest(
                 // Left unset when the scenario does not name it: omitted means the default registry, which
@@ -269,6 +272,17 @@ public static class Driver
                 data: Newtonsoft.Json.JsonConvert.DeserializeObject(config.GetProperty("data").GetRawText()),
                 correlationId: OptStr(config, "correlationId"),
                 routingKey: OptStr(config, "routingKey")));
+        }
+        catch (ProblemDetailException e)
+        {
+            Report(baseUrl, new Dictionary<string, object>
+            {
+                ["problemTypeSlug"] = e.TypeSlug ?? "<null>",
+                ["problemStatus"] = (int)e.StatusCode,
+                ["problemTiedVariants"] = string.Join(",", e.TiedVariants),
+            });
+            return;
+        }
         var job = response.Data;
 
         Report(baseUrl, new Dictionary<string, object>
@@ -683,13 +697,13 @@ public static class Driver
             ["version"] = Show(installed.Version),
             ["newlyInstalled"] = Bool(installed.NewlyInstalled),
             ["total"] = Show(installed.Total),
-            ["installedDependencies"] = string.Join(",", (installed.InstalledDependencies ?? new List<InstalledCatalogReleaseDto>()).Select(InstalledRelease)),
-            ["presentDependencies"] = string.Join(",", (installed.PresentDependencies ?? new List<InstalledCatalogReleaseDto>()).Select(InstalledRelease)),
+            ["installedDependencies"] = string.Join(",", (installed.InstalledDependencies ?? new List<CatalogReleaseRefDto>()).Select(InstalledRelease)),
+            ["presentDependencies"] = string.Join(",", (installed.PresentDependencies ?? new List<CatalogReleaseRefDto>()).Select(InstalledRelease)),
         });
     }
 
     /// <summary>An installed release as <c>registry/namespace/catalogKey@version#releaseId</c>.</summary>
-    private static string InstalledRelease(InstalledCatalogReleaseDto release) =>
+    private static string InstalledRelease(CatalogReleaseRefDto release) =>
         $"{release.Registry}/{release.Namespace}/{release.CatalogKey}@{release.Version}#{release.ReleaseId}";
 
     /// <summary>
@@ -966,8 +980,21 @@ public static class Driver
     private static void DeleteCatalogRelease(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
-        new CatalogsApi(http, apiBase).DeleteCatalogRelease(
-            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"));
+        try
+        {
+            new CatalogsApi(http, apiBase).DeleteCatalogRelease(
+                Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"));
+        }
+        catch (ProblemDetailException e)
+        {
+            Report(baseUrl, new Dictionary<string, object>
+            {
+                ["problemTypeSlug"] = e.TypeSlug ?? "<null>",
+                ["problemStatus"] = (int)e.StatusCode,
+                ["problemEnvironments"] = string.Join(",", e.Environments),
+                ["problemPinnedBy"] = string.Join(",", e.PinnedBy.Select(r => r.ToString())),
+            });
+        }
     }
 
     /// <summary>
@@ -998,6 +1025,7 @@ public static class Driver
                 ["problemStatus"] = (int)e.StatusCode,
                 ["problemUnreleasedDependencies"] = string.Join("|", e.UnreleasedDependencies.Select(d =>
                     $"{d.Registry}/{d.Namespace}/{d.CatalogKey}#{d.ReleaseId}={d.ReleaseName}")),
+                ["problemBehind"] = string.Join(",", e.Behind),
             });
             return;
         }

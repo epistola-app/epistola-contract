@@ -90,8 +90,10 @@ CatalogImportBadRequestError:
     (`bad-request`). When the release renders with rendering defaults this installation does not
     have, newer or unknown, as its `release.metadata` names them, the problem is
     `catalog-rendering-defaults-too-new`: `renderingDefaultsVersion` is what the release names and
-    `supportedVersion` the newest this installation has; upgrade Epistola to receive it. Nothing
-    was installed.
+    `supportedVersion` the newest this installation has; upgrade Epistola to receive it. When the
+    archive's wire version is newer than this installation reads, the problem is
+    `catalog-schema-too-new`; older than it migrates, `catalog-schema-too-old`; not a catalog
+    archive at all, `catalog-schema-unknown`. Nothing was installed.
   content:
     application/problem+json:
       schema:
@@ -120,7 +122,9 @@ CatalogInstallBadRequestError:
     rendering defaults this installation does not have, newer or unknown, as its
     `release.metadata` names them, the problem is `catalog-rendering-defaults-too-new`:
     `renderingDefaultsVersion` is what the release names and `supportedVersion` the newest this
-    installation has; upgrade Epistola to receive it. Nothing was installed.
+    installation has; upgrade Epistola to receive it. When the release's wire version is newer
+    than this installation reads, the problem is `catalog-schema-too-new`, and older than it
+    migrates, `catalog-schema-too-old`. Nothing was installed.
   content:
     application/problem+json:
       schema:
@@ -246,6 +250,89 @@ MergeNotApplicableError:
         status: 422
         detail: "Redesign 2027 of letters already contains 1.5.0"
 
+CatalogDraftConflictError:
+  description: >-
+    The request conflicts with the current state of the catalog. When another draft of the catalog
+    has the name the request gives, the problem is `catalog-draft-name-in-use`. When the catalog
+    cannot be changed in this installation, it is `catalog-read-only` (`readOnlyReason`).
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/CatalogReadOnlyProblemDetail'
+      example:
+        type: https://epistola.app/errors/catalog-draft-name-in-use
+        title: Catalog Draft Name In Use
+        status: 409
+        detail: Another draft of letters is named Redesign 2027
+
+ReleaseInUseError:
+  description: >-
+    The release cannot be deleted. When something uses it, the problem is `release-in-use`:
+    `environments` deploy it, and `pinnedBy` lists the releases of other catalogs that render with
+    it. When the catalog cannot be changed in this installation, it is `catalog-read-only`
+    (`readOnlyReason`).
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/ReleaseInUseProblemDetail'
+      example:
+        type: https://epistola.app/errors/release-in-use
+        title: Release In Use
+        status: 409
+        detail: letters 1.4.0 is deployed to production and pinned by one release
+        environments: [production]
+        pinnedBy:
+          - registry: exchange.epistola.app
+            namespace: acme-corp
+            catalogKey: invoices
+            version: 2.1.0
+            releaseId: q8w2e4rt
+
+GenerationJobNotCancellableError:
+  description: >-
+    The generation job has finished, completed, failed or cancelled, so there is nothing left to
+    cancel (`generation-job-not-cancellable`).
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/ProblemDetail'
+      example:
+        type: https://epistola.app/errors/generation-job-not-cancellable
+        title: Generation Job Not Cancellable
+        status: 409
+        detail: The generation job has completed
+
+VariantSelectionNotFoundError:
+  description: >-
+    The template does not exist, or another resource the request names does not (`not-found`). When
+    the template exists but none of its variants matches the attributes the request requires, the
+    problem is `no-matching-variant`.
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/ProblemDetail'
+      example:
+        type: https://epistola.app/errors/no-matching-variant
+        title: No Matching Variant
+        status: 404
+        detail: No variant of invoice has locale fr-FR
+
+AmbiguousVariantError:
+  description: >-
+    Several variants of the template match the request's attributes equally well, and the server
+    will not choose (`ambiguous-variant`); `tiedVariants` lists their keys. Name one by `variantKey`,
+    or send attributes that tell them apart.
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/AmbiguousVariantProblemDetail'
+      example:
+        type: https://epistola.app/errors/ambiguous-variant
+        title: Ambiguous Variant
+        status: 409
+        detail: Two variants of invoice match locale en-GB equally well
+        tiedVariants: [english, english-legal]
+
 ResourceModifiedError:
   description: >-
     The resource changed since the `ETag` sent as `If-Match` was read, so the update was refused and
@@ -305,9 +392,10 @@ ReleaseDependenciesUnreleasedError:
     declarations name drafts of other catalogs and the request does not release them along
     (`releaseDependencies`), the problem is `release-dependencies-unreleased` and
     `unreleasedDependencies` lists each such draft. When the catalog cannot be changed in this
-    installation, the problem is `catalog-read-only` (`readOnlyReason`). Other conflicts (a draft
-    that is behind releases not acknowledged, a draft taken along that cannot be released) use
-    `conflict`.
+    installation, the problem is `catalog-read-only` (`readOnlyReason`). When the draft is behind
+    releases the request did not acknowledge, the problem is `catalog-version-behind`, and `behind`
+    lists their versions, to name in `acknowledgedBehind`. Other conflicts (a draft taken along that
+    cannot be released) use `conflict`.
   content:
     application/problem+json:
       schema:

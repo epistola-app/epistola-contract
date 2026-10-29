@@ -49,12 +49,12 @@ ImportCatalogResponse:
         The releases the archive carries (under `dependencies/`) that the import installed, in the
         order it installed them. Empty when it carries none.
       items:
-        $ref: './catalogs.yaml#/InstalledCatalogReleaseDto'
+        $ref: './catalogs.yaml#/CatalogReleaseRefDto'
     presentDependencies:
       type: array
       description: |
         The releases the archive carries (under `dependencies/`) that this tenant had already, with
         the same fingerprint. Empty when it carries none.
       items:
-        $ref: './catalogs.yaml#/InstalledCatalogReleaseDto'
+        $ref: './catalogs.yaml#/CatalogReleaseRefDto'
       example: []

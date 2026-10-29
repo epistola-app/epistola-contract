@@ -55,6 +55,10 @@ public class ApiExceptionMapper implements ResponseExceptionMapper<ApiException>
                 parsed.unresolvedConflicts(),
                 parsed.missingBaseVersion(),
                 parsed.missingBaseFingerprint(),
+                parsed.behind(),
+                parsed.environments(),
+                parsed.pinnedBy(),
+                parsed.tiedVariants(),
                 body);
     }
 

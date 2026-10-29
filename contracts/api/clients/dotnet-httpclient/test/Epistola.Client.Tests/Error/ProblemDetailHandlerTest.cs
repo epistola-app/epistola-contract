@@ -349,6 +349,53 @@ public class ProblemDetailHandlerTest
     }
 
     [Fact]
+    public async Task ThrowsWithTheVersionsACatalogVersionBehindProblemAsksToAcknowledge()
+    {
+        const string body = """
+            {"type": "https://epistola.app/errors/catalog-version-behind", "title": "Catalog Version Behind",
+             "status": 409, "behind": ["1.5.0", "1.6.0"]}
+            """;
+        var client = ClientReturning(HttpStatusCode.Conflict, "application/problem+json", body);
+
+        var ex = await Assert.ThrowsAsync<ProblemDetailException>(() => client.PostAsync("release", null));
+        Assert.True(ex.IsCatalogVersionBehindProblem);
+        Assert.Equal(new[] { "1.5.0", "1.6.0" }, ex.Behind);
+    }
+
+    [Fact]
+    public async Task ThrowsWithWhatAReleaseInUseProblemSaysUsesTheRelease()
+    {
+        const string body = """
+            {"type": "https://epistola.app/errors/release-in-use", "title": "Release In Use", "status": 409,
+             "environments": ["production"],
+             "pinnedBy": [{"registry": "exchange.epistola.app", "namespace": "acme-corp", "catalogKey": "invoices",
+                           "version": "2.1.0", "releaseId": "q8w2e4rt"}, {"registry": 7}]}
+            """;
+        var client = ClientReturning(HttpStatusCode.Conflict, "application/problem+json", body);
+
+        var ex = await Assert.ThrowsAsync<ProblemDetailException>(() => client.DeleteAsync("release"));
+        Assert.True(ex.IsReleaseInUseProblem);
+        Assert.Equal(new[] { "production" }, ex.Environments);
+        var pin = Assert.Single(ex.PinnedBy);
+        Assert.Equal("exchange.epistola.app/acme-corp/invoices@2.1.0#q8w2e4rt", pin.ToString());
+    }
+
+    [Fact]
+    public async Task ThrowsWithTheTiedVariantsOfAnAmbiguousVariantProblem()
+    {
+        const string body = """
+            {"type": "https://epistola.app/errors/ambiguous-variant", "title": "Ambiguous Variant",
+             "status": 409, "tiedVariants": ["english", "english-legal"]}
+            """;
+        var client = ClientReturning(HttpStatusCode.Conflict, "application/problem+json", body);
+
+        var ex = await Assert.ThrowsAsync<ProblemDetailException>(() => client.PostAsync("generate", null));
+        Assert.True(ex.IsAmbiguousVariantProblem);
+        Assert.False(ex.IsReleaseInUseProblem);
+        Assert.Equal(new[] { "english", "english-legal" }, ex.TiedVariants);
+    }
+
+    [Fact]
     public void ParseProblemReadsNoReadOnlyReasonThatIsNotAString()
     {
         var parsed = ProblemDetailHandler.ParseProblem(
