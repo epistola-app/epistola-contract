@@ -18,6 +18,7 @@ import app.epistola.catalog.protocol.CatalogResource
 import app.epistola.catalog.protocol.CatalogThemeRef
 import app.epistola.catalog.protocol.CompatibilityInfo
 import app.epistola.catalog.protocol.DependencyRef
+import app.epistola.catalog.protocol.ImageResource
 import app.epistola.catalog.protocol.IncludeEntry
 import app.epistola.catalog.protocol.PublisherInfo
 import app.epistola.catalog.protocol.ReleaseBase
@@ -34,6 +35,7 @@ import tools.jackson.module.kotlin.kotlinModule
 import java.io.ByteArrayInputStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
@@ -644,6 +646,33 @@ class CatalogCanonicalizerTest {
             CatalogCanonicalizer.currentPerResourceFingerprints(original).keys,
         )
         assertNotEquals(fingerprint, CatalogCanonicalizer.currentFingerprint(changed))
+    }
+
+    @Test
+    fun `v6 covers an image's bytes, not where they sit in the archive, while v5 keeps covering the path`() {
+        val bytes = "logo-bytes".toByteArray()
+        val hash = java.security.MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+        fun archive(contentUrl: String): CatalogArchive {
+            val image = ImageResource("logo", "Logo", mediaType = "image/png", contentHash = hash, contentUrl = contentUrl)
+            val path = contentUrl.removePrefix("./")
+            return CatalogArchive(
+                manifest = goldenArchive().manifest.copy(schemaVersion = 8, resources = emptyList()),
+                resourceDetails = mapOf("image/logo" to ResourceDetail(8, image)),
+                paths = setOf("resources/image/logo.json", path),
+                content = ArchiveContentProvider { ByteArrayInputStream(bytes) },
+            )
+        }
+        val assets = archive("./assets/logo.png")
+        val bin = archive("./bin/$hash")
+
+        assertEquals(CatalogCanonicalizer.fingerprint(assets, CatalogFingerprintVersion.V6), CatalogCanonicalizer.fingerprint(bin, CatalogFingerprintVersion.V6))
+        assertNotEquals(CatalogCanonicalizer.fingerprint(assets, CatalogFingerprintVersion.V5), CatalogCanonicalizer.fingerprint(bin, CatalogFingerprintVersion.V5))
+    }
+
+    @Test
+    fun `a release is fingerprinted with the algorithm its wire version fixes, not the library's newest`() {
+        assertEquals(CatalogFingerprintVersion.V6, CatalogCanonicalizer.releaseFingerprintVersion(8))
+        assertFailsWith<IllegalArgumentException> { CatalogCanonicalizer.releaseFingerprintVersion(7) }
     }
 
     private fun goldenArchive(): CatalogArchive {

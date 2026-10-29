@@ -1138,17 +1138,19 @@ object CatalogValidator {
         }
         release.fingerprint?.let {
             // From wire v8 the fingerprint names its algorithm, and a release is fingerprinted with
-            // the current one: an older algorithm covers less, so accepting it would verify less.
+            // the one its wire version fixes: an older algorithm covers less, so accepting it would
+            // verify less, and a newer one, from a later wire version, is not this version's.
             // Before wire v8 it is bare hex and the wire version implies the algorithm.
-            val qualified = catalog.sourceSchemaVersion >= V5_FINGERPRINT_SINCE_WIRE_VERSION
-            val invalid = if (qualified) {
-                QualifiedCatalogFingerprint.parse(it)?.version != CatalogCanonicalizer.CURRENT_FINGERPRINT_VERSION
+            val qualified = catalog.sourceSchemaVersion >= QUALIFIED_FINGERPRINT_SINCE_WIRE_VERSION
+            val required = if (qualified) CatalogCanonicalizer.releaseFingerprintVersion(catalog.sourceSchemaVersion) else null
+            val invalid = if (required != null) {
+                QualifiedCatalogFingerprint.parse(it)?.version != required
             } else {
                 !SHA256.matches(it)
             }
             if (invalid) {
                 val message = if (qualified) {
-                    "fingerprint must name the current algorithm: ${CatalogCanonicalizer.CURRENT_FINGERPRINT_VERSION.label}:<lowercase SHA-256 hex>"
+                    "fingerprint must name the algorithm of wire v${catalog.sourceSchemaVersion}: ${required?.label}:<lowercase SHA-256 hex>"
                 } else {
                     "fingerprint must be a lowercase SHA-256 hex string"
                 }
@@ -1536,7 +1538,7 @@ object CatalogValidator {
     private const val V4_FINGERPRINT_SINCE_WIRE_VERSION = 6
 
     /** Wire version from which a catalog must carry a V5 fingerprint. */
-    private const val V5_FINGERPRINT_SINCE_WIRE_VERSION = 8
+    private const val QUALIFIED_FINGERPRINT_SINCE_WIRE_VERSION = 8
     private val ATTRIBUTE_IDENTITY = Regex("^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 
     private data class StencilResourceIdentity(
