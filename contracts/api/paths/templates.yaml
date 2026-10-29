@@ -47,7 +47,9 @@ templates:
   post:
     operationId: createTemplate
     summary: Create a new template
-    description: Create a document template in the draft.
+    description: |
+      Create a document template in the draft, optionally with its data contract (`dataModel`) and
+      data examples. Without them the template has the empty schema `{}` and no examples.
     tags:
       - Templates
     x-required-permissions: [TEMPLATE_EDIT]
@@ -78,6 +80,8 @@ templates:
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
         $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
+      '422':
+        $ref: '../components/responses/problem-responses.yaml#/UnprocessableEntityError'
 
 templates-id:
   parameters:

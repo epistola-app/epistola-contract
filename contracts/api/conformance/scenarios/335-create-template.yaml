@@ -1,0 +1,113 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: create-template
+title: Creating a template sends its data contract and examples, references untouched
+why: >
+  A template can be created with its data contract (`dataModel`) and data examples in one call, so
+  it never exists without them. The contract is free-form JSON Schema, and the client must send it
+  as the caller wrote it: a `$ref` stays a reference (ADR 0009 stores contracts with their
+  references), and a pattern keeps its backslashes. The examples go with it, each by its key, and
+  the client exposes the created template's `Location`.
+
+action:
+  name: create-template
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: k7m2x9qa
+    key: invoice
+    name: Monthly Invoice
+    dataModel:
+      type: object
+      required: [customer, invoiceNumber]
+      properties:
+        customer:
+          type: object
+          required: [name]
+          properties:
+            name: { type: string }
+        invoiceNumber: { type: string, pattern: '^INV-\d{4}-\d{3}$' }
+        notes: { $ref: 'https://epistola.app/schemas/richtext-block-v1.json' }
+    dataExamples:
+      - key: standard-invoice
+        name: Standard Invoice
+        data:
+          customer: { name: Jane Smith }
+          invoiceNumber: INV-2026-001
+
+script:
+  - status: 201
+    contentType: application/vnd.epistola.v2+json
+    headers:
+      Location: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/templates/invoice
+    body:
+      key: invoice
+      tenantKey: acme-corp
+      name: Monthly Invoice
+      description: null
+      dataModel:
+        type: object
+        required: [customer, invoiceNumber]
+        properties:
+          customer:
+            type: object
+            required: [name]
+            properties:
+              name: { type: string }
+          invoiceNumber: { type: string, pattern: '^INV-\d{4}-\d{3}$' }
+          notes: { $ref: 'https://epistola.app/schemas/richtext-block-v1.json' }
+      dataExamples:
+        - key: standard-invoice
+          name: Standard Invoice
+          data:
+            customer: { name: Jane Smith }
+            invoiceNumber: INV-2026-001
+      variants:
+        - { key: initial, title: Default, attributes: {}, isDefault: true, status: new }
+      createdAt: "2026-10-29T11:00:00Z"
+      lastModified: "2026-10-29T11:00:00Z"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/templates
+      query: ""
+      headers:
+        Content-Type:
+          matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
+      body:
+        json:
+          key: invoice
+          name: Monthly Invoice
+          dataModel:
+            type: object
+            required: [customer, invoiceNumber]
+            properties:
+              customer:
+                type: object
+                required: [name]
+                properties:
+                  name: { type: string }
+              invoiceNumber: { type: string, pattern: '^INV-\d{4}-\d{3}$' }
+              notes: { $ref: 'https://epistola.app/schemas/richtext-block-v1.json' }
+          dataExamples:
+            - key: standard-invoice
+              name: Standard Invoice
+              data:
+                customer: { name: Jane Smith }
+                invoiceNumber: INV-2026-001
+        jsonAbsent: [schema]
+        jsonNullOrAbsent: [description]
+  report:
+    key: invoice
+    dataModelMembers: properties,required,type
+    dataModelType: object
+    dataModelRequired: customer,invoiceNumber
+    dataExampleKeys: standard-invoice
+    location: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/templates/invoice

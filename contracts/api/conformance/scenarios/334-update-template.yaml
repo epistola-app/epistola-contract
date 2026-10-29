@@ -106,6 +106,7 @@ expect:
         jsonNullOrAbsent: [name, description]
   report:
     key: invoice
+    dataModelMembers: properties,required,type
     dataModelType: object
     dataModelRequired: customer,invoiceNumber
     dataExampleKeys: standard-invoice

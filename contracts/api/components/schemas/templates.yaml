@@ -412,6 +412,42 @@ CreateTemplateRequest:
         Plain-text notes on the template for its authors (design decisions, known gaps). Not rendered.
         Omitted, null or an empty string (or one of only whitespace): the template has none.
       example: Monthly invoice; the payment block follows the 2026 house style.
+    dataModel:
+      type: object
+      description: |
+        The template's data contract, a JSON Schema the template data must satisfy. Omitted or null:
+        the empty schema `{}`, which any data satisfies.
+      example:
+        type: object
+        required:
+          - customer
+          - invoiceNumber
+        properties:
+          customer:
+            type: object
+            required:
+              - name
+            properties:
+              name:
+                type: string
+                minLength: 1
+          invoiceNumber:
+            type: string
+            pattern: "^INV-\\d{4}-\\d{3}$"
+    dataExamples:
+      type: array
+      description: |
+        The template's data examples, each satisfying `dataModel` (422 otherwise). Omitted or null:
+        none.
+      items:
+        $ref: '#/DataExampleDto'
+      example:
+        - key: standard-invoice
+          name: Standard Invoice
+          data:
+            customer:
+              name: Jane Smith
+            invoiceNumber: INV-2026-001
 UpdateTemplateRequest:
   type: object
   description: Request body for updating a template's metadata (all fields optional)
