@@ -44,8 +44,8 @@ only an explicit `MISSING` result produces a missing-reference finding.
 
 Stencil composition is part of the portable specification. From wire v8 a
 stencil node names its stencil by `stencilKey` (`stencilId` until wire v8), optionally with the
-`catalogKey` alias of another catalog the owning catalog depends on (contract ADR 0003; omitted, or
-the owning catalog's own key, means the owning catalog), and carries no version: catalogs are
+`catalogKey` alias of another catalog the owning catalog depends on (contract ADR 0003; omitted
+means the owning catalog, which is never named by its own key), and carries no version: catalogs are
 versioned as a whole, so the stencil reached is the one in the release the catalog dependency pins,
 or the one in the same catalog. The context resolver receives that identity as a
 `CatalogResourceReference`. A node's `version`, `draftVersion`, `namespace` or `registry` is
@@ -99,6 +99,11 @@ The shape of a style map is an error, `TEMPLATE_NODE_PROPERTY_INVALID`:
 
 Style values are not checked, for these properties as for the others.
 
+A theme's `spacingUnit` is the base of the spacing scale, in points: every `sp` value is a multiple
+of it (`2sp` at 4 is 8pt), and absent means 4pt. From wire v8 it is 0.5 to 16 with at most two
+decimals, as the API takes it (`CATALOG_THEME_SPACING_UNIT_INVALID`); an archive written before
+wire v8 keeps its looser rule, any positive finite number.
+
 ## Page headers and footers
 
 A template may contain any number of `pageheader` and `pagefooter` nodes,
@@ -115,6 +120,14 @@ archive stream. It applies `CatalogArchiveReader` safety limits and wire migrati
 manifest/detail consistency, required files, resource references, resource-specific invariants,
 data schemas and examples, release metadata, and the canonical fingerprint. I/O failures remain
 exceptions; ordinary invalid content is returned as deterministic findings.
+
+A document that declares the current wire version (v8) is first held to the published schemas
+(`catalog-manifest-v8`, `resource-detail-v8` and the frozen `template-document-v8`,
+`template-shared-v8` and `theme-v8` they reference), each resource to the definition of the type
+it declares. A member the schema does not define, a missing required member, or a value of the
+wrong type or out of bounds is `CATALOG_SCHEMA_UNKNOWN` at that member, and the document does not
+bind. An explicit `null` counts as leaving the member out. A document migrated from an older wire
+version is held to what its own version allowed instead, and to the migration's repairs.
 
 For catalog discovery metadata (wire v6 and later), catalog attributes use an explicit `catalogKey`
 (`catalog` until wire v8), `key`, and `value`. The catalog key follows the catalog key syntax and the key the resource key rule below, and a catalog may
@@ -175,8 +188,10 @@ Every alias a reference names must be declared there (`CATALOG_DEPENDENCY_CATALO
 the reference): a resource dependency's, the default theme's, and every reference inside content
 -- a template's `themeCatalogKey`, a theme override's, a stencil or image node's, a `fontFamily`
 font reference's (in theme, preset, document or node styles) or a code-list binding's `catalogKey`,
-and the qualifier of a variant's attribute key (`system.locale`). A reference that names no alias,
-or the catalog's own key, is to the catalog itself; a declaration nothing uses is allowed. A
+and the qualifier of a variant's attribute key (`system.locale`). A reference that names no alias
+is to the catalog itself; one that names the catalog's own key is `CATALOG_DEPENDENCY_CATALOG_UNDECLARED`
+(the v7-to-v8 migration drops it, with a `CATALOG_REFERENCE_ALIASED` notice), so a release does not
+depend on the name its fingerprint leaves out. A declaration nothing uses is allowed. A
 reference never names a registry or namespace (contract ADR 0003): those are the declaration's, and
 the migrator's wire check refuses them in a v8 document.
 

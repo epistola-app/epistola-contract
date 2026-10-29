@@ -135,8 +135,11 @@ fingerprint replaces it with the current algorithm's, in the form that names it 
 
 From wire v8 a fingerprint is written as the algorithm that computed it, a colon and the lowercase
 SHA-256 hex: `v6:58f4…` (`QualifiedCatalogFingerprint`, pattern `^v[1-9][0-9]*:[0-9a-f]{64}$`). An
-archive's own `release.fingerprint` must name the current algorithm, `v6`. Before wire v8 it is
-bare hex, and the wire version implies the algorithm.
+archive's own `release.fingerprint` must name the algorithm its wire version fixes: `v6` for wire v8
+(`CatalogCanonicalizer.releaseFingerprintVersion`). The two numbers count different things, wire
+versions and fingerprint algorithms; a later algorithm comes with a later wire version and never
+invalidates a release fingerprinted at an earlier one. Before wire v8 it is bare hex, and the wire
+version implies the algorithm.
 
 V6 covers the release's content only (see [canonicalization](catalog-canonicalization.md)): not
 the catalog's name, the release block or the catalog's presentation. A release's fingerprint is
@@ -205,8 +208,8 @@ Each `catalogDependencies` entry declares one catalog the catalog depends on (co
   template's `themeCatalogKey`, the catalog's `defaultTheme.catalogKey`, a variant attribute key's
   qualifier, a resource dependency's `catalogKey`. A reference never names a registry or namespace;
   within the catalog it names a key alone, as before. An alias follows the catalog key rule
-  (`CatalogAliases`), is unique in the list, is never the catalog's own key (content uses that for
-  the catalog itself), and is by default the depended-on catalog's own key: a producer chooses
+  (`CatalogAliases`), is unique in the list, is never the catalog's own key (content names the catalog
+  itself by naming no alias, never by its own key), and is by default the depended-on catalog's own key: a producer chooses
   another only when two catalogs it depends on share a key (`acme/letters` and `bureau/letters`).
   The validator reports an alias content names that the list does not declare
   (`CATALOG_DEPENDENCY_CATALOG_UNDECLARED`, at the reference), and a missing, malformed, own-key or

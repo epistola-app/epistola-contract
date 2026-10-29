@@ -138,9 +138,26 @@ object CatalogCanonicalizer {
     /** Produces the current V6 fingerprint. */
     fun currentFingerprint(catalog: CatalogArchive): CatalogFingerprint = fingerprint(catalog, CatalogFingerprintVersion.V6)
 
-    /** The algorithm [currentFingerprint] computes, and the one wire v8 requires of a release. */
+    /**
+     * The algorithm [currentFingerprint] computes. Its number counts algorithms, not wire versions:
+     * the wire version a release requires is [releaseFingerprintVersion]'s.
+     */
     @JvmField
     val CURRENT_FINGERPRINT_VERSION: CatalogFingerprintVersion = CatalogFingerprintVersion.V6
+
+    /**
+     * The algorithm a release at [wireVersion] is fingerprinted with, from wire v8, where a
+     * fingerprint names its algorithm: V6 for wire v8. Fixed per wire version rather than following
+     * [CURRENT_FINGERPRINT_VERSION], so that a later algorithm, introduced with a later wire
+     * version, does not invalidate every release already fingerprinted at an earlier one.
+     *
+     * @throws IllegalArgumentException for a wire version before v8, whose fingerprint is bare hex.
+     */
+    @JvmStatic
+    fun releaseFingerprintVersion(wireVersion: Int): CatalogFingerprintVersion {
+        require(wireVersion >= 8) { "wire version $wireVersion predates fingerprints that name their algorithm" }
+        return CatalogFingerprintVersion.V6
+    }
 
     /** Produces the current V6 fingerprint in the form wire v8 writes, `v6:<hex>`. */
     fun currentQualifiedFingerprint(catalog: CatalogArchive): QualifiedCatalogFingerprint = qualifiedFingerprint(catalog, CURRENT_FINGERPRINT_VERSION)
@@ -193,7 +210,7 @@ object CatalogCanonicalizer {
             CatalogFingerprintVersion.V3 -> semanticEntries(catalog)
             CatalogFingerprintVersion.V4 -> currentEntries(catalog, currentNames = false)
             CatalogFingerprintVersion.V5 -> currentEntries(catalog, currentNames = true, variantTitle = true)
-            CatalogFingerprintVersion.V6 -> currentEntries(catalog, currentNames = true)
+            CatalogFingerprintVersion.V6 -> currentEntries(catalog, currentNames = true, withoutLocations = true)
         }
         val canonical = when (version) {
             CatalogFingerprintVersion.V1 -> canonicalV1(catalog, entries)
@@ -280,7 +297,8 @@ object CatalogCanonicalizer {
         val rawManifest = catalog.content.open("catalog.json").use { input -> decimalReader.readTree(input) } as? ObjectNode ?: return catalog
         CatalogKeyRenames.toCurrent(CatalogKeyRenames.manifestSites(rawManifest))
         val manifestTree: JsonNode = mapper.valueToTree(catalog.manifest)
-        val manifest = restoreKeys(manifestTree, rawManifest)
+        val ownKey = catalog.manifest.catalog.key
+        val manifest = restoreKeys(manifestTree, rawManifest, ownKey)
             .takeIf { it != manifestTree }
             ?.let { mapper.treeToValue(it, CatalogManifest::class.java) }
             ?: catalog.manifest
@@ -293,7 +311,7 @@ object CatalogCanonicalizer {
             } ?: return@associate key to detail
             CatalogKeyRenames.toCurrent(CatalogKeyRenames.resourceSites(rawResource, "resource"))
             val resourceTree: JsonNode = mapper.valueToTree(detail.resource)
-            val restoredTree = restoreKeys(resourceTree, rawResource)
+            val restoredTree = restoreKeys(resourceTree, rawResource, ownKey)
             if (restoredTree == resourceTree) return@associate key to detail
             changed = true
             val restored = mapper.treeToValue(
@@ -309,27 +327,39 @@ object CatalogCanonicalizer {
     /**
      * A copy of [model] with every string that is exactly [CatalogKeys.migrate] of a different raw
      * string at the same position put back to the raw one, and every property name likewise.
+     *
+     * The catalog's own key, [ownKey], which the v7-to-v8 migration removes where content named the
+     * catalog itself by it ([app.epistola.catalog.migration.CatalogReferenceQualifiers.dropOwnKey]),
+     * is put back where the raw document had it: as a reference's `catalogKey` or
+     * `themeCatalogKey`, and as the qualifier of a variant's attribute key (`letters.locale`).
      */
     private fun restoreKeys(
         model: JsonNode,
         raw: JsonNode?,
+        ownKey: String,
     ): JsonNode = when {
         model is ObjectNode && raw is ObjectNode -> mapper.createObjectNode().also { restored ->
             model.propertyNames().forEach { name ->
-                val rawName = if (raw.has(name)) {
-                    name
-                } else {
-                    raw.propertyNames().firstOrNull { it != name && !model.has(it) && CatalogKeys.migrate(it) == name } ?: name
+                val rawName = when {
+                    raw.has(name) -> name
+                    raw.has("$ownKey.$name") && !model.has("$ownKey.$name") -> "$ownKey.$name"
+                    else -> raw.propertyNames().firstOrNull { it != name && !model.has(it) && CatalogKeys.migrate(it) == name } ?: name
                 }
-                restored.set(rawName, restoreKeys(model[name], raw[rawName]))
+                restored.set(rawName, restoreKeys(model[name], raw[rawName], ownKey))
             }
+            OWN_KEY_MEMBERS
+                .filter { member -> !model.has(member) && raw[member]?.takeIf { it.isString }?.asString() == ownKey }
+                .forEach { member -> restored.put(member, ownKey) }
         }
         model is ArrayNode && raw is ArrayNode -> mapper.createArrayNode().also { restored ->
-            model.forEachIndexed { index, child -> restored.add(restoreKeys(child, raw[index])) }
+            model.forEachIndexed { index, child -> restored.add(restoreKeys(child, raw[index], ownKey)) }
         }
         model.isString && raw != null && raw.isString && model.asString() != raw.asString() && CatalogKeys.migrate(raw.asString()) == model.asString() -> raw
         else -> model
     }
+
+    /** The members that name the catalog a reference is to, which may have named the catalog itself. */
+    private val OWN_KEY_MEMBERS = listOf("catalogKey", "themeCatalogKey")
 
     /** The wire version from which keys are bounded, so that a catalog read at it was never rewritten. */
     private const val KEY_BOUNDS_SINCE_WIRE_VERSION = 8
@@ -797,21 +827,34 @@ object CatalogCanonicalizer {
     /**
      * Resource entries from the bound model, under the names catalog v8 writes when [currentNames].
      * [variantTitle] keeps a variant's name under `title`, the name it had when V5 was defined, so V5
-     * values stay what producers published before wire v8 renamed it to `name`.
+     * values stay what producers published before wire v8 renamed it to `name`. [withoutLocations]
+     * leaves out where a binary sits in the archive (an image's, or a font face's, `contentUrl`): the
+     * bytes are covered by their `contentHash`, and the same bytes at another path are the same
+     * content. V6 does; V5, published before, keeps covering it.
      */
     private fun currentEntries(
         catalog: CatalogArchive,
         currentNames: Boolean,
         variantTitle: Boolean = false,
+        withoutLocations: Boolean = false,
     ): List<Entry> = catalog.resourceDetails.map { (key, detail) ->
         val model: JsonNode = mapper.valueToTree(detail.resource)
         if (variantTitle) withVariantTitles(model)
+        if (withoutLocations) withoutContentUrls(model)
         val resourceNode = normalizeStencilProvenance(if (currentNames) model else legacyResource(model), legacyV4 = false)
         Entry(
             key = key,
             canonicalJson = mapper.writeValueAsString(sortKeys(withoutMetadata(resourceNode))),
             assetHash = assetHash(catalog, detail),
         )
+    }
+
+    /** Removes an image's and each font face's `contentUrl`, in place. */
+    private fun withoutContentUrls(resource: JsonNode) {
+        (resource as? ObjectNode)?.remove("contentUrl")
+        (resource["variants"] as? ArrayNode)?.takeIf { resource["type"]?.asString() == "font" }?.forEach { face ->
+            (face as? ObjectNode)?.remove("contentUrl")
+        }
     }
 
     /** Renames each of a template's variants' `name` back to `title`, in place. */

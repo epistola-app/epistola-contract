@@ -6,10 +6,12 @@
   "type": "object",
 
   "properties": {
-    "id": {
+    "key": {
       "type": "string",
-      "minLength": 1,
-      "description": "Theme identifier (slug format)."
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "minLength": 3,
+      "maxLength": 50,
+      "description": "Key of the theme resource: the same rule as every resource key. Until contract 2.0 this member was called id."
     },
     "name": {
       "type": "string",
@@ -33,7 +35,7 @@
     },
     "spacingUnit": {
       "type": "number",
-      "minimum": 1,
+      "minimum": 0.5,
       "maximum": 16,
       "description": "Base spacing unit in points for the spacing scale. All sp values (e.g. 2sp, 4sp) are multiples of this value. Absent means default (4pt)."
     }
@@ -42,7 +44,7 @@
       "$ref": "#/$defs/DefaultBlockStyles"
     }
   },
-  "required": ["id", "name"],
+  "required": ["key", "name"],
   "additionalProperties": false,
 
   "$defs": {

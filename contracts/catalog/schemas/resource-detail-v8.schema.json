@@ -93,7 +93,7 @@
           "maxLength": 50
         },
         "themeCatalogKey": {
-          "description": "The alias of the catalog holding the template's theme, as the manifest's catalogDependencies declares it (contract ADR 0003). Null, omitted or the catalog's own key means the template's own catalog.",
+          "description": "The alias of the catalog holding the template's theme, as the manifest's catalogDependencies declares it (contract ADR 0003). Null or omitted means the template's own catalog, which content never names by its own key.",
           "type": [
             "string",
             "null"
@@ -126,7 +126,7 @@
           ]
         },
         "templateModel": {
-          "$ref": "template-document.schema.json"
+          "$ref": "template-document-v8.schema.json"
         },
         "variants": {
           "type": "array",
@@ -185,7 +185,7 @@
         "pageSettings": {
           "oneOf": [
             {
-              "$ref": "template-shared.schema.json#/$defs/PageSettings"
+              "$ref": "template-shared-v8.schema.json#/$defs/PageSettings"
             },
             {
               "type": "null"
@@ -197,7 +197,7 @@
             {
               "type": "object",
               "additionalProperties": {
-                "$ref": "theme.schema.json#/$defs/BlockStylePreset"
+                "$ref": "theme-v8.schema.json#/$defs/BlockStylePreset"
               }
             },
             {
@@ -206,13 +206,16 @@
           ]
         },
         "spacingUnit": {
+          "description": "Base spacing unit in points for the spacing scale: every sp value is a multiple of it (2sp at 4 is 8pt). From 0.5 to 16, with at most two decimals, as the API takes it; the validator reports another value as CATALOG_THEME_SPACING_UNIT_INVALID. Null or absent means the rendering default, 4pt.",
           "type": [
             "number",
             "null"
-          ]
+          ],
+          "minimum": 0.5,
+          "maximum": 16
         },
         "defaultBlockStyles": {
-          "$ref": "theme.schema.json#/$defs/DefaultBlockStyles"
+          "$ref": "theme-v8.schema.json#/$defs/DefaultBlockStyles"
         },
         "tags": {
           "type": "array",
@@ -264,7 +267,7 @@
           "$ref": "#/$defs/ProducerMetadata"
         },
         "content": {
-          "$ref": "template-document.schema.json"
+          "$ref": "template-document-v8.schema.json"
         },
         "parameterSchema": {
           "type": [
@@ -492,7 +495,7 @@
       "type": "object",
       "properties": {
         "catalogKey": {
-          "description": "The alias of the catalog holding the code list, as the manifest's catalogDependencies declares it (contract ADR 0003). Null, omitted or the catalog's own key means the attribute's own catalog.",
+          "description": "The alias of the catalog holding the code list, as the manifest's catalogDependencies declares it (contract ADR 0003). Null or omitted means the attribute's own catalog, which content never names by its own key.",
           "type": [
             "string",
             "null"
@@ -631,7 +634,7 @@
         "templateModel": {
           "oneOf": [
             {
-              "$ref": "template-document.schema.json"
+              "$ref": "template-document-v8.schema.json"
             },
             {
               "type": "null"

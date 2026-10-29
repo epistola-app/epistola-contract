@@ -100,7 +100,10 @@ data class CatalogDependency(
     val registry: String,
     val namespace: String,
     val catalogKey: String,
+    // Written even when null: the wire requires both members, null for an unpinned declaration.
+    @get:JsonInclude(JsonInclude.Include.ALWAYS)
     val releaseVersion: String? = null,
+    @get:JsonInclude(JsonInclude.Include.ALWAYS)
     val releaseFingerprint: String? = null,
     val alias: String = catalogKey,
 ) {
@@ -373,8 +376,8 @@ class CatalogInfo private constructor(
  * (wire v8, ADR 0007).
  *
  * Like every reference into another catalog, it names the catalog by the alias the dependency list
- * declares ([CatalogAliases], contract ADR 0003): an omitted [catalogKey], or the catalog's own key, means the
- * owning catalog. A theme in another catalog lives in a catalog the owning catalog depends on. An
+ * declares ([CatalogAliases], contract ADR 0003): an omitted [catalogKey] means the owning catalog,
+ * which is never named by its own key. A theme in another catalog lives in a catalog the owning catalog depends on. An
  * absent [catalogKey] is omitted from the JSON.
  *
  * An earlier draft of wire v8 also named the catalog's `namespace` and `registry` here. They are

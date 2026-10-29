@@ -469,6 +469,68 @@ libraries.
 
 ### Changed
 
+- **The standalone `Theme` type names its theme by `key`** (catalog, BREAKING). `theme.schema.json`
+  (and its frozen `theme-v8` copy) still required `id`, a free string, where every resource is
+  addressed by a `key` under the one resource key rule; the generated `Theme` type, exported by
+  `@epistola.app/epistola-catalog` and the Kotlin `app.epistola.template.model` package, follows.
+  The wire's `ThemeResource` already said `key`. Epistola Suite's theme editor reads `theme.id` and
+  needs to read `key`.
+- **A v8 release carries its fingerprint and pins every catalog it declares; a theme's spacing unit
+  has one rule** (catalog, wire v8). `release.fingerprint` was optional in a v8 archive, although
+  it is the release's identity, which a pin and a base name; an archive written at wire v8 without
+  it is now `CATALOG_RELEASE_FINGERPRINT_INVALID`. Likewise each `catalogDependencies` entry pins a
+  release (`releaseVersion` and `releaseFingerprint`), or it is
+  `CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID`. A catalog migrated from wire v7, which had no pins
+  and an optional fingerprint, may lack both, and is released again before it is shared as a v8
+  release. A theme's `spacingUnit` was 1 to 16 in the API and the live theme schema, but any number
+  in wire v8, and only "positive" to the validator, under the template data-schema code: it is now
+  0.5 to 16 points with at most two decimals in the API, the theme schemas and a v8 archive
+  (0.5 makes `2sp` a single point; 0 is refused, as it would collapse the whole scale and the
+  editor divides by it), reported as the new
+  `CATALOG_THEME_SPACING_UNIT_INVALID`, while an archive written before wire v8 keeps "any positive
+  number". The golden wire-v8 catalog and the conformance catalogs now carry their fingerprints.
+  `CatalogArchiveWriter` writes a migrated catalog with its V6 fingerprint whether or not its source
+  carried one: it replaced a legacy fingerprint but left one wire v7 never had absent, so the
+  re-export of such a catalog would have been refused.
+  Epistola Suite may not write the fingerprint and pins on every export yet.
+- **The V6 fingerprint leaves out where a binary sits, and a release's algorithm is fixed by its wire
+  version** (catalog, wire v8). V6 covered an image's and a font face's `contentUrl`, a location,
+  not content: the same bytes at `./assets/logo.png` (an archive migrated from wire v6) and at
+  `bin/<hash>` fingerprinted differently. V6 now covers the bytes by `contentHash` only; V5 keeps
+  covering the path, so its published values do not move. The validator required a v8 release's
+  fingerprint to name the library's newest algorithm, so a later algorithm would have invalidated
+  every v8 release; it now requires the one the wire version fixes,
+  `CatalogCanonicalizer.releaseFingerprintVersion` (`v6` for wire v8). Wire versions and
+  fingerprint algorithms are numbered separately.
+- **A catalog never names itself by its own key** (catalog, wire v8, BREAKING). Content may name the
+  catalog itself only by naming no alias. Wire v8 allowed the catalog's own key as well, which made
+  a release depend on its name, which the V6 fingerprint deliberately leaves out: the same release
+  mirrored or renamed (ADR 0003) verified as itself but named a catalog it does not declare, or,
+  renamed to an existing alias, another catalog. The validator now reports the own key as an alias
+  the catalog does not declare (`CATALOG_DEPENDENCY_CATALOG_UNDECLARED`, saying it is the own key),
+  in content and in the manifest's `defaultTheme`. The v7-to-v8 migration drops it, with a
+  `CATALOG_REFERENCE_ALIASED` notice, from every reference site, image nodes and a variant's
+  attribute keys (`letters.tone` becomes `tone`); a v7 archive's legacy fingerprint still verifies,
+  restored from the raw documents. A migrated release re-exported without its raw v7 documents no
+  longer reproduces its V4 value where its content named itself by key, as with the stencil
+  versions wire v8 removes, and is released under the current algorithm. The golden v7-to-v8
+  migration fixture now migrates its template within its own catalog, and shows the drop.
+- **A native wire-v8 document is held to the published v8 schemas before it binds** (catalog).
+  Binding alone is lenient: Jackson dropped a member the model did not know and a model default
+  filled one the schema requires, so a v8 document with a misspelled member passed, lost it, and
+  fingerprinted as if it were not there. `CatalogSchemaMigrator` now checks a document that
+  declares wire v8 against `catalog-manifest-v8` and `resource-detail-v8`, each resource against the
+  definition of the type it declares, and reports each unknown, missing or ill-typed member as
+  `CATALOG_SCHEMA_UNKNOWN` at its path. An explicit `null` counts as leaving the member out, so
+  archives earlier writers wrote still read; a document migrated from an older wire version is not
+  held to the newer schemas. `CatalogArchiveWriter` now leaves null properties out, so what it
+  writes passes the published schemas (it wrote `null` for optional template-document members,
+  which the schemas reject), except a dependency's `releaseVersion` and `releaseFingerprint`, which
+  the wire requires even when null. Fingerprints are computed over the bound model and do not
+  move. Wire v8 is also frozen: `resource-detail-v8` references new copies
+  `template-document-v8`, `template-shared-v8` and `theme-v8` rather than the live schemas, and a
+  test holds the copies equal to the live ones while v8 is current, so a later change to a template
+  document cannot change what wire v8 accepts.
 - **Every problem a caller can act on has its own type, and a server answers only with registered
   types.** (BREAKING) The registry gains `catalog-version-behind` (409, with `behind`, the versions
   to name in `acknowledgedBehind`; it was `conflict`), `release-in-use` (409, with `environments`

@@ -46,7 +46,7 @@ needs a new wire version:
 - When a migration rewrites or removes content a fingerprint covers (v7 keywords, v8 stencil
   versions), the old fingerprint must still verify against the source content
   (`CatalogCanonicalizer.matchesSourceV4Fingerprint`). New identity or content gets a new
-  fingerprint algorithm (V5 at v8) rather than changing an existing one.
+  fingerprint algorithm (V5, then V6, at v8) rather than changing an existing one.
 - When a migration renames a member (v8 renamed `slug` to `key`, `themeId`, `stencilId`,
   `assetId`, `iconAssetSlug` and `imageAssetSlugs` to their `…Key`/`…Keys` forms, and an attribute
   assignment's `catalog` to `catalogKey`), list it once in `CatalogKeyRenames`: the
@@ -57,6 +57,16 @@ needs a new wire version:
 - The template document schemas are shared across wire versions. When one changes in a way an
   older wire version must not see, freeze the older shape (`template-document-v7.schema.json`
   holds the theme reference's `themeId` for wire v5 to v7) rather than tightening it in place.
+  Wire v8 references frozen copies of all three (`template-document-v8`, `template-shared-v8`,
+  `theme-v8`), which a test holds equal to the live schemas while v8 is current: a change to a
+  live schema after v8 ships needs a new wire version with copies of its own.
+- A document that declares the current wire version is checked against its published schemas
+  before it binds (`CatalogWireSchemaCheck`), so a member the model does not know, a missing
+  required one, or a value of the wrong type is a finding rather than dropped or defaulted by
+  Jackson. An explicit `null` counts as leaving the member out. A document migrated from an older
+  version is not checked against the newer schemas. The writer leaves null properties out, so
+  what it writes passes the schemas; a member the schema requires but allows to be null is
+  written anyway (`@get:JsonInclude(ALWAYS)`).
 - Add golden fixtures under `fixtures/v1/migrations/` and `fixtures/v1/wire-vN/`.
 - Bump the conformance fixtures.
 - Bump `x-epistola-catalog-contract.wireSchemaVersion` in `contracts/api/openapi.yaml`, which the
@@ -69,7 +79,7 @@ needs a new wire version:
 - When a wire version adds a resource member a legacy fingerprint algorithm must not cover (v8's
   data example `key`, template `description`, variant `metadata`), list it in
   `CatalogV8Additions` (or its successor), which V1 to V4 strip, and omit it from the model's JSON
-  when absent so V5 stays put for content that does not use it.
+  when absent so V5 and V6 stay put for content that does not use it.
 
 Define rules that consumers also enforce (such as `CatalogKeys`, `CatalogKeywords`, `CatalogNamespaces`,
 `CatalogArchivePaths` and `CatalogMetadata`) once in the catalog module,

@@ -22,8 +22,11 @@ package app.epistola.catalog.protocol
  *   [CatalogDependency.catalogKey], and the v7-to-v8 migration declares every catalog under its key.
  *   A producer chooses another one only when two catalogs it depends on share a key.
  * - It is unique within the dependency list.
- * - It is never the catalog's own key: content that names the catalog's own key, as content has
- *   always been allowed to, refers to the catalog itself.
+ * - It is never the catalog's own key, and content never names the catalog itself by it: a reference
+ *   to the catalog itself names no alias. Wire v7 content could name its own catalog by key; the
+ *   v7-to-v8 migration drops it. Content that named itself by key would make the release depend on
+ *   the catalog's name, which the V6 fingerprint leaves out, so the same release mirrored or renamed
+ *   would name a catalog it does not declare.
  * - A reference that names no alias is to the catalog itself.
  *
  * Models deliberately do not enforce these rules; consumers rebind manifests stored before aliases

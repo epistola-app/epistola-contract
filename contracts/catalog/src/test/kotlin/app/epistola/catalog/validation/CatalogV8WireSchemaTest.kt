@@ -271,9 +271,9 @@ class CatalogV8WireSchemaTest {
 
     private companion object {
         val SCHEMAS = listOf(
-            "template-shared.schema.json",
-            "template-document.schema.json",
-            "theme.schema.json",
+            "template-shared-v8.schema.json",
+            "template-document-v8.schema.json",
+            "theme-v8.schema.json",
             "catalog-manifest-v8.schema.json",
             "resource-detail-v8.schema.json",
             "richtext-inline-v1.json",

@@ -73,8 +73,8 @@ export interface ThemeRefOverride {
   themeKey: string
   /**
    * The alias of the catalog containing the theme, as the owning catalog's `catalogDependencies`
-   * declares it (wire v8, contract ADR 0003). Omitted, or the owning catalog's own key, means the owning
-   * template's catalog. A reference never names a registry or namespace: those are the declaration's.
+   * declares it (wire v8, contract ADR 0003). Omitted means the owning template's catalog, which a
+   * reference never names by its own key. A reference never names a registry or namespace: those are the declaration's.
    */
   catalogKey?: string
 }
