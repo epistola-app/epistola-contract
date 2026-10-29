@@ -64,9 +64,15 @@ the template's contract. It has to work as an inclusion inside it.
 
 A new resource type, **`schema`**, holds one reusable JSON Schema: `address`, `party`, `money`.
 In wire v8, `SchemaResource` is
-`{ type: "schema", key, name, description, tags, metadata, schema }`. `key` follows the one
-resource key rule. `schema` is a JSON Schema object without `$id`; the identity comes from where
-the schema sits (part 3).
+`{ type: "schema", key, name, description, tags, metadata, schema, dataExamples }`. `key` follows
+the one resource key rule. `schema` is a JSON Schema object without `$id`; the identity comes from
+where the schema sits (part 3).
+
+`dataExamples` is optional, with the same entries and rules as a template's (`DataExampleEntry`:
+a key by the resource key rule, unique keys and names). Each example is validated against the
+resolved schema when the schema is checked, and an invalid one blocks the release. An example
+catches a mistake before any template includes the schema, and gives the editor sample data. A
+template does not inherit the examples of the schemas it includes; its own examples stay its own.
 
 A shared schema is content like any other resource. It is fingerprinted, edited in drafts,
 marked ready, and released with its catalog. It has no version of its own (ADR 0002).
@@ -212,7 +218,11 @@ would write the copy back, and the reuse would be gone without anyone noticing. 
 
 **Callers get the bundled form from an operation of its own**, `getTemplateDataContract`, at
 `…/releases/{release}/templates/{templateKey}/data-contract`. It returns one self-contained
-JSON Schema 2020-12 document, the contract resolved in that release:
+JSON Schema 2020-12 document, the contract resolved in that release, as `application/schema+json`.
+That is a deliberate exception to the versioned vendor media type that every other JSON response
+uses: the response is meant to go straight into validators and code generators, which recognise
+the registered type. The document's shape is JSON Schema's, not the API's, so the API version has
+nothing to say about it:
 
 - each shared schema the contract reaches, directly or transitively, is placed once in `$defs`,
   and each reference to it is rewritten to `#/$defs/{name}`. No `$id` is embedded, so tools that
@@ -232,7 +242,14 @@ JSON Schema 2020-12 document, the contract resolved in that release:
   copy, and the editor never does it.
 
 `validateTemplateData` validates against the resolved contract, so its behaviour for callers does
-not change.
+not change. The field schemas its result carries (`invalidFields[].schema`, `missingFields[].schema`)
+already have local `$ref`s inlined and keep rich-text references as their id. `epistola:`
+references are inlined like local ones, because a caller cannot resolve them; built-in references
+keep their id (part 3a).
+
+A caller that validates in-process (the clients' `TemplateDataValidator` extension point) needs a
+self-contained schema too. It should take it from `getTemplateDataContract`, not from
+`TemplateDto.dataModel`, and the clients' documentation says so.
 
 The **switch** option is rejected. One field would then mean two things depending on the request,
 generated clients would type it the same either way, and a resolved form would be one `PUT` away
@@ -249,8 +266,11 @@ schemas, so the migration has nothing to convert.
 
 One rule does tighten existing content: a reference outside part 3, such as a `dataModel` that
 refers to a schema on the web. The v7 → v8 migration reports such a reference as a finding and
-does not drop it. A contract that depends on fetching a schema has never been portable between
-installations, so it is reported rather than repaired.
+does not drop it. It costs little, because such a contract does not work today either. The catalog
+validator (networknt 3.0.7, as configured in `PortableJsonSchema`) does not fetch it: an `http`
+reference to a local server that would have answered received no request. Instead the reference
+goes unnoticed when the template has no data examples, and when it has one, `CatalogValidator.validate`
+throws a `SchemaException` instead of reporting a finding. Part 6 turns both into findings.
 
 ## Consequences
 
@@ -267,8 +287,10 @@ installations, so it is reported rather than repaired.
 - **API:** schema operations within a release (`listSchemas`, `getSchema`, `createSchema`,
   `updateSchema`, `deleteSchema`, `markSchemaReady`, `listSchemaUsage`), following the stencil
   operations, `ETag` and `If-Match` included. A `schemas` consumer permission. A release's changes
-  list shared schemas. `getTemplateDataContract`. Every client, its README, and a conformance
-  driver action and scenario for each new operation.
+  list shared schemas. `getTemplateDataContract`, whose `application/schema+json` response the
+  clients' `Accept` handling (`ContractMediaTypes`, the Node client's `CONTRACT_OPERATIONS`) must
+  carry as the one exception. Every client, its README, and a conformance driver action and
+  scenario for each new operation, including one that checks the media type.
 - **Deleting a shared schema** that is still referenced is allowed in a draft. It blocks the
   release (part 6), as deleting a used stencil does.
 - **A change to a shared schema reaches every template that includes it, at once.** The release's
@@ -278,19 +300,15 @@ installations, so it is reported rather than repaired.
 
 ## Open questions
 
-- **The name.** `schema` is short, but the word also means any JSON Schema, including a template's
-  own contract. Alternatives: `data-type`, `shared-schema`.
-- **The media type of `getTemplateDataContract`.** `application/schema+json` can be fed straight
-  into tools, but every other JSON response uses the versioned vendor media type
-  (`ContractMediaTypes`).
 - **Selecting a release by range or environment.** A caller can address a release by version or
   id. A variant that selects the release the way `validateTemplateData` does (`versionRange`,
   `environmentKey`) can be added if callers need it.
-- **Examples on shared schemas.** A shared schema could carry examples of its own, checked when it
-  is edited instead of only through the templates that include it.
-- **External references today.** What the validator currently does with a `$ref` outside the
-  built-in set (part 3a) has not been checked, and neither has how often existing contracts
-  contain one.
-  Both decide how much part 9's finding costs in practice.
-- **`TemplateDto.schema` and `TemplateDto.dataModel`.** The template DTOs and requests have both,
-  with overlapping descriptions. Before references land, decide which one is the data contract.
+- **`TemplateDto.schema` and `TemplateDto.dataModel`.** Both have been in the API since the
+  repository's first commit, and neither is required. `TemplateDto` and `UpdateTemplateRequest`
+  carry both, while `CreateTemplateRequest` carries only `schema`. The catalog wire format has only
+  `dataModel`: the examples are validated against it, the problem types are named after it
+  (`DataModelValidationProblemDetail`), and `updateTemplate` is described as editing it. No
+  conformance scenario, client README or hand-written client code uses `schema`. `schema` thus has
+  no place in an archive, and whatever is written to it does not survive an export. What Suite does
+  with it is not known here. Unless Suite relies on it, `dataModel` is the data contract and only it
+  may include shared schemas.
