@@ -237,14 +237,14 @@ class CatalogValidatorTest {
         )
         assertEquals(
             listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_SELF to "catalog.json.catalogDependencies[0]"),
-            findings(emptyList(), listOf(CatalogDependency(REGISTRY, NAMESPACE, "fixture", null, alias = "itself"))),
+            findings(emptyList(), listOf(CatalogDependency(REGISTRY, NAMESPACE, "fixture", "1.0.0", FINGERPRINT, alias = "itself"))),
         )
         assertEquals(
             listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_SELF to "catalog.json.dependencies[0]"),
             findings(listOf(DependencyRef.Theme("fixture", "base")), emptyList()),
         )
         // Not itself: the same namespace and key in another registry, under an alias of its own.
-        assertEquals(emptyList(), findings(emptyList(), listOf(CatalogDependency("acme.com", NAMESPACE, "fixture", null, alias = "acme-fixture"))))
+        assertEquals(emptyList(), findings(emptyList(), listOf(CatalogDependency("acme.com", NAMESPACE, "fixture", "1.0.0", FINGERPRINT, alias = "acme-fixture"))))
         assertEquals(
             listOf(CatalogValidationCodes.NAMESPACE_INVALID to "catalog.json.catalogDependencies[0].namespace"),
             findings(emptyList(), listOf(shared.copy(namespace = "exchange.epistola.app/epistola"))),
@@ -294,17 +294,56 @@ class CatalogValidatorTest {
     }
 
     @Test
+    fun `a v8 theme's spacing unit is half a point to 16 points with at most two decimals, an older one any positive number`() {
+        fun findings(
+            spacingUnit: Float,
+            sourceVersion: Int = CURRENT_VERSION,
+        ): List<Pair<String, String>> {
+            val theme = ThemeResource("house", "House", spacingUnit = spacingUnit)
+            val catalog = archive(
+                manifest(resources = listOf(ResourceEntry("theme", "house", "House", detailUrl = "./resources/theme/house.json"))),
+                mapOf("theme/house" to ResourceDetail(CURRENT_VERSION, theme)),
+                fingerprinted = sourceVersion >= CURRENT_VERSION,
+            ).also { it.sourceSchemaVersion = sourceVersion }
+            return CatalogValidator.validate(catalog).findings.map { it.code to it.path }
+        }
+        val invalid = listOf(CatalogValidationCodes.THEME_SPACING_UNIT_INVALID to "resources/theme/house.json.resource.spacingUnit")
+
+        listOf(0.5f, 0.75f, 1f, 4f, 1.2f, 1.25f, 16f).forEach { assertEquals(emptyList(), findings(it), "$it") }
+        listOf(0f, 0.25f, 0.49f, 16.01f, 500f, 1.255f, 0.35277777f, Float.NaN).forEach { assertEquals(invalid, findings(it), "$it") }
+        // An archive written before wire v8 keeps the rule it was made under.
+        listOf(0.25f, 500f, 0.35277777f).forEach { assertEquals(emptyList(), findings(it, 7), "$it at wire v7") }
+        listOf(0f, -1f).forEach { assertEquals(invalid, findings(it, 7), "$it at wire v7") }
+    }
+
+    @Test
+    fun `a v8 release carries its fingerprint, which a catalog migrated from wire v7 may lack`() {
+        val unfingerprinted = archive(manifest(), emptyMap(), fingerprinted = false)
+        assertEquals(
+            listOf(CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID to "catalog.json.release.fingerprint"),
+            CatalogValidator.validate(unfingerprinted).findings.map { it.code to it.path },
+        )
+        val migrated = archive(manifest(), emptyMap(), fingerprinted = false).also { it.sourceSchemaVersion = 7 }
+        assertEquals(emptyList(), CatalogValidator.validate(migrated).findings.map { it.code to it.path })
+    }
+
+    @Test
     fun `a catalog dependency records its release fingerprint exactly when it records a release`() {
         val shared = CatalogDependency(REGISTRY, NAMESPACE, "shared", "1.4.0", FINGERPRINT)
         fun findings(dependency: CatalogDependency) = CatalogValidator.validate(
             archive(manifest(catalogDependencies = listOf(dependency)), emptyMap()),
         ).findings.map { it.code to it.path }
         val invalid = listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_FINGERPRINT_INVALID to "catalog.json.catalogDependencies[0].releaseFingerprint")
+        val unpinned = CatalogValidationCodes.DEPENDENCY_CATALOG_VERSION_INVALID to "catalog.json.catalogDependencies[0].releaseVersion"
 
         assertEquals(emptyList(), findings(shared))
-        assertEquals(emptyList(), findings(shared.copy(releaseVersion = null, releaseFingerprint = null)))
+        // A release pins every catalog it declares; only one migrated from wire v7, which had no pins, may not.
+        assertEquals(listOf(unpinned), findings(shared.copy(releaseVersion = null, releaseFingerprint = null)))
+        val migrated = archive(manifest(catalogDependencies = listOf(shared.copy(releaseVersion = null, releaseFingerprint = null))), emptyMap(), fingerprinted = false)
+            .also { it.sourceSchemaVersion = 7 }
+        assertEquals(emptyList(), CatalogValidator.validate(migrated).findings.map { it.code to it.path })
         assertEquals(invalid, findings(shared.copy(releaseFingerprint = null)))
-        assertEquals(invalid, findings(shared.copy(releaseVersion = null)))
+        assertEquals(invalid + listOf(unpinned), findings(shared.copy(releaseVersion = null)))
         assertEquals(invalid, findings(shared.copy(releaseFingerprint = FINGERPRINT.uppercase())))
         assertEquals(invalid, findings(shared.copy(releaseFingerprint = "sha256:${FINGERPRINT.removePrefix("v5:")}")))
         assertEquals(invalid, findings(shared.copy(releaseFingerprint = FINGERPRINT.removePrefix("v5:"))))
@@ -338,9 +377,15 @@ class CatalogValidatorTest {
         assertEquals(
             listOf(
                 CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED to "resources/attribute/country.json.resource.codeListBinding.catalogKey",
+                // In wire v8 a reference to the catalog itself names no catalog: its own key is not an alias.
+                CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED to "resources/attribute/district.json.resource.codeListBinding.catalogKey",
                 CatalogValidationCodes.RESOURCE_REFERENCE_MISSING to "resources/attribute/locale.json.resource.codeListBinding",
             ),
             report.findings.map { it.code to it.path },
+        )
+        assertTrue(
+            report.findings.single { it.path.startsWith("resources/attribute/district.json") }.message.contains("own key 'fixture'"),
+            report.findings.toString(),
         )
         // The alias is resolved to the catalog its declaration names; an undeclared one never reaches the resolver.
         assertEquals(listOf(CatalogResourceReference("codeList", "countries", "shared-lists", "acme", "acme.com")), resolved)
@@ -379,12 +424,14 @@ class CatalogValidatorTest {
                 "$letter.templateModel.nodes.root.styles.fontFamily.catalogKey",
                 "$letter.templateModel.themeRef.catalogKey",
                 "$letter.themeCatalogKey",
+                "$letter.variants[0].attributes.fixture.tone",
                 "$letter.variants[0].attributes.system.locale",
                 "resources/theme/house.json.resource.documentStyles.fontFamily.catalogKey",
             ),
             undeclared(),
         )
-        assertEquals(emptyList(), undeclared("brand", "fonts", "media", "shared", "system"))
+        // The catalog's own key (`fixture.tone`) is never an alias, declared or not.
+        assertEquals(listOf("$letter.variants[0].attributes.fixture.tone"), undeclared("brand", "fonts", "media", "shared", "system"))
     }
 
     @Test
@@ -462,7 +509,11 @@ class CatalogValidatorTest {
         ).findings.map { it.code to it.path }
 
         assertEquals(emptyList(), findings(CatalogThemeRef("corporate")))
-        assertEquals(emptyList(), findings(CatalogThemeRef("corporate", "fixture")), "naming the catalog itself by its own key")
+        assertEquals(
+            listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED to "catalog.json.catalog.defaultTheme"),
+            findings(CatalogThemeRef("corporate", "fixture")),
+            "a theme of the catalog itself names no catalog, not its own key",
+        )
         assertEquals(emptyList(), findings(CatalogThemeRef("brand", "shared"), listOf(shared)))
         assertEquals(
             listOf(CatalogValidationCodes.RESOURCE_REFERENCE_MISSING to "catalog.json.catalog.defaultTheme.key"),
@@ -1228,7 +1279,11 @@ class CatalogValidatorTest {
             sourceVersion: Int,
         ): List<Pair<String, String>> {
             val detail = ResourceDetail(CURRENT_VERSION, letter())
-            val catalog = archive(manifest(resources = listOf(ResourceEntry("template", "letter", "Letter", detailUrl = detailUrl))), mapOf("template/letter" to detail))
+            val catalog = archive(
+                manifest(resources = listOf(ResourceEntry("template", "letter", "Letter", detailUrl = detailUrl))),
+                mapOf("template/letter" to detail),
+                fingerprinted = sourceVersion >= CURRENT_VERSION,
+            )
             catalog.sourceSchemaVersion = sourceVersion
             return CatalogValidator.validate(catalog).findings.map { it.code to it.path }
         }
@@ -1323,18 +1378,21 @@ class CatalogValidatorTest {
         catalogDependencies = catalogDependencies,
     )
 
+    /**
+     * An in-memory archive of [manifest] and [details]. A release carries its fingerprint, so one is
+     * computed, as a producer would, unless [manifest] names one (or [fingerprinted] is false).
+     */
     private fun archive(
         manifest: CatalogManifest,
         details: Map<String, ResourceDetail>,
         additionalPaths: Set<String> = emptySet(),
+        fingerprinted: Boolean = true,
     ): CatalogArchive {
         val paths = details.keys.mapTo(mutableSetOf("catalog.json")) { "resources/$it.json" } + additionalPaths
-        return CatalogArchive(
-            manifest,
-            details,
-            paths,
-            ArchiveContentProvider { ByteArrayInputStream("{}".toByteArray()) },
-        )
+        val content = ArchiveContentProvider { ByteArrayInputStream("{}".toByteArray()) }
+        if (!fingerprinted || manifest.release.fingerprint != null) return CatalogArchive(manifest, details, paths, content)
+        val fingerprint = CatalogCanonicalizer.currentQualifiedFingerprint(CatalogArchive(manifest, details, paths, content)).toString()
+        return CatalogArchive(manifest.copy(release = manifest.release.copy(fingerprint = fingerprint)), details, paths, content)
     }
 
     private fun validDocument() = TemplateDocument(

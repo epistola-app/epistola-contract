@@ -27,6 +27,7 @@
   },
   "release": {
     "version": "1.0.0",
+    "fingerprint": "v6:9b0178630514aef88d0b0c94d15e31557971fb7c0602208a7ad26d9261ba6350",
     "releaseId": "k7m2x9qa",
     "metadata": {
       "app.epistola.suite": {

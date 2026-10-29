@@ -61,7 +61,8 @@ notices.
 `CatalogCanonicalizer` hashes canonical catalog content. It sorts resources and JSON object keys,
 normalizes numeric JSON representation, includes streamed asset digests, and excludes the release
 metadata (its timestamp, version, id, producer `metadata` and `base`), every resource's producer
-`metadata`, resource URLs, and ZIP metadata. Therefore equivalent archives have identical fingerprints even when their entry order,
+`metadata`, detail URLs, and ZIP metadata (V6 also leaves out a binary's `contentUrl`; V5 and
+earlier cover it). Therefore equivalent archives have identical fingerprints even when their entry order,
 timestamps, compression, or JSON property order differ. What each algorithm covers of the manifest
 differs; see the list below.
 
@@ -89,7 +90,7 @@ V6 covers, under its own domain prefix (`algorithm sha256-v6`):
 
 | What | Members |
 | --- | --- |
-| Every resource, as V5 covers it | each resource detail, an image's or font face's bytes included; references to other catalogs name an alias, so the resource says nothing about another catalog's name |
+| Every resource, as V5 covers it | each resource detail, an image's or font face's bytes included (by `contentHash`); references to other catalogs name an alias, so the resource says nothing about another catalog's name |
 | The resource index | each entry's `type`, `key`, `name` and `description`, as V5 |
 | The catalog's content settings | `catalog.defaultTheme` (`key`, `catalogKey` alias), `catalog.presets` (sorted by key) and `catalog.license` |
 | The dependencies | each resource dependency by type, alias and key; each `catalogDependencies` entry as its `alias` and the pinned `releaseFingerprint`, sorted by alias |
@@ -107,7 +108,10 @@ V6 does not cover:
 - **the catalog's presentation**: `catalog.name`, `description`, `keywords`, `presentation` (which
   images to show; the image resources themselves are content), `attributes` (discovery labels),
   and the manifest's `publisher` and `includes`;
-- **the wire version**: `schemaVersion`.
+- **the wire version**: `schemaVersion`;
+- **where a binary sits in the archive**: an image's or font face's `contentUrl`. The bytes are
+  covered by their `contentHash`, so the same bytes at `./assets/logo.png` and at `bin/<hash>` are
+  the same content. V5 covered it.
 
 **Why** (Suite ADR 0034): when the name is the identity, giving a release another name -- a mirror
 under another name, a promotion from a provisional name, a channel, a rename -- makes it a new
@@ -224,11 +228,15 @@ Whole-catalog validation chooses the rule by the archive's source wire version:
   canonicalizer restores each from the raw `catalog.json` and resource documents in the archive:
   wherever the migrated value is exactly the rewrite of a different raw value at the same position.
   V5 covers the keys as migrated.
-- Native v8 input must carry `v6:<hex>` over its own content. Naming another algorithm is
-  `CATALOG_RELEASE_FINGERPRINT_INVALID`, even when it matches. A pin (`releaseFingerprint`) or a base
+- Native v8 input must carry `v6:<hex>` over its own content. Leaving it out, or naming another
+  algorithm, is `CATALOG_RELEASE_FINGERPRINT_INVALID`, even when it matches. Only a catalog migrated
+  from wire v7, where the fingerprint was optional, may lack one. Native v8 input also pins every
+  catalog it declares (`releaseVersion` and `releaseFingerprint`), or the declaration is
+  `CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID`; a migrated catalog's declarations are unpinned, so it
+  is released again before it is shared as a v8 release. A pin (`releaseFingerprint`) or a base
   (`release.base.fingerprint`) may name any known algorithm, and is checked with exactly that one.
 
-Re-exporting a migrated catalog replaces a present legacy fingerprint with V6, as `v6:<hex>`.
+Re-exporting a migrated catalog writes its V6 fingerprint, as `v6:<hex>`, in place of a legacy one, or where wire v7 allowed none: a v8 release always carries its identity. Its dependency declarations stay unpinned, as the writer cannot know which releases the catalog was cut against; a migrated catalog with dependencies is released again before it is shared.
 
 Authoritative versioned inputs and expected hashes are published below
 `META-INF/epistola-catalog/fixtures/v1` in the Maven artifact and

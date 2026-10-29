@@ -284,6 +284,12 @@ object CatalogValidationCodes {
      */
     const val MANIFEST_DETAIL_URL_INVALID = "CATALOG_MANIFEST_DETAIL_URL_INVALID"
     const val TEMPLATE_DATA_SCHEMA_INVALID = "CATALOG_TEMPLATE_DATA_SCHEMA_INVALID"
+
+    /**
+     * A theme's `spacingUnit` is out of its rule: from wire v8, points from 0.5 to 16 with at most two
+     * decimals, as the API takes it; before, any positive finite number.
+     */
+    const val THEME_SPACING_UNIT_INVALID = "CATALOG_THEME_SPACING_UNIT_INVALID"
     const val TEMPLATE_DATA_EXAMPLE_INVALID = "CATALOG_TEMPLATE_DATA_EXAMPLE_INVALID"
     const val TEMPLATE_VARIANT_KEY_DUPLICATE = "CATALOG_TEMPLATE_VARIANT_KEY_DUPLICATE"
     const val TEMPLATE_VARIANT_DEFAULT_INVALID = "CATALOG_TEMPLATE_VARIANT_DEFAULT_INVALID"
@@ -394,7 +400,8 @@ object ResourceValidator {
 
     /**
      * Every alias the resource's content names is declared in the catalog's dependency list (contract ADR
-     * 0003), unless it is the catalog's own key, which names the catalog itself. Skipped when the
+     * 0003). The catalog's own key is never one: content names the catalog itself by naming no alias,
+     * so that the release does not depend on the name its fingerprint leaves out. Skipped when the
      * list is not known.
      */
     private fun validateAliases(
@@ -405,12 +412,16 @@ object ResourceValidator {
     ) {
         val declared = context.catalogDependencies?.mapTo(mutableSetOf()) { it.alias } ?: return
         CatalogReferences.inResource(resource, path)
-            .filter { it.alias != context.catalogKey && it.alias !in declared }
+            .filter { it.alias !in declared }
             .forEach { reference ->
                 findings.error(
                     CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED,
                     reference.path,
-                    "${reference.type} reference names the catalog alias '${reference.alias}', which catalogDependencies does not declare",
+                    if (reference.alias == context.catalogKey) {
+                        "${reference.type} reference names the catalog's own key '${reference.alias}'; a reference to the catalog itself names no catalog"
+                    } else {
+                        "${reference.type} reference names the catalog alias '${reference.alias}', which catalogDependencies does not declare"
+                    },
                 )
             }
     }
@@ -602,8 +613,16 @@ object ResourceValidator {
             validateFontRefs(value.styles, context, "$path.blockStylePresets.$name.styles", findings)
         }
         appendTemplateFindings(TemplateValidator.validateThemeStyles(resource.documentStyles, resource.blockStylePresets, resource.defaultBlockStyles), findings, path)
-        if (resource.spacingUnit != null && (!resource.spacingUnit.isFinite() || resource.spacingUnit <= 0)) {
-            findings.error(CatalogValidationCodes.TEMPLATE_DATA_SCHEMA_INVALID, "$path.spacingUnit", "spacingUnit must be a positive finite number")
+        resource.spacingUnit?.let { unit ->
+            // From wire v8 the rule the API and rendering use; an archive written before keeps the
+            // looser one it was made under.
+            val message = if (context.sourceSchemaVersion >= SPACING_UNIT_BOUNDED_SINCE_WIRE_VERSION) {
+                "spacingUnit must be a number of points from 0.5 to 16 with at most two decimals"
+                    .takeUnless { unit.isFinite() && unit in 0.5f..16f && java.math.BigDecimal(unit.toString()).stripTrailingZeros().scale() <= 2 }
+            } else {
+                "spacingUnit must be a positive finite number".takeUnless { unit.isFinite() && unit > 0 }
+            }
+            message?.let { findings.error(CatalogValidationCodes.THEME_SPACING_UNIT_INVALID, "$path.spacingUnit", it) }
         }
     }
 
@@ -825,6 +844,9 @@ object ResourceValidator {
 /** The wire version from which every path into the catalog is held to [CatalogArchivePaths]. */
 private const val ARCHIVE_PATHS_SINCE_WIRE_VERSION = 8
 
+/** The wire version from which a theme's `spacingUnit` is held to 0.5 to 16 points, two decimals. */
+private const val SPACING_UNIT_BOUNDED_SINCE_WIRE_VERSION = 8
+
 /**
  * Entry point for complete portable catalog validation.
  *
@@ -881,7 +903,7 @@ object CatalogValidator {
             )
         }
         validateRelease(catalog, policy, findings)
-        validateCatalogDependencies(manifest, findings)
+        validateCatalogDependencies(manifest, catalog.sourceSchemaVersion >= RELEASE_COMPLETE_SINCE_WIRE_VERSION, findings)
         validateDependencies(manifest, policy, findings)
 
         val manifestKeys = mutableSetOf<String>()
@@ -1131,19 +1153,31 @@ object CatalogValidator {
                 findings.error(CatalogValidationCodes.RELEASE_TIMESTAMP_INVALID, "catalog.json.release.releasedAt", "releasedAt must be an ISO-8601 offset timestamp")
             }
         }
+        if (release.fingerprint == null && catalog.sourceSchemaVersion >= RELEASE_COMPLETE_SINCE_WIRE_VERSION) {
+            // The fingerprint is the release's identity, which a pin and a base name. A catalog
+            // migrated from wire v7, where it was optional, keeps going without one.
+            findings.error(
+                CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID,
+                "catalog.json.release.fingerprint",
+                "a release carries its fingerprint, the identity a pin and a base name: " +
+                    "${CatalogCanonicalizer.releaseFingerprintVersion(catalog.sourceSchemaVersion).label}:<lowercase SHA-256 hex>",
+            )
+        }
         release.fingerprint?.let {
             // From wire v8 the fingerprint names its algorithm, and a release is fingerprinted with
-            // the current one: an older algorithm covers less, so accepting it would verify less.
+            // the one its wire version fixes: an older algorithm covers less, so accepting it would
+            // verify less, and a newer one, from a later wire version, is not this version's.
             // Before wire v8 it is bare hex and the wire version implies the algorithm.
-            val qualified = catalog.sourceSchemaVersion >= V5_FINGERPRINT_SINCE_WIRE_VERSION
-            val invalid = if (qualified) {
-                QualifiedCatalogFingerprint.parse(it)?.version != CatalogCanonicalizer.CURRENT_FINGERPRINT_VERSION
+            val qualified = catalog.sourceSchemaVersion >= QUALIFIED_FINGERPRINT_SINCE_WIRE_VERSION
+            val required = if (qualified) CatalogCanonicalizer.releaseFingerprintVersion(catalog.sourceSchemaVersion) else null
+            val invalid = if (required != null) {
+                QualifiedCatalogFingerprint.parse(it)?.version != required
             } else {
                 !SHA256.matches(it)
             }
             if (invalid) {
                 val message = if (qualified) {
-                    "fingerprint must name the current algorithm: ${CatalogCanonicalizer.CURRENT_FINGERPRINT_VERSION.label}:<lowercase SHA-256 hex>"
+                    "fingerprint must name the algorithm of wire v${catalog.sourceSchemaVersion}: ${required?.label}:<lowercase SHA-256 hex>"
                 } else {
                     "fingerprint must be a lowercase SHA-256 hex string"
                 }
@@ -1205,11 +1239,15 @@ object CatalogValidator {
         val path = "catalog.json.catalog.defaultTheme"
         ResourceValidator.validateDefaultTheme(theme, context, path, findings)
         val alias = theme.catalogKey ?: return
-        if (alias != manifest.catalog.key && manifest.catalogDependencies.orEmpty().none { it.alias == alias }) {
+        if (manifest.catalogDependencies.orEmpty().none { it.alias == alias }) {
             findings.error(
                 CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED,
                 path,
-                "defaultTheme names the catalog alias '$alias', which catalogDependencies does not declare",
+                if (alias == manifest.catalog.key) {
+                    "defaultTheme names the catalog's own key '$alias'; a theme of the catalog itself names no catalog"
+                } else {
+                    "defaultTheme names the catalog alias '$alias', which catalogDependencies does not declare"
+                },
             )
         }
     }
@@ -1361,8 +1399,14 @@ object CatalogValidator {
      * depends on once, never itself, under an alias of its own (contract ADR 0003), with, unless migrated, the
      * release it pins: its fingerprint, and the number it had.
      */
+    /**
+     * Holds `catalogDependencies` to its rules. When [pinned] (an archive written at wire v8 or
+     * later, not one migrated from wire v7, which had no pins), every declaration pins a release: a
+     * release renders with particular releases of its dependencies, and its fingerprint covers them.
+     */
     private fun validateCatalogDependencies(
         manifest: CatalogManifest,
+        pinned: Boolean,
         findings: MutableList<CatalogValidationFinding>,
     ) {
         val own = CatalogIdentity(manifest.catalog.registry, manifest.catalog.namespace, manifest.catalog.key)
@@ -1405,6 +1449,13 @@ object CatalogValidator {
                     CatalogValidationCodes.DEPENDENCY_CATALOG_DUPLICATE,
                     path,
                     "catalog $identity is declared more than once",
+                )
+            }
+            if (pinned && dependency.releaseVersion == null) {
+                findings.error(
+                    CatalogValidationCodes.DEPENDENCY_CATALOG_VERSION_INVALID,
+                    "$path.releaseVersion",
+                    "a release pins every catalog it declares: releaseVersion and releaseFingerprint are required",
                 )
             }
             dependency.releaseVersion?.let { release ->
@@ -1527,7 +1578,10 @@ object CatalogValidator {
     private const val V4_FINGERPRINT_SINCE_WIRE_VERSION = 6
 
     /** Wire version from which a catalog must carry a V5 fingerprint. */
-    private const val V5_FINGERPRINT_SINCE_WIRE_VERSION = 8
+    private const val QUALIFIED_FINGERPRINT_SINCE_WIRE_VERSION = 8
+
+    /** The wire version from which a release carries its fingerprint and pins every dependency. */
+    private const val RELEASE_COMPLETE_SINCE_WIRE_VERSION = 8
     private val ATTRIBUTE_IDENTITY = Regex("^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 
     private data class StencilResourceIdentity(

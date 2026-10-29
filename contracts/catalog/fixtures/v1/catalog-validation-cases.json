@@ -56,6 +56,7 @@
   "CATALOG_TEMPLATE_EXAMPLE_KEY_INVALID": "data example has no key, or one that is not a 1 to 64 character lowercase kebab-case key (wire v8)",
   "CATALOG_TEMPLATE_DESCRIPTION_INVALID": "template description is longer than 2000 characters (wire v8)",
   "CATALOG_TEMPLATE_DATA_SCHEMA_INVALID": "template data schema has an invalid shape",
+  "CATALOG_THEME_SPACING_UNIT_INVALID": "a theme's spacingUnit is outside its rule: from wire v8 0.5 to 16 points with at most two decimals",
   "CATALOG_TEMPLATE_DATA_EXAMPLE_INVALID": "example does not satisfy the template data schema",
   "CATALOG_TEMPLATE_VARIANT_KEY_DUPLICATE": "template repeats a variant key",
   "CATALOG_TEMPLATE_VARIANT_DEFAULT_INVALID": "template has multiple default variants",

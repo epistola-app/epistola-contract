@@ -84,8 +84,8 @@ sealed interface CatalogResource {
  *
  * [themeKey] names the template's default theme; until wire v8 the member was called `themeId`, and
  * binding reads either name. [themeCatalogKey] names the alias of the catalog holding it when that is
- * another catalog the template's catalog depends on ([CatalogAliases], contract ADR 0003); null, or the
- * catalog's own key, means the template's own catalog. An earlier draft of wire v8 also named the
+ * another catalog the template's catalog depends on ([CatalogAliases], contract ADR 0003); null means
+ * the template's own catalog, which content never names by its own key. An earlier draft of wire v8 also named the
  * theme's catalog by `themeNamespace` and `themeRegistry`; they are ignored when binding, so that
  * details stored with them still bind, and the migrator's wire check refuses them in a v8 archive.
  *

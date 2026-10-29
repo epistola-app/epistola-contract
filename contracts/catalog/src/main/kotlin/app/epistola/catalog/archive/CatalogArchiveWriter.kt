@@ -8,6 +8,7 @@ import app.epistola.catalog.canonical.CatalogCanonicalizer
 import app.epistola.catalog.migration.CatalogWireSchema
 import app.epistola.catalog.protocol.FontResource
 import app.epistola.catalog.protocol.ImageResource
+import com.fasterxml.jackson.annotation.JsonInclude
 import org.apache.commons.compress.archivers.zip.Zip64Mode
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream
@@ -31,10 +32,15 @@ import java.util.zip.ZipEntry
  * [app.epistola.catalog.canonical.CatalogCanonicalizer] for content identity.
  */
 object CatalogArchiveWriter {
+    // A null property is left out rather than written as `null`, which the published schemas do
+    // not allow for most members; a reader takes the two alike. Only properties: a `null` inside
+    // free-form content (a data example, a data model) is a value and stays. The fingerprint is
+    // computed over the bound model, not these bytes, so it is the same either way.
     private val mapper = jsonMapper {
         addModule(kotlinModule())
         enable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
         enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+        changeDefaultPropertyInclusion { it.withValueInclusion(JsonInclude.Include.NON_NULL) }
     }
 
     /**
@@ -68,7 +74,10 @@ object CatalogArchiveWriter {
         require(catalog.resourceDetails.values.all { it.schemaVersion == CatalogWireSchema.CURRENT_VERSION }) {
             "catalog resource details must all use schemaVersion ${CatalogWireSchema.CURRENT_VERSION}"
         }
-        val fingerprinted = if (catalog.sourceSchemaVersion < CatalogWireSchema.CURRENT_VERSION && catalog.manifest.release.fingerprint != null) {
+        // A catalog migrated from an older wire version is written with the fingerprint wire v8
+        // requires, computed from its content, whether its source carried a legacy one or, as wire
+        // v7 allowed, none: a v8 release always carries its identity.
+        val fingerprinted = if (catalog.sourceSchemaVersion < CatalogWireSchema.CURRENT_VERSION) {
             catalog.manifest.copy(
                 release = catalog.manifest.release.copy(
                     fingerprint = CatalogCanonicalizer.currentQualifiedFingerprint(catalog).toString(),

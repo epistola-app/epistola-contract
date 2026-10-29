@@ -313,6 +313,7 @@ internal class CatalogV7ToV8Migration : CatalogSchemaMigration {
             notices,
         )
         if (keyFindings.isNotEmpty()) return CatalogMigrationStepResult(keyFindings, notices)
+        CatalogReferenceQualifiers.dropOwnKey(resource, "$path.resource", catalog.key, notices)
         if (resource["type"]?.asString() == "stencil" && resource.remove("version") != null) {
             notices += CatalogMigrationNotice(
                 CatalogMigrationCodes.STENCIL_VERSION_REMOVED,

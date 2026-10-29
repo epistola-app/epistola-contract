@@ -252,6 +252,9 @@ class CatalogWireParityTest {
             "resource-detail-v7.schema.json",
             "catalog-manifest-v8.schema.json",
             "resource-detail-v8.schema.json",
+            "template-document-v8.schema.json",
+            "template-shared-v8.schema.json",
+            "theme-v8.schema.json",
             "resource-detail.schema.json",
         ).forEach { name ->
             assertNotNull(javaClass.getResource("/META-INF/epistola-catalog/schemas/$name"), name)
@@ -261,4 +264,24 @@ class CatalogWireParityTest {
     private fun fixture(path: String) = requireNotNull(
         javaClass.getResourceAsStream("/META-INF/epistola-catalog/fixtures/v1/$path"),
     )
+
+    @Test
+    fun `the schemas wire v8 freezes match the live ones until a later wire version exists`() {
+        // resource-detail-v8 references these copies, not the live schemas, so a later change to
+        // a template document or a theme cannot change what wire v8 accepts. While v8 is the current
+        // version the copies must match the live schemas, apart from their ids: a change to a live
+        // schema is then a change to v8 and needs a new wire version, with its own copies, once v8
+        // is released.
+        val frozen = listOf("template-document", "template-shared", "theme")
+        fun normalized(name: String): String = requireNotNull(javaClass.getResource("/META-INF/epistola-catalog/schemas/$name"), name::toString)
+            .readText()
+            .let(mapper::readTree)
+            .let { tree -> (tree as tools.jackson.databind.node.ObjectNode).apply { remove("\$id") } }
+            .toString()
+            .let { text -> frozen.fold(text) { acc, schema -> acc.replace("\"$schema-v8.schema.json", "\"$schema.schema.json") } }
+
+        frozen.forEach { schema ->
+            assertEquals(normalized("$schema.schema.json"), normalized("$schema-v8.schema.json"), "$schema-v8.schema.json has drifted from $schema.schema.json")
+        }
+    }
 }

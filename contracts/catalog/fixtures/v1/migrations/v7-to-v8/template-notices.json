@@ -1,5 +1,10 @@
 [
   {
+    "code": "CATALOG_REFERENCE_ALIASED",
+    "path": "resources/template/letter.json.resource.templateModel.nodes.logo.props.catalogKey",
+    "message": "an image reference named the catalog itself by its own key 'letters'; it now names no catalog"
+  },
+  {
     "code": "CATALOG_DATA_EXAMPLE_KEY_ASSIGNED",
     "path": "resources/template/letter.json.resource.dataExamples[0].key",
     "message": "data example 'Standaard brief' was given the key 'standaard-brief'"

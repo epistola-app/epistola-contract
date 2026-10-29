@@ -310,7 +310,7 @@
           "maxLength": 50
         },
         "catalogKey": {
-          "description": "The alias of the catalog holding the theme, as catalogDependencies declares it. Omitted, or this catalog's own key, means this catalog.",
+          "description": "The alias of the catalog holding the theme, as catalogDependencies declares it. Omitted means this catalog; a catalog never names itself by its own key.",
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
           "minLength": 3,
@@ -387,7 +387,7 @@
           ]
         },
         "fingerprint": {
-          "description": "The release's identity: the canonical fingerprint of its content, in the form that names its algorithm: v6:<lowercase SHA-256 hex>. Wire v8 requires the current algorithm, v6, which covers the release's content only, never the catalog's name, this release block or the catalog's presentation, so two releases with the same fingerprint are the same release wherever they come from and whatever they are called.",
+          "description": "The release's identity: the canonical fingerprint of its content, in the form that names its algorithm: v6:<lowercase SHA-256 hex>. Required of a release written at wire v8 (the validator reports CATALOG_RELEASE_FINGERPRINT_INVALID); absent only in a catalog migrated from wire v7, where it was optional. Wire v8 fixes the algorithm, v6, which covers the release's content only, never the catalog's name, this release block or the catalog's presentation, so two releases with the same fingerprint are the same release wherever they come from and whatever they are called.",
           "type": [
             "string",
             "null"
@@ -567,7 +567,7 @@
       "type": "object",
       "properties": {
         "alias": {
-          "description": "How this catalog's content names the dependency: every reference into it names this alias and a resource key. The catalog key rule; unique within catalogDependencies, and never this catalog's own key, which content uses for the catalog itself. A producer declares a catalog under its own key unless two catalogs it depends on share one.",
+          "description": "How this catalog's content names the dependency: every reference into it names this alias and a resource key. The catalog key rule; unique within catalogDependencies, and never this catalog's own key: content names the catalog itself by naming no alias. A producer declares a catalog under its own key unless two catalogs it depends on share one.",
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
           "minLength": 3,
@@ -586,7 +586,7 @@
           "maxLength": 50
         },
         "releaseVersion": {
-          "description": "The number the pinned release had when it was pinned: a hint for people, and where a carried copy of it is found, while releaseFingerprint is the pin. A release number as release.version has it, a patch release's included, at most 128 characters. Null only for a catalog migrated from wire v7 or earlier, which pins no release, and then releaseFingerprint is null too.",
+          "description": "The number the pinned release had when it was pinned: a hint for people, and where a carried copy of it is found, while releaseFingerprint is the pin. A release number as release.version has it, a patch release's included, at most 128 characters. Null only for a catalog migrated from wire v7 or earlier, which pins no release, and then releaseFingerprint is null too: a release written at wire v8 pins every catalog it declares (the validator reports CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID).",
           "type": [
             "string",
             "null"
