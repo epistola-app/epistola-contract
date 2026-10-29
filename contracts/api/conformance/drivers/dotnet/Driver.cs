@@ -83,6 +83,8 @@ public static class Driver
                 case "create-environment": CreateEnvironment(baseUrl, config); break;
                 case "update-environment": UpdateEnvironment(baseUrl, config); break;
                 case "update-tenant": UpdateTenant(baseUrl, config); break;
+                case "create-template": CreateTemplate(baseUrl, config); break;
+                case "update-template": UpdateTemplate(baseUrl, config); break;
                 case "update-code-list-entry-hidden": UpdateCodeListEntryHidden(baseUrl, config); break;
                 case "update-variant-content": UpdateVariantContent(baseUrl, config); break;
                 case "get-variant-content": GetVariantContent(baseUrl, config); break;
@@ -314,6 +316,87 @@ public static class Driver
             ["lastModified"] = Show(Iso(response.Data.LastModified)),
             ["etag"] = Header(response, "ETag"),
         });
+    }
+
+    /// <summary>
+    /// Replaces a template's data contract with <c>config.dataModel</c> and <c>config.dataExamples</c>,
+    /// each only when present, sending <c>config.ifMatch</c> as <c>If-Match</c> when present. The data
+    /// model is free-form JSON, passed through the client's own serializer as a caller holding that
+    /// JSON would.
+    /// </summary>
+    private static void UpdateTemplate(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var dataModel = DataModel(config);
+        var dataExamples = DataExamples(config);
+        ApiResponse<TemplateDto> response;
+        try
+        {
+            response = new TemplatesApi(http, apiBase).UpdateTemplateWithHttpInfo(
+                Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"), Str(config, "templateKey"),
+                new UpdateTemplateRequest(dataModel: dataModel!, dataExamples: dataExamples!),
+                ifMatch: OptStr(config, "ifMatch"));
+        }
+        catch (ProblemDetailException e)
+        {
+            ReportProblem(baseUrl, e);
+            return;
+        }
+
+        var values = TemplateFields(response.Data);
+        values["etag"] = Header(response, "ETag");
+        Report(baseUrl, values);
+    }
+
+    /// <summary>
+    /// Creates a template, with <c>config.dataModel</c> and <c>config.dataExamples</c> only when
+    /// present. The data model is free-form JSON, passed through the client's own serializer as a
+    /// caller holding that JSON would.
+    /// </summary>
+    private static void CreateTemplate(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var response = new TemplatesApi(http, apiBase).CreateTemplateWithHttpInfo(
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"),
+            new CreateTemplateRequest(
+                key: Str(config, "key"),
+                name: Str(config, "name"),
+                description: OptStr(config, "description")!,
+                dataModel: DataModel(config)!,
+                dataExamples: DataExamples(config)!));
+        var values = TemplateFields(response.Data);
+        values["location"] = Header(response, "Location");
+        Report(baseUrl, values);
+    }
+
+    /// <summary><c>config.dataModel</c> as free-form JSON, or null when the scenario names none.</summary>
+    private static object? DataModel(JsonElement config) =>
+        config.TryGetProperty("dataModel", out var raw) && raw.ValueKind == JsonValueKind.Object
+            ? Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, object>>(raw.GetRawText())
+            : null;
+
+    /// <summary><c>config.dataExamples</c>, or null when the scenario names none.</summary>
+    private static List<DataExampleDto>? DataExamples(JsonElement config) =>
+        config.TryGetProperty("dataExamples", out var raw) && raw.ValueKind == JsonValueKind.Array
+            ? raw.EnumerateArray().Select(example => new DataExampleDto(
+                key: Str(example, "key"),
+                name: Str(example, "name"),
+                data: Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, object>>(example.GetProperty("data").GetRawText())!)).ToList()
+            : null;
+
+    /// <summary>A template's data contract as the client read it; <c>dataModelMembers</c> tells <c>{}</c> from null.</summary>
+    private static Dictionary<string, object> TemplateFields(TemplateDto template)
+    {
+        var model = template.DataModel as Newtonsoft.Json.Linq.JObject;
+        var required = model?["required"] as Newtonsoft.Json.Linq.JArray;
+        return new Dictionary<string, object>
+        {
+            ["key"] = Show(template.Key),
+            ["dataModelMembers"] = model == null ? "null" : string.Join(",", model.Properties().Select(property => property.Name).OrderBy(name => name, StringComparer.Ordinal)),
+            ["dataModelType"] = Show(model?["type"]),
+            ["dataModelRequired"] = required == null ? "null" : string.Join(",", required.Select(value => value.ToString())),
+            ["dataExampleKeys"] = string.Join(",", (template.DataExamples ?? new List<DataExampleDto>()).Select(example => example.Key)),
+        };
     }
 
     /// <summary>

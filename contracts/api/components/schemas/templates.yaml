@@ -29,9 +29,9 @@ TemplateDto:
         Plain-text notes on the template for its authors: design decisions, known gaps. Not rendered.
         Null when the template has none.
       example: Monthly invoice; the payment block follows the 2026 house style.
-    schema:
+    dataModel:
       type: object
-      description: JSON Schema defining the input parameters for this template
+      description: The template's data contract, a JSON Schema the template data must satisfy. Null when the template has none.
       example:
         type: object
         required:
@@ -107,65 +107,6 @@ TemplateDto:
             type: string
             enum: [USD, EUR, GBP]
             default: USD
-    dataModel:
-      type: object
-      description: JSON Schema defining the expected data structure for template rendering
-      example:
-        type: object
-        properties:
-          header:
-            type: object
-            properties:
-              logo:
-                type: string
-                format: uri
-              companyName:
-                type: string
-              companyAddress:
-                type: object
-                properties:
-                  street:
-                    type: string
-                  city:
-                    type: string
-                  postalCode:
-                    type: string
-                  country:
-                    type: string
-          summary:
-            type: object
-            properties:
-              subtotal:
-                type: number
-              taxTotal:
-                type: number
-              total:
-                type: number
-          lineItems:
-            type: array
-            items:
-              type: object
-              properties:
-                description:
-                  type: string
-                quantity:
-                  type: integer
-                unitPrice:
-                  type: number
-                lineTotal:
-                  type: number
-          footer:
-            type: object
-            properties:
-              paymentTerms:
-                type: string
-              bankDetails:
-                type: object
-                properties:
-                  iban:
-                    type: string
-                  bic:
-                    type: string
     dataExamples:
       type: array
       description: Example data sets for testing template rendering
@@ -190,7 +131,7 @@ TemplateDto:
     key: invoice
     tenantKey: acme-corp
     name: Monthly Invoice
-    schema:
+    dataModel:
       type: object
       required:
         - customer
@@ -265,48 +206,6 @@ TemplateDto:
           type: string
           enum: [USD, EUR, GBP]
           default: USD
-    dataModel:
-      type: object
-      properties:
-        header:
-          type: object
-          properties:
-            logo:
-              type: string
-              format: uri
-            companyName:
-              type: string
-            companyAddress:
-              type: object
-        summary:
-          type: object
-          properties:
-            subtotal:
-              type: number
-            taxTotal:
-              type: number
-            total:
-              type: number
-        lineItems:
-          type: array
-          items:
-            type: object
-            properties:
-              description:
-                type: string
-              quantity:
-                type: integer
-              unitPrice:
-                type: number
-              lineTotal:
-                type: number
-        footer:
-          type: object
-          properties:
-            paymentTerms:
-              type: string
-            bankDetails:
-              type: object
     dataExamples:
       - key: standard-invoice
         name: Standard Invoice
@@ -513,85 +412,42 @@ CreateTemplateRequest:
         Plain-text notes on the template for its authors (design decisions, known gaps). Not rendered.
         Omitted, null or an empty string (or one of only whitespace): the template has none.
       example: Monthly invoice; the payment block follows the 2026 house style.
-    schema:
+    dataModel:
       type: object
-      description: JSON Schema defining the input parameters for this template
+      description: |
+        The template's data contract, a JSON Schema the template data must satisfy. Omitted or null:
+        the empty schema `{}`, which any data satisfies.
       example:
         type: object
         required:
           - customer
           - invoiceNumber
-          - issueDate
-          - lineItems
         properties:
           customer:
             type: object
             required:
               - name
-              - email
             properties:
               name:
                 type: string
                 minLength: 1
-                maxLength: 200
-              email:
-                type: string
-                format: email
-              taxId:
-                type: string
-                pattern: "^[A-Z]{2}\\d{9}$"
-              address:
-                type: object
-                properties:
-                  street:
-                    type: string
-                  city:
-                    type: string
-                  postalCode:
-                    type: string
-                    pattern: "^\\d{5}(-\\d{4})?$"
-                  country:
-                    type: string
-                    enum: [US, GB, NL, DE, FR]
           invoiceNumber:
             type: string
             pattern: "^INV-\\d{4}-\\d{3}$"
-          issueDate:
-            type: string
-            format: date
-          dueDate:
-            type: string
-            format: date
-          lineItems:
-            type: array
-            minItems: 1
-            items:
-              type: object
-              required:
-                - description
-                - quantity
-                - unitPrice
-              properties:
-                description:
-                  type: string
-                quantity:
-                  type: integer
-                  minimum: 1
-                unitPrice:
-                  type: number
-                  minimum: 0
-                taxRate:
-                  type: number
-                  minimum: 0
-                  maximum: 100
-          notes:
-            type: string
-            maxLength: 1000
-          currency:
-            type: string
-            enum: [USD, EUR, GBP]
-            default: USD
-
+    dataExamples:
+      type: array
+      description: |
+        The template's data examples, each satisfying `dataModel` (422 otherwise). Omitted or null:
+        none.
+      items:
+        $ref: '#/DataExampleDto'
+      example:
+        - key: standard-invoice
+          name: Standard Invoice
+          data:
+            customer:
+              name: Jane Smith
+            invoiceNumber: INV-2026-001
 UpdateTemplateRequest:
   type: object
   description: Request body for updating a template's metadata (all fields optional)
@@ -611,10 +467,9 @@ UpdateTemplateRequest:
         removes it. Null cannot mean "remove": generated servers and clients cannot tell an omitted
         member from a null one.
       example: Monthly invoice; the payment block follows the 2026 house style.
-    schema:
+    dataModel:
       type: object
-      additionalProperties: true
-      description: Updated JSON Schema for input parameters
+      description: The template's new data contract, a JSON Schema the template data must satisfy. Omitted or null keeps the current one.
       example:
         type: object
         required:
@@ -694,51 +549,6 @@ UpdateTemplateRequest:
             type: string
             enum: [USD, EUR, GBP]
             default: USD
-    dataModel:
-      type: object
-      description: Updated data model schema
-      example:
-        type: object
-        properties:
-          header:
-            type: object
-            properties:
-              logo:
-                type: string
-                format: uri
-              companyName:
-                type: string
-              companyAddress:
-                type: object
-          summary:
-            type: object
-            properties:
-              subtotal:
-                type: number
-              taxTotal:
-                type: number
-              total:
-                type: number
-          lineItems:
-            type: array
-            items:
-              type: object
-              properties:
-                description:
-                  type: string
-                quantity:
-                  type: integer
-                unitPrice:
-                  type: number
-                lineTotal:
-                  type: number
-          footer:
-            type: object
-            properties:
-              paymentTerms:
-                type: string
-              bankDetails:
-                type: object
     dataExamples:
       type: array
       description: Updated data examples

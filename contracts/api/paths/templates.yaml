@@ -47,7 +47,9 @@ templates:
   post:
     operationId: createTemplate
     summary: Create a new template
-    description: Create a document template in the draft.
+    description: |
+      Create a document template in the draft, optionally with its data contract (`dataModel`) and
+      data examples. Without them the template has the empty schema `{}` and no examples.
     tags:
       - Templates
     x-required-permissions: [TEMPLATE_EDIT]
@@ -78,6 +80,8 @@ templates:
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
         $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
+      '422':
+        $ref: '../components/responses/problem-responses.yaml#/UnprocessableEntityError'
 
 templates-id:
   parameters:
@@ -207,9 +211,9 @@ template-validate:
     operationId: validateTemplateData
     summary: Validate template input data
     description: |
-      Validate input data against the template's JSON Schema before submitting a generation job.
-      This endpoint provides pre-flight validation to catch schema violations early, enabling
-      faster feedback during development and before batch submission.
+      Validate input data against the template's data contract (`dataModel`) before submitting a
+      generation job. This endpoint provides pre-flight validation to catch schema violations early,
+      enabling faster feedback during development and before batch submission.
 
       Besides `errors`, the result says which fields are missing (`missingFields`) and which supplied
       values are wrong (`invalidFields`), each with a JSON Pointer into `data` and the field's JSON

@@ -100,7 +100,7 @@ class JsonSchemaTemplateDataValidator:
         template = self._templates_api.get_template(
             tenant_key, registry, namespace, catalog_key, self._release, template_key
         )
-        schema = template.var_schema
+        schema = template.data_model
         with self._lock:
             self._cache[key] = (schema, time.monotonic())
         return schema

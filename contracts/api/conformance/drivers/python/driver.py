@@ -32,6 +32,8 @@ from epistola_client import (
     ConsumersApi,
     CreateCatalogReleaseRequest,
     CreateEnvironmentRequest,
+    CreateTemplateRequest,
+    DataExampleDto,
     EnvironmentsApi,
     EpistolaClientBuilder,
     GenerateDocumentRequest,
@@ -58,6 +60,7 @@ from epistola_client import (
     UpdateConsumerRequest,
     UpdateEnvironmentRequest,
     UpdateStencilContentRequest,
+    UpdateTemplateRequest,
     UpdateTenantRequest,
     UpdateVariantContentRequest,
     VariantSelectionAttribute,
@@ -114,6 +117,8 @@ def main() -> int:
         "create-environment": _create_environment,
         "update-environment": _update_environment,
         "update-tenant": _update_tenant,
+        "create-template": _create_template,
+        "update-template": _update_template,
         "update-code-list-entry-hidden": _update_code_list_entry_hidden,
         "update-attribute": _update_attribute,
         "update-variant-content": _update_variant_content,
@@ -1376,6 +1381,64 @@ def _update_tenant(base_url: str, config: dict) -> None:
         base_url,
         {"key": _show(tenant.key), "name": _show(tenant.name), "etag": _header(response, "ETag")},
     )
+
+
+def _update_template(base_url: str, config: dict) -> None:
+    """Replaces a template's data contract with ``config.dataModel`` and ``config.dataExamples``,
+    each only when the scenario sets it, conditional on ``ifMatch`` when the scenario sets it. The
+    data model is free-form JSON, passed as a caller holding that JSON would. A refusal is reported
+    by its problem."""
+    try:
+        response = TemplatesApi(_client(base_url, config)).update_template_with_http_info(
+            *_release_address(config),
+            config["templateKey"],
+            UpdateTemplateRequest(**_data_contract(config)),
+            if_match=config.get("ifMatch"),
+        )
+    except ProblemDetailException as exc:
+        _report_problem(base_url, exc)
+        return
+    _report(base_url, {**_template_fields(response.data), "etag": _header(response, "ETag")})
+
+
+def _create_template(base_url: str, config: dict) -> None:
+    """Creates a template, with ``config.dataModel`` and ``config.dataExamples`` only when the
+    scenario sets them. The data model is free-form JSON, passed as a caller holding that JSON
+    would."""
+    optional = _data_contract(config)
+    if config.get("description") is not None:
+        optional["description"] = config["description"]
+    response = TemplatesApi(_client(base_url, config)).create_template_with_http_info(
+        *_release_address(config),
+        CreateTemplateRequest(key=config["key"], name=config["name"], **optional),
+    )
+    _report(base_url, {**_template_fields(response.data), "location": _header(response, "Location")})
+
+
+def _data_contract(config: dict) -> dict:
+    """``data_model`` and ``data_examples`` for a request, each only when the scenario sets it."""
+    contract = {}
+    if config.get("dataModel") is not None:
+        contract["data_model"] = config["dataModel"]
+    if config.get("dataExamples") is not None:
+        contract["data_examples"] = [
+            DataExampleDto(key=example["key"], name=example["name"], data=example["data"])
+            for example in config["dataExamples"]
+        ]
+    return contract
+
+
+def _template_fields(template) -> dict:
+    """A template's data contract as the client read it; ``dataModelMembers`` tells ``{}`` from null."""
+    data_model = template.data_model if isinstance(template.data_model, dict) else None
+    required = data_model.get("required") if data_model is not None else None
+    return {
+        "key": _show(template.key),
+        "dataModelMembers": ",".join(sorted(data_model)) if data_model is not None else "null",
+        "dataModelType": _show(data_model.get("type")) if data_model is not None else "null",
+        "dataModelRequired": ",".join(str(value) for value in required) if isinstance(required, list) else "null",
+        "dataExampleKeys": ",".join(example.key for example in template.data_examples or []),
+    }
 
 
 def _update_code_list_entry_hidden(base_url: str, config: dict) -> None:

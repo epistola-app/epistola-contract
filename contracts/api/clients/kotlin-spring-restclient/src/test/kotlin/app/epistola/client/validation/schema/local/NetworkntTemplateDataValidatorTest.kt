@@ -56,7 +56,7 @@ class NetworkntTemplateDataValidatorTest {
         variants = emptyList(),
         createdAt = OffsetDateTime.now(),
         lastModified = OffsetDateTime.now(),
-        schema = schema,
+        dataModel = schema,
     )
 
     private val validData = mapOf(

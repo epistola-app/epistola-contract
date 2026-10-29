@@ -1101,6 +1101,39 @@ class CatalogValidatorTest {
     }
 
     @Test
+    fun `a data model reference that does not resolve is a finding, with or without examples`() {
+        val unresolvable = listOf(
+            "#/\$defs/missing",
+            "other.json",
+            "https://epistola.app/schemas/richtext-block-v9.json",
+            "https://example.invalid/address.json",
+        )
+        for (ref in unresolvable) {
+            val dataModel = mapOf(
+                "type" to "object",
+                "properties" to mapOf("address" to mapOf("\$ref" to ref)),
+            )
+            for (examples in listOf(emptyList(), listOf(DataExampleEntry("example", mapOf("address" to "x"), key = "example")))) {
+                val report = validateTemplate(
+                    TemplateResource(
+                        "invoice",
+                        "Invoice",
+                        dataModel = dataModel,
+                        dataExamples = examples,
+                        templateModel = validDocument(),
+                        variants = emptyList(),
+                    ),
+                )
+
+                val finding = report.findings.single { it.code == CatalogValidationCodes.TEMPLATE_DATA_SCHEMA_INVALID }
+                assertTrue(finding.path.endsWith(".dataModel"), finding.toString())
+                assertTrue(ref.removePrefix("#") in finding.message, finding.toString())
+                assertTrue(CatalogValidationCodes.TEMPLATE_DATA_EXAMPLE_INVALID !in report.codes(), "$ref: examples are not judged against a broken schema")
+            }
+        }
+    }
+
+    @Test
     fun `an example may leave out a required property that has a default, as rendering fills it in`() {
         val dataModel = mapOf(
             "type" to "object",
