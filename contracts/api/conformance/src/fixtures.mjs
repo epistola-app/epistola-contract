@@ -60,6 +60,10 @@ const ACTION_OPERATIONS = {
   },
   'create-environment': { method: 'post', path: '/tenants/{tenantKey}/environments' },
   'update-environment': { method: 'patch', path: '/tenants/{tenantKey}/environments/{environmentKey}' },
+  'create-template': {
+    method: 'post',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates',
+  },
   'update-variant-content': {
     method: 'put',
     path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates/{templateKey}/variants/{variantKey}/content',

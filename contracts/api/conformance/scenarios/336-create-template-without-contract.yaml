@@ -1,0 +1,59 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: create-template-without-contract
+title: A template created without a data contract gets the empty schema and no examples
+why: >
+  `dataModel` and `dataExamples` are optional on create. A caller that leaves them out sends
+  neither, and the server gives the template the empty schema `{}`, which any data satisfies, and
+  no examples. The client must read that `{}` back as an empty data model, not as none.
+
+action:
+  name: create-template
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: k7m2x9qa
+    key: welcome-letter
+    name: Welcome Letter
+
+script:
+  - status: 201
+    contentType: application/vnd.epistola.v2+json
+    headers:
+      Location: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/templates/welcome-letter
+    body:
+      key: welcome-letter
+      tenantKey: acme-corp
+      name: Welcome Letter
+      description: null
+      dataModel: {}
+      dataExamples: []
+      variants:
+        - { key: initial, title: Default, attributes: {}, isDefault: true, status: new }
+      createdAt: "2026-10-29T11:00:00Z"
+      lastModified: "2026-10-29T11:00:00Z"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/templates
+      query: ""
+      body:
+        json:
+          key: welcome-letter
+          name: Welcome Letter
+        jsonAbsent: [schema]
+        jsonNullOrAbsent: [description, dataModel, dataExamples]
+  report:
+    key: welcome-letter
+    dataModelMembers: ""
+    dataModelType: "null"
+    dataModelRequired: "null"
+    dataExampleKeys: ""
+    location: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/templates/welcome-letter

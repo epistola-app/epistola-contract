@@ -32,6 +32,7 @@ import app.epistola.client.model.CatalogReleaseStatus
 import app.epistola.client.model.CatalogThemeReference
 import app.epistola.client.model.CreateCatalogReleaseRequest
 import app.epistola.client.model.CreateEnvironmentRequest
+import app.epistola.client.model.CreateTemplateRequest
 import app.epistola.client.model.DataExampleDto
 import app.epistola.client.model.EnvironmentDto
 import app.epistola.client.model.GenerateDocumentRequest
@@ -41,6 +42,7 @@ import app.epistola.client.model.PingRequest
 import app.epistola.client.model.PublishReleaseToRegistryRequest
 import app.epistola.client.model.ReleaseCatalogDraftRequest
 import app.epistola.client.model.TemplateDocument
+import app.epistola.client.model.TemplateDto
 import app.epistola.client.model.ThemeRef
 import app.epistola.client.model.UpdateAttributeRequest
 import app.epistola.client.model.UpdateAttributeRequestCodeListBinding
@@ -134,6 +136,7 @@ object Driver {
                 "deploy-catalog-release" -> deployCatalogRelease(baseUrl, config)
                 "undeploy-catalog-release" -> undeployCatalogRelease(baseUrl, config)
                 "create-environment" -> createEnvironment(baseUrl, config)
+                "create-template" -> createTemplate(baseUrl, config)
                 "update-environment" -> updateEnvironment(baseUrl, config)
                 "update-tenant" -> updateTenant(baseUrl, config)
                 "update-template" -> updateTemplate(baseUrl, config)
@@ -376,20 +379,48 @@ object Driver {
             config["templateKey"].asText(),
             UpdateTemplateRequest(
                 dataModel = config.get("dataModel")?.takeUnless { it.isNull }?.let { mapper.convertValue(it, Map::class.java) },
-                dataExamples = config.get("dataExamples")?.takeUnless { it.isNull }?.map { example ->
-                    DataExampleDto(
-                        key = example["key"].asText(),
-                        name = example["name"].asText(),
-                        data = mapper.convertValue(example["data"], Map::class.java),
-                    )
-                },
+                dataExamples = dataExamples(config),
             ),
             ifMatch = config.optionalText("ifMatch"),
         )
-    }) { template ->
+    }, ::templateFields)
+
+    /**
+     * Creates a template, with `config.dataModel` and `config.dataExamples` only when present. The data
+     * model is free-form JSON, passed as a caller holding that JSON would.
+     */
+    private fun createTemplate(baseUrl: String, config: ObjectNode) {
+        val response = TemplatesApi(restClient(baseUrl, config)).createTemplateWithHttpInfo(
+            config["tenantKey"].asText(),
+            config["registry"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["release"].asText(),
+            CreateTemplateRequest(
+                key = config["key"].asText(),
+                name = config["name"].asText(),
+                description = config.optionalText("description"),
+                dataModel = config.get("dataModel")?.takeUnless { it.isNull }?.let { mapper.convertValue(it, Map::class.java) },
+                dataExamples = dataExamples(config),
+            ),
+        )
+        report(baseUrl, templateFields(response.body!!) + ("location" to (response.headers.getFirst(HttpHeaders.LOCATION) ?: "null")))
+    }
+
+    private fun dataExamples(config: ObjectNode) = config.get("dataExamples")?.takeUnless { it.isNull }?.map { example ->
+        DataExampleDto(
+            key = example["key"].asText(),
+            name = example["name"].asText(),
+            data = mapper.convertValue(example["data"], Map::class.java),
+        )
+    }
+
+    /** A template's data contract as the client read it; `dataModelMembers` tells `{}` from null. */
+    private fun templateFields(template: TemplateDto): Map<String, Any> {
         val dataModel = template.dataModel as? Map<*, *>
-        mapOf(
+        return mapOf(
             "key" to template.key,
+            "dataModelMembers" to (dataModel?.keys?.map { it.toString() }?.sorted()?.joinToString(",") ?: "null"),
             "dataModelType" to (dataModel?.get("type")?.toString() ?: "null"),
             "dataModelRequired" to ((dataModel?.get("required") as? List<*>)?.joinToString(",") ?: "null"),
             "dataExampleKeys" to template.dataExamples.orEmpty().joinToString(",") { it.key },

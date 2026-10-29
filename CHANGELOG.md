@@ -11,6 +11,16 @@ libraries.
 
 ### Added
 
+- **A template can be created with its data contract** (`createTemplate`). `CreateTemplateRequest`
+  takes optional `dataModel` and `dataExamples`, as `updateTemplate` does, so a template need not
+  exist without them. Omitted or null, the template gets the empty schema `{}`, which any data
+  satisfies, and no examples. Examples that do not satisfy the data model are refused with 422
+  `data-model-validation-error`, which `createTemplate` now lists. Epistola Suite may not implement
+  it yet. Conformance scenarios `create-template` and `create-template-without-contract` (driver
+  action `create-template`) hold all five clients to sending the contract and examples as written,
+  and nothing for them when absent, and to reading the created template and its `Location` back,
+  an empty `{}` data model as one rather than none.
+
 - **An image accepts `keepWithNext`** (#58): the `image` component lists it in its
   `applicableStyles`, so an image can be kept on the page of the block after it, and the validator
   no longer warns `TEMPLATE_STYLE_NOT_APPLICABLE` for it. `keepTogether` is not added: an image is
@@ -1173,7 +1183,7 @@ libraries.
   one shared schemas will be included into (ADR 0009). Epistola Suite has never stored `schema`:
   it ignored it on create and update and always returned `null`. `dataModel` takes over the
   invoice example `schema` had, which is the one the template's example `dataExamples` satisfy.
-  A template is created without a data contract and gets one through `updateTemplate`. Each
+  `createTemplate` now takes `dataModel` and `dataExamples` itself (see Added). Each
   client's worked in-process validator read `schema`, so against a real server it had no schema
   and claimed nothing about the data; the Kotlin, Jakarta, .NET, Python and Node adapters now read
   `dataModel`. A consumer that falls back from `dataModel` to `schema` drops the fallback. The
