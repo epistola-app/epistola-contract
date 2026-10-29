@@ -26,7 +26,7 @@ templates:
           type: string
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
-      - $ref: '../components/parameters/sorting.yaml#/Sort'
+      - $ref: '../components/parameters/sorting.yaml#/TemplateSort'
       - $ref: '../components/parameters/sorting.yaml#/Direction'
     responses:
       '200':

@@ -47,31 +47,29 @@ CodeListDto:
       example: system
     name:
       type: string
+      minLength: 1
+      maxLength: 100
       example: BCP-47 Language Tags
     description:
       type:
         - string
         - 'null'
+      maxLength: 2000
       example: Curated subset of common BCP-47 language + region tags.
     sourceType:
-      type: string
-      enum:
-        - inline
-        - url
+      $ref: '#/CodeListSourceType'
       description: Origin of entries — inline (this row) or fetched from a URL.
       example: inline
     sourceUrl:
       type:
         - string
         - 'null'
-      description: Set only when `sourceType` is `url`. HTTPS, file, or classpath.
+      pattern: '^https://'
+      maxLength: 2048
+      description: The HTTPS URL the entries are fetched from; set only when `sourceType` is `url`.
       example: null
     authType:
-      type: string
-      enum:
-        - none
-        - api-key
-        - bearer
+      $ref: '#/CodeListAuthType'
       description: Auth scheme for the URL source. Ignored for inline.
       default: none
       example: none
@@ -135,10 +133,14 @@ CodeListEntryDto:
   properties:
     code:
       type: string
+      minLength: 1
+      maxLength: 64
       description: Persistable value. What lands on a variant's attribute map.
       example: en-US
     label:
       type: string
+      minLength: 1
+      maxLength: 200
       description: Human-readable label shown in pickers.
       example: English (United States)
     sortOrder:
@@ -168,14 +170,17 @@ CodeListListResponse:
 
 CodeListEntriesResponse:
   type: object
-  description: List of code list entries.
+  description: One page of a code list's entries.
   required:
     - items
+    - page
   properties:
     items:
       type: array
       items:
         $ref: '#/CodeListEntryDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
 
 UpdateCodeListEntryHiddenRequest:
   type: object
@@ -208,41 +213,40 @@ CreateCodeListRequest:
       example: priorities
     name:
       type: string
+      minLength: 1
+      maxLength: 100
       example: Priorities
     description:
       type:
         - string
         - 'null'
+      maxLength: 2000
       example: Customer-facing priority levels for outbound documents.
     sourceType:
-      type: string
-      enum:
-        - inline
-        - url
+      $ref: '#/CodeListSourceType'
       example: inline
     sourceUrl:
       type:
         - string
         - 'null'
+      pattern: '^https://'
+      maxLength: 2048
       example: null
     authType:
-      type: string
-      enum:
-        - none
-        - api-key
-        - bearer
+      $ref: '#/CodeListAuthType'
       default: none
     credential:
       type:
         - string
         - 'null'
+      maxLength: 4096
       description: |
-        Plaintext credential for the URL source (API key or bearer token).
-        Stored at rest unencrypted in this iteration — encryption is a
-        separate work item.
+        The credential for the URL source (an API key or a bearer token), as `authType` says.
+        Write-only: no response carries it.
       example: null
     entries:
       type: array
+      maxItems: 10000
       items:
         $ref: '#/CodeListEntryDto'
       default: []
@@ -261,25 +265,43 @@ UpdateCodeListRequest:
   properties:
     name:
       type: string
+      minLength: 1
+      maxLength: 100
     description:
       type:
         - string
         - 'null'
+      maxLength: 2000
     sourceUrl:
       type:
         - string
         - 'null'
+      pattern: '^https://'
+      maxLength: 2048
     authType:
-      type: string
-      enum:
-        - none
-        - api-key
-        - bearer
+      $ref: '#/CodeListAuthType'
     credential:
       type:
         - string
         - 'null'
+      maxLength: 4096
     entries:
       type: array
+      maxItems: 10000
       items:
         $ref: '#/CodeListEntryDto'
+
+CodeListSourceType:
+  type: string
+  description: Where a code list's entries come from, `inline` (stored with it) or a `url` they are fetched from.
+  enum:
+    - inline
+    - url
+
+CodeListAuthType:
+  type: string
+  description: How a code list authenticates to its URL source; `none` for an inline one.
+  enum:
+    - none
+    - api-key
+    - bearer

@@ -1,8 +1,12 @@
 tenants:
   get:
     operationId: listTenants
-    summary: List all tenants
-    description: Retrieve a paginated list of all tenants with optional search filtering.
+    summary: List the tenants the caller can access
+    description: |
+      A page of the tenants the authenticated caller may access, optionally filtered by `q`. A
+      caller whose credential is bound to one tenant, such as a tenant's API key, sees that tenant
+      only; a tenant it cannot access is never listed, so the list does not reveal which tenants
+      exist.
     tags:
       - Tenants
     x-required-authentication: true
@@ -14,8 +18,6 @@ tenants:
           type: string
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
-      - $ref: '../components/parameters/sorting.yaml#/Sort'
-      - $ref: '../components/parameters/sorting.yaml#/Direction'
     responses:
       '200':
         description: List of tenants

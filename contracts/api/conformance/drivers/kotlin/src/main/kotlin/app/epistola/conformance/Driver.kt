@@ -42,11 +42,12 @@ import app.epistola.client.model.PingRequest
 import app.epistola.client.model.PublishReleaseToRegistryRequest
 import app.epistola.client.model.ReleaseCatalogDraftRequest
 import app.epistola.client.model.CatalogReleaseRefDto
+import app.epistola.client.model.GenerationItemStatus
 import app.epistola.client.model.TemplateDocument
 import app.epistola.client.model.TemplateDto
 import app.epistola.client.model.ThemeRef
 import app.epistola.client.model.UpdateAttributeRequest
-import app.epistola.client.model.UpdateAttributeRequestCodeListBinding
+import app.epistola.client.model.CodeListBindingRef
 import app.epistola.client.model.UpdateCatalogDependenciesRequest
 import app.epistola.client.model.UpdateCatalogReleaseRequest
 import app.epistola.client.model.UpdateCodeListEntryHiddenRequest
@@ -110,6 +111,8 @@ object Driver {
                 "update-consumer" -> updateConsumer(baseUrl, config)
                 "download-document" -> downloadDocument(baseUrl, config)
                 "list-documents" -> listDocuments(baseUrl, config)
+                "get-generation-job-status" -> getGenerationJobStatus(baseUrl, config)
+                "list-generation-job-items" -> listGenerationJobItems(baseUrl, config)
                 "list-images" -> listImages(baseUrl, config)
                 "upload-image" -> uploadImage(baseUrl, config)
                 "import-catalog" -> importCatalog(baseUrl, config)
@@ -474,7 +477,7 @@ object Driver {
             UpdateAttributeRequest(
                 allowedValues = config.get("allowedValues")?.takeUnless { it.isNull }?.map { it.asText() },
                 codeListBinding = config.get("codeListBinding")?.takeUnless { it.isNull }?.let {
-                    UpdateAttributeRequestCodeListBinding(key = it["key"].asText(), catalogKey = it.optionalText("catalogKey"))
+                    CodeListBindingRef(key = it["key"].asText(), catalogKey = it.optionalText("catalogKey"))
                 },
                 clearCodeListBinding = config.optionalBoolean("clearCodeListBinding"),
             ),
@@ -555,6 +558,43 @@ object Driver {
      * Lists documents with the catalog and template filters the scenario sets, each sent only when
      * set, and reports what the client made of the page.
      */
+    /** Reads a generation job's status and reports its counts; the job carries no items. */
+    private fun getGenerationJobStatus(baseUrl: String, config: ObjectNode) {
+        val job = GenerationApi(restClient(baseUrl, config)).getGenerationJobStatus(config["tenantKey"].asText(), UUID.fromString(config["requestId"].asText()))
+        report(
+            baseUrl,
+            mapOf(
+                "requestId" to job.requestId.toString(),
+                "status" to job.status.value,
+                "jobType" to job.jobType.value,
+                "total" to job.total,
+                "completedCount" to job.completedCount,
+                "failedCount" to job.failedCount,
+            ),
+        )
+    }
+
+    /** Lists a page of a generation job's items, `status`, `page` and `size` each sent only when set. */
+    private fun listGenerationJobItems(baseUrl: String, config: ObjectNode) {
+        val response = GenerationApi(restClient(baseUrl, config)).listGenerationJobItems(
+            config["tenantKey"].asText(),
+            UUID.fromString(config["requestId"].asText()),
+            status = config.optionalText("status")?.let { status -> GenerationItemStatus.entries.single { it.value == status } },
+            page = config.get("page")?.takeUnless { it.isNull }?.asInt(),
+            size = config.get("size")?.takeUnless { it.isNull }?.asInt(),
+        )
+        report(
+            baseUrl,
+            mapOf(
+                "itemIds" to response.items.joinToString(",") { it.itemId.toString() },
+                "statuses" to response.items.joinToString(",") { it.status.value },
+                "documentIds" to response.items.joinToString(",") { it.documentId?.toString() ?: "null" },
+                "correlationIds" to response.items.joinToString(",") { it.correlationId ?: "null" },
+                "total" to response.page.total.toString(),
+            ),
+        )
+    }
+
     private fun listDocuments(baseUrl: String, config: ObjectNode) {
         val documents = GenerationApi(restClient(baseUrl, config))
             .listDocuments(

@@ -23,8 +23,6 @@ code-lists:
     parameters:
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
-      - $ref: '../components/parameters/sorting.yaml#/Sort'
-      - $ref: '../components/parameters/sorting.yaml#/Direction'
     responses:
       '200':
         description: List of code lists.
@@ -253,11 +251,14 @@ code-list-entries:
     operationId: listCodeListEntries
     summary: List entries of a code list
     description: |
-      Returns entries ordered by `sortOrder` ascending, then `code` ascending.
+      Returns entries ordered by `sortOrder` ascending, then `code` ascending, a page at a time.
       Hidden entries are filtered out unless `includeHidden=true`.
     tags:
       - CodeLists
     x-required-permissions: [REFERENCE_VIEW]
+    parameters:
+      - $ref: '../components/parameters/pagination.yaml#/Page'
+      - $ref: '../components/parameters/pagination.yaml#/Size'
     responses:
       '200':
         description: List of entries.

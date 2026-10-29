@@ -53,7 +53,7 @@ from epistola_client import (
     TemplatesApi,
     TenantsApi,
     UpdateAttributeRequest,
-    UpdateAttributeRequestCodeListBinding,
+    CodeListBindingRef,
     UpdateCatalogDependenciesRequest,
     UpdateCatalogReleaseRequest,
     UpdateCodeListEntryHiddenRequest,
@@ -88,6 +88,8 @@ def main() -> int:
         "update-consumer": _update_consumer,
         "download-document": _download_document,
         "list-documents": _list_documents,
+        "get-generation-job-status": _get_generation_job_status,
+        "list-generation-job-items": _list_generation_job_items,
         "list-images": _list_images,
         "upload-image": _upload_image,
         "import-catalog": _import_catalog,
@@ -363,6 +365,41 @@ def _download_document(base_url: str, config: dict) -> None:
         config["tenantKey"], config["documentId"]
     )
     _report_bytes(base_url, bytes(content))
+
+
+def _get_generation_job_status(base_url: str, config: dict) -> None:
+    """Reads a generation job's status and reports its counts; the job carries no items."""
+    job = GenerationApi(_client(base_url, config)).get_generation_job_status(config["tenantKey"], config["requestId"])
+    _report(
+        base_url,
+        {
+            "requestId": _show(job.request_id),
+            "status": _show(_enum(job.status)),
+            "jobType": _show(_enum(job.job_type)),
+            "total": job.total,
+            "completedCount": job.completed_count,
+            "failedCount": job.failed_count,
+        },
+    )
+
+
+def _list_generation_job_items(base_url: str, config: dict) -> None:
+    """Lists a page of a generation job's items, ``status``, ``page`` and ``size`` each sent only
+    when the scenario sets it."""
+    optional = {name: config[name] for name in ("status", "page", "size") if name in config}
+    response = GenerationApi(_client(base_url, config)).list_generation_job_items(
+        config["tenantKey"], config["requestId"], **optional
+    )
+    _report(
+        base_url,
+        {
+            "itemIds": ",".join(_show(item.item_id) for item in response.items),
+            "statuses": ",".join(_show(_enum(item.status)) for item in response.items),
+            "documentIds": ",".join(_show(item.document_id) for item in response.items),
+            "correlationIds": ",".join(_show(item.correlation_id) for item in response.items),
+            "total": _show(response.page.total),
+        },
+    )
 
 
 def _list_documents(base_url: str, config: dict) -> None:
@@ -1504,7 +1541,7 @@ def _update_attribute(base_url: str, config: dict) -> None:
     }
     # A binding names its catalog by alias, or by nothing for the attribute's own.
     if config.get("codeListBinding") is not None:
-        members["code_list_binding"] = UpdateAttributeRequestCodeListBinding(
+        members["code_list_binding"] = CodeListBindingRef(
             key=config["codeListBinding"]["key"],
             **({"catalogKey": config["codeListBinding"]["catalogKey"]} if "catalogKey" in config["codeListBinding"] else {}),
         )

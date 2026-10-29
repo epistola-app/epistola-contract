@@ -20,10 +20,13 @@ ThemeDto:
       example: acme-corp
     name:
       type: string
+      minLength: 1
+      maxLength: 255
       description: Name of the theme
       example: Corporate Theme
     description:
       type: string
+      maxLength: 2000
       description: Optional description of the theme
       example: Default corporate branding with Acme colors and fonts
     documentStyles:
@@ -36,8 +39,7 @@ ThemeDto:
         $ref: '../../../catalog/schemas/theme.schema.json#/$defs/BlockStylePreset'
       description: |
         Named block style presets (like CSS classes). Key is the preset name, which the catalog's
-        declared presets name (`CatalogReleaseDto.presets`). Absent when the theme styles none (as after an update
-        sends null).
+        declared presets name (`CatalogReleaseDto.presets`). Absent when the theme styles none.
       example:
         heading:
           label: Heading
@@ -66,8 +68,8 @@ ThemeDto:
       description: |
         Base spacing unit in points for the spacing scale system. All sp values
         are multiples of this value (e.g., with spacingUnit=4, 2sp resolves
-        to 8pt). Absent when the theme sets none (as after an update sends null); the
-        rendering default (4pt) then applies.
+        to 8pt). Absent when the theme sets none; the rendering
+        default (4pt) then applies.
       example: 4
     createdAt:
       type: string
@@ -137,6 +139,7 @@ CreateThemeRequest:
       example: Corporate Theme
     description:
       type: string
+      maxLength: 2000
       description: Optional description of the theme
       example: Default corporate branding with Acme colors and fonts
     documentStyles:
@@ -181,6 +184,7 @@ UpdateThemeRequest:
       type:
         - string
         - 'null'
+      maxLength: 2000
       description: |
         New description for the theme. Omitted or null keeps it; an empty string (or one of only
         whitespace) removes it.

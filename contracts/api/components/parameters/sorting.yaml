@@ -1,20 +1,20 @@
-# Shared sorting query parameters for list endpoints.
+# Sorting query parameters for list endpoints.
 #
-# Both `sort` and `direction` are shared. `direction` is a fixed asc/desc enum
-# (default desc). `sort` is a free-form string: the set of sortable fields
-# differs per resource, so the server is the authority on which values are
-# accepted (an unsupported value is rejected) and on the per-resource default.
+# `direction` is shared: a fixed asc/desc enum (default desc). The field to sort by is per
+# resource, each list its own enum of the fields it sorts by, so a client is told which values
+# exist. A list that sorts by nothing has neither parameter; adding one later is additive.
 
-Sort:
+TemplateSort:
   name: sort
   in: query
   required: false
   description: |
-    Field to sort by. The set of allowed fields depends on the resource; an
-    unsupported value is rejected by the server, which also applies the
-    per-resource default when omitted.
+    Field to sort the templates by. Omitted, the server's default order applies.
   schema:
     type: string
+    enum: [name, createdAt, lastModified]
+    # Generated constant names: `name` is reserved on a Kotlin enum (`Enum.name`).
+    x-enum-varnames: [byName, byCreatedAt, byLastModified]
 
 Direction:
   name: direction

@@ -469,6 +469,40 @@ libraries.
 
 ### Changed
 
+- **Bounds, paging and enums the 2.0 review found missing** (BREAKING). Each would be a tightening
+  after 2.0.0. Epistola Suite may not implement them yet; its server stubs' list methods change
+  signature with the sort parameters.
+  - **Generation:** a batch has at most 10000 `items`; a larger run, such as a mailing to every
+    resident, is several batches, whose results all arrive through `collectGenerationResults`.
+    `getGenerationJobStatus` returns the job and its counts (`DocumentGenerationJobDto`) rather than
+    embedding every item (`GenerationJobDetail` is gone); the new `listGenerationJobItems` lists
+    them a page at a time, optionally by `status` (`failed`, to see what to send again). An item no
+    longer echoes its `data`; the caller has it, and `correlationId` matches them up. An item can be
+    `cancelled`, as its job can. Conformance scenarios `get-generation-job-status` and
+    `list-generation-job-items` hold all five clients to both. The job and
+    item statuses and the job type are named enums (`GenerationJobStatus`, `GenerationItemStatus`,
+    `GenerationJobType`) rather than repeated inline.
+  - **Code lists:** `sourceUrl` is an HTTPS URL (`format: uri`, `^https://`, at most 2048
+    characters); it said "HTTPS, file, or classpath". The credential's note about storage at rest
+    is gone, and it is write-only, at most 4096 characters. `listCodeListEntries` is paged
+    (`page`, `size`, and a `page` in the response). A `name` is 1 to 100 characters, a description
+    at most 2000, an entry's `code` 1 to 64 and `label` 1 to 200, and a list holds at most 10000
+    entries. `sourceType` and `authType` are named enums (`CodeListSourceType`,
+    `CodeListAuthType`).
+  - **Attributes:** `description` is gone from `AttributeDto` and its requests: no server stored it
+    (Suite answered writes to it with 501). The code-list binding is one named type,
+    `CodeListBindingRef`, rather than three inline objects, and names the attribute's own catalog by
+    omitting `catalogKey`, never by its own key. A `name` is 1 to 100 characters and
+    `allowedValues` at most 1000.
+  - **Variants:** a description is at most 2000 characters; an attribute key is the attribute's key
+    or `<alias>.<key>` (`system.locale`), as catalog wire v8 keys them, at most 101 characters, and a
+    value at most 255.
+  - **Themes:** a name is 1 to 255 characters and a description at most 2000.
+  - **Sorting:** `listTemplates` sorts by an enum of its fields (`name`, `createdAt`,
+    `lastModified`) instead of a free-form `sort`. The nine other lists that advertised `sort` and
+    `direction` sorted by nothing (Suite refused every value), and no longer take them; a list can
+    gain them later without breaking anyone.
+  - **Tenants:** `listTenants` lists the tenants the caller may access, not "all tenants".
 - **The standalone `Theme` type names its theme by `key`** (catalog, BREAKING). `theme.schema.json`
   (and its frozen `theme-v8` copy) still required `id`, a free string, where every resource is
   addressed by a `key` under the one resource key rule; the generated `Theme` type, exported by
