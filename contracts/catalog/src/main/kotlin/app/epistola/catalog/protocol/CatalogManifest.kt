@@ -100,7 +100,10 @@ data class CatalogDependency(
     val registry: String,
     val namespace: String,
     val catalogKey: String,
+    // Written even when null: the wire requires both members, null for an unpinned declaration.
+    @get:JsonInclude(JsonInclude.Include.ALWAYS)
     val releaseVersion: String? = null,
+    @get:JsonInclude(JsonInclude.Include.ALWAYS)
     val releaseFingerprint: String? = null,
     val alias: String = catalogKey,
 ) {

@@ -380,6 +380,7 @@ object CatalogSchemaMigrator {
         val migration = migrate(source) { step -> step.migrateManifest(tree, options) }
         if (migration.findings.isNotEmpty()) return CatalogMigrationResult(null, source, migration.findings, migration.notices)
         val wireFindings = validateManifestWireValues(tree, source)
+            .ifEmpty { if (source == CatalogWireSchema.CURRENT_VERSION) CatalogWireSchemaCheck.manifestFindings(tree, "catalog.json") else emptyList() }
         if (wireFindings.isNotEmpty()) return CatalogMigrationResult(null, source, wireFindings, migration.notices)
         return bind(tree, CatalogManifest::class.java, source, "catalog.json", migration.notices)
     }
@@ -443,6 +444,11 @@ object CatalogSchemaMigrator {
         val notices = migration.notices.toMutableList()
         (tree["resource"] as? ObjectNode)?.let { VariantMetadataFold.fold(it, "$path.resource", foldFindings, notices) }
         if (foldFindings.isNotEmpty()) return CatalogMigrationResult(null, source, foldFindings, notices)
+        // After the fold, which turns the early wire-v8 shape it accepts into the current one.
+        if (source == CatalogWireSchema.CURRENT_VERSION) {
+            val schemaFindings = CatalogWireSchemaCheck.resourceDetailFindings(tree, path)
+            if (schemaFindings.isNotEmpty()) return CatalogMigrationResult(null, source, schemaFindings, notices)
+        }
         return bind(tree, ResourceDetail::class.java, source, path, notices)
     }
 

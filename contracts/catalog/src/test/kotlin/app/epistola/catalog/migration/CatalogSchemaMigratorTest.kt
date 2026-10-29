@@ -1050,7 +1050,7 @@ class CatalogSchemaMigratorTest {
     ): CatalogMigrationResult<CatalogManifest> {
         val encoded = keywords.joinToString(",") { mapper.writeValueAsString(it) }
         val json = """
-            {"schemaVersion":$version,"catalog":{${namespaceMember(version)}"${keyMember(version)}":"x","name":"X","keywords":[$encoded]},
+            {"schemaVersion":$version,"catalog":{${namespaceMember(version)}"${keyMember(version)}":"kwd","name":"X","keywords":[$encoded]},
             "publisher":{"name":"X"},"release":{"version":"1.0.0"},"resources":[]}
         """.trimIndent()
         return CatalogSchemaMigrator.migrateManifest(ByteArrayInputStream(json.toByteArray()), OPTIONS)
@@ -1061,6 +1061,47 @@ class CatalogSchemaMigratorTest {
 
     /** A catalog's address is its `key` from wire v8, its `slug` before. */
     private fun keyMember(version: Int) = if (version >= 8) "key" else "slug"
+
+    @Test
+    fun `a native v8 document is held to the published schema before it binds`() {
+        val path = "resources/template/letter.json"
+        fun detail(edit: (ObjectNode) -> Unit): CatalogMigrationResult<ResourceDetail> {
+            val tree = resource("wire-v8/resources/template/letter.json").use(mapper::readTree) as ObjectNode
+            edit(tree["resource"] as ObjectNode)
+            return CatalogSchemaMigrator.migrateResourceDetail("template", ByteArrayInputStream(mapper.writeValueAsBytes(tree)), CatalogMigrationContext(8, emptyManifest()), path)
+        }
+        fun ObjectNode.variant() = (this["variants"] as ArrayNode)[0] as ObjectNode
+
+        assertTrue(detail { }.valid, detail { }.findings.toString())
+        val misspelled = detail { it.variant().put("isDefualt", true) }
+        assertNull(misspelled.value, "a misspelled member is not dropped silently")
+        assertEquals(listOf(CatalogMigrationCodes.SCHEMA_UNKNOWN to "$path.resource.variants[0].isDefualt"), misspelled.findings.map { it.code to it.path })
+        val keyless = detail { it.variant().remove("key") }
+        assertEquals(listOf(CatalogMigrationCodes.SCHEMA_UNKNOWN to "$path.resource.variants[0].key"), keyless.findings.map { it.code to it.path })
+        assertTrue(detail { it.variant().putNull("name") }.valid, "an explicit null counts as leaving the member out")
+        assertEquals(
+            listOf(CatalogMigrationCodes.SCHEMA_UNKNOWN to "$path.extra"),
+            CatalogSchemaMigrator.migrateResourceDetail(
+                "template",
+                ByteArrayInputStream(mapper.writeValueAsBytes((resource("wire-v8/resources/template/letter.json").use(mapper::readTree) as ObjectNode).put("extra", 1))),
+                CatalogMigrationContext(8, emptyManifest()),
+                path,
+            ).findings.map { it.code to it.path },
+        )
+
+        val manifest = resource("wire-v8/catalog.json").use(mapper::readTree) as ObjectNode
+        (manifest["catalog"] as ObjectNode).put("slogan", "Letters for everyone")
+        val result = CatalogSchemaMigrator.migrateManifest(ByteArrayInputStream(mapper.writeValueAsBytes(manifest)), OPTIONS)
+        assertEquals(listOf(CatalogMigrationCodes.SCHEMA_UNKNOWN to "catalog.json.catalog.slogan"), result.findings.map { it.code to it.path })
+    }
+
+    @Test
+    fun `a v7 document migrates without the v8 schema check, which only native v8 input gets`() {
+        val tree = resource("migrations/v7-to-v8/template-input.json").use(mapper::readTree) as ObjectNode
+        (tree["resource"] as ObjectNode).put("legacyNote", "kept by v7 producers")
+        val result = CatalogSchemaMigrator.migrateResourceDetail("template", ByteArrayInputStream(mapper.writeValueAsBytes(tree)), CatalogMigrationContext(7, emptyManifest()), "resources/template/letter.json")
+        assertTrue(result.findings.none { it.message.contains("breaks its schema") }, result.findings.toString())
+    }
 
     @Test
     fun `an early wire-v8 variant's metadata folds into its template's, keyed by the variant, and an overwrite is refused`() {

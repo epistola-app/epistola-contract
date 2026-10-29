@@ -116,6 +116,14 @@ manifest/detail consistency, required files, resource references, resource-speci
 data schemas and examples, release metadata, and the canonical fingerprint. I/O failures remain
 exceptions; ordinary invalid content is returned as deterministic findings.
 
+A document that declares the current wire version (v8) is first held to the published schemas
+(`catalog-manifest-v8`, `resource-detail-v8` and the frozen `template-document-v8`,
+`template-shared-v8` and `theme-v8` they reference), each resource to the definition of the type
+it declares. A member the schema does not define, a missing required member, or a value of the
+wrong type or out of bounds is `CATALOG_SCHEMA_UNKNOWN` at that member, and the document does not
+bind. An explicit `null` counts as leaving the member out. A document migrated from an older wire
+version is held to what its own version allowed instead, and to the migration's repairs.
+
 For catalog discovery metadata (wire v6 and later), catalog attributes use an explicit `catalogKey`
 (`catalog` until wire v8), `key`, and `value`. The catalog key follows the catalog key syntax and the key the resource key rule below, and a catalog may
 assign each qualified attribute at most once. Attribute values remain generic: Suite and Exchange
