@@ -20,6 +20,7 @@ import app.epistola.client.model.ResourceStatus
 import app.epistola.client.model.Slot
 import app.epistola.client.model.TemplateDocument
 import app.epistola.client.model.ThemeRef
+import app.epistola.client.model.UpdateTemplateRequest
 import app.epistola.client.model.UpdateTenantRequest
 import app.epistola.client.model.VariantContentDto
 import app.epistola.client.model.VariantSelectionAttribute
@@ -584,14 +585,13 @@ class ModelValidationTest {
         assertEquals("1.0.${"1".repeat(124)}", base.copy(version = "1.0." + "1".repeat(124)).validate().version)
     }
 
-    // --- CreateTemplateRequest: key + name + optional nested schema ---
+    // --- Template requests: key + name on create, a nested JSON Schema data model on update ---
 
     @Test
-    fun `CreateTemplateRequest with JSON Schema passes`() {
-        val request = CreateTemplateRequest(
-            key = "monthly-invoice",
+    fun `UpdateTemplateRequest with a JSON Schema data model passes`() {
+        val request = UpdateTemplateRequest(
             name = "Monthly Invoice",
-            schema = mapOf(
+            dataModel = mapOf(
                 "type" to "object",
                 "required" to listOf("customerName", "invoiceNumber"),
                 "properties" to mapOf(
@@ -615,12 +615,11 @@ class ModelValidationTest {
     }
 
     @Test
-    fun `CreateTemplateRequest rejects invalid key even with valid schema`() {
+    fun `CreateTemplateRequest rejects invalid key`() {
         assertFailsWith<IllegalArgumentException> {
             CreateTemplateRequest(
                 key = "Monthly Invoice",
                 name = "Monthly Invoice",
-                schema = mapOf("type" to "object"),
             ).validate()
         }
     }

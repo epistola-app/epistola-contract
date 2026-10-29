@@ -60,6 +60,10 @@ const ACTION_OPERATIONS = {
   },
   'create-environment': { method: 'post', path: '/tenants/{tenantKey}/environments' },
   'update-environment': { method: 'patch', path: '/tenants/{tenantKey}/environments/{environmentKey}' },
+  'create-template': {
+    method: 'post',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates',
+  },
   'update-variant-content': {
     method: 'put',
     path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates/{templateKey}/variants/{variantKey}/content',
@@ -120,6 +124,10 @@ const ACTION_OPERATIONS = {
   },
   'list-available-catalog-releases': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/available-releases' },
   'update-tenant': { method: 'patch', path: '/tenants/{tenantKey}' },
+  'update-template': {
+    method: 'patch',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates/{templateKey}',
+  },
   'update-code-list-entry-hidden': {
     method: 'patch',
     path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/code-lists/{codeListKey}/entries/{code}/hidden',

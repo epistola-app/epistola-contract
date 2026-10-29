@@ -75,8 +75,10 @@ const ACTIONS = {
   'deploy-catalog-release': deployCatalogRelease,
   'undeploy-catalog-release': undeployCatalogRelease,
   'create-environment': createEnvironment,
+  'create-template': createTemplate,
   'update-environment': updateEnvironment,
   'update-tenant': updateTenant,
+  'update-template': updateTemplate,
   'update-code-list-entry-hidden': updateCodeListEntryHidden,
   'update-attribute': updateAttribute,
   'update-variant-content': updateVariantContent,
@@ -1232,6 +1234,69 @@ async function updateTenant(baseUrl, config) {
     }),
     (tenant) => ({ key: show(tenant.key), name: show(tenant.name) }),
   )
+}
+
+/**
+ * Replaces a template's data contract with `config.dataModel` and `config.dataExamples`, each only
+ * when present, conditional on `ifMatch` when the scenario gives one. The data model is free-form
+ * JSON, passed as a caller holding that JSON would.
+ */
+async function updateTemplate(baseUrl, config) {
+  const updateTemplateRequest = dataContract(config)
+  await conditionalUpdate(
+    baseUrl,
+    () => new TemplatesApi(client(baseUrl, config)).updateTemplateRaw({
+      tenantKey: config.tenantKey,
+      registry: config.registry,
+      namespace: config.namespace,
+      catalogKey: config.catalogKey,
+      release: config.release,
+      templateKey: config.templateKey,
+      updateTemplateRequest,
+      ...ifMatch(config),
+    }),
+    templateFields,
+  )
+}
+
+/**
+ * Creates a template, with `config.dataModel` and `config.dataExamples` only when present. The data
+ * model is free-form JSON, passed as a caller holding that JSON would.
+ */
+async function createTemplate(baseUrl, config) {
+  const createTemplateRequest = { key: config.key, name: config.name, ...dataContract(config) }
+  if (config.description != null) createTemplateRequest.description = config.description
+  const response = await new TemplatesApi(client(baseUrl, config)).createTemplateRaw({
+    tenantKey: config.tenantKey,
+    registry: config.registry,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+    release: config.release,
+    createTemplateRequest,
+  })
+  await report(baseUrl, { ...templateFields(await response.value()), location: show(response.raw.headers.get('Location')) })
+}
+
+/** `dataModel` and `dataExamples` for a request, each only when the scenario sets it. */
+function dataContract(config) {
+  const contract = {}
+  if (config.dataModel != null) contract.dataModel = config.dataModel
+  if (config.dataExamples != null) {
+    contract.dataExamples = config.dataExamples.map(({ key, name, data }) => ({ key, name, data }))
+  }
+  return contract
+}
+
+/** A template's data contract as the client read it; `dataModelMembers` tells `{}` from null. */
+function templateFields(template) {
+  const dataModel = template.dataModel ?? null
+  return {
+    key: show(template.key),
+    dataModelMembers: dataModel === null ? 'null' : Object.keys(dataModel).sort().join(','),
+    dataModelType: show(dataModel?.type),
+    dataModelRequired: Array.isArray(dataModel?.required) ? dataModel.required.join(',') : 'null',
+    dataExampleKeys: (template.dataExamples ?? []).map((example) => example.key).join(','),
+  }
 }
 
 /** Hides or shows a code-list entry, conditional on the code list's `ETag` when the scenario gives one. */

@@ -1558,8 +1558,14 @@ private object PortableJsonSchema {
         )
     }
 
+    /**
+     * Problems with [schema] itself, references included. The validator resolves a `$ref` only when
+     * data reaches it, so the schema's validators are initialized here: a reference that resolves to
+     * nothing is reported now, not missed for a model without examples or thrown out of [validate].
+     * Nothing is fetched, so only a local pointer or a bundled schema resolves.
+     */
     fun checkSchema(schema: Map<String, Any?>): List<String> = runCatching {
-        schemaRegistry.getSchema(mapper.writeValueAsString(schema))
+        schemaRegistry.getSchema(mapper.writeValueAsString(schema)).initializeValidators()
     }.fold(
         onSuccess = { emptyList() },
         onFailure = { listOf("invalid JSON Schema: ${it.message}") },

@@ -11,6 +11,16 @@ libraries.
 
 ### Added
 
+- **A template can be created with its data contract** (`createTemplate`). `CreateTemplateRequest`
+  takes optional `dataModel` and `dataExamples`, as `updateTemplate` does, so a template need not
+  exist without them. Omitted or null, the template gets the empty schema `{}`, which any data
+  satisfies, and no examples. Examples that do not satisfy the data model are refused with 422
+  `data-model-validation-error`, which `createTemplate` now lists. Epistola Suite may not implement
+  it yet. Conformance scenarios `create-template` and `create-template-without-contract` (driver
+  action `create-template`) hold all five clients to sending the contract and examples as written,
+  and nothing for them when absent, and to reading the created template and its `Location` back,
+  an empty `{}` data model as one rather than none.
+
 - **An image accepts `keepWithNext`** (#58): the `image` component lists it in its
   `applicableStyles`, so an image can be kept on the page of the block after it, and the validator
   no longer warns `TEMPLATE_STYLE_NOT_APPLICABLE` for it. `keepTogether` is not added: an image is
@@ -1166,6 +1176,20 @@ libraries.
 
 ### Removed
 
+- **BREAKING: `TemplateDto.schema`, `CreateTemplateRequest.schema` and
+  `UpdateTemplateRequest.schema`.** A template had two JSON Schema members, `schema` ("input
+  parameters") and `dataModel`. Only `dataModel` is a data contract: it is the one the catalog
+  wire format carries, the one examples and `validateTemplateData` are checked against, and the
+  one shared schemas will be included into (ADR 0009). Epistola Suite has never stored `schema`:
+  it ignored it on create and update and always returned `null`. `dataModel` takes over the
+  invoice example `schema` had, which is the one the template's example `dataExamples` satisfy.
+  `createTemplate` now takes `dataModel` and `dataExamples` itself (see Added). Each
+  client's worked in-process validator read `schema`, so against a real server it had no schema
+  and claimed nothing about the data; the Kotlin, Jakarta, .NET, Python and Node adapters now read
+  `dataModel`. A consumer that falls back from `dataModel` to `schema` drops the fallback. The
+  conformance scenario `update-template` (driver action `update-template`) holds all five clients
+  to sending the contract as `dataModel`, a `$ref` and a pattern's backslashes untouched, with its
+  examples and `If-Match`, and to reading it and the new `ETag` back.
 - **BREAKING: `uploadImage`'s `sensitive` form field.** It chose a tenant-isolated deduplication
   scope for an image's bytes. Epistola Suite 2.0 keeps every image's bytes in one store,
   deduplicated alike, so the field had nothing left to choose. A server ignores a client that
@@ -1204,6 +1228,14 @@ libraries.
   `CATALOG_STENCIL_SCOPE_KEPT`: in v7 a stencil's content and every fill saw both. Every placeholder
   passes them because the templates filling a stencil's placeholders are often in another archive.
   The v7 fingerprint still verifies against the source content.
+- **A data model reference that resolves to nothing is a finding** (catalog validation). The
+  validator resolves a `$ref` only when data reaches it, so `CatalogValidator.validate` missed an
+  unresolvable reference in a template without data examples, and threw a `SchemaException` for one
+  with examples instead of reporting it. Checking a data model now resolves every reference, and
+  each one that resolves to nothing, such as a missing local pointer, a relative file, an unknown
+  bundled schema version or a remote URL (nothing is fetched), is a
+  `CATALOG_TEMPLATE_DATA_SCHEMA_INVALID` finding on `dataModel`; the examples are not judged against
+  it.
 
 - **A failed collect call raises its error instead of a parse failure** (#30, Kotlin Spring
   RestClient client). `ResultCollector.collectOnce()` read the body of every response as NDJSON
@@ -1357,6 +1389,14 @@ libraries.
   what nodes, slots, props and styles are, and the spec's introduction has a "Template model"
   section. Tests keep the example a valid template, the spec's copy equal to it, and the guide's
   excerpts quoted from it.
+
+- **ADR 0009, shared schemas included in data contracts by reference (Proposed).** A catalog
+  resource holds a reusable JSON Schema. A template's data contract or a stencil's parameter schema
+  includes it with `$ref` and an `epistola:schema/[{alias}/]{key}` URI, resolved lexically like a
+  stencil (ADR 0006), and releasing checks the resolved contracts. The rich-text schemas stay
+  built-in: the contract defines them as engine vocabulary, versioned in their id, not as catalog
+  content. The API returns contracts as stored, references included, and a separate operation
+  returns the contract bundled into one self-contained schema. Nothing in the spec changes yet.
 
 ## [1.4.0] - 2026-09-30
 

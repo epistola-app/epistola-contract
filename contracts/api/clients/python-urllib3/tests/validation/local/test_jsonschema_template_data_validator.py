@@ -56,7 +56,7 @@ class _StubTemplatesApi:
     def get_template(self, tenant_key, registry, namespace, catalog_key, release, template_key):
         self.fetches += 1
         self.addressed = (tenant_key, registry, namespace, catalog_key, release, template_key)
-        return SimpleNamespace(var_schema=self._schema)
+        return SimpleNamespace(data_model=self._schema)
 
 
 def test_valid_data_yields_no_findings():

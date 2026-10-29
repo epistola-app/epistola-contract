@@ -66,7 +66,7 @@ class NetworkntTemplateDataValidatorTest {
                     .key((String) args[5])
                     .tenantKey((String) args[0])
                     .name((String) args[5])
-                    .schema(schema);
+                    .dataModel(schema);
         }));
     }
 
