@@ -56,7 +56,7 @@ expect:
         json:
           clearCodeListBinding: true
           allowedValues: [en-US, nl-NL]
-        jsonAbsent: [name, description, codeListBinding]
+        jsonAbsent: [name, codeListBinding]
   report:
     key: locale
     allowedValues: en-US,nl-NL

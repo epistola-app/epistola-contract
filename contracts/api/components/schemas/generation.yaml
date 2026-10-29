@@ -414,8 +414,11 @@ GenerateBatchRequest:
       example: "order-7890"
     items:
       type: array
-      description: List of items to generate
+      description: |
+        The items to generate, at most 1000. A larger run is split into several batches; each is a
+        job of its own.
       minItems: 1
+      maxItems: 1000
       items:
         $ref: '#/BatchGenerationItem'
 
@@ -435,13 +438,11 @@ GenerationJobResponse:
       description: Unique identifier for tracking this generation request
       example: "550e8400-e29b-41d4-a716-446655440000"
     status:
-      type: string
-      enum: [pending, in-progress, completed, failed, cancelled]
+      $ref: '#/GenerationJobStatus'
       description: Current status of the request
       example: pending
     jobType:
-      type: string
-      enum: [single, batch]
+      $ref: '#/GenerationJobType'
       description: Type of generation job
       example: single
     total:
@@ -470,7 +471,6 @@ DocumentGenerationItemDto:
     - catalogKey
     - templateKey
     - variantKey
-    - data
     - status
     - createdAt
   properties:
@@ -533,37 +533,6 @@ DocumentGenerationItemDto:
         - type: 'null'
       description: Key of the environment (if specified)
       example: null
-    data:
-      type: object
-      description: JSON data used for generation
-      example:
-        customer:
-          name: "Jane Smith"
-          email: "jane.smith@example.com"
-          taxId: "US123456789"
-          address:
-            street: "123 Main Street"
-            city: "Springfield"
-            postalCode: "62704"
-            country: US
-        invoiceNumber: "INV-2026-001"
-        issueDate: "2026-02-01"
-        dueDate: "2026-03-01"
-        lineItems:
-          - description: "Consulting Services (40h)"
-            quantity: 40
-            unitPrice: 150.00
-            taxRate: 21
-          - description: "Software License - Enterprise"
-            quantity: 1
-            unitPrice: 2500.00
-            taxRate: 21
-          - description: "Travel Expenses"
-            quantity: 1
-            unitPrice: 384.50
-            taxRate: 0
-        notes: "Payment due within 30 days. Please reference invoice number on transfer."
-        currency: EUR
     filename:
       type: [string, "null"]
       description: Requested filename
@@ -573,8 +542,7 @@ DocumentGenerationItemDto:
       description: Client-provided ID for tracking documents across systems
       example: "order-7890"
     status:
-      type: string
-      enum: [pending, in-progress, completed, failed]
+      $ref: '#/GenerationItemStatus'
       description: Status of this item
       example: completed
     errorMessage:
@@ -610,34 +578,6 @@ DocumentGenerationItemDto:
     variantKey: english
     version: "1.4.0"
     environmentKey: null
-    data:
-      customer:
-        name: "Jane Smith"
-        email: "jane.smith@example.com"
-        taxId: "US123456789"
-        address:
-          street: "123 Main Street"
-          city: "Springfield"
-          postalCode: "62704"
-          country: US
-      invoiceNumber: "INV-2026-001"
-      issueDate: "2026-02-01"
-      dueDate: "2026-03-01"
-      lineItems:
-        - description: "Consulting Services (40h)"
-          quantity: 40
-          unitPrice: 150.00
-          taxRate: 21
-        - description: "Software License - Enterprise"
-          quantity: 1
-          unitPrice: 2500.00
-          taxRate: 21
-        - description: "Travel Expenses"
-          quantity: 1
-          unitPrice: 384.50
-          taxRate: 0
-      notes: "Payment due within 30 days. Please reference invoice number on transfer."
-      currency: EUR
     filename: "invoice-2026-001.pdf"
     correlationId: "order-7890"
     status: completed
@@ -665,13 +605,11 @@ DocumentGenerationJobDto:
       description: Id of the generation request, as `GenerationJobResponse.requestId` gives it
       example: "550e8400-e29b-41d4-a716-446655440000"
     jobType:
-      type: string
-      enum: [single, batch]
+      $ref: '#/GenerationJobType'
       description: Type of generation job
       example: single
     status:
-      type: string
-      enum: [pending, in-progress, completed, failed, cancelled]
+      $ref: '#/GenerationJobStatus'
       description: Current status of the request
       example: completed
     total:
@@ -759,27 +697,6 @@ GenerationJobDetail:
         variantKey: english
         version: "1.4.0"
         environmentKey: null
-        data:
-          customer:
-            name: "Jane Smith"
-            email: "jane.smith@example.com"
-            address:
-              street: "123 Main Street"
-              city: "Springfield"
-              postalCode: "62704"
-              country: US
-          invoiceNumber: "INV-2026-001"
-          issueDate: "2026-02-01"
-          lineItems:
-            - description: "Consulting Services (40h)"
-              quantity: 40
-              unitPrice: 150.00
-              taxRate: 21
-            - description: "Software License - Enterprise"
-              quantity: 1
-              unitPrice: 2500.00
-              taxRate: 21
-          currency: EUR
         filename: "invoice-2026-001.pdf"
         correlationId: "order-7890"
         status: completed
@@ -976,3 +893,23 @@ DocumentListResponse:
       size: 20
       total: 1
       totalPages: 1
+
+GenerationJobStatus:
+  type: string
+  description: |
+    Where a generation job stands: `pending` until a worker takes it, `in-progress` while its items
+    render, then `completed` (every item done; some may have failed), `failed` (the job itself
+    could not run) or `cancelled` (`cancelGenerationJob`).
+  enum: [pending, in-progress, completed, failed, cancelled]
+
+GenerationJobType:
+  type: string
+  description: A job of one document (`generateDocument`) or of several (`generateDocumentBatch`).
+  enum: [single, batch]
+
+GenerationItemStatus:
+  type: string
+  description: |
+    Where one item of a generation job stands: `pending`, `in-progress`, then `completed` or
+    `failed`, or `cancelled` when its job was cancelled before the item rendered.
+  enum: [pending, in-progress, completed, failed, cancelled]

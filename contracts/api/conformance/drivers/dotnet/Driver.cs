@@ -486,7 +486,7 @@ public static class Driver
                     allowedValues: OptStrList(config, "allowedValues")!,
                     // A binding names its catalog by alias, or by nothing for the attribute's own.
                     codeListBinding: config.TryGetProperty("codeListBinding", out var bindingConfig) && bindingConfig.ValueKind != JsonValueKind.Null
-                        ? new UpdateAttributeRequestCodeListBinding(key: Str(bindingConfig, "key"), catalogKey: OptStr(bindingConfig, "catalogKey")!)
+                        ? new CodeListBindingRef(key: Str(bindingConfig, "key"), catalogKey: OptStr(bindingConfig, "catalogKey")!)
                         : null!,
                     clearCodeListBinding: OptBool(config, "clearCodeListBinding")),
                 ifMatch: OptStr(config, "ifMatch"));
