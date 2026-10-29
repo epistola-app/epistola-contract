@@ -5,10 +5,12 @@
   "description": "Theme definition providing default styles, page settings, and named block style presets.",
   "type": "object",
   "properties": {
-    "id": {
+  "key": {
       "type": "string",
-      "minLength": 1,
-      "description": "Theme identifier (slug format)."
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "minLength": 3,
+      "maxLength": 50,
+      "description": "Key of the theme resource: the same rule as every resource key. Until contract 2.0 this member was called id."
     },
     "name": {
       "type": "string",
@@ -41,7 +43,7 @@
     }
   },
   "required": [
-    "id",
+    "key",
     "name"
   ],
   "additionalProperties": false,
