@@ -228,8 +228,12 @@ Whole-catalog validation chooses the rule by the archive's source wire version:
   canonicalizer restores each from the raw `catalog.json` and resource documents in the archive:
   wherever the migrated value is exactly the rewrite of a different raw value at the same position.
   V5 covers the keys as migrated.
-- Native v8 input must carry `v6:<hex>` over its own content. Naming another algorithm is
-  `CATALOG_RELEASE_FINGERPRINT_INVALID`, even when it matches. A pin (`releaseFingerprint`) or a base
+- Native v8 input must carry `v6:<hex>` over its own content. Leaving it out, or naming another
+  algorithm, is `CATALOG_RELEASE_FINGERPRINT_INVALID`, even when it matches. Only a catalog migrated
+  from wire v7, where the fingerprint was optional, may lack one. Native v8 input also pins every
+  catalog it declares (`releaseVersion` and `releaseFingerprint`), or the declaration is
+  `CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID`; a migrated catalog's declarations are unpinned, so it
+  is released again before it is shared as a v8 release. A pin (`releaseFingerprint`) or a base
   (`release.base.fingerprint`) may name any known algorithm, and is checked with exactly that one.
 
 Re-exporting a migrated catalog replaces a present legacy fingerprint with V6, as `v6:<hex>`.

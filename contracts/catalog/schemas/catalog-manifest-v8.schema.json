@@ -387,7 +387,7 @@
           ]
         },
         "fingerprint": {
-          "description": "The release's identity: the canonical fingerprint of its content, in the form that names its algorithm: v6:<lowercase SHA-256 hex>. Wire v8 requires the current algorithm, v6, which covers the release's content only, never the catalog's name, this release block or the catalog's presentation, so two releases with the same fingerprint are the same release wherever they come from and whatever they are called.",
+          "description": "The release's identity: the canonical fingerprint of its content, in the form that names its algorithm: v6:<lowercase SHA-256 hex>. Required of a release written at wire v8 (the validator reports CATALOG_RELEASE_FINGERPRINT_INVALID); absent only in a catalog migrated from wire v7, where it was optional. Wire v8 fixes the algorithm, v6, which covers the release's content only, never the catalog's name, this release block or the catalog's presentation, so two releases with the same fingerprint are the same release wherever they come from and whatever they are called.",
           "type": [
             "string",
             "null"
@@ -586,7 +586,7 @@
           "maxLength": 50
         },
         "releaseVersion": {
-          "description": "The number the pinned release had when it was pinned: a hint for people, and where a carried copy of it is found, while releaseFingerprint is the pin. A release number as release.version has it, a patch release's included, at most 128 characters. Null only for a catalog migrated from wire v7 or earlier, which pins no release, and then releaseFingerprint is null too.",
+          "description": "The number the pinned release had when it was pinned: a hint for people, and where a carried copy of it is found, while releaseFingerprint is the pin. A release number as release.version has it, a patch release's included, at most 128 characters. Null only for a catalog migrated from wire v7 or earlier, which pins no release, and then releaseFingerprint is null too: a release written at wire v8 pins every catalog it declares (the validator reports CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID).",
           "type": [
             "string",
             "null"

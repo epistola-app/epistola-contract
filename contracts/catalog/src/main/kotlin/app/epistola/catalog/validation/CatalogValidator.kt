@@ -284,6 +284,12 @@ object CatalogValidationCodes {
      */
     const val MANIFEST_DETAIL_URL_INVALID = "CATALOG_MANIFEST_DETAIL_URL_INVALID"
     const val TEMPLATE_DATA_SCHEMA_INVALID = "CATALOG_TEMPLATE_DATA_SCHEMA_INVALID"
+
+    /**
+     * A theme's `spacingUnit` is out of its rule: from wire v8, points from 1 to 16 with at most two
+     * decimals, as the API takes it; before, any positive finite number.
+     */
+    const val THEME_SPACING_UNIT_INVALID = "CATALOG_THEME_SPACING_UNIT_INVALID"
     const val TEMPLATE_DATA_EXAMPLE_INVALID = "CATALOG_TEMPLATE_DATA_EXAMPLE_INVALID"
     const val TEMPLATE_VARIANT_KEY_DUPLICATE = "CATALOG_TEMPLATE_VARIANT_KEY_DUPLICATE"
     const val TEMPLATE_VARIANT_DEFAULT_INVALID = "CATALOG_TEMPLATE_VARIANT_DEFAULT_INVALID"
@@ -607,8 +613,16 @@ object ResourceValidator {
             validateFontRefs(value.styles, context, "$path.blockStylePresets.$name.styles", findings)
         }
         appendTemplateFindings(TemplateValidator.validateThemeStyles(resource.documentStyles, resource.blockStylePresets, resource.defaultBlockStyles), findings, path)
-        if (resource.spacingUnit != null && (!resource.spacingUnit.isFinite() || resource.spacingUnit <= 0)) {
-            findings.error(CatalogValidationCodes.TEMPLATE_DATA_SCHEMA_INVALID, "$path.spacingUnit", "spacingUnit must be a positive finite number")
+        resource.spacingUnit?.let { unit ->
+            // From wire v8 the rule the API and rendering use; an archive written before keeps the
+            // looser one it was made under.
+            val message = if (context.sourceSchemaVersion >= SPACING_UNIT_BOUNDED_SINCE_WIRE_VERSION) {
+                "spacingUnit must be a number of points from 1 to 16 with at most two decimals"
+                    .takeUnless { unit.isFinite() && unit in 1f..16f && java.math.BigDecimal(unit.toString()).stripTrailingZeros().scale() <= 2 }
+            } else {
+                "spacingUnit must be a positive finite number".takeUnless { unit.isFinite() && unit > 0 }
+            }
+            message?.let { findings.error(CatalogValidationCodes.THEME_SPACING_UNIT_INVALID, "$path.spacingUnit", it) }
         }
     }
 
@@ -830,6 +844,9 @@ object ResourceValidator {
 /** The wire version from which every path into the catalog is held to [CatalogArchivePaths]. */
 private const val ARCHIVE_PATHS_SINCE_WIRE_VERSION = 8
 
+/** The wire version from which a theme's `spacingUnit` is held to 1 to 16 points, two decimals. */
+private const val SPACING_UNIT_BOUNDED_SINCE_WIRE_VERSION = 8
+
 /**
  * Entry point for complete portable catalog validation.
  *
@@ -886,7 +903,7 @@ object CatalogValidator {
             )
         }
         validateRelease(catalog, policy, findings)
-        validateCatalogDependencies(manifest, findings)
+        validateCatalogDependencies(manifest, catalog.sourceSchemaVersion >= RELEASE_COMPLETE_SINCE_WIRE_VERSION, findings)
         validateDependencies(manifest, policy, findings)
 
         val manifestKeys = mutableSetOf<String>()
@@ -1136,6 +1153,16 @@ object CatalogValidator {
                 findings.error(CatalogValidationCodes.RELEASE_TIMESTAMP_INVALID, "catalog.json.release.releasedAt", "releasedAt must be an ISO-8601 offset timestamp")
             }
         }
+        if (release.fingerprint == null && catalog.sourceSchemaVersion >= RELEASE_COMPLETE_SINCE_WIRE_VERSION) {
+            // The fingerprint is the release's identity, which a pin and a base name. A catalog
+            // migrated from wire v7, where it was optional, keeps going without one.
+            findings.error(
+                CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID,
+                "catalog.json.release.fingerprint",
+                "a release carries its fingerprint, the identity a pin and a base name: " +
+                    "${CatalogCanonicalizer.releaseFingerprintVersion(catalog.sourceSchemaVersion).label}:<lowercase SHA-256 hex>",
+            )
+        }
         release.fingerprint?.let {
             // From wire v8 the fingerprint names its algorithm, and a release is fingerprinted with
             // the one its wire version fixes: an older algorithm covers less, so accepting it would
@@ -1372,8 +1399,14 @@ object CatalogValidator {
      * depends on once, never itself, under an alias of its own (contract ADR 0003), with, unless migrated, the
      * release it pins: its fingerprint, and the number it had.
      */
+    /**
+     * Holds `catalogDependencies` to its rules. When [pinned] (an archive written at wire v8 or
+     * later, not one migrated from wire v7, which had no pins), every declaration pins a release: a
+     * release renders with particular releases of its dependencies, and its fingerprint covers them.
+     */
     private fun validateCatalogDependencies(
         manifest: CatalogManifest,
+        pinned: Boolean,
         findings: MutableList<CatalogValidationFinding>,
     ) {
         val own = CatalogIdentity(manifest.catalog.registry, manifest.catalog.namespace, manifest.catalog.key)
@@ -1416,6 +1449,13 @@ object CatalogValidator {
                     CatalogValidationCodes.DEPENDENCY_CATALOG_DUPLICATE,
                     path,
                     "catalog $identity is declared more than once",
+                )
+            }
+            if (pinned && dependency.releaseVersion == null) {
+                findings.error(
+                    CatalogValidationCodes.DEPENDENCY_CATALOG_VERSION_INVALID,
+                    "$path.releaseVersion",
+                    "a release pins every catalog it declares: releaseVersion and releaseFingerprint are required",
                 )
             }
             dependency.releaseVersion?.let { release ->
@@ -1539,6 +1579,9 @@ object CatalogValidator {
 
     /** Wire version from which a catalog must carry a V5 fingerprint. */
     private const val QUALIFIED_FINGERPRINT_SINCE_WIRE_VERSION = 8
+
+    /** The wire version from which a release carries its fingerprint and pins every dependency. */
+    private const val RELEASE_COMPLETE_SINCE_WIRE_VERSION = 8
     private val ATTRIBUTE_IDENTITY = Regex("^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 
     private data class StencilResourceIdentity(

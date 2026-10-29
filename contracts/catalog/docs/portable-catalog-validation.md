@@ -99,6 +99,11 @@ The shape of a style map is an error, `TEMPLATE_NODE_PROPERTY_INVALID`:
 
 Style values are not checked, for these properties as for the others.
 
+A theme's `spacingUnit` is the base of the spacing scale, in points: every `sp` value is a multiple
+of it (`2sp` at 4 is 8pt), and absent means 4pt. From wire v8 it is 1 to 16 with at most two
+decimals, as the API takes it (`CATALOG_THEME_SPACING_UNIT_INVALID`); an archive written before
+wire v8 keeps its looser rule, any positive finite number.
+
 ## Page headers and footers
 
 A template may contain any number of `pageheader` and `pagefooter` nodes,

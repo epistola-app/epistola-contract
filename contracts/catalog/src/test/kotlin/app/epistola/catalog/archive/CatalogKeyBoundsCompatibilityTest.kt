@@ -122,7 +122,10 @@ class CatalogKeyBoundsCompatibilityTest {
         assertNotNull(reread.archive).use { current ->
             assertEquals(CURRENT_VERSION, current.manifest.schemaVersion)
             assertEquals(setOf("image/100", "codeList/$CUT", "attribute/co0", "stencil/ad0", "theme/h00", "template/le0"), current.resourceDetails.keys)
-            assertEquals(emptyList(), CatalogValidator.validate(current).findings)
+            // Read back clean, but not yet a complete v8 release: wire v7 had no pins, and a v8
+            // release pins every catalog it declares, so it is released again before it is shared.
+            val findings = CatalogValidator.validate(current).findings
+            assertTrue(findings.isNotEmpty() && findings.all { it.code == "CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID" }, findings.toString())
         }
     }
 

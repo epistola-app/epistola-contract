@@ -11,7 +11,8 @@
     "name": "Epistola"
   },
   "release": {
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "fingerprint": "v6:ee1c281c6a5118d1a78e741d7ab976e00acb9ce573e71f38e788cc302dbc3684"
   },
   "resources": [
     {
