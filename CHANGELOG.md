@@ -1218,6 +1218,14 @@ libraries.
   `CATALOG_STENCIL_SCOPE_KEPT`: in v7 a stencil's content and every fill saw both. Every placeholder
   passes them because the templates filling a stencil's placeholders are often in another archive.
   The v7 fingerprint still verifies against the source content.
+- **A data model reference that resolves to nothing is a finding** (catalog validation). The
+  validator resolves a `$ref` only when data reaches it, so `CatalogValidator.validate` missed an
+  unresolvable reference in a template without data examples, and threw a `SchemaException` for one
+  with examples instead of reporting it. Checking a data model now resolves every reference, and
+  each one that resolves to nothing, such as a missing local pointer, a relative file, an unknown
+  bundled schema version or a remote URL (nothing is fetched), is a
+  `CATALOG_TEMPLATE_DATA_SCHEMA_INVALID` finding on `dataModel`; the examples are not judged against
+  it.
 
 - **A failed collect call raises its error instead of a parse failure** (#30, Kotlin Spring
   RestClient client). `ResultCollector.collectOnce()` read the body of every response as NDJSON
