@@ -236,6 +236,46 @@ class ProblemDetailErrorHandlerTest {
     }
 
     @Test
+    fun `surfaces the versions a catalog-version-behind problem asks to acknowledge`() {
+        val body = """
+            {"type":"https://epistola.app/errors/catalog-version-behind","title":"Catalog Version Behind","status":409,
+             "behind":["1.5.0","1.6.0"]}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> { handleErrorResponse(response(HttpStatus.CONFLICT, body)) }
+        assertEquals(listOf("1.5.0", "1.6.0"), ex.behind)
+        assertTrue(ex.isCatalogVersionBehindProblem)
+    }
+
+    @Test
+    fun `surfaces what a release-in-use problem says uses the release`() {
+        val body = """
+            {"type":"https://epistola.app/errors/release-in-use","title":"Release In Use","status":409,
+             "environments":["production"],
+             "pinnedBy":[{"registry":"exchange.epistola.app","namespace":"acme-corp","catalogKey":"invoices","version":"2.1.0","releaseId":"q8w2e4rt"}]}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> { handleErrorResponse(response(HttpStatus.CONFLICT, body)) }
+        assertEquals(listOf("production"), ex.environments)
+        assertEquals("invoices", ex.pinnedBy.single().catalogKey)
+        assertEquals("q8w2e4rt", ex.pinnedBy.single().releaseId)
+        assertTrue(ex.isReleaseInUseProblem)
+    }
+
+    @Test
+    fun `surfaces the tied variants of an ambiguous-variant problem`() {
+        val body = """
+            {"type":"https://epistola.app/errors/ambiguous-variant","title":"Ambiguous Variant","status":409,
+             "tiedVariants":["english","english-legal"]}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> { handleErrorResponse(response(HttpStatus.CONFLICT, body)) }
+        assertEquals(listOf("english", "english-legal"), ex.tiedVariants)
+        assertTrue(ex.isAmbiguousVariantProblem)
+        assertFalse(ex.isReleaseInUseProblem)
+    }
+
+    @Test
     fun `surfaces the unresolved conflicts of a merge-conflicts-unresolved problem in order`() {
         val body = """
             {"type":"https://epistola.app/errors/merge-conflicts-unresolved","title":"Merge Conflicts Unresolved",

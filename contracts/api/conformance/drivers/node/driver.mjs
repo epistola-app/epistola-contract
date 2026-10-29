@@ -249,10 +249,21 @@ async function generateDocument(baseUrl, config) {
   if (config.environmentKey !== undefined) request.environmentKey = config.environmentKey
   // Attribute criteria pass through as the scenario writes them: each member it leaves out stays out.
   if (config.attributes !== undefined) request.attributes = config.attributes
-  const response = await new GenerationApi(client(baseUrl, config)).generateDocumentRaw({
-    tenantKey: config.tenantKey,
-    generateDocumentRequest: request,
-  })
+  let response
+  try {
+    response = await new GenerationApi(client(baseUrl, config)).generateDocumentRaw({
+      tenantKey: config.tenantKey,
+      generateDocumentRequest: request,
+    })
+  } catch (error) {
+    if (!(error instanceof ProblemDetailException)) throw error
+    await report(baseUrl, {
+      problemTypeSlug: error.typeSlug ?? '<null>',
+      problemStatus: error.statusCode,
+      problemTiedVariants: error.tiedVariants.join(','),
+    })
+    return
+  }
   const job = await response.value()
   await report(baseUrl, {
     requestId: show(job.requestId),
@@ -664,14 +675,25 @@ async function previewCatalogDraftRelease(baseUrl, config) {
 }
 
 /** Discards a draft; the 204 has no body to parse. */
+/** Deletes a release. A refusal is reported by its problem, with what still uses the release. */
 async function deleteCatalogRelease(baseUrl, config) {
-  await new CatalogsApi(client(baseUrl, config)).deleteCatalogRelease({
-    tenantKey: config.tenantKey,
-    registry: config.registry,
-    namespace: config.namespace,
-    catalogKey: config.catalogKey,
-    release: config.release,
-  })
+  try {
+    await new CatalogsApi(client(baseUrl, config)).deleteCatalogRelease({
+      tenantKey: config.tenantKey,
+      registry: config.registry,
+      namespace: config.namespace,
+      catalogKey: config.catalogKey,
+      release: config.release,
+    })
+  } catch (error) {
+    if (!(error instanceof ProblemDetailException)) throw error
+    await report(baseUrl, {
+      problemTypeSlug: error.typeSlug ?? '<null>',
+      problemStatus: error.statusCode,
+      problemEnvironments: error.environments.join(','),
+      problemPinnedBy: error.pinnedBy.map(installedRelease).join(','),
+    })
+  }
 }
 
 /**
@@ -703,6 +725,7 @@ async function releaseCatalogDraft(baseUrl, config) {
       problemUnreleasedDependencies: error.unreleasedDependencies
         .map((d) => `${d.registry}/${d.namespace}/${d.catalogKey}#${d.releaseId}=${d.releaseName}`)
         .join('|'),
+      problemBehind: error.behind.join(','),
     })
     return
   }

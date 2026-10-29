@@ -54,6 +54,10 @@ public final class ProblemDetailParser {
         private final List<String> unresolvedConflicts;
         private final String missingBaseVersion;
         private final String missingBaseFingerprint;
+        private final List<String> behind;
+        private final List<String> environments;
+        private final List<CatalogReleaseRef> pinnedBy;
+        private final List<String> tiedVariants;
 
         ParsedProblem(
                 ProblemDetail problem,
@@ -66,8 +70,16 @@ public final class ProblemDetailParser {
                 String readOnlyReason,
                 List<String> unresolvedConflicts,
                 String missingBaseVersion,
-                String missingBaseFingerprint) {
+                String missingBaseFingerprint,
+                List<String> behind,
+                List<String> environments,
+                List<CatalogReleaseRef> pinnedBy,
+                List<String> tiedVariants) {
             this.problem = problem;
+            this.behind = behind;
+            this.environments = environments;
+            this.pinnedBy = pinnedBy;
+            this.tiedVariants = tiedVariants;
             this.readOnlyReason = readOnlyReason;
             this.unresolvedConflicts = unresolvedConflicts;
             this.missingBaseVersion = missingBaseVersion;
@@ -155,6 +167,26 @@ public final class ProblemDetailParser {
         public String missingBaseFingerprint() {
             return missingBaseFingerprint;
         }
+
+        /** The versions a {@code catalog-version-behind} problem lists; empty when absent. */
+        public List<String> behind() {
+            return behind;
+        }
+
+        /** The environments a {@code release-in-use} problem lists; empty when absent. */
+        public List<String> environments() {
+            return environments;
+        }
+
+        /** The releases a {@code release-in-use} problem says pin the release; empty when absent. */
+        public List<CatalogReleaseRef> pinnedBy() {
+            return pinnedBy;
+        }
+
+        /** The variant keys an {@code ambiguous-variant} problem lists; empty when absent. */
+        public List<String> tiedVariants() {
+            return tiedVariants;
+        }
     }
 
     /**
@@ -205,7 +237,11 @@ public final class ProblemDetailParser {
                     stringMember(root, ProblemExtensionMembers.READ_ONLY_REASON),
                     readStrings(root, ProblemExtensionMembers.UNRESOLVED_CONFLICTS),
                     mergeBaseMissing ? stringMember(root, ProblemExtensionMembers.VERSION) : null,
-                    mergeBaseMissing ? stringMember(root, ProblemExtensionMembers.FINGERPRINT) : null);
+                    mergeBaseMissing ? stringMember(root, ProblemExtensionMembers.FINGERPRINT) : null,
+                    readStrings(root, ProblemExtensionMembers.BEHIND),
+                    readStrings(root, ProblemExtensionMembers.ENVIRONMENTS),
+                    readReleaseRefs(root, ProblemExtensionMembers.PINNED_BY),
+                    readStrings(root, ProblemExtensionMembers.TIED_VARIANTS));
         } catch (RuntimeException e) {
             return null;
         }
@@ -278,6 +314,32 @@ public final class ProblemDetailParser {
                     stringMember(dependency, "releaseName")));
         }
         return dependencies;
+    }
+
+    /**
+     * Read with JSON-P, as {@link #readMissingDependencies} is, so one malformed entry does not
+     * cost the whole problem. An entry that is not an object is skipped; a member that is not a
+     * string reads as {@code null}.
+     */
+    private static List<CatalogReleaseRef> readReleaseRefs(JsonObject root, String member) {
+        JsonValue value = root.get(member);
+        if (value == null || value.getValueType() != JsonValue.ValueType.ARRAY) {
+            return Collections.emptyList();
+        }
+        List<CatalogReleaseRef> releases = new ArrayList<>();
+        for (JsonValue entry : value.asJsonArray()) {
+            if (entry.getValueType() != JsonValue.ValueType.OBJECT) {
+                continue;
+            }
+            JsonObject release = entry.asJsonObject();
+            releases.add(new CatalogReleaseRef(
+                    stringMember(release, "registry"),
+                    stringMember(release, "namespace"),
+                    stringMember(release, "catalogKey"),
+                    stringMember(release, "version"),
+                    stringMember(release, "releaseId")));
+        }
+        return releases;
     }
 
     /** An extension member that is an array of strings; entries that are not strings are skipped. */

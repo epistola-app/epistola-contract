@@ -469,6 +469,26 @@ libraries.
 
 ### Changed
 
+- **Every problem a caller can act on has its own type, and a server answers only with registered
+  types.** (BREAKING) The registry gains `catalog-version-behind` (409, with `behind`, the versions
+  to name in `acknowledgedBehind`; it was `conflict`), `release-in-use` (409, with `environments`
+  and `pinnedBy`, from `deleteCatalogRelease`), `catalog-draft-name-in-use` (409, from
+  `createCatalogRelease` and `updateCatalogRelease`), `ambiguous-variant` (409, with
+  `tiedVariants`) and `no-matching-variant` (404), both from `generateDocument`,
+  `generateDocumentBatch` and `previewDocument`, which now declare the 409,
+  `generation-job-not-cancellable` (409, from `cancelGenerationJob`), `catalog-schema-too-new`,
+  `catalog-schema-too-old` and `catalog-schema-unknown` (400, from `importCatalog` and
+  `installCatalogRelease`), and `operation-not-implemented` (501, from any operation a server does
+  not implement yet). The contract now says that a server answers only with registered types:
+  anything without a type of its own is the generic type of its status, so a missing resource is
+  `not-found` whichever it is, and a refused authorization `forbidden`. A client handles a type it
+  does not know by its status, so a type added in a minor version breaks nothing. The server stubs
+  build each new problem with members (`catalogVersionBehind`, `releaseInUse`,
+  `ambiguousVariant`), and all five clients surface the members (`behind`, `environments`,
+  `pinnedBy`, `tiedVariants`) with an `is…Problem` flag each. Epistola Suite may not implement them
+  yet: it sends many types of its own. Conformance scenarios `release-catalog-draft-version-behind`,
+  `delete-catalog-release-in-use` and `generate-document-ambiguous-variant` hold all five clients to
+  the members.
 - **One name for a resource's human-readable name, and one for a reference to another object.**
   (BREAKING) A resource's own human-readable name is `name` everywhere; a member naming another
   object carries that object's type (`releaseName`, `releaseId`, `requestId`).
@@ -491,7 +511,7 @@ libraries.
   Epistola Suite may not implement them yet.
 - **Install and import name each dependency release in full.** (BREAKING)
   `InstallCatalogReleaseResponse` and `ImportCatalogResponse` list `installedDependencies` and
-  `presentDependencies` as `InstalledCatalogReleaseDto` objects (`registry`, `namespace`,
+  `presentDependencies` as `CatalogReleaseRefDto` objects (`registry`, `namespace`,
   `catalogKey`, `version`, `releaseId`), not as `catalogKey vVERSION` strings. A catalog's key
   alone is not unique, so two `shared` catalogs in different namespaces could not be told apart,
   and a client had to parse a label to read a version. Epistola Suite may not implement it yet.

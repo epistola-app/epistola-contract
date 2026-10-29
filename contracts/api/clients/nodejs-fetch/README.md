@@ -166,6 +166,16 @@ try {
         // the merge base is not installed here: install it first, then merge again
         log.warn(`install ${e.missingBaseVersion} (${e.missingBaseFingerprint}) first`)
         break
+      case KnownProblemSlugs.CATALOG_VERSION_BEHIND:
+        log.warn(`the draft is behind ${e.behind.join(', ')}`)                  // releaseCatalogDraft: name them in acknowledgedBehind
+        break
+      case KnownProblemSlugs.RELEASE_IN_USE:
+        // deleteCatalogRelease: undeploy it, and release the catalogs that pin it without it
+        log.warn(`deployed to ${e.environments.join(', ')}; pinned by ${e.pinnedBy.map((r) => `${r.catalogKey}@${r.version}`).join(', ')}`)
+        break
+      case KnownProblemSlugs.AMBIGUOUS_VARIANT:
+        log.warn(`several variants match: ${e.tiedVariants.join(', ')}`)        // generateDocument, previewDocument: name one by variantKey
+        break
       case KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW:
         // importCatalog / installCatalogRelease: the release renders with rendering defaults this
         // installation does not have
@@ -183,7 +193,7 @@ try {
         log.warn(`catalog source unavailable (${e.problemStatus}): ${e.detail}`)
         break
       default:
-        throw e                                                                  // unknown / framework error — fall back to e.statusCode
+        throw e                                                                  // a type this client does not know: handle it by e.problemStatus
     }
   } else if (e instanceof ResponseError) {
     // an error response without a problem document
@@ -196,7 +206,8 @@ ResponseError` sites keep working. It exposes `type`, `typeSlug`, `title`, `prob
 `detail`, `instance`, `errors`, `validationErrors`, `missingFields`, `invalidFields`,
 `missingDependencies`, `unreleasedDependencies`, `readOnlyReason`, `unresolvedConflicts`,
 `isMergeConflictsUnresolvedProblem`, `missingBaseVersion`, `missingBaseFingerprint`,
-`isMergeBaseMissingProblem`, `extensions` (every member
+`isMergeBaseMissingProblem`, `behind`, `isCatalogVersionBehindProblem`, `environments`,
+`pinnedBy`, `isReleaseInUseProblem`, `tiedVariants`, `isAmbiguousVariantProblem`, `extensions` (every member
 outside the RFC 9457 base five), `statusCode`, `rawBody`, `isValidationProblem`,
 `isDataModelValidationProblem`, `isTemplateDataProblem`, `isReleaseDependenciesMissingProblem`,
 `isReleaseDependenciesUnreleasedProblem`, and `isCatalogReadOnlyProblem`.

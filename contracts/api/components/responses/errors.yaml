@@ -155,6 +155,59 @@ MergeBaseMissingProblemDetail:
             so that the release obtained can be checked to be the one meant.
           example: v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
 
+CatalogVersionBehindProblemDetail:
+  allOf:
+    - $ref: '#/ProblemDetail'
+    - type: object
+      required:
+        - behind
+      properties:
+        behind:
+          type: array
+          description: >-
+            The versions of the releases the draft is behind and the request did not acknowledge:
+            name each in `acknowledgedBehind` to release it anyway, once its changes are applied by
+            hand or left out on purpose.
+          items:
+            $ref: '../schemas/identifiers.yaml#/ReleaseVersion'
+          example: ["1.5.0"]
+
+ReleaseInUseProblemDetail:
+  allOf:
+    - $ref: '#/ProblemDetail'
+    - type: object
+      properties:
+        environments:
+          type: array
+          description: >-
+            The environments that deploy the release; undeploy it from each first. Empty when none
+            does.
+          items:
+            $ref: '../schemas/identifiers.yaml#/EnvironmentKey'
+          example: [production]
+        pinnedBy:
+          type: array
+          description: >-
+            The releases of other catalogs that pin it, and render with it. Empty when none does.
+          items:
+            $ref: '../schemas/catalogs.yaml#/CatalogReleaseRefDto'
+
+AmbiguousVariantProblemDetail:
+  allOf:
+    - $ref: '#/ProblemDetail'
+    - type: object
+      required:
+        - tiedVariants
+      properties:
+        tiedVariants:
+          type: array
+          description: >-
+            The keys of the variants that match the request's attributes equally well. Name one by
+            `variantKey`, or send attributes that tell them apart.
+          items:
+            $ref: '../schemas/identifiers.yaml#/ResourceKey'
+          example: [english, english-legal]
+
 CatalogRenderingDefaultsTooNewProblemDetail:
   allOf:
     - $ref: '#/ProblemDetail'

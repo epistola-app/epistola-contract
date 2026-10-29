@@ -18,6 +18,7 @@ from epistola_client_generated import (
     ValidationError,
 )
 
+from epistola_client._generated.known_problem_slugs import KnownProblemSlugs
 from epistola_client.error import problem_types
 
 
@@ -64,6 +65,23 @@ class UnreleasedDependency:
     release_name: str
 
 
+@dataclass(frozen=True)
+class CatalogReleaseRef:
+    """A release a problem names in full, such as each release of another catalog a
+    ``release-in-use`` problem's ``pinnedBy`` member says pins the release."""
+
+    #: Registry of the catalog, written in full.
+    registry: str
+    #: Namespace of the catalog, within its registry.
+    namespace: str
+    #: Key of the catalog.
+    catalog_key: str
+    #: The release's version.
+    version: str
+    #: The release's id.
+    release_id: str
+
+
 class ProblemDetailException(ApiException):
     """An :class:`ApiException` carrying a parsed `RFC 9457 <https://www.rfc-editor.org/rfc/rfc9457>`_
     :class:`ProblemDetail` (``application/problem+json``) body.
@@ -101,6 +119,10 @@ class ProblemDetailException(ApiException):
         unresolved_conflicts: Optional[List[str]] = None,
         missing_base_version: Optional[str] = None,
         missing_base_fingerprint: Optional[str] = None,
+        behind: Optional[List[str]] = None,
+        environments: Optional[List[str]] = None,
+        pinned_by: Optional[List[CatalogReleaseRef]] = None,
+        tied_variants: Optional[List[str]] = None,
     ) -> None:
         super().__init__(
             status=status_code,
@@ -145,6 +167,19 @@ class ProblemDetailException(ApiException):
         self.missing_base_version = missing_base_version
         #: That release's catalog fingerprint (``v5:<hex>``) from the same problem; else ``None``.
         self.missing_base_fingerprint = missing_base_fingerprint
+        #: The versions of the releases a ``catalog-version-behind`` problem (409, from
+        #: ``release_catalog_draft``) says the draft is behind and the request did not acknowledge:
+        #: name each in ``acknowledged_behind`` to release it anyway; else ``[]``.
+        self.behind = behind or []
+        #: The environments a ``release-in-use`` problem (409, from ``delete_catalog_release``) says
+        #: deploy the release; else ``[]``.
+        self.environments = environments or []
+        #: The releases of other catalogs a ``release-in-use`` problem says pin the release, and
+        #: render with it; else ``[]``.
+        self.pinned_by = pinned_by or []
+        #: The keys of the variants an ``ambiguous-variant`` problem (409, from generating or
+        #: previewing a document) says match the request's attributes equally well; else ``[]``.
+        self.tied_variants = tied_variants or []
         #: The HTTP status of the error response.
         self.status_code = status_code
 
@@ -210,6 +245,21 @@ class ProblemDetailException(ApiException):
     def is_merge_base_missing_problem(self) -> bool:
         """True when this problem named a merge base this installation does not have."""
         return self.missing_base_version is not None
+
+    @property
+    def is_catalog_version_behind_problem(self) -> bool:
+        """True when this problem said the draft is behind releases the request did not acknowledge."""
+        return self.type_slug == KnownProblemSlugs.CATALOG_VERSION_BEHIND
+
+    @property
+    def is_release_in_use_problem(self) -> bool:
+        """True when this problem said the release cannot be deleted while something uses it."""
+        return self.type_slug == KnownProblemSlugs.RELEASE_IN_USE
+
+    @property
+    def is_ambiguous_variant_problem(self) -> bool:
+        """True when this problem said several variants match equally well."""
+        return self.type_slug == KnownProblemSlugs.AMBIGUOUS_VARIANT
 
     @property
     def is_data_model_validation_problem(self) -> bool:

@@ -41,7 +41,7 @@ import app.epistola.client.model.Node
 import app.epistola.client.model.PingRequest
 import app.epistola.client.model.PublishReleaseToRegistryRequest
 import app.epistola.client.model.ReleaseCatalogDraftRequest
-import app.epistola.client.model.InstalledCatalogReleaseDto
+import app.epistola.client.model.CatalogReleaseRefDto
 import app.epistola.client.model.TemplateDocument
 import app.epistola.client.model.TemplateDto
 import app.epistola.client.model.ThemeRef
@@ -294,7 +294,34 @@ object Driver {
      * tests inspect.
      */
     private fun generateDocument(baseUrl: String, config: ObjectNode) {
-        val response = GenerationApi(restClient(baseUrl, config)).generateDocumentWithHttpInfo(
+        val response = try {
+            generateDocumentCall(baseUrl, config)
+        } catch (e: ProblemDetailException) {
+            report(
+                baseUrl,
+                mapOf(
+                    "problemTypeSlug" to (e.typeSlug ?: "<null>"),
+                    "problemStatus" to e.statusCode.value(),
+                    "problemTiedVariants" to e.tiedVariants.joinToString(","),
+                ),
+            )
+            return
+        }
+        val job = response.body!!
+        report(
+            baseUrl,
+            mapOf(
+                "requestId" to job.requestId.toString(),
+                "status" to job.status.value,
+                "jobType" to job.jobType.value,
+                "total" to job.total,
+                "location" to (response.headers.getFirst(HttpHeaders.LOCATION) ?: "null"),
+            ),
+        )
+    }
+
+    private fun generateDocumentCall(baseUrl: String, config: ObjectNode) =
+        GenerationApi(restClient(baseUrl, config)).generateDocumentWithHttpInfo(
             config["tenantKey"].asText(),
             GenerateDocumentRequest(
                 registry = config.optionalText("registry"),
@@ -317,18 +344,6 @@ object Driver {
                 routingKey = config.optionalText("routingKey"),
             ),
         )
-        val job = response.body!!
-        report(
-            baseUrl,
-            mapOf(
-                "requestId" to job.requestId.toString(),
-                "status" to job.status.value,
-                "jobType" to job.jobType.value,
-                "total" to job.total,
-                "location" to (response.headers.getFirst(HttpHeaders.LOCATION) ?: "null"),
-            ),
-        )
-    }
 
     /**
      * A partial update that sets only the members the scenario names. Everything the caller did not
@@ -957,14 +972,27 @@ object Driver {
         )
     }
 
+    /** Deletes a release. A refusal is reported by its problem, with what still uses the release. */
     private fun deleteCatalogRelease(baseUrl: String, config: ObjectNode) {
-        CatalogsApi(restClient(baseUrl, config)).deleteCatalogRelease(
-            config["tenantKey"].asText(),
-            config["registry"].asText(),
-            config["namespace"].asText(),
-            config["catalogKey"].asText(),
-            config["release"].asText(),
-        )
+        try {
+            CatalogsApi(restClient(baseUrl, config)).deleteCatalogRelease(
+                config["tenantKey"].asText(),
+                config["registry"].asText(),
+                config["namespace"].asText(),
+                config["catalogKey"].asText(),
+                config["release"].asText(),
+            )
+        } catch (e: ProblemDetailException) {
+            report(
+                baseUrl,
+                mapOf(
+                    "problemTypeSlug" to (e.typeSlug ?: "<null>"),
+                    "problemStatus" to e.statusCode.value(),
+                    "problemEnvironments" to e.environments.joinToString(","),
+                    "problemPinnedBy" to e.pinnedBy.joinToString(",") { installedRelease(it) },
+                ),
+            )
+        }
     }
 
     /**
@@ -995,6 +1023,7 @@ object Driver {
                     "problemUnreleasedDependencies" to e.unreleasedDependencies.joinToString("|") {
                         "${it.registry}/${it.namespace}/${it.catalogKey}#${it.releaseId}=${it.releaseName}"
                     },
+                    "problemBehind" to e.behind.joinToString(","),
                 ),
             )
             return
@@ -1574,7 +1603,7 @@ object Driver {
     }
 
     /** An installed release as `registry/namespace/catalogKey@version#releaseId`. */
-    private fun installedRelease(release: InstalledCatalogReleaseDto) =
+    private fun installedRelease(release: CatalogReleaseRefDto) =
         "${release.registry}/${release.namespace}/${release.catalogKey}@${release.version}#${release.releaseId}"
 
     /** Creates an environment; `production` is sent only when configured. */

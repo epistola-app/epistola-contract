@@ -110,8 +110,17 @@ catch (ProblemDetailException e)
         case KnownProblemSlugs.VALIDATION_ERROR:
             foreach (var err in e.Errors) Console.WriteLine($"{err.Field}: {err.Message}");
             break;
-        default:                                 // always keep a default branch
-            Console.WriteLine($"{e.ProblemStatus} {e.Title}");
+        case KnownProblemSlugs.CATALOG_VERSION_BEHIND:   // ReleaseCatalogDraft: name these in AcknowledgedBehind
+            Console.WriteLine($"the draft is behind {string.Join(", ", e.Behind)}");
+            break;
+        case KnownProblemSlugs.RELEASE_IN_USE:           // DeleteCatalogRelease
+            Console.WriteLine($"deployed to {string.Join(", ", e.Environments)}; pinned by {string.Join(", ", e.PinnedBy)}");
+            break;
+        case KnownProblemSlugs.AMBIGUOUS_VARIANT:        // GenerateDocument, PreviewDocument: name one by VariantKey
+            Console.WriteLine($"several variants match: {string.Join(", ", e.TiedVariants)}");
+            break;
+        default:                                 // always keep a default branch: a type this client
+            Console.WriteLine($"{e.ProblemStatus} {e.Title}");  // does not know is handled by its status
             break;
     }
 }

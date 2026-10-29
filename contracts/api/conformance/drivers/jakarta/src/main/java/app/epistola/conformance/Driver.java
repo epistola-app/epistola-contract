@@ -78,7 +78,7 @@ import app.epistola.client.jakarta.model.ReleasedDependencyDto;
 import app.epistola.client.jakarta.model.StencilContentDto;
 import app.epistola.client.jakarta.model.StencilUsageDto;
 import app.epistola.client.jakarta.model.StencilUsageListResponse;
-import app.epistola.client.jakarta.model.InstalledCatalogReleaseDto;
+import app.epistola.client.jakarta.model.CatalogReleaseRefDto;
 import app.epistola.client.jakarta.model.TemplateDocument;
 import app.epistola.client.jakarta.model.TemplateDto;
 import app.epistola.client.jakarta.model.TemplateListResponse;
@@ -392,6 +392,13 @@ public final class Driver {
             values.put("total", job.getTotal() == null ? "null" : job.getTotal());
             values.put("location", String.valueOf(response.getHeaderString("Location")));
             report(baseUrl, values);
+        } catch (ProblemDetailException e) {
+            report(
+                    baseUrl,
+                    Map.of(
+                            "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
+                            "problemStatus", e.getStatusCode(),
+                            "problemTiedVariants", String.join(",", e.getTiedVariants())));
         }
     }
 
@@ -658,7 +665,7 @@ public final class Driver {
     }
 
     /** An installed release as {@code registry/namespace/catalogKey@version#releaseId}. */
-    private static String installedRelease(InstalledCatalogReleaseDto release) {
+    private static String installedRelease(CatalogReleaseRefDto release) {
         return release.getRegistry() + "/" + release.getNamespace() + "/" + release.getCatalogKey()
                 + "@" + release.getVersion() + "#" + release.getReleaseId();
     }
@@ -1000,14 +1007,28 @@ public final class Driver {
     }
 
     private static void deleteCatalogRelease(String baseUrl, JsonObject config) {
-        clients(baseUrl, config)
-                .api(CatalogsApi.class)
-                .deleteCatalogRelease(
-                        config.getString("tenantKey"),
-                        config.getString("registry"),
-                        config.getString("namespace"),
-                        config.getString("catalogKey"),
-                        config.getString("release"));
+        try {
+            clients(baseUrl, config)
+                    .api(CatalogsApi.class)
+                    .deleteCatalogRelease(
+                            config.getString("tenantKey"),
+                            config.getString("registry"),
+                            config.getString("namespace"),
+                            config.getString("catalogKey"),
+                            config.getString("release"));
+        } catch (ProblemDetailException e) {
+            report(
+                    baseUrl,
+                    Map.of(
+                            "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
+                            "problemStatus", e.getStatusCode(),
+                            "problemEnvironments", String.join(",", e.getEnvironments()),
+                            "problemPinnedBy", e.getPinnedBy().stream()
+                                    .map(release -> release.getRegistry() + "/" + release.getNamespace() + "/"
+                                            + release.getCatalogKey() + "@" + release.getVersion() + "#"
+                                            + release.getReleaseId())
+                                    .collect(Collectors.joining(","))));
+        }
     }
 
     /**
@@ -1046,7 +1067,8 @@ public final class Driver {
                                             .map(dependency -> dependency.getRegistry() + "/"
                                                     + dependency.getNamespace() + "/" + dependency.getCatalogKey()
                                                     + "#" + dependency.getReleaseId() + "=" + dependency.getReleaseName())
-                                            .collect(Collectors.joining("|"))));
+                                            .collect(Collectors.joining("|")),
+                            "problemBehind", String.join(",", e.getBehind())));
             return;
         }
         List<String> draftsBehind = response.getDraftsBehind() == null ? List.of() : response.getDraftsBehind();

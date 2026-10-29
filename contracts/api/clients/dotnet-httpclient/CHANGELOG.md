@@ -11,6 +11,10 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Added
 
+- `ProblemDetailException.Behind` and `IsCatalogVersionBehindProblem` (a `catalog-version-behind`
+  problem's versions to acknowledge), `Environments`, `PinnedBy` (each a `CatalogReleaseRef`) and
+  `IsReleaseInUseProblem` (what a `release-in-use` problem says uses the release), and
+  `TiedVariants` and `IsAmbiguousVariantProblem` (an `ambiguous-variant` problem's variants).
 - **BREAKING:** `GenerationResult` carries `ReleaseId` and `ReleaseName`, after `Version`. The
   collector parsed result lines by hand and dropped both, so a consumer could not tell which
   draft rendered a document. The record is positional: code constructing one passes the two new
