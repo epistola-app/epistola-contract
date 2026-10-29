@@ -294,7 +294,7 @@ class CatalogValidatorTest {
     }
 
     @Test
-    fun `a v8 theme's spacing unit is 1 to 16 points with at most two decimals, an older one any positive number`() {
+    fun `a v8 theme's spacing unit is half a point to 16 points with at most two decimals, an older one any positive number`() {
         fun findings(
             spacingUnit: Float,
             sourceVersion: Int = CURRENT_VERSION,
@@ -309,10 +309,10 @@ class CatalogValidatorTest {
         }
         val invalid = listOf(CatalogValidationCodes.THEME_SPACING_UNIT_INVALID to "resources/theme/house.json.resource.spacingUnit")
 
-        listOf(1f, 4f, 1.2f, 1.25f, 16f).forEach { assertEquals(emptyList(), findings(it), "$it") }
-        listOf(0.5f, 0.9f, 16.01f, 500f, 1.255f, 0.35277777f, Float.NaN).forEach { assertEquals(invalid, findings(it), "$it") }
+        listOf(0.5f, 0.75f, 1f, 4f, 1.2f, 1.25f, 16f).forEach { assertEquals(emptyList(), findings(it), "$it") }
+        listOf(0f, 0.25f, 0.49f, 16.01f, 500f, 1.255f, 0.35277777f, Float.NaN).forEach { assertEquals(invalid, findings(it), "$it") }
         // An archive written before wire v8 keeps the rule it was made under.
-        listOf(0.5f, 500f, 0.35277777f).forEach { assertEquals(emptyList(), findings(it, 7), "$it at wire v7") }
+        listOf(0.25f, 500f, 0.35277777f).forEach { assertEquals(emptyList(), findings(it, 7), "$it at wire v7") }
         listOf(0f, -1f).forEach { assertEquals(invalid, findings(it, 7), "$it at wire v7") }
     }
 

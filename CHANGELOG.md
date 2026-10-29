@@ -484,7 +484,9 @@ libraries.
   and an optional fingerprint, may lack both, and is released again before it is shared as a v8
   release. A theme's `spacingUnit` was 1 to 16 in the API and the live theme schema, but any number
   in wire v8, and only "positive" to the validator, under the template data-schema code: it is now
-  1 to 16 points with at most two decimals in a v8 archive, reported as the new
+  0.5 to 16 points with at most two decimals in the API, the theme schemas and a v8 archive
+  (0.5 makes `2sp` a single point; 0 is refused, as it would collapse the whole scale and the
+  editor divides by it), reported as the new
   `CATALOG_THEME_SPACING_UNIT_INVALID`, while an archive written before wire v8 keeps "any positive
   number". The golden wire-v8 catalog and the conformance catalogs now carry their fingerprints.
   Epistola Suite may not write the fingerprint and pins on every export yet.

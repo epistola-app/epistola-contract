@@ -286,7 +286,7 @@ object CatalogValidationCodes {
     const val TEMPLATE_DATA_SCHEMA_INVALID = "CATALOG_TEMPLATE_DATA_SCHEMA_INVALID"
 
     /**
-     * A theme's `spacingUnit` is out of its rule: from wire v8, points from 1 to 16 with at most two
+     * A theme's `spacingUnit` is out of its rule: from wire v8, points from 0.5 to 16 with at most two
      * decimals, as the API takes it; before, any positive finite number.
      */
     const val THEME_SPACING_UNIT_INVALID = "CATALOG_THEME_SPACING_UNIT_INVALID"
@@ -617,8 +617,8 @@ object ResourceValidator {
             // From wire v8 the rule the API and rendering use; an archive written before keeps the
             // looser one it was made under.
             val message = if (context.sourceSchemaVersion >= SPACING_UNIT_BOUNDED_SINCE_WIRE_VERSION) {
-                "spacingUnit must be a number of points from 1 to 16 with at most two decimals"
-                    .takeUnless { unit.isFinite() && unit in 1f..16f && java.math.BigDecimal(unit.toString()).stripTrailingZeros().scale() <= 2 }
+                "spacingUnit must be a number of points from 0.5 to 16 with at most two decimals"
+                    .takeUnless { unit.isFinite() && unit in 0.5f..16f && java.math.BigDecimal(unit.toString()).stripTrailingZeros().scale() <= 2 }
             } else {
                 "spacingUnit must be a positive finite number".takeUnless { unit.isFinite() && unit > 0 }
             }
@@ -844,7 +844,7 @@ object ResourceValidator {
 /** The wire version from which every path into the catalog is held to [CatalogArchivePaths]. */
 private const val ARCHIVE_PATHS_SINCE_WIRE_VERSION = 8
 
-/** The wire version from which a theme's `spacingUnit` is held to 1 to 16 points, two decimals. */
+/** The wire version from which a theme's `spacingUnit` is held to 0.5 to 16 points, two decimals. */
 private const val SPACING_UNIT_BOUNDED_SINCE_WIRE_VERSION = 8
 
 /**
