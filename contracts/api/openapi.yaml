@@ -907,6 +907,8 @@ paths:
     $ref: './paths/generation.yaml#/jobs'
   /tenants/{tenantKey}/documents/jobs/{requestId}:
     $ref: './paths/generation.yaml#/job-detail'
+  /tenants/{tenantKey}/documents/jobs/{requestId}/items:
+    $ref: './paths/generation.yaml#/job-items'
   /tenants/{tenantKey}/documents:
     $ref: './paths/generation.yaml#/documents'
   /tenants/{tenantKey}/documents/{documentId}:
@@ -1245,8 +1247,8 @@ components:
       $ref: './components/schemas/generation.yaml#/DocumentGenerationItemDto'
     DocumentGenerationJobDto:
       $ref: './components/schemas/generation.yaml#/DocumentGenerationJobDto'
-    GenerationJobDetail:
-      $ref: './components/schemas/generation.yaml#/GenerationJobDetail'
+    GenerationJobItemListResponse:
+      $ref: './components/schemas/generation.yaml#/GenerationJobItemListResponse'
     GenerationJobListResponse:
       $ref: './components/schemas/generation.yaml#/GenerationJobListResponse'
     DocumentDto:

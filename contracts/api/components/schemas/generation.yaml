@@ -415,10 +415,12 @@ GenerateBatchRequest:
     items:
       type: array
       description: |
-        The items to generate, at most 1000. A larger run is split into several batches; each is a
-        job of its own.
+        The items to generate, at most 10000. A larger run, such as a mailing to every resident, is
+        sent as several batches, each a job of its own: their results all arrive through
+        `collectGenerationResults`, and each item's `correlationId` ties a document back to the
+        caller's record.
       minItems: 1
-      maxItems: 1000
+      maxItems: 10000
       items:
         $ref: '#/BatchGenerationItem'
 
@@ -661,33 +663,21 @@ DocumentGenerationJobDto:
     completedAt: "2026-02-01T08:00:03Z"
     progressPercentage: 100.0
 
-GenerationJobDetail:
+GenerationJobItemListResponse:
   type: object
-  description: Detailed generation job with all items
+  description: One page of a generation job's items
   required:
-    - request
     - items
+    - page
   properties:
-    request:
-      $ref: '#/DocumentGenerationJobDto'
     items:
       type: array
-      description: List of items in this batch
+      description: The job's items on this page, in the order they were submitted
       items:
         $ref: '#/DocumentGenerationItemDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
   example:
-    request:
-      requestId: "550e8400-e29b-41d4-a716-446655440000"
-      jobType: single
-      status: completed
-      total: 1
-      completedCount: 1
-      failedCount: 0
-      errorMessage: null
-      createdAt: "2026-02-01T08:00:00Z"
-      startedAt: "2026-02-01T08:00:01Z"
-      completedAt: "2026-02-01T08:00:03Z"
-      progressPercentage: 100.0
     items:
       - itemId: "660e8400-e29b-41d4-a716-446655440001"
         registry: exchange.epistola.app
@@ -697,14 +687,19 @@ GenerationJobDetail:
         variantKey: english
         version: "1.4.0"
         environmentKey: null
-        filename: "invoice-2026-001.pdf"
-        correlationId: "order-7890"
+        filename: invoice-2026-001.pdf
+        correlationId: order-7890
         status: completed
         errorMessage: null
         documentId: "770e8400-e29b-41d4-a716-446655440002"
         createdAt: "2026-02-01T08:00:00Z"
         startedAt: "2026-02-01T08:00:01Z"
         completedAt: "2026-02-01T08:00:03Z"
+    page:
+      number: 0
+      size: 20
+      total: 1
+      totalPages: 1
 
 GenerationJobListResponse:
   description: Paginated list of generation jobs

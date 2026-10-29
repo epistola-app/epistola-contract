@@ -54,6 +54,8 @@ public static class Driver
                 case "update-attribute": UpdateAttribute(baseUrl, config); break;
                 case "download-document": DownloadDocument(baseUrl, config); break;
                 case "list-documents": ListDocuments(baseUrl, config); break;
+                case "get-generation-job-status": GetGenerationJobStatus(baseUrl, config); break;
+                case "list-generation-job-items": ListGenerationJobItems(baseUrl, config); break;
                 case "list-images": ListImages(baseUrl, config); break;
                 case "upload-image": UploadImage(baseUrl, config); break;
                 case "import-catalog": ImportCatalog(baseUrl, config); break;
@@ -567,6 +569,43 @@ public static class Driver
     /// Lists documents with the catalog and template filters the scenario sets, each sent only
     /// when set, and reports what the client made of the page.
     /// </summary>
+    /// <summary>Reads a generation job's status and reports its counts; the job carries no items.</summary>
+    private static void GetGenerationJobStatus(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var job = new GenerationApi(http, apiBase).GetGenerationJobStatus(Str(config, "tenantKey"), Guid.Parse(Str(config, "requestId")));
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["requestId"] = Show(job.RequestId),
+            ["status"] = Wire(job.Status),
+            ["jobType"] = Wire(job.JobType),
+            ["total"] = job.Total,
+            ["completedCount"] = job.CompletedCount,
+            ["failedCount"] = job.FailedCount,
+        });
+    }
+
+    /// <summary>Lists a page of a generation job's items, <c>status</c>, <c>page</c> and <c>size</c> each sent only when set.</summary>
+    private static void ListGenerationJobItems(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var status = OptStr(config, "status");
+        var response = new GenerationApi(http, apiBase).ListGenerationJobItems(
+            Str(config, "tenantKey"),
+            Guid.Parse(Str(config, "requestId")),
+            status: status == null ? null : Newtonsoft.Json.JsonConvert.DeserializeObject<GenerationItemStatus>($"\"{status}\""),
+            page: config.TryGetProperty("page", out var page) && page.ValueKind == JsonValueKind.Number ? page.GetInt32() : null,
+            size: config.TryGetProperty("size", out var size) && size.ValueKind == JsonValueKind.Number ? size.GetInt32() : null);
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["itemIds"] = string.Join(",", response.Items.Select(i => Show(i.ItemId))),
+            ["statuses"] = string.Join(",", response.Items.Select(i => Wire(i.Status))),
+            ["documentIds"] = string.Join(",", response.Items.Select(i => Show(i.DocumentId))),
+            ["correlationIds"] = string.Join(",", response.Items.Select(i => Show(i.CorrelationId))),
+            ["total"] = Show(response.Page.Total),
+        });
+    }
+
     private static void ListDocuments(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);

@@ -1,0 +1,70 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: list-generation-job-items
+title: A generation job's items are listed a page at a time, filtered by status
+why: >
+  A municipality mailing every resident sends batches of up to 10000 items; to find the letters
+  that failed, a caller lists the job's items with `status=failed`, a page at a time. The client
+  must send the status as its wire value and the page and size it was given, and read each item,
+  a failed one's missing document as null, and the page's total.
+
+action:
+  name: list-generation-job-items
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantKey: acme-corp
+    requestId: 550e8400-e29b-41d4-a716-446655440000
+    status: failed
+    page: 1
+    size: 2
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      items:
+        - itemId: 660e8400-e29b-41d4-a716-446655440003
+          registry: exchange.epistola.app
+          namespace: gemeente-x
+          catalogKey: brieven
+          templateKey: aanslag
+          variantKey: nl-nl
+          version: "3.1.0"
+          correlationId: bsn-000000003
+          status: failed
+          errorMessage: Data does not satisfy the template's data contract
+          documentId: null
+          createdAt: "2026-10-29T08:00:00Z"
+        - itemId: 660e8400-e29b-41d4-a716-446655440004
+          registry: exchange.epistola.app
+          namespace: gemeente-x
+          catalogKey: brieven
+          templateKey: aanslag
+          variantKey: nl-nl
+          version: "3.1.0"
+          correlationId: bsn-000000004
+          status: failed
+          errorMessage: Data does not satisfy the template's data contract
+          documentId: null
+          createdAt: "2026-10-29T08:00:00Z"
+      page: { number: 1, size: 2, total: 12, totalPages: 6 }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/documents/jobs/550e8400-e29b-41d4-a716-446655440000/items
+      queryParams:
+        status: failed
+        page: '1'
+        size: '2'
+  report:
+    itemIds: 660e8400-e29b-41d4-a716-446655440003,660e8400-e29b-41d4-a716-446655440004
+    statuses: failed,failed
+    documentIds: null,null
+    correlationIds: bsn-000000003,bsn-000000004
+    total: '12'

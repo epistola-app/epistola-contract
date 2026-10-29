@@ -472,9 +472,14 @@ libraries.
 - **Bounds, paging and enums the 2.0 review found missing** (BREAKING). Each would be a tightening
   after 2.0.0. Epistola Suite may not implement them yet; its server stubs' list methods change
   signature with the sort parameters.
-  - **Generation:** a batch has at most 1000 `items`. A job's items no longer echo each item's
-    `data`, which made `getGenerationJobStatus` grow with the request; the caller has it, and
-    `correlationId` matches them up. An item can be `cancelled`, as its job can. The job and
+  - **Generation:** a batch has at most 10000 `items`; a larger run, such as a mailing to every
+    resident, is several batches, whose results all arrive through `collectGenerationResults`.
+    `getGenerationJobStatus` returns the job and its counts (`DocumentGenerationJobDto`) rather than
+    embedding every item (`GenerationJobDetail` is gone); the new `listGenerationJobItems` lists
+    them a page at a time, optionally by `status` (`failed`, to see what to send again). An item no
+    longer echoes its `data`; the caller has it, and `correlationId` matches them up. An item can be
+    `cancelled`, as its job can. Conformance scenarios `get-generation-job-status` and
+    `list-generation-job-items` hold all five clients to both. The job and
     item statuses and the job type are named enums (`GenerationJobStatus`, `GenerationItemStatus`,
     `GenerationJobType`) rather than repeated inline.
   - **Code lists:** `sourceUrl` is an HTTPS URL (`format: uri`, `^https://`, at most 2048
