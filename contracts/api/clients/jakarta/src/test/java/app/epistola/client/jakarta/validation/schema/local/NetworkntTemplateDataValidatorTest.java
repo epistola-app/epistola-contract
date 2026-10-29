@@ -121,8 +121,8 @@ class NetworkntTemplateDataValidatorTest {
     }
 
     @Test
-    void a_template_without_a_schema_claims_nothing_about_the_data() {
-        NetworkntTemplateDataValidator validator = new NetworkntTemplateDataValidator(templatesApi(null), "1.4.0");
+    void a_template_with_the_empty_schema_claims_nothing_about_the_data() {
+        NetworkntTemplateDataValidator validator = new NetworkntTemplateDataValidator(templatesApi(Map.of()), "1.4.0");
 
         assertEquals(List.of(), validator.validate("acme-corp", "~", "acme-corp", "default", "invoice", Map.of("anything", 1)));
     }

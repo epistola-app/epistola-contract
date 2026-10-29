@@ -220,7 +220,9 @@ async function collect(baseUrl, config) {
     correlationIds: handled.map((r) => r.correlationId ?? '').join(','),
     handledSequences: handled.map((r) => String(r.sequence)).join(','),
     partitionTotal: assignment ? assignment.total : -1,
-    releases: handled.map((r) => `${show(r.registry)}/${show(r.namespace)}/${show(r.catalogKey)}@${show(r.version)}`).join(','),
+    releases: handled
+      .map((r) => `${show(r.registry)}/${show(r.namespace)}/${show(r.catalogKey)}@${show(r.version)}#${show(r.releaseId)}:${show(r.draftLabel)}`)
+      .join(','),
   })
 }
 
@@ -389,9 +391,14 @@ async function installCatalogRelease(baseUrl, config) {
     version: show(installed.version),
     newlyInstalled: show(installed.newlyInstalled),
     total: show(installed.total),
-    installedDependencies: (installed.installedDependencies ?? []).map(show).join(','),
-    presentDependencies: (installed.presentDependencies ?? []).map(show).join(','),
+    installedDependencies: (installed.installedDependencies ?? []).map(installedRelease).join(','),
+    presentDependencies: (installed.presentDependencies ?? []).map(installedRelease).join(','),
   })
+}
+
+/** An installed release as `registry/namespace/catalogKey@version#releaseId`. */
+function installedRelease(release) {
+  return `${release.registry}/${release.namespace}/${release.catalogKey}@${release.version}#${release.releaseId}`
 }
 
 /**

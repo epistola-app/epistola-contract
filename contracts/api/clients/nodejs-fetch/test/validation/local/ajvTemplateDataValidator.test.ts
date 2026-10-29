@@ -113,8 +113,8 @@ test('format is asserted here, which is exactly why a local verdict is its own',
   assert.equal(findings[0]?.keyword, 'format')
 })
 
-test('a template without a schema claims nothing about the data', async () => {
-  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(undefined), '1.4.0')
+test('a template with the empty schema claims nothing about the data', async () => {
+  const validator = new AjvTemplateDataValidator(new StubTemplatesApi({}), '1.4.0')
 
   assert.deepEqual(await validator.validate('acme-corp', '~', 'acme-corp', 'default', 'invoice', { anything: 1 }), [])
 })

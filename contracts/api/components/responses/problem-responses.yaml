@@ -412,7 +412,7 @@ UnprocessableEntityError:
         status: 422
         detail: Data examples failed validation against schema
         validationErrors:
-          "Example 1":
+          standard-invoice:
             - path: /name
               message: required property 'name' not found
 

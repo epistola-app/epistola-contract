@@ -78,6 +78,7 @@ import app.epistola.client.jakarta.model.ReleasedDependencyDto;
 import app.epistola.client.jakarta.model.StencilContentDto;
 import app.epistola.client.jakarta.model.StencilUsageDto;
 import app.epistola.client.jakarta.model.StencilUsageListResponse;
+import app.epistola.client.jakarta.model.InstalledCatalogReleaseDto;
 import app.epistola.client.jakarta.model.TemplateDocument;
 import app.epistola.client.jakarta.model.TemplateDto;
 import app.epistola.client.jakarta.model.TemplateListResponse;
@@ -343,7 +344,8 @@ public final class Driver {
                                 handled.stream()
                                         .map(result -> result.getRegistry() + "/" + result.getNamespace() + "/"
                                                 + result.getCatalogKey() + "@"
-                                                + result.getVersion())
+                                                + result.getVersion() + "#" + result.getReleaseId() + ":"
+                                                + result.getDraftLabel())
                                         .collect(Collectors.joining(",")),
                         "partitionTotal", assignment == null ? -1 : assignment.getTotal()));
     }
@@ -650,9 +652,15 @@ public final class Driver {
                         "newlyInstalled", String.valueOf(installed.getNewlyInstalled()),
                         "total", String.valueOf(installed.getTotal()),
                         "installedDependencies",
-                                joined(orEmpty(installed.getInstalledDependencies()), String::valueOf),
+                                joined(orEmpty(installed.getInstalledDependencies()), Driver::installedRelease),
                         "presentDependencies",
-                                joined(orEmpty(installed.getPresentDependencies()), String::valueOf)));
+                                joined(orEmpty(installed.getPresentDependencies()), Driver::installedRelease)));
+    }
+
+    /** An installed release as {@code registry/namespace/catalogKey@version#releaseId}. */
+    private static String installedRelease(InstalledCatalogReleaseDto release) {
+        return release.getRegistry() + "/" + release.getNamespace() + "/" + release.getCatalogKey()
+                + "@" + release.getVersion() + "#" + release.getReleaseId();
     }
 
     /**

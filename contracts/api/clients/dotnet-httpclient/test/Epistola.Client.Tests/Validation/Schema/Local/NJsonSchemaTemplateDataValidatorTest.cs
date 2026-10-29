@@ -121,9 +121,9 @@ public class NJsonSchemaTemplateDataValidatorTest
     }
 
     [Fact]
-    public void ATemplateWithoutASchemaClaimsNothingAboutTheData()
+    public void ATemplateWithTheEmptySchemaClaimsNothingAboutTheData()
     {
-        var validator = new NJsonSchemaTemplateDataValidator(ApiReturningSchema(null), "1.4.0");
+        var validator = new NJsonSchemaTemplateDataValidator(ApiReturningSchema(new Dictionary<string, object>()), "1.4.0");
 
         Assert.Empty(validator.Validate("acme", "~", "acme-corp", "default", "invoice", new Dictionary<string, object> { ["anything"] = 1 }));
     }

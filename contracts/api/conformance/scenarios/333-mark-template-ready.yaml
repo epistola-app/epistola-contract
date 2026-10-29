@@ -29,6 +29,7 @@ script:
       tenantKey: acme-corp
       name: Monthly Invoice
       description: null
+      dataModel: {}
       variants:
         - { key: english, title: English Invoice, attributes: { locale: en-GB }, isDefault: true, status: ready }
         - { key: dutch, title: Dutch Invoice, attributes: { locale: nl-NL }, isDefault: false, status: released }
