@@ -260,7 +260,7 @@ environment-deployment-release:
       the one it served, which is logged as undeployed. A **production** environment serves only
       releases, never a draft: deploying a draft there is refused with 409 (`environment-deployment-refused`). A
       document rendered from a draft carries the draft's id and its name at render time
-      (`releaseId`, `draftLabel`, with a null `version`), and its PDF a preview watermark.
+      (`releaseId`, `releaseName`, with a null `version`), and its PDF a preview watermark.
       The deployment follows the draft's lifecycle:
 
       - when the draft is released (`releaseCatalogDraft`), it keeps its `releaseId`, so the

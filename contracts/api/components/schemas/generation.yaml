@@ -69,7 +69,7 @@ PreviewDocumentRequest:
       description: |
         Key of an environment. With no `versionRange`, the catalog's draft deployed to the
         environment is rendered live if there is one (the document then carries `releaseId` and
-        `draftLabel`), else the highest release of the template's catalog the environment serves.
+        `releaseName`), else the highest release of the template's catalog the environment serves.
         With a `versionRange`, the highest served release that satisfies it; a draft never matches
         a range (`deployCatalogRelease`). The request is refused with 404 `not-found` when the
         environment serves no such release.
@@ -212,7 +212,7 @@ GenerateDocumentRequest:
       description: |
         Key of an environment. With no `versionRange`, the catalog's draft deployed to the
         environment is rendered live if there is one (the document then carries `releaseId` and
-        `draftLabel`), else the highest release of the template's catalog the environment serves.
+        `releaseName`), else the highest release of the template's catalog the environment serves.
         With a `versionRange`, the highest served release that satisfies it; a draft never matches
         a range (`deployCatalogRelease`). The request is refused with 404 `not-found` when the
         environment serves no such release.
@@ -336,7 +336,7 @@ BatchGenerationItem:
       description: |
         Key of an environment. With no `versionRange`, the catalog's draft deployed to the
         environment is rendered live if there is one (the document then carries `releaseId` and
-        `draftLabel`), else the highest release of the template's catalog the environment serves.
+        `releaseName`), else the highest release of the template's catalog the environment serves.
         With a `versionRange`, the highest served release that satisfies it; a draft never matches
         a range (`deployCatalogRelease`). The request is refused with 404 `not-found` when the
         environment serves no such release.
@@ -464,7 +464,7 @@ DocumentGenerationItemDto:
   type: object
   description: Individual item in a generation batch
   required:
-    - id
+    - itemId
     - registry
     - namespace
     - catalogKey
@@ -474,7 +474,7 @@ DocumentGenerationItemDto:
     - status
     - createdAt
   properties:
-    id:
+    itemId:
       type: string
       format: uuid
       description: Unique identifier of this item
@@ -519,12 +519,14 @@ DocumentGenerationItemDto:
         environment renders one live (`deployCatalogRelease`; `version` is then null).
         Null only for one made before 2.0, which no release made.
       example: k3x9q2ab
-    draftLabel:
+    releaseName:
       type: [string, "null"]
       maxLength: 100
       description: |
-        The name of that draft at render time. Null when rendered from a released one.
-      example: null
+        The name of the release rendered, at render time: a draft's, or a released release's, which
+        keeps the name it had as a draft. Null for a release that has none, as one installed by
+        import or from its source.
+      example: Redesign 2027
     environmentKey:
       oneOf:
         - $ref: './identifiers.yaml#/EnvironmentKey'
@@ -600,7 +602,7 @@ DocumentGenerationItemDto:
       description: When processing completed
       example: "2026-02-01T08:00:03Z"
   example:
-    id: "660e8400-e29b-41d4-a716-446655440001"
+    itemId: "660e8400-e29b-41d4-a716-446655440001"
     registry: exchange.epistola.app
     namespace: acme-corp
     catalogKey: letters
@@ -649,7 +651,7 @@ DocumentGenerationJobDto:
   type: object
   description: Generation job summary
   required:
-    - id
+    - requestId
     - jobType
     - status
     - total
@@ -657,10 +659,10 @@ DocumentGenerationJobDto:
     - failedCount
     - createdAt
   properties:
-    id:
+    requestId:
       type: string
       format: uuid
-      description: Unique identifier of the request
+      description: Id of the generation request, as `GenerationJobResponse.requestId` gives it
       example: "550e8400-e29b-41d4-a716-446655440000"
     jobType:
       type: string
@@ -709,7 +711,7 @@ DocumentGenerationJobDto:
       description: Progress percentage (0-100)
       example: 100.0
   example:
-    id: "550e8400-e29b-41d4-a716-446655440000"
+    requestId: "550e8400-e29b-41d4-a716-446655440000"
     jobType: single
     status: completed
     total: 1
@@ -737,7 +739,7 @@ GenerationJobDetail:
         $ref: '#/DocumentGenerationItemDto'
   example:
     request:
-      id: "550e8400-e29b-41d4-a716-446655440000"
+      requestId: "550e8400-e29b-41d4-a716-446655440000"
       jobType: single
       status: completed
       total: 1
@@ -749,7 +751,7 @@ GenerationJobDetail:
       completedAt: "2026-02-01T08:00:03Z"
       progressPercentage: 100.0
     items:
-      - id: "660e8400-e29b-41d4-a716-446655440001"
+      - itemId: "660e8400-e29b-41d4-a716-446655440001"
         registry: exchange.epistola.app
         namespace: acme-corp
         catalogKey: letters
@@ -803,7 +805,7 @@ GenerationJobListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - id: "550e8400-e29b-41d4-a716-446655440000"
+      - requestId: "550e8400-e29b-41d4-a716-446655440000"
         jobType: single
         status: completed
         total: 1
@@ -824,7 +826,7 @@ DocumentDto:
   type: object
   description: Generated document metadata
   required:
-    - id
+    - documentId
     - tenantKey
     - registry
     - namespace
@@ -837,7 +839,7 @@ DocumentDto:
     - sizeBytes
     - createdAt
   properties:
-    id:
+    documentId:
       type: string
       format: uuid
       description: Unique identifier of the document
@@ -886,12 +888,14 @@ DocumentDto:
         environment renders one live (`deployCatalogRelease`; `version` is then null).
         Null only for one made before 2.0, which no release made.
       example: k3x9q2ab
-    draftLabel:
+    releaseName:
       type: [string, "null"]
       maxLength: 100
       description: |
-        The name of that draft at render time. Null when rendered from a released one.
-      example: null
+        The name of the release rendered, at render time: a draft's, or a released release's, which
+        keeps the name it had as a draft. Null for a release that has none, as one installed by
+        import or from its source.
+      example: Redesign 2027
     filename:
       type: string
       description: Filename of the document
@@ -922,7 +926,7 @@ DocumentDto:
         server records none.
       example: null
   example:
-    id: "770e8400-e29b-41d4-a716-446655440002"
+    documentId: "770e8400-e29b-41d4-a716-446655440002"
     tenantKey: acme-corp
     registry: exchange.epistola.app
     namespace: acme-corp
@@ -953,7 +957,7 @@ DocumentListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - id: "770e8400-e29b-41d4-a716-446655440002"
+      - documentId: "770e8400-e29b-41d4-a716-446655440002"
         tenantKey: acme-corp
         registry: exchange.epistola.app
         namespace: acme-corp

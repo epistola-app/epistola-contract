@@ -81,13 +81,13 @@ class ProblemDetailExceptionTest {
                 status = 422,
             ),
             validationErrors = mapOf(
-                "Example 1" to listOf(DataModelValidationError(path = "/name", message = "required property 'name' not found")),
+                "standard-invoice" to listOf(DataModelValidationError(path = "/name", message = "required property 'name' not found")),
             ),
         )
         assertTrue(ex.isDataModelValidationProblem)
         assertFalse(ex.isValidationProblem)
         assertEquals(KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR, ex.typeSlug)
-        assertEquals("/name", ex.validationErrors.getValue("Example 1")[0].path)
+        assertEquals("/name", ex.validationErrors.getValue("standard-invoice")[0].path)
     }
 
     @Test

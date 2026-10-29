@@ -16,7 +16,9 @@ why: >
 
   The response reports the release as an import does: `newlyInstalled` as a boolean, and the
   releases installed first because the release pins them (`installedDependencies`) and those the
-  tenant had (`presentDependencies`), in order.
+  tenant had (`presentDependencies`), in order. Each is named in full, registry, namespace and
+  key, with its version and `releaseId`: a catalog's key alone is not unique, so the client must
+  read every member, not a label.
 
 action:
   name: install-catalog-release
@@ -38,8 +40,11 @@ script:
       version: 1.5.0
       newlyInstalled: true
       total: 9
-      installedDependencies: ["shared v1.1.0", "system v3.2.0"]
-      presentDependencies: ["branding v1.4.2"]
+      installedDependencies:
+        - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: shared, version: 1.1.0, releaseId: s4k8m2qa }
+        - { registry: exchange.epistola.app, namespace: epistola, catalogKey: system, version: 3.2.0, releaseId: y7c3n5vb }
+      presentDependencies:
+        - { registry: brand.example.com, namespace: acme-corp, catalogKey: branding, version: 1.4.2, releaseId: b2h6w9td }
 
 expect:
   requestCount: 1
@@ -54,5 +59,5 @@ expect:
     version: 1.5.0
     newlyInstalled: 'true'
     total: '9'
-    installedDependencies: shared v1.1.0,system v3.2.0
-    presentDependencies: branding v1.4.2
+    installedDependencies: exchange.epistola.app/acme-corp/shared@1.1.0#s4k8m2qa,exchange.epistola.app/epistola/system@3.2.0#y7c3n5vb
+    presentDependencies: brand.example.com/acme-corp/branding@1.4.2#b2h6w9td

@@ -4,7 +4,7 @@ VariantDto:
   required:
     - key
     - templateKey
-    - title
+    - name
     - attributes
     - isDefault
     - status
@@ -20,11 +20,11 @@ VariantDto:
       $ref: './identifiers.yaml#/ResourceKey'
       description: Key of the template this variant belongs to
       example: invoice
-    title:
+    name:
       type: string
       minLength: 1
       maxLength: 100
-      description: Human-readable title for the variant
+      description: Human-readable name of the variant, which tells it from the template's other variants
       example: English Invoice
     description:
       type:
@@ -59,7 +59,7 @@ VariantDto:
   example:
     key: english
     templateKey: invoice
-    title: English Invoice
+    name: English Invoice
     description: English language invoice for international customers
     attributes:
       locale: en-US
@@ -74,7 +74,7 @@ VariantSummaryDto:
   description: Summary view of a variant for inclusion in template responses
   required:
     - key
-    - title
+    - name
     - attributes
     - isDefault
     - status
@@ -84,11 +84,11 @@ VariantSummaryDto:
       description: |
         Key of the variant
       example: english
-    title:
+    name:
       type: string
       minLength: 1
       maxLength: 100
-      description: Human-readable title for the variant
+      description: Human-readable name of the variant, which tells it from the template's other variants
       example: English Invoice
     attributes:
       type: object
@@ -106,7 +106,7 @@ VariantSummaryDto:
       $ref: './common.yaml#/ResourceStatus'
   example:
     key: english
-    title: English Invoice
+    name: English Invoice
     attributes:
       locale: en-US
       brand: acme
@@ -118,17 +118,17 @@ CreateVariantRequest:
   description: Request body for creating a new variant
   required:
     - key
-    - title
+    - name
   properties:
     key:
       $ref: './identifiers.yaml#/ResourceKey'
       description: Client-chosen key for the variant
       example: english
-    title:
+    name:
       type: string
       minLength: 1
       maxLength: 100
-      description: Human-readable title for the variant
+      description: Human-readable name of the variant, which tells it from the template's other variants
       example: English Invoice
     description:
       type:
@@ -147,27 +147,31 @@ CreateVariantRequest:
 
 UpdateVariantRequest:
   type: object
-  description: Request body for updating a variant
-  required:
-    - title
+  description: Request body for updating a variant's metadata (all fields optional)
   properties:
-    title:
+    name:
       type: string
       minLength: 1
       maxLength: 100
-      description: Human-readable title for the variant
+      description: |
+        The variant's new human-readable name, which tells it from the template's other variants.
+        Omitted keeps the current one.
       example: English Invoice (Updated)
     description:
       type:
         - string
         - 'null'
-      description: Description of the variant
+      description: |
+        The variant's new description. Omitted or null keeps the current one; an empty string (or
+        one of only whitespace) removes it.
       example: Updated English language invoice
     attributes:
       type: object
       additionalProperties:
         type: string
-      description: Updated attributes for this variant
+      description: |
+        The attribute values that select this variant, replacing the current ones. Omitted keeps
+        the current ones; an empty object removes them all.
       example:
         locale: en-US
         brand: acme
@@ -191,7 +195,7 @@ VariantListResponse:
     items:
       - key: english
         templateKey: invoice
-        title: English Invoice
+        name: English Invoice
         description: English language invoice for international customers
         attributes:
           locale: en-US

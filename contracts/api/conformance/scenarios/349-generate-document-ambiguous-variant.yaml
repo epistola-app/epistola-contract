@@ -1,0 +1,44 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: generate-document-ambiguous-variant
+title: A generation request whose attributes match several variants equally says which they are
+why: >
+  When the attributes a request sends match several of the template's variants equally well, the
+  server will not choose one. The refusal is `ambiguous-variant`, and `tiedVariants` lists the keys
+  of the variants that tie, so the caller can name one by `variantKey` or send an attribute that
+  tells them apart. A client must surface it from the 409, not lose it in a generic error.
+
+action:
+  name: generate-document
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    namespace: acme-corp
+    catalogKey: letters
+    templateKey: invoice
+    attributes:
+      - { key: locale, value: en-GB }
+    data:
+      customerName: Acme B.V.
+
+script:
+  - status: 409
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/ambiguous-variant
+      title: Ambiguous Variant
+      status: 409
+      detail: Two variants of invoice match locale en-GB equally well
+      tiedVariants: [english, english-legal]
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/documents/generate
+  report:
+    problemTypeSlug: ambiguous-variant
+    problemStatus: 409
+    problemTiedVariants: english,english-legal

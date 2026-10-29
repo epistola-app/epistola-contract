@@ -88,7 +88,7 @@ class ProblemDetailErrorHandlerTest {
             {"type":"https://epistola.app/errors/data-model-validation-error",
              "title":"Data Model Validation Error","status":422,
              "detail":"Data examples failed validation against schema",
-             "validationErrors":{"Example 1":[{"path":"/name","message":"required property 'name' not found"}]}}
+             "validationErrors":{"standard-invoice":[{"path":"/name","message":"required property 'name' not found"}]}}
         """.trimIndent()
 
         val ex = assertFailsWith<ProblemDetailException> {
@@ -97,8 +97,8 @@ class ProblemDetailErrorHandlerTest {
         assertTrue(ex.isDataModelValidationProblem)
         assertFalse(ex.isValidationProblem)
         assertEquals(KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR, ex.typeSlug)
-        assertEquals(1, ex.validationErrors["Example 1"]?.size)
-        assertEquals("/name", ex.validationErrors.getValue("Example 1")[0].path)
+        assertEquals(1, ex.validationErrors["standard-invoice"]?.size)
+        assertEquals("/name", ex.validationErrors.getValue("standard-invoice")[0].path)
     }
 
     @Test
@@ -233,6 +233,46 @@ class ProblemDetailErrorHandlerTest {
             assertNull(ex.readOnlyReason)
             assertFalse(ex.isCatalogReadOnlyProblem)
         }
+    }
+
+    @Test
+    fun `surfaces the versions a catalog-version-behind problem asks to acknowledge`() {
+        val body = """
+            {"type":"https://epistola.app/errors/catalog-version-behind","title":"Catalog Version Behind","status":409,
+             "behind":["1.5.0","1.6.0"]}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> { handleErrorResponse(response(HttpStatus.CONFLICT, body)) }
+        assertEquals(listOf("1.5.0", "1.6.0"), ex.behind)
+        assertTrue(ex.isCatalogVersionBehindProblem)
+    }
+
+    @Test
+    fun `surfaces what a release-in-use problem says uses the release`() {
+        val body = """
+            {"type":"https://epistola.app/errors/release-in-use","title":"Release In Use","status":409,
+             "environments":["production"],
+             "pinnedBy":[{"registry":"exchange.epistola.app","namespace":"acme-corp","catalogKey":"invoices","version":"2.1.0","releaseId":"q8w2e4rt"}]}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> { handleErrorResponse(response(HttpStatus.CONFLICT, body)) }
+        assertEquals(listOf("production"), ex.environments)
+        assertEquals("invoices", ex.pinnedBy.single().catalogKey)
+        assertEquals("q8w2e4rt", ex.pinnedBy.single().releaseId)
+        assertTrue(ex.isReleaseInUseProblem)
+    }
+
+    @Test
+    fun `surfaces the tied variants of an ambiguous-variant problem`() {
+        val body = """
+            {"type":"https://epistola.app/errors/ambiguous-variant","title":"Ambiguous Variant","status":409,
+             "tiedVariants":["english","english-legal"]}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> { handleErrorResponse(response(HttpStatus.CONFLICT, body)) }
+        assertEquals(listOf("english", "english-legal"), ex.tiedVariants)
+        assertTrue(ex.isAmbiguousVariantProblem)
+        assertFalse(ex.isReleaseInUseProblem)
     }
 
     @Test

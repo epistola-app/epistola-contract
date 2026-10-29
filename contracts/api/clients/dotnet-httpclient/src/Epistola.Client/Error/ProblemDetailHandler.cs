@@ -83,7 +83,11 @@ public sealed class ProblemDetailHandler : DelegatingHandler
             readOnlyReason: parsed.ReadOnlyReason,
             unresolvedConflicts: parsed.UnresolvedConflicts,
             missingBaseVersion: parsed.MissingBaseVersion,
-            missingBaseFingerprint: parsed.MissingBaseFingerprint);
+            missingBaseFingerprint: parsed.MissingBaseFingerprint,
+            behind: parsed.Behind,
+            environments: parsed.Environments,
+            pinnedBy: parsed.PinnedBy,
+            tiedVariants: parsed.TiedVariants);
     }
 
     /// <summary>
@@ -133,17 +137,25 @@ public sealed class ProblemDetailHandler : DelegatingHandler
                 Entries(tree, "missingDependencies", MissingDependency.FromMember),
                 Entries(tree, "unreleasedDependencies", UnreleasedDependency.FromMember),
                 tree["readOnlyReason"] is JValue { Type: JTokenType.String } reason ? (string?)reason : null,
-                tree["unresolvedConflicts"] is JArray conflicts
-                    ? conflicts.Where(c => c.Type == JTokenType.String).Select(c => (string)c!).ToList()
-                    : new List<string>(),
+                Strings(tree, "unresolvedConflicts"),
                 mergeBaseMissing ? StringMember(tree, "version") : null,
-                mergeBaseMissing ? StringMember(tree, "fingerprint") : null);
+                mergeBaseMissing ? StringMember(tree, "fingerprint") : null,
+                Strings(tree, "behind"),
+                Strings(tree, "environments"),
+                Entries(tree, "pinnedBy", CatalogReleaseRef.FromMember),
+                Strings(tree, "tiedVariants"));
         }
         catch (JsonException)
         {
             return null;
         }
     }
+
+    /// <summary>An array of strings; an entry that is not a string is skipped, absent yields an empty list.</summary>
+    private static List<string> Strings(JObject tree, string member) =>
+        tree[member] is JArray array
+            ? array.Where(c => c.Type == JTokenType.String).Select(c => (string)c!).ToList()
+            : new List<string>();
 
     /// <summary>A string member, or <c>null</c> when absent or not a string.</summary>
     private static string? StringMember(JObject tree, string name) =>
@@ -227,6 +239,18 @@ public sealed class ProblemDetailHandler : DelegatingHandler
         /// <summary>The fingerprint a <c>merge-base-missing</c> problem names; <c>null</c> for any other problem.</summary>
         public string? MissingBaseFingerprint { get; }
 
+        /// <summary>The versions a <c>catalog-version-behind</c> problem lists; empty when absent.</summary>
+        public IReadOnlyList<string> Behind { get; }
+
+        /// <summary>The environments a <c>release-in-use</c> problem lists; empty when absent.</summary>
+        public IReadOnlyList<string> Environments { get; }
+
+        /// <summary>The releases a <c>release-in-use</c> problem says pin the release; empty when absent.</summary>
+        public IReadOnlyList<CatalogReleaseRef> PinnedBy { get; }
+
+        /// <summary>The variant keys an <c>ambiguous-variant</c> problem lists; empty when absent.</summary>
+        public IReadOnlyList<string> TiedVariants { get; }
+
         public ParsedProblem(
             ProblemDetail problem,
             IReadOnlyList<ValidationError> errors,
@@ -238,7 +262,11 @@ public sealed class ProblemDetailHandler : DelegatingHandler
             string? readOnlyReason = null,
             IReadOnlyList<string>? unresolvedConflicts = null,
             string? missingBaseVersion = null,
-            string? missingBaseFingerprint = null)
+            string? missingBaseFingerprint = null,
+            IReadOnlyList<string>? behind = null,
+            IReadOnlyList<string>? environments = null,
+            IReadOnlyList<CatalogReleaseRef>? pinnedBy = null,
+            IReadOnlyList<string>? tiedVariants = null)
         {
             Problem = problem;
             Errors = errors;
@@ -251,6 +279,10 @@ public sealed class ProblemDetailHandler : DelegatingHandler
             UnresolvedConflicts = unresolvedConflicts ?? new List<string>();
             MissingBaseVersion = missingBaseVersion;
             MissingBaseFingerprint = missingBaseFingerprint;
+            Behind = behind ?? new List<string>();
+            Environments = environments ?? new List<string>();
+            PinnedBy = pinnedBy ?? new List<CatalogReleaseRef>();
+            TiedVariants = tiedVariants ?? new List<string>();
         }
     }
 }

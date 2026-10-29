@@ -53,7 +53,7 @@
     "variants": [
       {
         "key": "english",
-        "title": "English",
+        "name": "English",
         "isDefault": true
       }
     ],

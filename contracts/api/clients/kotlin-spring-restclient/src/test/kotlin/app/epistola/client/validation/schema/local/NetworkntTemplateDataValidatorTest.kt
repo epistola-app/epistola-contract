@@ -49,7 +49,7 @@ class NetworkntTemplateDataValidatorTest {
         ),
     )
 
-    private fun templateDto(schema: Any? = invoiceSchema) = TemplateDto(
+    private fun templateDto(schema: Any = invoiceSchema) = TemplateDto(
         key = "invoice",
         tenantKey = "acme",
         name = "Invoice",
@@ -124,8 +124,8 @@ class NetworkntTemplateDataValidatorTest {
     }
 
     @Test
-    fun `a template without a schema claims nothing about the data`() {
-        every { templatesApi.getTemplate("acme", "~", "acme-corp", "default", "1.2.0", "invoice") } returns templateDto(schema = null)
+    fun `a template with the empty schema claims nothing about the data`() {
+        every { templatesApi.getTemplate("acme", "~", "acme-corp", "default", "1.2.0", "invoice") } returns templateDto(schema = emptyMap<String, Any>())
 
         assertEquals(emptyList(), validator().validate("acme", "~", "acme-corp", "default", "invoice", mapOf("anything" to 1)))
     }

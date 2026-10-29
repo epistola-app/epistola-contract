@@ -66,13 +66,13 @@ public class ProblemDetailExceptionTest
             new ProblemDetail(type: "https://epistola.app/errors/data-model-validation-error", title: "Data Model Validation Error", status: 422),
             validationErrors: new Dictionary<string, List<DataModelValidationError>>
             {
-                ["Example 1"] = new() { new DataModelValidationError(path: "/name", message: "required property 'name' not found") },
+                ["standard-invoice"] = new() { new DataModelValidationError(path: "/name", message: "required property 'name' not found") },
             });
 
         Assert.True(ex.IsDataModelValidationProblem);
         Assert.False(ex.IsValidationProblem);
         Assert.Equal(KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR, ex.TypeSlug);
-        Assert.Equal("/name", ex.ValidationErrors["Example 1"][0].Path);
+        Assert.Equal("/name", ex.ValidationErrors["standard-invoice"][0].Path);
     }
 
     [Fact]

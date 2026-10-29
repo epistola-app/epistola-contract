@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: release-catalog-draft-version-behind
+title: A release refused because the draft is behind says which releases to acknowledge
+why: >
+  Releasing a draft that is behind releases it does not contain is refused unless the request
+  names each of them in `acknowledgedBehind` (ADR 0002). The refusal is `catalog-version-behind`,
+  and its `behind` member is what makes it actionable: the versions to look at, and to acknowledge
+  once their changes are applied by hand or left out on purpose. Without it a caller knows only
+  that something conflicted.
+
+  A client's problem parser must surface the member, every version in order.
+
+action:
+  name: release-catalog-draft
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: k7m2x9qa
+    acknowledgedBehind: [1.5.0]
+
+script:
+  - status: 409
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/catalog-version-behind
+      title: Catalog Version Behind
+      status: 409
+      detail: The draft is behind 1.6.0 and 1.6.1, which the request does not acknowledge
+      behind: [1.6.0, 1.6.1]
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/release
+      body:
+        json:
+          acknowledgedBehind: [1.5.0]
+  report:
+    problemTypeSlug: catalog-version-behind
+    problemStatus: 409
+    problemBehind: 1.6.0,1.6.1

@@ -113,6 +113,32 @@ public class ProblemDetailException : ApiException
     /// </summary>
     public string? MissingBaseFingerprint { get; }
 
+    /// <summary>
+    /// The versions of the releases a <c>catalog-version-behind</c> problem (409, from
+    /// <c>ReleaseCatalogDraft</c>) says the draft is behind and the request did not acknowledge:
+    /// name each in <c>AcknowledgedBehind</c> to release it anyway. Empty for any other problem.
+    /// </summary>
+    public IReadOnlyList<string> Behind { get; }
+
+    /// <summary>
+    /// The environments a <c>release-in-use</c> problem (409, from <c>DeleteCatalogRelease</c>)
+    /// says deploy the release; empty for any other problem, and when none does.
+    /// </summary>
+    public IReadOnlyList<string> Environments { get; }
+
+    /// <summary>
+    /// The releases of other catalogs a <c>release-in-use</c> problem says pin the release, and
+    /// render with it; empty for any other problem. A malformed entry is skipped.
+    /// </summary>
+    public IReadOnlyList<CatalogReleaseRef> PinnedBy { get; }
+
+    /// <summary>
+    /// The keys of the variants an <c>ambiguous-variant</c> problem (409, from generating or
+    /// previewing a document) says match the request's attributes equally well: name one by
+    /// <c>VariantKey</c>, or send attributes that tell them apart. Empty for any other problem.
+    /// </summary>
+    public IReadOnlyList<string> TiedVariants { get; }
+
     /// <summary>The HTTP status of the error response.</summary>
     public HttpStatusCode StatusCode { get; }
 
@@ -130,7 +156,11 @@ public class ProblemDetailException : ApiException
         string? readOnlyReason = null,
         IReadOnlyList<string>? unresolvedConflicts = null,
         string? missingBaseVersion = null,
-        string? missingBaseFingerprint = null)
+        string? missingBaseFingerprint = null,
+        IReadOnlyList<string>? behind = null,
+        IReadOnlyList<string>? environments = null,
+        IReadOnlyList<CatalogReleaseRef>? pinnedBy = null,
+        IReadOnlyList<string>? tiedVariants = null)
         // ApiException is generated and nullable-oblivious; its errorContent/headers are
         // optional and accept null at runtime, so bridge the nullable values with `!`.
         : base((int)statusCode, BuildMessage(statusCode, problem), rawBody!, headers!)
@@ -146,6 +176,10 @@ public class ProblemDetailException : ApiException
         UnresolvedConflicts = unresolvedConflicts ?? new List<string>();
         MissingBaseVersion = missingBaseVersion;
         MissingBaseFingerprint = missingBaseFingerprint;
+        Behind = behind ?? new List<string>();
+        Environments = environments ?? new List<string>();
+        PinnedBy = pinnedBy ?? new List<CatalogReleaseRef>();
+        TiedVariants = tiedVariants ?? new List<string>();
         StatusCode = statusCode;
     }
 
@@ -190,6 +224,15 @@ public class ProblemDetailException : ApiException
 
     /// <summary>True when this problem named a merge base this installation does not have.</summary>
     public bool IsMergeBaseMissingProblem => MissingBaseVersion != null;
+
+    /// <summary>True when this problem said the draft is behind releases the request did not acknowledge.</summary>
+    public bool IsCatalogVersionBehindProblem => TypeSlug == KnownProblemSlugs.CATALOG_VERSION_BEHIND;
+
+    /// <summary>True when this problem said the release cannot be deleted while something uses it.</summary>
+    public bool IsReleaseInUseProblem => TypeSlug == KnownProblemSlugs.RELEASE_IN_USE;
+
+    /// <summary>True when this problem said several variants match equally well.</summary>
+    public bool IsAmbiguousVariantProblem => TypeSlug == KnownProblemSlugs.AMBIGUOUS_VARIANT;
 
     private static string BuildMessage(HttpStatusCode status, ProblemDetail problem)
     {

@@ -14,7 +14,7 @@ why: >
   box instead of a missing value it could handle. The report renders null as `null`, the way every
   driver prints a missing value.
 
-  The request carries the search term and nothing else of its own. The list has no category filter
+  The request carries the search term as `q`, as every list does, and nothing else of its own. The list has no category filter
   any more.
 
 action:
@@ -28,7 +28,7 @@ action:
     namespace: acme-corp
     catalogKey: main
     release: 2.0.0
-    search: mark
+    q: mark
 
 script:
   - status: 200
@@ -67,7 +67,7 @@ expect:
     - method: GET
       path: /api/tenants/acme-corp/catalogs/~/acme-corp/main/releases/2.0.0/images
       queryParams:
-        search: mark
+        q: mark
         mediaCategory: { absent: true }
         # Defaulted by the contract, so either sent with the default or left out.
         page: { whenPresent: '0' }

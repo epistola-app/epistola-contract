@@ -284,7 +284,7 @@ Deployments (ADR 0003, "Deploying"):
 - Generation and results address released releases by version, and every member named `version`
   is one. A deployment names a release by `releaseId` or version, with its `status` (`draft` or
   `released`), its `releaseName`, and a null `version` for a draft. A document rendered from a draft
-  carries `releaseId` and `draftLabel` with a null `version`. `validateTemplateData` stays on the catalog, because
+  carries `releaseId` and `releaseName` with a null `version`. `validateTemplateData` stays on the catalog, because
   it selects a release by version range and environment, as generation does.
 - Preview renders a draft named by its `releaseId`.
 - `importCatalog` never touches a draft. It installs the release the archive carries, at its version,

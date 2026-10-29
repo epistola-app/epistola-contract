@@ -51,6 +51,10 @@ public class ProblemDetailException extends ApiException {
     private final List<String> unresolvedConflicts;
     private final String missingBaseVersion;
     private final String missingBaseFingerprint;
+    private final List<String> behind;
+    private final List<String> environments;
+    private final List<CatalogReleaseRef> pinnedBy;
+    private final List<String> tiedVariants;
     private final int statusCode;
     private final String responseBody;
     private final String message;
@@ -171,7 +175,39 @@ public class ProblemDetailException extends ApiException {
             String missingBaseVersion,
             String missingBaseFingerprint,
             String responseBody) {
+        this(response, problem, errors, validationErrors, missingFields, invalidFields, missingDependencies,
+                unreleasedDependencies, readOnlyReason, unresolvedConflicts, missingBaseVersion,
+                missingBaseFingerprint, null, null, null, null, responseBody);
+    }
+
+    /**
+     * The same, for a problem that may also list the releases a draft is behind
+     * ({@code catalog-version-behind}), what uses a release ({@code release-in-use}), or the
+     * variants that match equally well ({@code ambiguous-variant}).
+     */
+    public ProblemDetailException(
+            Response response,
+            ProblemDetail problem,
+            List<ValidationError> errors,
+            Map<String, List<DataModelValidationError>> validationErrors,
+            List<MissingDataField> missingFields,
+            List<InvalidDataField> invalidFields,
+            List<MissingDependency> missingDependencies,
+            List<UnreleasedDependency> unreleasedDependencies,
+            String readOnlyReason,
+            List<String> unresolvedConflicts,
+            String missingBaseVersion,
+            String missingBaseFingerprint,
+            List<String> behind,
+            List<String> environments,
+            List<CatalogReleaseRef> pinnedBy,
+            List<String> tiedVariants,
+            String responseBody) {
         super(response);
+        this.behind = unmodifiable(behind);
+        this.environments = unmodifiable(environments);
+        this.pinnedBy = unmodifiable(pinnedBy);
+        this.tiedVariants = unmodifiable(tiedVariants);
         this.readOnlyReason = readOnlyReason;
         this.missingBaseVersion = missingBaseVersion;
         this.missingBaseFingerprint = missingBaseFingerprint;
@@ -385,6 +421,59 @@ public class ProblemDetailException extends ApiException {
     /** True when this problem named a merge base this installation does not have. */
     public boolean isMergeBaseMissingProblem() {
         return missingBaseVersion != null;
+    }
+
+    /**
+     * The versions of the releases a {@code catalog-version-behind} problem (409, from
+     * {@code releaseCatalogDraft}) says the draft is behind and the request did not acknowledge:
+     * name each in {@code acknowledgedBehind} to release it anyway. Empty for any other problem.
+     */
+    public List<String> getBehind() {
+        return behind;
+    }
+
+    /** True when this problem said the draft is behind releases the request did not acknowledge. */
+    public boolean isCatalogVersionBehindProblem() {
+        return KnownProblemSlugs.CATALOG_VERSION_BEHIND.equals(getTypeSlug());
+    }
+
+    /**
+     * The environments a {@code release-in-use} problem (409, from {@code deleteCatalogRelease})
+     * says deploy the release; empty for any other problem, and when none does.
+     */
+    public List<String> getEnvironments() {
+        return environments;
+    }
+
+    /**
+     * The releases of other catalogs a {@code release-in-use} problem says pin the release, and
+     * render with it; empty for any other problem.
+     */
+    public List<CatalogReleaseRef> getPinnedBy() {
+        return pinnedBy;
+    }
+
+    /** True when this problem said the release cannot be deleted while something uses it. */
+    public boolean isReleaseInUseProblem() {
+        return KnownProblemSlugs.RELEASE_IN_USE.equals(getTypeSlug());
+    }
+
+    /**
+     * The keys of the variants an {@code ambiguous-variant} problem (409, from generating or
+     * previewing a document) says match the request's attributes equally well: name one by
+     * {@code variantKey}, or send attributes that tell them apart. Empty for any other problem.
+     */
+    public List<String> getTiedVariants() {
+        return tiedVariants;
+    }
+
+    /** True when this problem said several variants match equally well. */
+    public boolean isAmbiguousVariantProblem() {
+        return KnownProblemSlugs.AMBIGUOUS_VARIANT.equals(getTypeSlug());
+    }
+
+    private static <T> List<T> unmodifiable(List<T> list) {
+        return list == null ? Collections.emptyList() : Collections.unmodifiableList(list);
     }
 
     private static String buildMessage(int statusCode, ProblemDetail problem) {

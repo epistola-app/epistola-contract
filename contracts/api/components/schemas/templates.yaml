@@ -5,6 +5,7 @@ TemplateDto:
     - key
     - tenantKey
     - name
+    - dataModel
     - variants
     - createdAt
     - lastModified
@@ -31,7 +32,9 @@ TemplateDto:
       example: Monthly invoice; the payment block follows the 2026 house style.
     dataModel:
       type: object
-      description: The template's data contract, a JSON Schema the template data must satisfy. Null when the template has none.
+      description: |
+        The template's data contract, a JSON Schema the template data must satisfy. Always present:
+        a template without constraints has the empty schema `{}`, which any data satisfies.
       example:
         type: object
         required:
@@ -251,7 +254,7 @@ TemplateDto:
               unitPrice: 500.00
     variants:
       - key: english
-        title: English Invoice
+        name: English Invoice
         attributes:
           locale: en-US
           brand: acme
@@ -415,8 +418,8 @@ CreateTemplateRequest:
     dataModel:
       type: object
       description: |
-        The template's data contract, a JSON Schema the template data must satisfy. Omitted or null:
-        the empty schema `{}`, which any data satisfies.
+        The template's data contract, a JSON Schema the template data must satisfy. Omitted: the
+        empty schema `{}`, which any data satisfies.
       example:
         type: object
         required:
@@ -437,8 +440,7 @@ CreateTemplateRequest:
     dataExamples:
       type: array
       description: |
-        The template's data examples, each satisfying `dataModel` (422 otherwise). Omitted or null:
-        none.
+        The template's data examples, each satisfying `dataModel` (422 otherwise). Omitted: none.
       items:
         $ref: '#/DataExampleDto'
       example:
@@ -469,7 +471,7 @@ UpdateTemplateRequest:
       example: Monthly invoice; the payment block follows the 2026 house style.
     dataModel:
       type: object
-      description: The template's new data contract, a JSON Schema the template data must satisfy. Omitted or null keeps the current one.
+      description: The template's new data contract, a JSON Schema the template data must satisfy. Omitted keeps the current one.
       example:
         type: object
         required:

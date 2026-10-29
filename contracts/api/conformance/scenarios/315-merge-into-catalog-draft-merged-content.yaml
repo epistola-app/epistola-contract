@@ -30,7 +30,7 @@ action:
         type: template
         key: invoice
         name: Invoice
-        variants: [{ key: nl, title: Factuur }, { key: en, title: Invoice }]
+        variants: [{ key: nl, name: Factuur }, { key: en, name: Invoice }]
         x-tool: { reviewed: true }
       catalog/presets:
         presets: [{ key: callout, name: Callout }]
@@ -61,7 +61,7 @@ expect:
               type: template
               key: invoice
               name: Invoice
-              variants: [{ key: nl, title: Factuur }, { key: en, title: Invoice }]
+              variants: [{ key: nl, name: Factuur }, { key: en, name: Invoice }]
               x-tool: { reviewed: true }
             catalog/presets:
               presets: [{ key: callout, name: Callout }]

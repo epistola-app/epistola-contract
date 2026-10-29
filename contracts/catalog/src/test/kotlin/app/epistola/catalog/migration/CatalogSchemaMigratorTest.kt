@@ -812,6 +812,7 @@ class CatalogSchemaMigratorTest {
                 "$path.resource.templateModel.nodes.address.props.stencilId",
                 "$path.resource.templateModel.nodes.logo.props.assetId",
                 "$path.resource.variants[0].slug",
+                "$path.resource.variants[0].title",
                 "$path.resource.variants[0].templateModel.themeRef.themeId",
             ),
             result.findings.map { it.path },

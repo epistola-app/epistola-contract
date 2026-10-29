@@ -602,7 +602,8 @@
           "minLength": 3,
           "maxLength": 50
         },
-        "title": {
+        "name": {
+          "description": "The variant's human-readable name, which tells it from the template's other variants (\"US English\"). Until wire v8 this member was called title.",
           "type": [
             "string",
             "null"

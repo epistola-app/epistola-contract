@@ -113,8 +113,8 @@ def test_format_is_not_asserted_which_is_why_the_server_owns_the_verdict():
     assert validator.validate("acme-corp", "~", "acme-corp", "default", "invoice", data) == []
 
 
-def test_a_template_without_a_schema_claims_nothing_about_the_data():
-    validator = JsonSchemaTemplateDataValidator(_StubTemplatesApi(None), "1.4.0")
+def test_a_template_with_the_empty_schema_claims_nothing_about_the_data():
+    validator = JsonSchemaTemplateDataValidator(_StubTemplatesApi({}), "1.4.0")
 
     assert validator.validate("acme-corp", "~", "acme-corp", "default", "invoice", {"anything": 1}) == []
 

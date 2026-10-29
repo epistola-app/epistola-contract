@@ -479,7 +479,7 @@ catalog-releases:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
+        $ref: '../components/responses/problem-responses.yaml#/CatalogDraftConflictError'
 
 catalog-release:
   parameters:
@@ -571,7 +571,7 @@ catalog-release:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
+        $ref: '../components/responses/problem-responses.yaml#/CatalogDraftConflictError'
       '412':
         $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
 
@@ -600,7 +600,7 @@ catalog-release:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
+        $ref: '../components/responses/problem-responses.yaml#/ReleaseInUseError'
 
 catalog-release-preview:
   parameters:
