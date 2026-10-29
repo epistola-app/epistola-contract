@@ -254,7 +254,7 @@ TemplateDto:
               unitPrice: 500.00
     variants:
       - key: english
-        title: English Invoice
+        name: English Invoice
         attributes:
           locale: en-US
           brand: acme

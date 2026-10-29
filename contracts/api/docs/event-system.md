@@ -283,7 +283,7 @@ A `document.generated` event carries the release the document was rendered from,
     "variantKey": "english",
     "version": "1.4.0",
     "releaseId": "k7m2x9qa",
-    "draftLabel": null,
+    "releaseName": null,
     "environmentKey": "production",
     "correlationId": "order-7890",
     "filename": "invoice-2026-001.pdf"
@@ -291,7 +291,7 @@ A `document.generated` event carries the release the document was rendered from,
 }
 ```
 
-The `data` members are taken from `DocumentGenerationItemDto`. A document rendered from a draft, through an environment that follows one, has a null `version` and carries `draftLabel`; its `release` is the `releaseId`.
+The `data` members are taken from `DocumentGenerationItemDto`. A document rendered from a draft, through an environment that follows one, has a null `version` and carries `releaseName`; its `release` is the `releaseId`.
 
 ### 2.3 Ordering and Idempotency
 

@@ -11,7 +11,7 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Fixed
 
-- `GenerationResult` carries `release_id` and `draft_label`, after `version`. The collector
+- `GenerationResult` carries `release_id` and `release_name`, after `version`. The collector
   parsed result lines by hand and dropped both, so a consumer could not tell which draft rendered
   a document.
 - `ResultCollector.collect_once()` raises a `ProblemDetailException` for an

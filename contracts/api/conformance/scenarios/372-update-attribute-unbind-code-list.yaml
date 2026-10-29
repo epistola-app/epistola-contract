@@ -36,7 +36,7 @@ script:
       registry: exchange.epistola.app
       namespace: acme-corp
       catalogKey: letters
-      displayName: Locale
+      name: Locale
       readOnly: false
       allowedValues: [en-US, nl-NL]
       codeListBinding: null
@@ -56,7 +56,7 @@ expect:
         json:
           clearCodeListBinding: true
           allowedValues: [en-US, nl-NL]
-        jsonAbsent: [displayName, description, codeListBinding]
+        jsonAbsent: [name, description, codeListBinding]
   report:
     key: locale
     allowedValues: en-US,nl-NL

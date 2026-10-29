@@ -16,7 +16,7 @@ AttributeDto:
     - registry
     - namespace
     - catalogKey
-    - displayName
+    - name
     - readOnly
     - allowedValues
     - createdAt
@@ -45,7 +45,7 @@ AttributeDto:
       $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog this resource lives in, unique within its registry and namespace
       example: system
-    displayName:
+    name:
       type: string
       description: Human-readable display name.
       example: Locale
@@ -111,7 +111,7 @@ AttributeDto:
     registry: exchange.epistola.app
     namespace: epistola
     catalogKey: system
-    displayName: Locale
+    name: Locale
     description: BCP-47 language + region tag (e.g. en-US, nl-NL).
     allowedValues: []
     codeListBinding:
@@ -133,12 +133,12 @@ CreateAttributeRequest:
     Mixing the two is refused with 400 `validation-error`.
   required:
     - key
-    - displayName
+    - name
   properties:
     key:
       $ref: './identifiers.yaml#/ResourceKey'
       example: priority
-    displayName:
+    name:
       type: string
       example: Priority
     description:
@@ -187,7 +187,7 @@ UpdateAttributeRequest:
     `codeListBinding` with an empty `allowedValues` to move from inline to bound. Attempting to
     update an attribute of a catalog that cannot be changed returns 409 `catalog-read-only`.
   properties:
-    displayName:
+    name:
       type: string
     description:
       type:
@@ -248,7 +248,7 @@ AttributeListResponse:
         registry: exchange.epistola.app
         namespace: epistola
         catalogKey: system
-        displayName: Locale
+        name: Locale
         allowedValues: []
         codeListBinding: { catalogKey: null, key: bcp-47 }
         readOnly: true
@@ -259,7 +259,7 @@ AttributeListResponse:
         registry: exchange.epistola.app
         namespace: acme-corp
         catalogKey: default
-        displayName: Priority
+        name: Priority
         allowedValues: [low, normal, high]
         codeListBinding: null
         readOnly: false

@@ -221,7 +221,7 @@ async function collect(baseUrl, config) {
     handledSequences: handled.map((r) => String(r.sequence)).join(','),
     partitionTotal: assignment ? assignment.total : -1,
     releases: handled
-      .map((r) => `${show(r.registry)}/${show(r.namespace)}/${show(r.catalogKey)}@${show(r.version)}#${show(r.releaseId)}:${show(r.draftLabel)}`)
+      .map((r) => `${show(r.registry)}/${show(r.namespace)}/${show(r.catalogKey)}@${show(r.version)}#${show(r.releaseId)}:${show(r.releaseName)}`)
       .join(','),
   })
 }
@@ -301,7 +301,7 @@ async function listImages(baseUrl, config) {
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     release: config.release,
-    search: config.search,
+    q: config.q,
   })
   await report(baseUrl, {
     imageKeys: items.map((image) => image.key).join(','),

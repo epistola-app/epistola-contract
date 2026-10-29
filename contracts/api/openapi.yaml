@@ -195,7 +195,7 @@ info:
     Rollback is undeploying the newer release. Deploying a draft replaces the draft the environment
     served for that catalog, and an environment marked **production** (`EnvironmentDto.production`)
     serves no draft. A document rendered from a draft carries the draft's `releaseId` and its name
-    at render time (`draftLabel`), with a null `version`, and its PDF a preview watermark. Releasing a deployed draft keeps its `releaseId`, so the environment then serves it
+    at render time (`releaseName`), with a null `version`, and its PDF a preview watermark. Releasing a deployed draft keeps its `releaseId`, so the environment then serves it
     as released; discarding the draft ends the deployment.
 
     ## Versions and version ranges

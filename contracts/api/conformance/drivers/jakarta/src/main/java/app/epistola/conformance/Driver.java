@@ -345,7 +345,7 @@ public final class Driver {
                                         .map(result -> result.getRegistry() + "/" + result.getNamespace() + "/"
                                                 + result.getCatalogKey() + "@"
                                                 + result.getVersion() + "#" + result.getReleaseId() + ":"
-                                                + result.getDraftLabel())
+                                                + result.getReleaseName())
                                         .collect(Collectors.joining(",")),
                         "partitionTotal", assignment == null ? -1 : assignment.getTotal()));
     }
@@ -535,7 +535,7 @@ public final class Driver {
     private static void listImages(String baseUrl, JsonObject config) {
         List<ImageDto> images = clients(baseUrl, config)
                 .api(ImagesApi.class)
-                .listImages(config.getString("tenantKey"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("release"), config.getString("search"), null, null)
+                .listImages(config.getString("tenantKey"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("release"), config.getString("q"), null, null)
                 .getItems();
 
         report(

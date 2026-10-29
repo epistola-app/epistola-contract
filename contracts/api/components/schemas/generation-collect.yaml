@@ -127,12 +127,14 @@ GenerationResult:
         environment renders one live (`deployCatalogRelease`; `version` is then null).
         Null only for one made before 2.0, which no release made.
       example: k3x9q2ab
-    draftLabel:
+    releaseName:
       type: [string, "null"]
       maxLength: 100
       description: |
-        The name of that draft at render time. Null when rendered from a released one.
-      example: null
+        The name of the release rendered, at render time: a draft's, or a released release's, which
+        keeps the name it had as a draft. Null for a release that has none, as one installed by
+        import or from its source.
+      example: Redesign 2027
     filename:
       type: ['string', 'null']
       description: Filename of the generated document
