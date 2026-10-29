@@ -1,0 +1,49 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: get-generation-job-status
+title: A generation job's status is its counts, without its items
+why: >
+  A batch has up to 10000 items, so a job's status no longer embeds them: polling it stays small
+  however large the run. It reports where the job stands and how many items completed and failed;
+  `listGenerationJobItems` lists the items a page at a time. A client must read the counts from the
+  job itself.
+
+action:
+  name: get-generation-job-status
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantKey: acme-corp
+    requestId: 550e8400-e29b-41d4-a716-446655440000
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      requestId: 550e8400-e29b-41d4-a716-446655440000
+      jobType: batch
+      status: in-progress
+      total: 10000
+      completedCount: 6210
+      failedCount: 12
+      errorMessage: null
+      createdAt: "2026-10-29T08:00:00Z"
+      startedAt: "2026-10-29T08:00:01Z"
+      completedAt: null
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/documents/jobs/550e8400-e29b-41d4-a716-446655440000
+      query: ""
+  report:
+    requestId: 550e8400-e29b-41d4-a716-446655440000
+    status: in-progress
+    jobType: batch
+    total: 10000
+    completedCount: 6210
+    failedCount: 12

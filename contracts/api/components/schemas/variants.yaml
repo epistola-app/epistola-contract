@@ -30,13 +30,22 @@ VariantDto:
       type:
         - string
         - 'null'
+      maxLength: 2000
       description: Description of the variant
       example: English language invoice for international customers
     attributes:
       type: object
+      propertyNames:
+        pattern: '^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*\.)?[a-z0-9]+(-[a-z0-9]+)*$'
+        maxLength: 101
       additionalProperties:
         type: string
-      description: Variant attributes for selection criteria (e.g., language=dutch, brand=acme)
+        maxLength: 255
+      description: |
+        The attribute values that select this variant, by attribute key: the attribute's key in
+        this catalog (`tone`), or `<alias>.<key>` for one another catalog defines (`system.locale`),
+        by the alias the release's dependency declarations give that catalog, as catalog wire v8
+        keys them. A value is at most 255 characters.
       example:
         locale: en-US
         brand: acme
@@ -92,8 +101,12 @@ VariantSummaryDto:
       example: English Invoice
     attributes:
       type: object
+      propertyNames:
+        pattern: '^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*\.)?[a-z0-9]+(-[a-z0-9]+)*$'
+        maxLength: 101
       additionalProperties:
         type: string
+        maxLength: 255
       description: Variant attributes for selection criteria
       example:
         locale: en-US
@@ -134,12 +147,17 @@ CreateVariantRequest:
       type:
         - string
         - 'null'
+      maxLength: 2000
       description: Description of the variant
       example: English language invoice for international customers
     attributes:
       type: object
+      propertyNames:
+        pattern: '^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*\.)?[a-z0-9]+(-[a-z0-9]+)*$'
+        maxLength: 101
       additionalProperties:
         type: string
+        maxLength: 255
       description: Variant attributes for selection criteria for this variant
       example:
         locale: en-US
@@ -161,14 +179,19 @@ UpdateVariantRequest:
       type:
         - string
         - 'null'
+      maxLength: 2000
       description: |
         The variant's new description. Omitted or null keeps the current one; an empty string (or
         one of only whitespace) removes it.
       example: Updated English language invoice
     attributes:
       type: object
+      propertyNames:
+        pattern: '^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*\.)?[a-z0-9]+(-[a-z0-9]+)*$'
+        maxLength: 101
       additionalProperties:
         type: string
+        maxLength: 255
       description: |
         The attribute values that select this variant, replacing the current ones. Omitted keeps
         the current ones; an empty object removes them all.

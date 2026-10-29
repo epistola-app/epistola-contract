@@ -222,17 +222,19 @@ job-detail:
   get:
     operationId: getGenerationJobStatus
     summary: Get generation job status
-    description: Get detailed status of a generation job including all items and their progress
+    description: |
+      A generation job's status and progress: how many of its items completed and failed. Its items,
+      up to 10000 of them, are listed a page at a time with `listGenerationJobItems`.
     tags:
       - Generation
     x-required-permissions: [DOCUMENT_VIEW]
     responses:
       '200':
-        description: Job status with items
+        description: The job's status
         content:
           application/vnd.epistola.v2+json:
             schema:
-              $ref: '../components/schemas/generation.yaml#/GenerationJobDetail'
+              $ref: '../components/schemas/generation.yaml#/DocumentGenerationJobDto'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -258,6 +260,55 @@ job-detail:
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
         $ref: '../components/responses/problem-responses.yaml#/GenerationJobNotCancellableError'
+
+job-items:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant (e.g., "acme-corp")
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - name: requestId
+      in: path
+      required: true
+      description: Generation request ID
+      schema:
+        type: string
+        format: uuid
+
+  get:
+    operationId: listGenerationJobItems
+    summary: List a generation job's items
+    description: |
+      A page of a generation job's items, in the order they were submitted, optionally only those
+      with one `status` (`failed`, to see what to send again). A batch has up to 10000 items, so they
+      are listed here rather than with the job's status (`getGenerationJobStatus`).
+    tags:
+      - Generation
+    x-required-permissions: [DOCUMENT_VIEW]
+    parameters:
+      - name: status
+        in: query
+        required: false
+        description: Only the items with this status
+        schema:
+          $ref: '../components/schemas/generation.yaml#/GenerationItemStatus'
+      - $ref: '../components/parameters/pagination.yaml#/Page'
+      - $ref: '../components/parameters/pagination.yaml#/Size'
+    responses:
+      '200':
+        description: A page of the job's items
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/generation.yaml#/GenerationJobItemListResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
 documents:
   get:

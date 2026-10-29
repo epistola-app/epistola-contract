@@ -48,6 +48,8 @@ const ACTIONS = {
   'update-consumer': updateConsumer,
   'download-document': downloadDocument,
   'list-documents': listDocuments,
+  'get-generation-job-status': getGenerationJobStatus,
+  'list-generation-job-items': listGenerationJobItems,
   'list-images': listImages,
   'upload-image': uploadImage,
   'import-catalog': importCatalog,
@@ -288,6 +290,35 @@ async function downloadDocument(baseUrl, config) {
  * Lists documents with the catalog and template filters the scenario sets, each sent only when set,
  * and reports what the client made of the page.
  */
+/** Reads a generation job's status and reports its counts; the job carries no items. */
+async function getGenerationJobStatus(baseUrl, config) {
+  const job = await new GenerationApi(client(baseUrl, config)).getGenerationJobStatus({ tenantKey: config.tenantKey, requestId: config.requestId })
+  await report(baseUrl, {
+    requestId: show(job.requestId),
+    status: show(job.status),
+    jobType: show(job.jobType),
+    total: job.total,
+    completedCount: job.completedCount,
+    failedCount: job.failedCount,
+  })
+}
+
+/** Lists a page of a generation job's items, `status`, `page` and `size` each sent only when set. */
+async function listGenerationJobItems(baseUrl, config) {
+  const request = { tenantKey: config.tenantKey, requestId: config.requestId }
+  for (const name of ['status', 'page', 'size']) {
+    if (config[name] !== undefined) request[name] = config[name]
+  }
+  const response = await new GenerationApi(client(baseUrl, config)).listGenerationJobItems(request)
+  await report(baseUrl, {
+    itemIds: response.items.map((item) => show(item.itemId)).join(','),
+    statuses: response.items.map((item) => show(item.status)).join(','),
+    documentIds: response.items.map((item) => show(item.documentId)).join(','),
+    correlationIds: response.items.map((item) => show(item.correlationId)).join(','),
+    total: show(response.page.total),
+  })
+}
+
 async function listDocuments(baseUrl, config) {
   const request = { tenantKey: config.tenantKey }
   for (const name of ['templateKey', 'registry', 'namespace', 'catalogKey']) {

@@ -47,16 +47,13 @@ AttributeDto:
       example: system
     name:
       type: string
+      minLength: 1
+      maxLength: 100
       description: Human-readable display name.
       example: Locale
-    description:
-      type:
-        - string
-        - 'null'
-      description: Human-readable description of the attribute.
-      example: BCP-47 language + region tag (e.g. en-US, nl-NL).
     allowedValues:
       type: array
+      maxItems: 1000
       items:
         type: string
       description: |
@@ -65,31 +62,15 @@ AttributeDto:
       default: []
       example: []
     codeListBinding:
-      type:
-        - object
-        - 'null'
+      oneOf:
+        - $ref: '#/CodeListBindingRef'
+        - type: 'null'
       description: |
         Set when the attribute is bound to a code list. The bound list may live in this same
         catalog or in another catalog the attribute's release declares as a dependency (a local
         attribute binding to `bcp-47` of `system`), named by the declaration's alias, as the
         attribute's catalog content names it (catalog wire v8); `listCatalogDependencies` names
         that catalog in full.
-      required:
-        - catalogKey
-        - key
-      properties:
-        catalogKey:
-          oneOf:
-            - $ref: './identifiers.yaml#/CatalogAlias'
-            - type: 'null'
-          description: |
-            The alias of the catalog the bound code list belongs to, as the release's dependency
-            declarations give it; null when it is the attribute's own catalog.
-          example: system
-        key:
-          $ref: './identifiers.yaml#/ResourceKey'
-          description: Code list key within that catalog.
-          example: bcp-47
     readOnly:
       type: boolean
       description: |
@@ -112,7 +93,6 @@ AttributeDto:
     namespace: epistola
     catalogKey: system
     name: Locale
-    description: BCP-47 language + region tag (e.g. en-US, nl-NL).
     allowedValues: []
     codeListBinding:
       catalogKey: null
@@ -140,42 +120,24 @@ CreateAttributeRequest:
       example: priority
     name:
       type: string
+      minLength: 1
+      maxLength: 100
       example: Priority
-    description:
-      type:
-        - string
-        - 'null'
-      example: Customer-facing priority of the document.
     allowedValues:
       type: array
+      maxItems: 1000
       items:
         type: string
       default: []
       example: [low, normal, high]
     codeListBinding:
-      type:
-        - object
-        - 'null'
+      oneOf:
+        - $ref: '#/CodeListBindingRef'
+        - type: 'null'
       description: |
         The code list the attribute's values come from: in the attribute's own catalog, or in a
         catalog its draft declares as a dependency, named by the declaration's alias. An alias the
         draft does not declare is refused with 400.
-      required:
-        - key
-      properties:
-        catalogKey:
-          oneOf:
-            - $ref: './identifiers.yaml#/CatalogAlias'
-            - type: 'null'
-          description: |
-            The alias of the catalog the bound code list belongs to, as the draft's dependency
-            declarations give it. Omitted or null, or the attribute's own catalog key: the
-            attribute's own catalog.
-          example: system
-        key:
-          $ref: './identifiers.yaml#/ResourceKey'
-          description: Key of the bound code list
-          example: iso-639-1
 
 UpdateAttributeRequest:
   type: object
@@ -189,32 +151,17 @@ UpdateAttributeRequest:
   properties:
     name:
       type: string
-    description:
-      type:
-        - string
-        - 'null'
+      minLength: 1
+      maxLength: 100
     allowedValues:
       type: array
+      maxItems: 1000
       items:
         type: string
     codeListBinding:
-      type:
-        - object
-        - 'null'
-      required:
-        - key
-      properties:
-        catalogKey:
-          oneOf:
-            - $ref: './identifiers.yaml#/CatalogAlias'
-            - type: 'null'
-          description: |
-            The alias of the catalog the bound code list belongs to, as the draft's dependency
-            declarations give it. Omitted or null, or the attribute's own catalog key: the
-            attribute's own catalog.
-        key:
-          $ref: './identifiers.yaml#/ResourceKey'
-          description: Key of the bound code list
+      oneOf:
+        - $ref: '#/CodeListBindingRef'
+        - type: 'null'
       description: |
         The code list the attribute's values come from: in the attribute's own catalog, or in a
         catalog its draft declares as a dependency, named by the declaration's alias (an alias the
@@ -270,3 +217,22 @@ AttributeListResponse:
       size: 20
       total: 2
       totalPages: 1
+
+CodeListBindingRef:
+  type: object
+  description: The code list an attribute's values come from.
+  required:
+    - key
+  properties:
+    catalogKey:
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogAlias'
+        - type: 'null'
+      description: |
+        The alias of the catalog the code list belongs to, as the release's dependency declarations
+        give it. Omitted or null: the attribute's own catalog, which is never named by its own key.
+      example: system
+    key:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: Key of the code list within that catalog
+      example: bcp-47

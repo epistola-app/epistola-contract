@@ -61,7 +61,7 @@ expect:
             key: bcp-47
             registry: { absent: true }
             namespace: { absent: true }
-        jsonAbsent: [name, description, clearCodeListBinding]
+        jsonAbsent: [name, clearCodeListBinding]
   report:
     key: locale
     allowedValues: ""

@@ -907,6 +907,8 @@ paths:
     $ref: './paths/generation.yaml#/jobs'
   /tenants/{tenantKey}/documents/jobs/{requestId}:
     $ref: './paths/generation.yaml#/job-detail'
+  /tenants/{tenantKey}/documents/jobs/{requestId}/items:
+    $ref: './paths/generation.yaml#/job-items'
   /tenants/{tenantKey}/documents:
     $ref: './paths/generation.yaml#/documents'
   /tenants/{tenantKey}/documents/{documentId}:
@@ -1149,6 +1151,10 @@ components:
       $ref: './components/schemas/code-lists.yaml#/CodeListListResponse'
     CodeListEntriesResponse:
       $ref: './components/schemas/code-lists.yaml#/CodeListEntriesResponse'
+    CodeListSourceType:
+      $ref: './components/schemas/code-lists.yaml#/CodeListSourceType'
+    CodeListAuthType:
+      $ref: './components/schemas/code-lists.yaml#/CodeListAuthType'
     CreateCodeListRequest:
       $ref: './components/schemas/code-lists.yaml#/CreateCodeListRequest'
     UpdateCodeListRequest:
@@ -1231,12 +1237,18 @@ components:
       $ref: './components/schemas/generation.yaml#/GenerateBatchRequest'
     GenerationJobResponse:
       $ref: './components/schemas/generation.yaml#/GenerationJobResponse'
+    GenerationJobStatus:
+      $ref: './components/schemas/generation.yaml#/GenerationJobStatus'
+    GenerationJobType:
+      $ref: './components/schemas/generation.yaml#/GenerationJobType'
+    GenerationItemStatus:
+      $ref: './components/schemas/generation.yaml#/GenerationItemStatus'
     DocumentGenerationItemDto:
       $ref: './components/schemas/generation.yaml#/DocumentGenerationItemDto'
     DocumentGenerationJobDto:
       $ref: './components/schemas/generation.yaml#/DocumentGenerationJobDto'
-    GenerationJobDetail:
-      $ref: './components/schemas/generation.yaml#/GenerationJobDetail'
+    GenerationJobItemListResponse:
+      $ref: './components/schemas/generation.yaml#/GenerationJobItemListResponse'
     GenerationJobListResponse:
       $ref: './components/schemas/generation.yaml#/GenerationJobListResponse'
     DocumentDto:
@@ -1296,11 +1308,10 @@ components:
       $ref: './components/parameters/pagination.yaml#/Page'
     Size:
       $ref: './components/parameters/pagination.yaml#/Size'
-    # Shared sort params. `sort` is a free-form string (allowed fields and the
-    # per-resource default are enforced server-side); `direction` is asc/desc,
-    # default desc.
-    Sort:
-      $ref: './components/parameters/sorting.yaml#/Sort'
+    # Sort params. A list sorts by its own enum of fields (`TemplateSort`); `direction` is
+    # asc/desc, default desc.
+    TemplateSort:
+      $ref: './components/parameters/sorting.yaml#/TemplateSort'
     Direction:
       $ref: './components/parameters/sorting.yaml#/Direction'
     # Optimistic locking: an update sends back the ETag it read (see "Concurrency" above).
