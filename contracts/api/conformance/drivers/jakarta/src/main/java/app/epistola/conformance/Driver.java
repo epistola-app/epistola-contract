@@ -24,7 +24,7 @@ import app.epistola.client.jakarta.identity.ClientIdentity;
 import app.epistola.client.jakarta.api.CodeListsApi;
 import app.epistola.client.jakarta.api.TenantsApi;
 import app.epistola.client.jakarta.model.AttributeDto;
-import app.epistola.client.jakarta.model.AttributeDtoCodeListBinding;
+import app.epistola.client.jakarta.model.CodeListBindingRef;
 import app.epistola.client.jakarta.model.AvailableCatalogReleases;
 import app.epistola.client.jakarta.model.AvailableReleaseDependencyDto;
 import app.epistola.client.jakarta.model.AvailableReleaseDto;
@@ -87,7 +87,6 @@ import app.epistola.client.jakarta.model.TenantDto;
 import app.epistola.client.jakarta.model.ThemeRef;
 import app.epistola.client.jakarta.model.UpdateCatalogDependenciesRequest;
 import app.epistola.client.jakarta.model.UpdateAttributeRequest;
-import app.epistola.client.jakarta.model.UpdateAttributeRequestCodeListBinding;
 import app.epistola.client.jakarta.model.UpdateCatalogReleaseRequest;
 import app.epistola.client.jakarta.model.UpdateCodeListEntryHiddenRequest;
 import app.epistola.client.jakarta.model.UpdateConsumerRequest;
@@ -1923,9 +1922,9 @@ public final class Driver {
                 ? config.getJsonArray("allowedValues").getValuesAs(jakarta.json.JsonString::getString)
                 : null;
         // A binding names its catalog by alias, or by nothing for the attribute's own.
-        UpdateAttributeRequestCodeListBinding codeListBinding =
+        CodeListBindingRef codeListBinding =
                 config.containsKey("codeListBinding") && !config.isNull("codeListBinding")
-                        ? new UpdateAttributeRequestCodeListBinding()
+                        ? new CodeListBindingRef()
                                 .key(config.getJsonObject("codeListBinding").getString("key"))
                                 .catalogKey(optional(config.getJsonObject("codeListBinding"), "catalogKey"))
                         : null;
@@ -1947,7 +1946,7 @@ public final class Driver {
                                 optional(config, "ifMatch")),
                 response -> {
                     AttributeDto attribute = response.readEntity(AttributeDto.class);
-                    AttributeDtoCodeListBinding binding = attribute.getCodeListBinding();
+                    CodeListBindingRef binding = attribute.getCodeListBinding();
                     return Map.of(
                             "key", String.valueOf(attribute.getKey()),
                             "allowedValues", String.join(",", attribute.getAllowedValues() == null ? List.of() : attribute.getAllowedValues()),

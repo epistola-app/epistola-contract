@@ -46,7 +46,7 @@ import app.epistola.client.model.TemplateDocument
 import app.epistola.client.model.TemplateDto
 import app.epistola.client.model.ThemeRef
 import app.epistola.client.model.UpdateAttributeRequest
-import app.epistola.client.model.UpdateAttributeRequestCodeListBinding
+import app.epistola.client.model.CodeListBindingRef
 import app.epistola.client.model.UpdateCatalogDependenciesRequest
 import app.epistola.client.model.UpdateCatalogReleaseRequest
 import app.epistola.client.model.UpdateCodeListEntryHiddenRequest
@@ -474,7 +474,7 @@ object Driver {
             UpdateAttributeRequest(
                 allowedValues = config.get("allowedValues")?.takeUnless { it.isNull }?.map { it.asText() },
                 codeListBinding = config.get("codeListBinding")?.takeUnless { it.isNull }?.let {
-                    UpdateAttributeRequestCodeListBinding(key = it["key"].asText(), catalogKey = it.optionalText("catalogKey"))
+                    CodeListBindingRef(key = it["key"].asText(), catalogKey = it.optionalText("catalogKey"))
                 },
                 clearCodeListBinding = config.optionalBoolean("clearCodeListBinding"),
             ),

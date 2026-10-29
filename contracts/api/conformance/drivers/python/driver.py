@@ -53,7 +53,7 @@ from epistola_client import (
     TemplatesApi,
     TenantsApi,
     UpdateAttributeRequest,
-    UpdateAttributeRequestCodeListBinding,
+    CodeListBindingRef,
     UpdateCatalogDependenciesRequest,
     UpdateCatalogReleaseRequest,
     UpdateCodeListEntryHiddenRequest,
@@ -1504,7 +1504,7 @@ def _update_attribute(base_url: str, config: dict) -> None:
     }
     # A binding names its catalog by alias, or by nothing for the attribute's own.
     if config.get("codeListBinding") is not None:
-        members["code_list_binding"] = UpdateAttributeRequestCodeListBinding(
+        members["code_list_binding"] = CodeListBindingRef(
             key=config["codeListBinding"]["key"],
             **({"catalogKey": config["codeListBinding"]["catalogKey"]} if "catalogKey" in config["codeListBinding"] else {}),
         )
