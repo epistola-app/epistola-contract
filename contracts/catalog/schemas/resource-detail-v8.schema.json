@@ -206,10 +206,13 @@
           ]
         },
         "spacingUnit": {
+          "description": "Base spacing unit in points for the spacing scale: every sp value is a multiple of it (2sp at 4 is 8pt). From 1 to 16, with at most two decimals, as the API takes it; the validator reports another value as CATALOG_THEME_SPACING_UNIT_INVALID. Null or absent means the rendering default, 4pt.",
           "type": [
             "number",
             "null"
-          ]
+          ],
+          "minimum": 1,
+          "maximum": 16
         },
         "defaultBlockStyles": {
           "$ref": "theme-v8.schema.json#/$defs/DefaultBlockStyles"

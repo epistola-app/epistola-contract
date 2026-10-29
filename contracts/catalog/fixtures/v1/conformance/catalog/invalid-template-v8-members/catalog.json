@@ -10,7 +10,8 @@
     "name": "Epistola"
   },
   "release": {
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "fingerprint": "v6:9fff0cc40dbada9e8636eb9a792df131702f64273d830dedb4f592457db94e61"
   },
   "resources": [
     {

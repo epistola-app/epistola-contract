@@ -469,6 +469,19 @@ libraries.
 
 ### Changed
 
+- **A v8 release carries its fingerprint and pins every catalog it declares; a theme's spacing unit
+  has one rule** (catalog, wire v8). `release.fingerprint` was optional in a v8 archive, although
+  it is the release's identity, which a pin and a base name; an archive written at wire v8 without
+  it is now `CATALOG_RELEASE_FINGERPRINT_INVALID`. Likewise each `catalogDependencies` entry pins a
+  release (`releaseVersion` and `releaseFingerprint`), or it is
+  `CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID`. A catalog migrated from wire v7, which had no pins
+  and an optional fingerprint, may lack both, and is released again before it is shared as a v8
+  release. A theme's `spacingUnit` was 1 to 16 in the API and the live theme schema, but any number
+  in wire v8, and only "positive" to the validator, under the template data-schema code: it is now
+  1 to 16 points with at most two decimals in a v8 archive, reported as the new
+  `CATALOG_THEME_SPACING_UNIT_INVALID`, while an archive written before wire v8 keeps "any positive
+  number". The golden wire-v8 catalog and the conformance catalogs now carry their fingerprints.
+  Epistola Suite may not write the fingerprint and pins on every export yet.
 - **The V6 fingerprint leaves out where a binary sits, and a release's algorithm is fixed by its wire
   version** (catalog, wire v8). V6 covered an image's and a font face's `contentUrl`, a location,
   not content: the same bytes at `./assets/logo.png` (an archive migrated from wire v6) and at
