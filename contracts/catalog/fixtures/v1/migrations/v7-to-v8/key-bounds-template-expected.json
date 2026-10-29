@@ -90,7 +90,7 @@
     "variants": [
       {
         "key": "nl0",
-        "title": "Dutch",
+        "name": "Dutch",
         "attributes": {
           "la0": "nl"
         },
@@ -98,7 +98,7 @@
       },
       {
         "key": "english",
-        "title": "English",
+        "name": "English",
         "attributes": {
           "la0": "en"
         }

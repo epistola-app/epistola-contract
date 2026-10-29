@@ -234,7 +234,7 @@ public static class Driver
                 ["handledSequences"] = string.Join(",", handled.Select(r => r.Sequence)),
                 ["partitionTotal"] = collector.CurrentPartitionAssignment?.Total ?? -1,
                 ["releases"] = string.Join(",", handled.Select(r =>
-                    $"{Show(r.Registry)}/{Show(r.Namespace)}/{Show(r.CatalogKey)}@{Show(r.Version)}#{Show(r.ReleaseId)}:{Show(r.DraftLabel)}")),
+                    $"{Show(r.Registry)}/{Show(r.Namespace)}/{Show(r.CatalogKey)}@{Show(r.Version)}#{Show(r.ReleaseId)}:{Show(r.ReleaseName)}")),
             });
         }
     }
@@ -581,7 +581,7 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         var images = new ImagesApi(http, apiBase)
-            .ListImages(Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"), search: Str(config, "search"))
+            .ListImages(Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"), q: Str(config, "q"))
             .Items;
 
         Report(baseUrl, new Dictionary<string, object>

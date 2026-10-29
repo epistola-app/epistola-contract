@@ -11,7 +11,7 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Added
 
-- **BREAKING:** `GenerationResult` carries `ReleaseId` and `DraftLabel`, after `Version`. The
+- **BREAKING:** `GenerationResult` carries `ReleaseId` and `ReleaseName`, after `Version`. The
   collector parsed result lines by hand and dropped both, so a consumer could not tell which
   draft rendered a document. The record is positional: code constructing one passes the two new
   arguments.

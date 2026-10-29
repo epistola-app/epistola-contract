@@ -62,8 +62,8 @@ class GenerationResult:
     version: Optional[str]
     #: The id of the release rendered: the draft's when ``version`` is ``None``.
     release_id: Optional[str]
-    #: The name of that draft at render time; ``None`` when rendered from a released one.
-    draft_label: Optional[str]
+    #: The name of the release rendered, at render time; ``None`` for a release that has none.
+    release_name: Optional[str]
     filename: Optional[str]
     content_type: Optional[str]
     size_bytes: Optional[int]
@@ -515,7 +515,7 @@ def _parse_result(node: dict) -> GenerationResult:
         catalog_key=node.get("catalogKey") or "",
         version=node.get("version"),
         release_id=node.get("releaseId"),
-        draft_label=node.get("draftLabel"),
+        release_name=node.get("releaseName"),
         filename=node.get("filename"),
         content_type=node.get("contentType"),
         size_bytes=node.get("sizeBytes"),

@@ -34,7 +34,7 @@ script:
       dataModel: {}
       dataExamples: []
       variants:
-        - { key: initial, title: Default, attributes: {}, isDefault: true, status: new }
+        - { key: initial, name: Default, attributes: {}, isDefault: true, status: new }
       createdAt: "2026-10-29T11:00:00Z"
       lastModified: "2026-10-29T11:00:00Z"
 

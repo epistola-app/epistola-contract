@@ -35,13 +35,13 @@ script:
         type: template
         key: invoice
         name: Invoice
-        variants: [{ key: nl, title: Factuur }]
+        variants: [{ key: nl, name: Factuur }]
       draft:
         type: template
         key: invoice
         name: Invoice (draft)
         description: null
-        variants: [{ key: nl, title: Factuur }, { key: en, title: Invoice }]
+        variants: [{ key: nl, name: Factuur }, { key: en, name: Invoice }]
         x-tool: { reviewed: true }
       release: null
       token: m1.k7m2x9qa.42.1-5-0.9f3a1c2b

@@ -329,7 +329,7 @@ libraries.
   or `released`) and `releaseName` (the release's name, null only for an installed release, which
   has none), with a nullable `version` (null for a draft); the history's `action` is `deployed`,
   `undeployed` or `released`. Documents, generation items and collected results rendered from a
-  draft carry `draftLabel` (its name at render time) with a null `version`. Every client's problem-type helpers know the new slug.
+  draft carry `releaseName` (its name at render time) with a null `version`. Every client's problem-type helpers know the new slug.
   Conformance scenarios `deploy-catalog-draft`, `deploy-catalog-draft-refused`,
   `list-environment-deployments-with-draft`, `undeploy-catalog-draft` and
   `update-environment-production-refused`.
@@ -469,6 +469,26 @@ libraries.
 
 ### Changed
 
+- **One name for a resource's human-readable name, and one for a reference to another object.**
+  (BREAKING) A resource's own human-readable name is `name` everywhere; a member naming another
+  object carries that object's type (`releaseName`, `releaseId`, `requestId`).
+  - `AttributeDto`, `CodeListDto` and their create and update requests: `displayName` is `name`,
+    as catalog wire v8 already called it.
+  - `VariantDto`, `VariantSummaryDto`, `CreateVariantRequest` and `UpdateVariantRequest`: `title`
+    is `name`. Catalog wire v8 renames it too (`VariantEntry.name`, still unreleased, changed in
+    place): the v7-to-v8 migration renames `title`, and a v8 document that still has it is not wire
+    v8. V1 to V5 fingerprints keep covering it as `title`, so their values do not move; the V6 value
+    of a catalog whose variants have names does. `UpdateVariantRequest` is a partial update like
+    every other: `name` is no longer required, and an omitted member keeps its value.
+  - `GenerationResult`, `DocumentGenerationItemDto` and `DocumentDto`: `draftLabel` is
+    `releaseName`, as deployments and their history call it, and names a released release too, which
+    keeps the name it had as a draft.
+  - `DocumentGenerationJobDto.id` is `requestId`, as `GenerationJobResponse` calls it;
+    `DocumentDto.id` is `documentId`; `DocumentGenerationItemDto.id` is `itemId`, beside its
+    `documentId`.
+  - `listImages` filters by `q`, as every other list does, not `search`.
+
+  Epistola Suite may not implement them yet.
 - **Install and import name each dependency release in full.** (BREAKING)
   `InstallCatalogReleaseResponse` and `ImportCatalogResponse` list `installedDependencies` and
   `presentDependencies` as `InstalledCatalogReleaseDto` objects (`registry`, `namespace`,
@@ -1235,7 +1255,7 @@ libraries.
 
 ### Fixed
 
-- **The Kotlin, Python and .NET result collectors surface `releaseId` and `draftLabel`.** All three
+- **The Kotlin, Python and .NET result collectors surface `releaseId` and `releaseName`.** All three
   parse result lines by hand and dropped the two members, so a consumer could not tell which draft
   rendered a document; the Jakarta and Node collectors hand over the generated model and had them.
   Conformance scenario `collect-result-release` now requires both from every client. The Kotlin

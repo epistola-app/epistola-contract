@@ -528,7 +528,7 @@ class ModelValidationTest {
     @Test
     fun `DocumentDto with realistic values passes`() {
         val doc = DocumentDto(
-            id = UUID.randomUUID(),
+            documentId = UUID.randomUUID(),
             tenantKey = "acme-corp",
             registry = "exchange.epistola.app",
             namespace = "acme",
@@ -549,7 +549,7 @@ class ModelValidationTest {
     fun `DocumentDto rejects any invalid slug among its multiple slug fields`() {
         val now = OffsetDateTime.now()
         val base = DocumentDto(
-            id = UUID.randomUUID(),
+            documentId = UUID.randomUUID(),
             tenantKey = "acme-corp",
             registry = "exchange.epistola.app",
             namespace = "acme",

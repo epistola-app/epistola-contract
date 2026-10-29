@@ -388,7 +388,7 @@ public sealed class ResultCollector
         CatalogKey: Required(node, "catalogKey"),
         Version: node["version"]?.Value<string>(),
         ReleaseId: node["releaseId"]?.Value<string>(),
-        DraftLabel: node["draftLabel"]?.Value<string>(),
+        ReleaseName: node["releaseName"]?.Value<string>(),
         Filename: node["filename"]?.Value<string>(),
         ContentType: node["contentType"]?.Value<string>(),
         SizeBytes: node["sizeBytes"]?.Value<long?>(),
@@ -526,8 +526,8 @@ public sealed class ResultCollector
     /// full (<c>exchange.epistola.app</c>), never <c>~</c>. The catalog is always named;
     /// <see cref="Version"/> is null when the document was rendered from a draft.
     /// <see cref="ReleaseId"/> names the release rendered, the draft's when <see cref="Version"/>
-    /// is null, and <see cref="DraftLabel"/> is that draft's name at render time (null for a
-    /// released one).
+    /// is null, and <see cref="ReleaseName"/> is the release's name at render time (null for a
+    /// release that has none).
     /// <see cref="Status"/> is the wire value, <c>completed</c> or <c>failed</c>.
     /// </remarks>
     public sealed record GenerationResult(
@@ -545,7 +545,7 @@ public sealed class ResultCollector
         string CatalogKey,
         string? Version,
         string? ReleaseId,
-        string? DraftLabel,
+        string? ReleaseName,
         string? Filename,
         string? ContentType,
         long? SizeBytes,

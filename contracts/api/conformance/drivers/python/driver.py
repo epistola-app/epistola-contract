@@ -276,7 +276,7 @@ def _collect(base_url: str, config: dict) -> None:
             "partitionTotal": assignment.total if assignment is not None else -1,
             "releases": ",".join(
                 f"{_show(r.registry)}/{_show(r.namespace)}/{_show(r.catalog_key)}@{_show(r.version)}"
-                f"#{_show(r.release_id)}:{_show(r.draft_label)}"
+                f"#{_show(r.release_id)}:{_show(r.release_name)}"
                 for r in handled
             ),
         },
@@ -395,7 +395,7 @@ def _list_images(base_url: str, config: dict) -> None:
             config["namespace"],
             config["catalogKey"],
             config["release"],
-            search=config["search"],
+            q=config["q"],
         )
         .items
     )

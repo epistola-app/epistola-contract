@@ -281,7 +281,7 @@ object Driver {
                 "handledSequences" to handled.joinToString(",") { it.sequence.toString() },
                 "partitionTotal" to (collector.partitionAssignment?.total ?: -1),
                 "releases" to handled.joinToString(",") {
-                    "${it.registry}/${it.namespace}/${it.catalogKey}@${it.version ?: "null"}#${it.releaseId ?: "null"}:${it.draftLabel ?: "null"}"
+                    "${it.registry}/${it.namespace}/${it.catalogKey}@${it.version ?: "null"}#${it.releaseId ?: "null"}:${it.releaseName ?: "null"}"
                 },
             ),
         )
@@ -573,7 +573,7 @@ object Driver {
                 config["namespace"].asText(),
                 config["catalogKey"].asText(),
                 config["release"].asText(),
-                search = config["search"].asText(),
+                q = config["q"].asText(),
             )
             .items
 

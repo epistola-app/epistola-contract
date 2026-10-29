@@ -23,7 +23,7 @@ images:
       - Images
     x-required-permissions: [TEMPLATE_VIEW]
     parameters:
-      - name: search
+      - name: q
         in: query
         required: false
         description: Case-insensitive substring match on image name.

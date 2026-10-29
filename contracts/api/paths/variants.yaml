@@ -49,7 +49,7 @@ variants:
     operationId: createVariant
     summary: Create a new variant
     description: |
-      Create a variant of the template in the draft, with its `key`, `title`, and optionally a
+      Create a variant of the template in the draft, with its `key`, `name`, and optionally a
       `description` and the `attributes` that select it. It starts with status `new`.
     tags:
       - Variants
@@ -135,8 +135,8 @@ variants-id:
     operationId: updateVariant
     summary: Update a variant
     description: |
-      Update a variant's metadata in the draft: its `title` (required), `description` and the
-      `attributes` that select it. Its content is updated with `updateVariantContent`, and which
+      Update a variant's metadata in the draft: its `name`, `description` and the `attributes` that
+      select it, each only when given. Its content is updated with `updateVariantContent`, and which
       variant is the default with `setDefaultVariant`.
       Send the `ETag` from a read as `If-Match` to have the update refused with 412
       `resource-modified` if the resource changed since; without it, the last write wins.

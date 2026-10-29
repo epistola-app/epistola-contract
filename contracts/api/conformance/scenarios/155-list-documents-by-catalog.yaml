@@ -29,7 +29,7 @@ script:
     contentType: application/vnd.epistola.v2+json
     body:
       items:
-        - id: 77777777-7777-4777-8777-000000000001
+        - documentId: 77777777-7777-4777-8777-000000000001
           tenantKey: acme-corp
           registry: exchange.example.org
           namespace: team-a
@@ -41,7 +41,7 @@ script:
           contentType: application/pdf
           sizeBytes: 184320
           createdAt: "2026-02-01T08:00:03Z"
-        - id: 77777777-7777-4777-8777-000000000002
+        - documentId: 77777777-7777-4777-8777-000000000002
           tenantKey: acme-corp
           registry: exchange.example.org
           namespace: team-a

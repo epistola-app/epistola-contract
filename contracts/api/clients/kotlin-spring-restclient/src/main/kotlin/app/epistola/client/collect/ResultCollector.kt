@@ -129,8 +129,8 @@ class ResultCollector private constructor(
         val version: String?,
         /** Id of the release rendered: the draft's when [version] is null. */
         val releaseId: String?,
-        /** Name of that draft at render time; null when rendered from a released one. */
-        val draftLabel: String?,
+        /** Name of the release rendered, at render time; null for a release that has none. */
+        val releaseName: String?,
         val filename: String?,
         val contentType: String?,
         val sizeBytes: Long?,
@@ -390,7 +390,7 @@ class ResultCollector private constructor(
         catalogKey = node.resultField("catalogKey").asText(),
         version = node.optionalField("version")?.asText(),
         releaseId = node.optionalField("releaseId")?.asText(),
-        draftLabel = node.optionalField("draftLabel")?.asText(),
+        releaseName = node.optionalField("releaseName")?.asText(),
         filename = node.optionalField("filename")?.asText(),
         contentType = node.optionalField("contentType")?.asText(),
         sizeBytes = node.optionalField("sizeBytes")?.asLong(),

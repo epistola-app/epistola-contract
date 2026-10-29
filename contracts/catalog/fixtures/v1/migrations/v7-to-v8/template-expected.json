@@ -93,7 +93,7 @@
     "variants": [
       {
         "key": "english",
-        "title": "English",
+        "name": "English",
         "attributes": {},
         "isDefault": true,
         "templateModel": {

@@ -192,7 +192,8 @@ object CatalogCanonicalizer {
             CatalogFingerprintVersion.V1, CatalogFingerprintVersion.V2 -> entries(catalog)
             CatalogFingerprintVersion.V3 -> semanticEntries(catalog)
             CatalogFingerprintVersion.V4 -> currentEntries(catalog, currentNames = false)
-            CatalogFingerprintVersion.V5, CatalogFingerprintVersion.V6 -> currentEntries(catalog, currentNames = true)
+            CatalogFingerprintVersion.V5 -> currentEntries(catalog, currentNames = true, variantTitle = true)
+            CatalogFingerprintVersion.V6 -> currentEntries(catalog, currentNames = true)
         }
         val canonical = when (version) {
             CatalogFingerprintVersion.V1 -> canonicalV1(catalog, entries)
@@ -749,7 +750,7 @@ object CatalogCanonicalizer {
      *
      * @throws java.io.IOException when referenced archive content cannot be read.
      */
-    fun completePerResourceFingerprints(catalog: CatalogArchive): Map<String, String> = currentEntries(catalog, currentNames = true).sortedBy(Entry::key).associate { entry ->
+    fun completePerResourceFingerprints(catalog: CatalogArchive): Map<String, String> = currentEntries(catalog, currentNames = true, variantTitle = true).sortedBy(Entry::key).associate { entry ->
         entry.key to sha256(("resource sha256-v5\n" + entry.canonicalJson + "\u0000" + entry.assetHash).byteInputStream())
     }
 
@@ -793,18 +794,34 @@ object CatalogCanonicalizer {
         )
     }
 
-    /** Resource entries from the bound model, under the names catalog v8 writes when [currentNames]. */
+    /**
+     * Resource entries from the bound model, under the names catalog v8 writes when [currentNames].
+     * [variantTitle] keeps a variant's name under `title`, the name it had when V5 was defined, so V5
+     * values stay what producers published before wire v8 renamed it to `name`.
+     */
     private fun currentEntries(
         catalog: CatalogArchive,
         currentNames: Boolean,
+        variantTitle: Boolean = false,
     ): List<Entry> = catalog.resourceDetails.map { (key, detail) ->
         val model: JsonNode = mapper.valueToTree(detail.resource)
+        if (variantTitle) withVariantTitles(model)
         val resourceNode = normalizeStencilProvenance(if (currentNames) model else legacyResource(model), legacyV4 = false)
         Entry(
             key = key,
             canonicalJson = mapper.writeValueAsString(sortKeys(withoutMetadata(resourceNode))),
             assetHash = assetHash(catalog, detail),
         )
+    }
+
+    /** Renames each of a template's variants' `name` back to `title`, in place. */
+    private fun withVariantTitles(resource: JsonNode) {
+        (resource["variants"] as? tools.jackson.databind.node.ArrayNode)?.forEach { variant ->
+            if (variant !is tools.jackson.databind.node.ObjectNode || !variant.has("name") || variant.has("title")) return@forEach
+            val members = variant.properties().map { (name, value) -> (if (name == "name") "title" else name) to value }
+            variant.removeAll()
+            members.forEach { (name, value) -> variant.set(name, value) }
+        }
     }
 
     private fun legacyV4Entries(catalog: CatalogArchive): List<Entry> = catalog.resourceDetails.map { (key, detail) ->

@@ -69,7 +69,7 @@ script:
             customer: { name: Jane Smith }
             invoiceNumber: INV-2026-001
       variants:
-        - { key: english, title: English Invoice, attributes: { locale: en-GB }, isDefault: true, status: modified }
+        - { key: english, name: English Invoice, attributes: { locale: en-GB }, isDefault: true, status: modified }
       createdAt: "2026-01-21T10:00:00Z"
       lastModified: "2026-10-29T11:00:00Z"
 
