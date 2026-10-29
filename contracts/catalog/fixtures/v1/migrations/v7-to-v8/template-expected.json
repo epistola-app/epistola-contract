@@ -62,7 +62,6 @@
           "slots": [],
           "props": {
             "imageKey": "logo",
-            "catalogKey": "letters",
             "alt": "Logo"
           }
         }

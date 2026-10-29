@@ -137,7 +137,7 @@
               "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
               "minLength": 3,
               "maxLength": 50,
-              "description": "The alias of the catalog containing the theme, as the owning catalog's dependency list (catalogDependencies) declares it: the catalog key rule. Omitted, or the owning catalog's own key, means the same catalog as the owning template."
+              "description": "The alias of the catalog containing the theme, as the owning catalog's dependency list (catalogDependencies) declares it: the catalog key rule. Omitted means the same catalog as the owning template, which a reference never names by its own key."
             }
           },
           "required": [

@@ -22,8 +22,8 @@ import app.epistola.template.model.ThemeRefOverride
  * | a variant's attribute key | `<alias>.<key>` (`system.locale`) |
  *
  * The manifest's own references (`catalog.defaultTheme`, the `dependencies` index) are checked where
- * the manifest is. A reference whose alias is the catalog's own key is to the catalog itself; the
- * callers tell those apart.
+ * the manifest is. A reference to the catalog itself names no alias; one that names the catalog's own
+ * key names an alias the catalog does not declare.
  */
 internal object CatalogReferences {
     /**

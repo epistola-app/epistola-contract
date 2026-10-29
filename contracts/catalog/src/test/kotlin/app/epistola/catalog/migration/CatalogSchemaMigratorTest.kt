@@ -561,12 +561,18 @@ class CatalogSchemaMigratorTest {
     @Test
     fun `v7 keys migrate to their v8 names, values unchanged and without notices, and data examples gain keys with notices`() {
         val tree = resource("migrations/v7-to-v8/template-input.json").use(mapper::readTree) as ObjectNode
-        val step = CatalogV7ToV8Migration().migrateResource(tree, "resources/template/letter.json", CatalogMigrationContext(7, emptyManifest()))
+        // Migrated within its own catalog, `letters`, whose manifest the golden manifest fixture is.
+        val manifest = assertNotNull(CatalogSchemaMigrator.migrateManifest(resource("migrations/v7-to-v8/manifest-input.json"), OPTIONS_ACME).value)
+        val step = CatalogV7ToV8Migration().migrateResource(tree, "resources/template/letter.json", CatalogMigrationContext(7, manifest))
 
         assertTrue(step.findings.isEmpty(), step.findings.toString())
         // Like v7's rename of a variant's id to slug: the value is unchanged, so there is nothing to
-        // report. A derived example key is new content, so each one is.
-        assertTrue(step.notices.all { it.code == CatalogMigrationCodes.DATA_EXAMPLE_KEY_ASSIGNED }, step.notices.toString())
+        // report. A derived example key is new content, so each one is, as is the logo's reference
+        // to the catalog itself by its own key, which wire v8 drops.
+        assertTrue(
+            step.notices.all { it.code == CatalogMigrationCodes.DATA_EXAMPLE_KEY_ASSIGNED || it.code == CatalogMigrationCodes.REFERENCE_ALIASED },
+            step.notices.toString(),
+        )
         assertEquals(resource("migrations/v7-to-v8/template-notices.json").use(mapper::readTree), mapper.valueToTree(step.notices))
         assertEquals(resource("migrations/v7-to-v8/template-expected.json").use(mapper::readTree), tree)
         // The key leads each example, ahead of the name it was derived from.
@@ -901,6 +907,30 @@ class CatalogSchemaMigratorTest {
             ResourceDetail::class.java,
         ).resource as AttributeResource
         assertEquals(CodeListBindingRef("shared", "countries"), binding.codeListBinding)
+    }
+
+    @Test
+    fun `v7 content that names its own catalog by key names no catalog in v8`() {
+        val manifest = assertNotNull(CatalogSchemaMigrator.migrateManifest(resource("migrations/v7-to-v8/manifest-input.json"), OPTIONS_ACME).value)
+        val tree = resource("migrations/v7-to-v8/template-input.json").use(mapper::readTree) as ObjectNode
+        val resource = tree["resource"] as ObjectNode
+        resource.put("themeCatalogKey", "letters")
+        val variant = (resource["variants"] as ArrayNode)[0] as ObjectNode
+        variant.putObject("attributes").put("letters.tone", "formal").put("system.locale", "en").put("audience", "public")
+
+        val step = CatalogV7ToV8Migration().migrateResource(tree, "resources/template/letter.json", CatalogMigrationContext(7, manifest))
+
+        assertTrue(step.findings.isEmpty(), step.findings.toString())
+        assertFalse(resource.has("themeCatalogKey"), resource.toString())
+        assertEquals(listOf("tone", "system.locale", "audience"), variant["attributes"].propertyNames().toList(), "in place, the others untouched")
+        assertEquals(
+            listOf(
+                "resources/template/letter.json.resource.themeCatalogKey",
+                "resources/template/letter.json.resource.templateModel.nodes.logo.props.catalogKey",
+                "resources/template/letter.json.resource.variants[0].attributes.letters.tone",
+            ).sorted(),
+            step.notices.filter { it.code == CatalogMigrationCodes.REFERENCE_ALIASED }.map { it.path }.sorted(),
+        )
     }
 
     @Test

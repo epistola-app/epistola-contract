@@ -280,7 +280,8 @@ object CatalogCanonicalizer {
         val rawManifest = catalog.content.open("catalog.json").use { input -> decimalReader.readTree(input) } as? ObjectNode ?: return catalog
         CatalogKeyRenames.toCurrent(CatalogKeyRenames.manifestSites(rawManifest))
         val manifestTree: JsonNode = mapper.valueToTree(catalog.manifest)
-        val manifest = restoreKeys(manifestTree, rawManifest)
+        val ownKey = catalog.manifest.catalog.key
+        val manifest = restoreKeys(manifestTree, rawManifest, ownKey)
             .takeIf { it != manifestTree }
             ?.let { mapper.treeToValue(it, CatalogManifest::class.java) }
             ?: catalog.manifest
@@ -293,7 +294,7 @@ object CatalogCanonicalizer {
             } ?: return@associate key to detail
             CatalogKeyRenames.toCurrent(CatalogKeyRenames.resourceSites(rawResource, "resource"))
             val resourceTree: JsonNode = mapper.valueToTree(detail.resource)
-            val restoredTree = restoreKeys(resourceTree, rawResource)
+            val restoredTree = restoreKeys(resourceTree, rawResource, ownKey)
             if (restoredTree == resourceTree) return@associate key to detail
             changed = true
             val restored = mapper.treeToValue(
@@ -309,27 +310,39 @@ object CatalogCanonicalizer {
     /**
      * A copy of [model] with every string that is exactly [CatalogKeys.migrate] of a different raw
      * string at the same position put back to the raw one, and every property name likewise.
+     *
+     * The catalog's own key, [ownKey], which the v7-to-v8 migration removes where content named the
+     * catalog itself by it ([app.epistola.catalog.migration.CatalogReferenceQualifiers.dropOwnKey]),
+     * is put back where the raw document had it: as a reference's `catalogKey` or
+     * `themeCatalogKey`, and as the qualifier of a variant's attribute key (`letters.locale`).
      */
     private fun restoreKeys(
         model: JsonNode,
         raw: JsonNode?,
+        ownKey: String,
     ): JsonNode = when {
         model is ObjectNode && raw is ObjectNode -> mapper.createObjectNode().also { restored ->
             model.propertyNames().forEach { name ->
-                val rawName = if (raw.has(name)) {
-                    name
-                } else {
-                    raw.propertyNames().firstOrNull { it != name && !model.has(it) && CatalogKeys.migrate(it) == name } ?: name
+                val rawName = when {
+                    raw.has(name) -> name
+                    raw.has("$ownKey.$name") && !model.has("$ownKey.$name") -> "$ownKey.$name"
+                    else -> raw.propertyNames().firstOrNull { it != name && !model.has(it) && CatalogKeys.migrate(it) == name } ?: name
                 }
-                restored.set(rawName, restoreKeys(model[name], raw[rawName]))
+                restored.set(rawName, restoreKeys(model[name], raw[rawName], ownKey))
             }
+            OWN_KEY_MEMBERS
+                .filter { member -> !model.has(member) && raw[member]?.takeIf { it.isString }?.asString() == ownKey }
+                .forEach { member -> restored.put(member, ownKey) }
         }
         model is ArrayNode && raw is ArrayNode -> mapper.createArrayNode().also { restored ->
-            model.forEachIndexed { index, child -> restored.add(restoreKeys(child, raw[index])) }
+            model.forEachIndexed { index, child -> restored.add(restoreKeys(child, raw[index], ownKey)) }
         }
         model.isString && raw != null && raw.isString && model.asString() != raw.asString() && CatalogKeys.migrate(raw.asString()) == model.asString() -> raw
         else -> model
     }
+
+    /** The members that name the catalog a reference is to, which may have named the catalog itself. */
+    private val OWN_KEY_MEMBERS = listOf("catalogKey", "themeCatalogKey")
 
     /** The wire version from which keys are bounded, so that a catalog read at it was never rewritten. */
     private const val KEY_BOUNDS_SINCE_WIRE_VERSION = 8

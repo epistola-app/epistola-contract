@@ -82,6 +82,78 @@ internal object CatalogReferenceQualifiers {
         return sites
     }
 
+    /**
+     * Removes the catalog's own key, [ownKey], wherever [resource] names it as the catalog a
+     * reference is to, in place, with a notice each: in wire v8 a reference to the catalog itself
+     * names no catalog, and the catalog's own key is never an alias. Covers every reference site
+     * ([resourceSites]), an image node's, and a variant's attribute key (`letters.locale` becomes
+     * `locale`). Run after [toAliases], which has already removed any registry and namespace.
+     *
+     * Content that names its own catalog by key would otherwise make the release depend on its
+     * name, which the V6 fingerprint deliberately leaves out: the same release mirrored or renamed
+     * would name a catalog it does not declare.
+     */
+    fun dropOwnKey(
+        resource: ObjectNode,
+        path: String,
+        ownKey: String,
+        notices: MutableList<CatalogMigrationNotice>,
+    ) {
+        fun drop(owner: JsonNode?, member: String, sitePath: String, what: String) {
+            if (owner !is ObjectNode || owner[member]?.takeIf { it.isString }?.asString() != ownKey) return
+            owner.remove(member)
+            notices += CatalogMigrationNotice(
+                CatalogMigrationCodes.REFERENCE_ALIASED,
+                "$sitePath.$member",
+                "$what named the catalog itself by its own key '$ownKey'; it now names no catalog",
+            )
+        }
+        resourceSites(resource, path).forEach { drop(it.owner, it.catalogMember, it.path, it.what) }
+        if (resource["type"]?.takeIf { it.isString }?.asString() == "template") {
+            imageSites(resource["templateModel"], "$path.templateModel").forEach { (props, sitePath) -> drop(props, "catalogKey", sitePath, "an image reference") }
+            (resource["variants"] as? ArrayNode)?.forEachIndexed { index, variant ->
+                if (variant !is ObjectNode) return@forEachIndexed
+                imageSites(variant["templateModel"], "$path.variants[$index].templateModel").forEach { (props, sitePath) ->
+                    drop(props, "catalogKey", sitePath, "an image reference")
+                }
+                val attributes = variant["attributes"] as? ObjectNode ?: return@forEachIndexed
+                val prefix = ownKey + "."
+                val members = attributes.properties().map { (name, value) -> name to value }
+                if (members.none { (name, _) -> name.startsWith(prefix) }) return@forEachIndexed
+                attributes.removeAll()
+                members.forEach { (name, value) ->
+                    val local = name.removePrefix(prefix)
+                    if (local != name && !members.any { (other, _) -> other == local }) {
+                        attributes.set(local, value)
+                        notices += CatalogMigrationNotice(
+                            CatalogMigrationCodes.REFERENCE_ALIASED,
+                            "$path.variants[$index].attributes.$name",
+                            "a variant's attribute '$name' named the catalog itself by its own key '$ownKey'; it is now '$local'",
+                        )
+                    } else {
+                        attributes.set(name, value)
+                    }
+                }
+            }
+        }
+        if (resource["type"]?.takeIf { it.isString }?.asString() == "stencil") {
+            imageSites(resource["content"], "$path.content").forEach { (props, sitePath) -> drop(props, "catalogKey", sitePath, "an image reference") }
+        }
+    }
+
+    /** The props of each image node in [document], with their paths. */
+    private fun imageSites(
+        document: JsonNode?,
+        path: String,
+    ): List<Pair<ObjectNode, String>> {
+        val nodes = (document as? ObjectNode)?.get("nodes") as? ObjectNode ?: return emptyList()
+        return nodes.propertyNames().toList().sorted().mapNotNull { id ->
+            val node = nodes[id] as? ObjectNode ?: return@mapNotNull null
+            if (node["type"]?.takeIf { it.isString }?.asString() != "image") return@mapNotNull null
+            (node["props"] as? ObjectNode)?.let { it to "$path.nodes.$id.props" }
+        }
+    }
+
     /** A finding for every qualifier still present at [sites]: wire v8 has none. */
     fun findings(sites: List<Site>): List<CatalogMigrationFinding> = sites.flatMap { site ->
         site.qualifiers.map { member ->

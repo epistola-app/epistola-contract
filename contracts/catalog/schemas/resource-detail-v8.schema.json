@@ -93,7 +93,7 @@
           "maxLength": 50
         },
         "themeCatalogKey": {
-          "description": "The alias of the catalog holding the template's theme, as the manifest's catalogDependencies declares it (contract ADR 0003). Null, omitted or the catalog's own key means the template's own catalog.",
+          "description": "The alias of the catalog holding the template's theme, as the manifest's catalogDependencies declares it (contract ADR 0003). Null or omitted means the template's own catalog, which content never names by its own key.",
           "type": [
             "string",
             "null"
@@ -492,7 +492,7 @@
       "type": "object",
       "properties": {
         "catalogKey": {
-          "description": "The alias of the catalog holding the code list, as the manifest's catalogDependencies declares it (contract ADR 0003). Null, omitted or the catalog's own key means the attribute's own catalog.",
+          "description": "The alias of the catalog holding the code list, as the manifest's catalogDependencies declares it (contract ADR 0003). Null or omitted means the attribute's own catalog, which content never names by its own key.",
           "type": [
             "string",
             "null"

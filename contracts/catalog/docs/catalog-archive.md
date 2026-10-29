@@ -205,8 +205,8 @@ Each `catalogDependencies` entry declares one catalog the catalog depends on (co
   template's `themeCatalogKey`, the catalog's `defaultTheme.catalogKey`, a variant attribute key's
   qualifier, a resource dependency's `catalogKey`. A reference never names a registry or namespace;
   within the catalog it names a key alone, as before. An alias follows the catalog key rule
-  (`CatalogAliases`), is unique in the list, is never the catalog's own key (content uses that for
-  the catalog itself), and is by default the depended-on catalog's own key: a producer chooses
+  (`CatalogAliases`), is unique in the list, is never the catalog's own key (content names the catalog
+  itself by naming no alias, never by its own key), and is by default the depended-on catalog's own key: a producer chooses
   another only when two catalogs it depends on share a key (`acme/letters` and `bureau/letters`).
   The validator reports an alias content names that the list does not declare
   (`CATALOG_DEPENDENCY_CATALOG_UNDECLARED`, at the reference), and a missing, malformed, own-key or

@@ -44,8 +44,8 @@ only an explicit `MISSING` result produces a missing-reference finding.
 
 Stencil composition is part of the portable specification. From wire v8 a
 stencil node names its stencil by `stencilKey` (`stencilId` until wire v8), optionally with the
-`catalogKey` alias of another catalog the owning catalog depends on (contract ADR 0003; omitted, or
-the owning catalog's own key, means the owning catalog), and carries no version: catalogs are
+`catalogKey` alias of another catalog the owning catalog depends on (contract ADR 0003; omitted
+means the owning catalog, which is never named by its own key), and carries no version: catalogs are
 versioned as a whole, so the stencil reached is the one in the release the catalog dependency pins,
 or the one in the same catalog. The context resolver receives that identity as a
 `CatalogResourceReference`. A node's `version`, `draftVersion`, `namespace` or `registry` is
@@ -183,8 +183,10 @@ Every alias a reference names must be declared there (`CATALOG_DEPENDENCY_CATALO
 the reference): a resource dependency's, the default theme's, and every reference inside content
 -- a template's `themeCatalogKey`, a theme override's, a stencil or image node's, a `fontFamily`
 font reference's (in theme, preset, document or node styles) or a code-list binding's `catalogKey`,
-and the qualifier of a variant's attribute key (`system.locale`). A reference that names no alias,
-or the catalog's own key, is to the catalog itself; a declaration nothing uses is allowed. A
+and the qualifier of a variant's attribute key (`system.locale`). A reference that names no alias
+is to the catalog itself; one that names the catalog's own key is `CATALOG_DEPENDENCY_CATALOG_UNDECLARED`
+(the v7-to-v8 migration drops it, with a `CATALOG_REFERENCE_ALIASED` notice), so a release does not
+depend on the name its fingerprint leaves out. A declaration nothing uses is allowed. A
 reference never names a registry or namespace (contract ADR 0003): those are the declaration's, and
 the migrator's wire check refuses them in a v8 document.
 

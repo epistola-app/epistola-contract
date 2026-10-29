@@ -182,8 +182,8 @@ class ThemeRefInherit : ThemeRef() {
  *   the member was called `themeId`; binding reads either name, so that documents stored under
  *   earlier versions still bind.
  * @property catalogKey The alias of the catalog containing the theme, as the owning catalog's
- *   dependency list declares it (catalog wire v8, contract ADR 0003). Null, or the owning catalog's own key,
- *   means the same catalog as the owning template.
+ *   dependency list declares it (catalog wire v8, contract ADR 0003). Null means the same catalog as
+ *   the owning template, which a reference never names by its own key.
  */
 @JsonIgnoreProperties("namespace", "registry")
 data class ThemeRefOverride(

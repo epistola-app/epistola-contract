@@ -394,7 +394,8 @@ object ResourceValidator {
 
     /**
      * Every alias the resource's content names is declared in the catalog's dependency list (contract ADR
-     * 0003), unless it is the catalog's own key, which names the catalog itself. Skipped when the
+     * 0003). The catalog's own key is never one: content names the catalog itself by naming no alias,
+     * so that the release does not depend on the name its fingerprint leaves out. Skipped when the
      * list is not known.
      */
     private fun validateAliases(
@@ -405,12 +406,16 @@ object ResourceValidator {
     ) {
         val declared = context.catalogDependencies?.mapTo(mutableSetOf()) { it.alias } ?: return
         CatalogReferences.inResource(resource, path)
-            .filter { it.alias != context.catalogKey && it.alias !in declared }
+            .filter { it.alias !in declared }
             .forEach { reference ->
                 findings.error(
                     CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED,
                     reference.path,
-                    "${reference.type} reference names the catalog alias '${reference.alias}', which catalogDependencies does not declare",
+                    if (reference.alias == context.catalogKey) {
+                        "${reference.type} reference names the catalog's own key '${reference.alias}'; a reference to the catalog itself names no catalog"
+                    } else {
+                        "${reference.type} reference names the catalog alias '${reference.alias}', which catalogDependencies does not declare"
+                    },
                 )
             }
     }
@@ -1205,11 +1210,15 @@ object CatalogValidator {
         val path = "catalog.json.catalog.defaultTheme"
         ResourceValidator.validateDefaultTheme(theme, context, path, findings)
         val alias = theme.catalogKey ?: return
-        if (alias != manifest.catalog.key && manifest.catalogDependencies.orEmpty().none { it.alias == alias }) {
+        if (manifest.catalogDependencies.orEmpty().none { it.alias == alias }) {
             findings.error(
                 CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED,
                 path,
-                "defaultTheme names the catalog alias '$alias', which catalogDependencies does not declare",
+                if (alias == manifest.catalog.key) {
+                    "defaultTheme names the catalog's own key '$alias'; a theme of the catalog itself names no catalog"
+                } else {
+                    "defaultTheme names the catalog alias '$alias', which catalogDependencies does not declare"
+                },
             )
         }
     }
