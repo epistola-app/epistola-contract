@@ -113,7 +113,7 @@ class CatalogKeyRenameCompatibilityTest {
     }
 
     @Test
-    fun `a catalog written with the new names keeps its v4 fingerprint`() {
+    fun `a catalog written with the new names keeps its v4 fingerprint, but for the own key wire v8 drops`() {
         val migrated = assertNotNull(CatalogArchiveReader.read(ByteArrayInputStream(zip(signed = false)), migration = MIGRATION).archive)
         val written = migrated.use { write(it) }
         val files = unzip(written)
@@ -124,9 +124,26 @@ class CatalogKeyRenameCompatibilityTest {
 
         assertNotNull(CatalogArchiveReader.read(ByteArrayInputStream(written)).archive).use { current ->
             assertEquals(CURRENT_VERSION, current.manifest.schemaVersion)
-            // V1 to V3 cover the documents as written, which the writer fills out beyond what the v7
-            // producer wrote, so only V4, which covers the model, carries over a re-export.
-            assertEquals(V7_PRODUCER_V4, CatalogCanonicalizer.fingerprint(current, CatalogFingerprintVersion.V4).value)
+            // The logo named the catalog itself by its own key, which wire v8 drops: a reference to
+            // the catalog itself names no catalog. A re-export has no raw v7 documents left to put it
+            // back from, so V4 no longer carries over, as with the stencil versions wire v8 removes;
+            // the re-export is released under the current algorithm.
+            val template = current.resourceDetails.getValue("template/letter")
+            val logo = (template.resource as TemplateResource).templateModel.nodes.getValue("logo")
+            assertFalse("catalogKey" in logo.props.orEmpty(), logo.toString())
+            assertTrue(CatalogCanonicalizer.fingerprint(current, CatalogFingerprintVersion.V4).value != V7_PRODUCER_V4)
+            // Put back, V4 is what the v7 producer computed: the renames alone move nothing. V1 to V3
+            // cover the documents as written, which the writer fills out beyond what the v7 producer
+            // wrote, so only V4, which covers the model, is compared.
+            val tree = mapper.valueToTree<tools.jackson.databind.node.ObjectNode>(template)
+            ((tree["resource"]["templateModel"]["nodes"]["logo"]["props"]) as tools.jackson.databind.node.ObjectNode).put("catalogKey", "letters")
+            val restored = CatalogArchive(
+                current.manifest,
+                current.resourceDetails + ("template/letter" to mapper.treeToValue(tree, ResourceDetail::class.java)),
+                current.paths,
+                current.content,
+            )
+            assertEquals(V7_PRODUCER_V4, CatalogCanonicalizer.fingerprint(restored, CatalogFingerprintVersion.V4).value)
         }
     }
 

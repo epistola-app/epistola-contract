@@ -469,6 +469,19 @@ libraries.
 
 ### Changed
 
+- **A catalog never names itself by its own key** (catalog, wire v8, BREAKING). Content may name the
+  catalog itself only by naming no alias. Wire v8 allowed the catalog's own key as well, which made
+  a release depend on its name, which the V6 fingerprint deliberately leaves out: the same release
+  mirrored or renamed (ADR 0003) verified as itself but named a catalog it does not declare, or,
+  renamed to an existing alias, another catalog. The validator now reports the own key as an alias
+  the catalog does not declare (`CATALOG_DEPENDENCY_CATALOG_UNDECLARED`, saying it is the own key),
+  in content and in the manifest's `defaultTheme`. The v7-to-v8 migration drops it, with a
+  `CATALOG_REFERENCE_ALIASED` notice, from every reference site, image nodes and a variant's
+  attribute keys (`letters.tone` becomes `tone`); a v7 archive's legacy fingerprint still verifies,
+  restored from the raw documents. A migrated release re-exported without its raw v7 documents no
+  longer reproduces its V4 value where its content named itself by key, as with the stencil
+  versions wire v8 removes, and is released under the current algorithm. The golden v7-to-v8
+  migration fixture now migrates its template within its own catalog, and shows the drop.
 - **A native wire-v8 document is held to the published v8 schemas before it binds** (catalog).
   Binding alone is lenient: Jackson dropped a member the model did not know and a model default
   filled one the schema requires, so a v8 document with a misspelled member passed, lost it, and

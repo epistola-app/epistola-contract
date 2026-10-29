@@ -310,7 +310,7 @@
           "maxLength": 50
         },
         "catalogKey": {
-          "description": "The alias of the catalog holding the theme, as catalogDependencies declares it. Omitted, or this catalog's own key, means this catalog.",
+          "description": "The alias of the catalog holding the theme, as catalogDependencies declares it. Omitted means this catalog; a catalog never names itself by its own key.",
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
           "minLength": 3,
@@ -567,7 +567,7 @@
       "type": "object",
       "properties": {
         "alias": {
-          "description": "How this catalog's content names the dependency: every reference into it names this alias and a resource key. The catalog key rule; unique within catalogDependencies, and never this catalog's own key, which content uses for the catalog itself. A producer declares a catalog under its own key unless two catalogs it depends on share one.",
+          "description": "How this catalog's content names the dependency: every reference into it names this alias and a resource key. The catalog key rule; unique within catalogDependencies, and never this catalog's own key: content names the catalog itself by naming no alias. A producer declares a catalog under its own key unless two catalogs it depends on share one.",
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
           "minLength": 3,
