@@ -34,7 +34,7 @@
     },
     "spacingUnit": {
       "type": "number",
-      "minimum": 1,
+      "minimum": 0.5,
       "maximum": 16,
       "description": "Base spacing unit in points for the spacing scale. All sp values (e.g. 2sp, 4sp) are multiples of this value. Absent means default (4pt)."
     },
