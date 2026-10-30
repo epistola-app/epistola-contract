@@ -78,6 +78,22 @@ class CatalogKeyRenameCompatibilityTest {
     }
 
     @Test
+    fun `a v7 template naming its theme by its own catalog's key still verifies after migration`() {
+        // Suite 1.x named a template's theme in its own catalog by that catalog's key. Wire v8 drops
+        // the reference to the catalog itself, and the bound template then carries the member as
+        // null, which the legacy fingerprint must still read as the key the producer covered.
+        val ownTheme = { path: String, body: String ->
+            if (path == "resources/template/letter.json") body.replace("\"themeCatalogKey\":\"shared\"", "\"themeCatalogKey\":\"letters\"") else body
+        }
+        val producerV4 = CatalogCanonicalizer.fingerprint(boundWithPlainJackson { ownTheme("resources/template/letter.json", it) }, CatalogFingerprintVersion.V4).value
+        val signed = zip(signed = true) { path, body -> ownTheme(path, body).replace(V7_PRODUCER_V4, producerV4) }
+
+        val findings = CatalogValidator.validate(ByteArrayInputStream(signed), POLICY).findings
+
+        assertTrue(findings.none { it.code == "CATALOG_RELEASE_FINGERPRINT_MISMATCH" }, findings.toString())
+    }
+
+    @Test
     fun `a v7 fingerprint over different content still mismatches after migration`() {
         val tampered = zip(signed = true) { path, body ->
             if (path == "resources/template/letter.json") body.replace("\"title\":\"English\"", "\"title\":\"British\"") else body
