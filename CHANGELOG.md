@@ -1371,6 +1371,12 @@ libraries.
 
 ### Fixed
 
+- **A v7 template naming its theme by its own catalog's key still verifies** (catalog, wire v8
+  migration). Suite 1.x wrote a template's `themeCatalogKey` as its own catalog's key. The migration
+  drops a reference to the catalog itself, and the legacy fingerprint check put the key back only
+  where the bound template left the member out, not where it carried it as `null`, as it does for
+  `themeCatalogKey`. So every 1.x release holding such a template was refused with
+  `CATALOG_RELEASE_FINGERPRINT_MISMATCH`.
 - **The Kotlin, Python and .NET result collectors surface `releaseId` and `releaseName`.** All three
   parse result lines by hand and dropped the two members, so a consumer could not tell which draft
   rendered a document; the Jakarta and Node collectors hand over the generated model and had them.
