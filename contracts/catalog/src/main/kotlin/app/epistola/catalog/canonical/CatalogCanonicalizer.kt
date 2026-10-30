@@ -331,7 +331,9 @@ object CatalogCanonicalizer {
      * The catalog's own key, [ownKey], which the v7-to-v8 migration removes where content named the
      * catalog itself by it ([app.epistola.catalog.migration.CatalogReferenceQualifiers.dropOwnKey]),
      * is put back where the raw document had it: as a reference's `catalogKey` or
-     * `themeCatalogKey`, and as the qualifier of a variant's attribute key (`letters.locale`).
+     * `themeCatalogKey`, and as the qualifier of a variant's attribute key (`letters.locale`). A
+     * member the bound model carries as null (a template's `themeCatalogKey`) is as absent as one it
+     * leaves out.
      */
     private fun restoreKeys(
         model: JsonNode,
@@ -348,7 +350,7 @@ object CatalogCanonicalizer {
                 restored.set(rawName, restoreKeys(model[name], raw[rawName], ownKey))
             }
             OWN_KEY_MEMBERS
-                .filter { member -> !model.has(member) && raw[member]?.takeIf { it.isString }?.asString() == ownKey }
+                .filter { member -> model[member]?.isNull != false && raw[member]?.takeIf { it.isString }?.asString() == ownKey }
                 .forEach { member -> restored.put(member, ownKey) }
         }
         model is ArrayNode && raw is ArrayNode -> mapper.createArrayNode().also { restored ->
