@@ -11,6 +11,19 @@ libraries.
 
 ### Added
 
+- **Quality profiles** (alpha, wire v8, contract ADR 0010). A new resource type, `qualityProfile`,
+  records how an organisation writes: rules with a plain-language `intent`, a `severity`, an
+  optional `blocking` flag, a `scope` (field roles, components, languages), `examples`, and
+  `extras` per kind of checking system (`builtin`, typed: repeated words, a sentence limit, spacing,
+  word lists; any other kind an open object), plus `acceptedWords`. A catalog (`catalog.quality`)
+  and a template (`quality`) bind profiles, stacked, and may switch a rule off or change its
+  severity (`overrides`). A profile in another catalog is named by its dependency alias, like a
+  theme. Kotlin: `QualityProfileResource`, `QualityRule`, `QualityBinding`, `QualityProfiles` and
+  `DependencyRef.QualityProfile`; npm: the matching types and `QUALITY_SEVERITIES`,
+  `QUALITY_FIELD_ROLES`, `QUALITY_BUILTIN_TYPES`. Six validation codes, `CATALOG_QUALITY_*`. Additive:
+  catalogs without profiles keep their fingerprints, and an archive with one is refused by a build
+  that predates it.
+
 - **A template can be created with its data contract** (`createTemplate`). `CreateTemplateRequest`
   takes optional `dataModel` and `dataExamples`, as `updateTemplate` does, so a template need not
   exist without them. Omitted or null, the template gets the empty schema `{}`, which any data
