@@ -27,3 +27,17 @@ Direction:
     type: string
     enum: [asc, desc]
     default: desc
+
+SearchSort:
+  name: sort
+  in: query
+  required: false
+  description: |
+    How to order the hits of a search (alpha): `relevance`, best match first (see
+    `searchTenant`), or `lastModified`, most recently changed first. Omitted: `relevance` when `q`
+    is given, `lastModified` when it is not. The direction is fixed by the choice; `direction` does
+    not apply.
+  schema:
+    type: string
+    enum: [relevance, lastModified]
+    x-enum-varnames: [byRelevance, byLastModified]

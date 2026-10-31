@@ -56,6 +56,7 @@ public static class Driver
                 case "list-documents": ListDocuments(baseUrl, config); break;
                 case "get-generation-job-status": GetGenerationJobStatus(baseUrl, config); break;
                 case "list-generation-job-items": ListGenerationJobItems(baseUrl, config); break;
+                case "search-tenant": SearchTenant(baseUrl, config); break;
                 case "list-images": ListImages(baseUrl, config); break;
                 case "upload-image": UploadImage(baseUrl, config); break;
                 case "import-catalog": ImportCatalog(baseUrl, config); break;
@@ -627,6 +628,40 @@ public static class Driver
             ["catalogs"] = string.Join(",", documents.Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}")),
             ["templateKeys"] = string.Join(",", documents.Select(d => d.TemplateKey)),
             ["variantKeys"] = string.Join(",", documents.Select(d => d.VariantKey)),
+        });
+    }
+
+    /// <summary>
+    /// Searches the tenant (alpha) with the filters the scenario sets, each sent only when set, and
+    /// reports the grouped hits: per hit its catalogs, their states and the variants that matched.
+    /// </summary>
+    private static void SearchTenant(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var results = new SearchApi(http, apiBase).SearchTenant(
+            Str(config, "tenantKey"),
+            q: OptStr(config, "q"),
+            kind: OptStr(config, "kind"),
+            registry: OptStr(config, "registry"),
+            @namespace: OptStr(config, "namespace"),
+            catalogKey: OptStr(config, "catalogKey"),
+            supplied: OptBool(config, "supplied"),
+            changed: OptBool(config, "changed"),
+            sort: OptStr(config, "sort"),
+            page: config.TryGetProperty("page", out var page) && page.ValueKind == JsonValueKind.Number ? page.GetInt32() : null,
+            size: config.TryGetProperty("size", out var size) && size.ValueKind == JsonValueKind.Number ? size.GetInt32() : null);
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["kinds"] = string.Join(",", results.Items.Select(h => h.Kind)),
+            ["keys"] = string.Join(",", results.Items.Select(h => h.Key)),
+            ["names"] = string.Join("|", results.Items.Select(h => h.Name)),
+            ["catalogs"] = string.Join(";", results.Items.Select(h => string.Join("+",
+                h.Catalogs.Select(c => $"{c.Registry}/{c.Namespace}/{c.CatalogKey}#{c.ReleaseId}@{Show(c.Version)}")))),
+            ["catalogStates"] = string.Join(";", results.Items.Select(h => string.Join("+",
+                h.Catalogs.Select(c => $"{Bool(c.Editable)}:{(c.ReadOnlyReason is { } reason ? Wire(reason) : "null")}:{(c.Status is { } status ? Wire(status) : "null")}")))),
+            ["variants"] = string.Join(";", results.Items.Select(h => string.Join("+", h.Variants.Select(v => v.Key)))),
+            ["counts"] = string.Join(",", results.Counts.Select(c => $"{c.Kind}={c.Total}")),
+            ["total"] = Show(results.Page.Total),
         });
     }
 

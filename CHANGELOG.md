@@ -64,6 +64,20 @@ libraries.
   generate without default methods, a server must implement the five operations: one that does
   not support quality profiles yet answers 501 `operation-not-implemented`, and refuses a
   `quality` in a request the same way.
+- **Searching a tenant by name** (`searchTenant`, `GET /tenants/{tenantKey}/search`, alpha), the
+  REST side of Epistola Suite ADR 0043. It finds catalogs and the resources in them, of every type,
+  by name and key, in the release each catalog shows by default, and groups before it pages: a
+  variant is found under its template (`SearchHit.variants`), and one resource in several catalogs
+  is one hit listing each (`SearchHit.catalogs`, with the release searched and the resource's
+  status there). Filters `q`, `kind` (a string, as `SearchHit.kind` is, so a new resource type
+  needs no contract change), the catalog (`registry`, `namespace`, `catalogKey`), `supplied` and
+  `changed`; `sort` (`SearchSort`: `relevance` or `lastModified`); and `counts`, the hits per kind
+  under every filter but `kind`. A new `Search` tag, so the server stubs gain a `SearchApi`
+  interface of their own and no existing interface gains a method. Epistola Suite may not implement
+  it yet. Conformance scenarios `search-tenant` and `search-tenant-in-catalog` (driver action
+  `search-tenant`) hold all five clients to sending each filter only when set, the booleans as
+  `true` and `false`, and to reading grouped hits, a draft's missing version, a supplied catalog's
+  read-only reason and a kind they do not know.
 
 - **A template can be created with its data contract** (`createTemplate`). `CreateTemplateRequest`
   takes optional `dataModel` and `dataExamples`, as `updateTemplate` does, so a template need not
