@@ -129,6 +129,33 @@ tasks.openApiGenerate {
     }
 }
 
+// An enum-typed query parameter is written with toString(), which returns the constant's name.
+// "original" naming above makes that the wire value only while the two are equal; a parameter whose
+// constants are renamed with x-enum-varnames (`name` is reserved on a Kotlin enum) sent its constant
+// name: `sort=byName` for listTemplates, `sort=byRelevance` for searchTenant. Each parameter enum
+// the generator nests in an API class gets a toString() returning its wire value. Fails the build if
+// the generator's output stops matching, since the conformance scenario would otherwise be the only
+// thing to notice.
+tasks.openApiGenerate {
+    doLast {
+        val apiDir = generatedDir.get().asFile.resolve("src/main/kotlin/app/epistola/client/api")
+        val parameterEnum = Regex("""(enum class \w+\(val value: kotlin\.String\) \{(?:\n\s*@JsonProperty[^\n]*)+)\n(\s*)\}""")
+        var patched = 0
+        apiDir.listFiles { file -> file.name.endsWith("Api.kt") }!!.forEach { file ->
+            val source = file.readText()
+            val result = parameterEnum.replace(source) { match ->
+                patched++
+                val indent = match.groupValues[2]
+                "${match.groupValues[1]};\n\n$indent    override fun toString(): kotlin.String = value\n$indent}"
+            }
+            if (result != source) file.writeText(result)
+        }
+        check(patched > 0) {
+            "No enum query parameter matched in the generated APIs; the toString patch in build.gradle.kts needs updating"
+        }
+    }
+}
+
 // The spec-walking these three tasks share with the Jakarta client lives in build-logic; only the
 // emitted syntax differs, so only the emitted syntax is here.
 apply(from = "$rootDir/../../build-logic/contract-spec-model.gradle.kts")
