@@ -12,6 +12,7 @@ import app.epistola.client.api.ConsumersApi
 import app.epistola.client.api.EnvironmentsApi
 import app.epistola.client.api.GenerationApi
 import app.epistola.client.api.ImagesApi
+import app.epistola.client.api.SearchApi
 import app.epistola.client.api.StencilsApi
 import app.epistola.client.api.SystemApi
 import app.epistola.client.api.TemplatesApi
@@ -113,6 +114,7 @@ object Driver {
                 "list-documents" -> listDocuments(baseUrl, config)
                 "get-generation-job-status" -> getGenerationJobStatus(baseUrl, config)
                 "list-generation-job-items" -> listGenerationJobItems(baseUrl, config)
+                "search-tenant" -> searchTenant(baseUrl, config)
                 "list-images" -> listImages(baseUrl, config)
                 "upload-image" -> uploadImage(baseUrl, config)
                 "import-catalog" -> importCatalog(baseUrl, config)
@@ -616,6 +618,43 @@ object Driver {
                 "catalogs" to documents.joinToString(",") { "${it.registry}/${it.namespace}/${it.catalogKey}" },
                 "templateKeys" to documents.joinToString(",") { it.templateKey },
                 "variantKeys" to documents.joinToString(",") { it.variantKey },
+            ),
+        )
+    }
+
+    /**
+     * Searches the tenant (alpha) with the filters the scenario sets, each sent only when set, and
+     * reports the grouped hits: per hit its catalogs, their states and the variants that matched.
+     */
+    private fun searchTenant(baseUrl: String, config: ObjectNode) {
+        val results = SearchApi(restClient(baseUrl, config)).searchTenant(
+            config["tenantKey"].asText(),
+            q = config.optionalText("q"),
+            kind = config.optionalText("kind"),
+            registry = config.optionalText("registry"),
+            namespace = config.optionalText("namespace"),
+            catalogKey = config.optionalText("catalogKey"),
+            supplied = config.optionalBoolean("supplied"),
+            changed = config.optionalBoolean("changed"),
+            sort = config.optionalText("sort")?.let { sort -> SearchApi.SortSearchTenant.entries.single { it.value == sort } },
+            page = config.get("page")?.takeUnless { it.isNull }?.asInt(),
+            size = config.get("size")?.takeUnless { it.isNull }?.asInt(),
+        )
+        report(
+            baseUrl,
+            mapOf(
+                "kinds" to results.items.joinToString(",") { it.kind },
+                "keys" to results.items.joinToString(",") { it.key },
+                "names" to results.items.joinToString("|") { it.name },
+                "catalogs" to results.items.joinToString(";") { hit ->
+                    hit.catalogs.joinToString("+") { "${it.registry}/${it.namespace}/${it.catalogKey}#${it.releaseId}@${it.version ?: "null"}" }
+                },
+                "catalogStates" to results.items.joinToString(";") { hit ->
+                    hit.catalogs.joinToString("+") { "${it.editable}:${it.readOnlyReason?.value ?: "null"}:${it.status?.value ?: "null"}" }
+                },
+                "variants" to results.items.joinToString(";") { hit -> hit.variants.joinToString("+") { it.key } },
+                "counts" to results.counts.joinToString(",") { "${it.kind}=${it.total}" },
+                "total" to results.page.total.toString(),
             ),
         )
     }

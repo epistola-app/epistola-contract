@@ -45,6 +45,7 @@ const ACTION_OPERATIONS = {
   'list-documents': { method: 'get', path: '/tenants/{tenantKey}/documents' },
   'get-generation-job-status': { method: 'get', path: '/tenants/{tenantKey}/documents/jobs/{requestId}' },
   'list-generation-job-items': { method: 'get', path: '/tenants/{tenantKey}/documents/jobs/{requestId}/items' },
+  'search-tenant': { method: 'get', path: '/tenants/{tenantKey}/search' },
   'list-images': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/images' },
   'upload-image': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/images' },
   'download-image': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/images/{imageKey}/content' },

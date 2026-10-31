@@ -892,6 +892,12 @@ tags:
     description: |
       Generating documents: synchronous preview, asynchronous single and batch generation, jobs,
       documents, and collecting results as a stream
+  - name: Search
+    description: |
+      Finding catalogs and the resources in them across a tenant, by name (alpha).
+
+      **Alpha**, like every operation in this group (`x-experimental: true`): see "Experimental
+      parts and server support" in the API description.
 
 # Global security — either method is accepted. authorizationApiKeyAuth is the supported path;
 # bearerAuth (JWT) is experimental.
@@ -1053,6 +1059,10 @@ paths:
   /tenants/{tenantKey}/release-registries/{name}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{version}/install:
     $ref: './paths/release-registries.yaml#/registry-release-install'
 
+  # Search (alpha)
+  /tenants/{tenantKey}/search:
+    $ref: './paths/search.yaml#/search'
+
   # Catalog Import
   /tenants/{tenantKey}/catalogs/import:
     $ref: './paths/import.yaml#/import-catalog'
@@ -1112,6 +1122,18 @@ components:
     # Shared building blocks
     PageMeta:
       $ref: './components/schemas/common.yaml#/PageMeta'
+
+    # Search (alpha)
+    SearchResults:
+      $ref: './components/schemas/search.yaml#/SearchResults'
+    SearchHit:
+      $ref: './components/schemas/search.yaml#/SearchHit'
+    SearchHitCatalog:
+      $ref: './components/schemas/search.yaml#/SearchHitCatalog'
+    SearchHitVariant:
+      $ref: './components/schemas/search.yaml#/SearchHitVariant'
+    SearchKindCount:
+      $ref: './components/schemas/search.yaml#/SearchKindCount'
 
     # Ping/Pong schemas
     PingRequest:

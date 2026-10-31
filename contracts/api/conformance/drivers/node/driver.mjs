@@ -24,6 +24,7 @@ const {
   EnvironmentsApi,
   EpistolaClient,
   GenerationApi,
+  SearchApi,
   ImagesApi,
   JwtSigner,
   ProblemDetailException,
@@ -50,6 +51,7 @@ const ACTIONS = {
   'list-documents': listDocuments,
   'get-generation-job-status': getGenerationJobStatus,
   'list-generation-job-items': listGenerationJobItems,
+  'search-tenant': searchTenant,
   'list-images': listImages,
   'upload-image': uploadImage,
   'import-catalog': importCatalog,
@@ -320,6 +322,32 @@ async function listGenerationJobItems(baseUrl, config) {
     documentIds: response.items.map((item) => show(item.documentId)).join(','),
     correlationIds: response.items.map((item) => show(item.correlationId)).join(','),
     total: show(response.page.total),
+  })
+}
+
+/**
+ * Searches the tenant (alpha) with the filters the scenario sets, each sent only when set, and
+ * reports the grouped hits: per hit its catalogs, their states and the variants that matched.
+ */
+async function searchTenant(baseUrl, config) {
+  const request = { tenantKey: config.tenantKey }
+  for (const name of ['q', 'kind', 'registry', 'namespace', 'catalogKey', 'supplied', 'changed', 'sort', 'page', 'size']) {
+    if (config[name] !== undefined) request[name] = config[name]
+  }
+  const results = await new SearchApi(client(baseUrl, config)).searchTenant(request)
+  await report(baseUrl, {
+    kinds: results.items.map((hit) => hit.kind).join(','),
+    keys: results.items.map((hit) => hit.key).join(','),
+    names: results.items.map((hit) => hit.name).join('|'),
+    catalogs: results.items
+      .map((hit) => hit.catalogs.map((c) => `${c.registry}/${c.namespace}/${c.catalogKey}#${c.releaseId}@${show(c.version)}`).join('+'))
+      .join(';'),
+    catalogStates: results.items
+      .map((hit) => hit.catalogs.map((c) => `${show(c.editable)}:${show(c.readOnlyReason)}:${show(c.status)}`).join('+'))
+      .join(';'),
+    variants: results.items.map((hit) => hit.variants.map((v) => v.key).join('+')).join(';'),
+    counts: results.counts.map((c) => `${c.kind}=${c.total}`).join(','),
+    total: show(results.page.total),
   })
 }
 

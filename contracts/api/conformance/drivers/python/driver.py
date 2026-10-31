@@ -39,6 +39,7 @@ from epistola_client import (
     GenerateDocumentRequest,
     GenerationApi,
     ImagesApi,
+    SearchApi,
     JwtSigner,
     MergeIntoCatalogDraftRequest,
     PingRequest,
@@ -90,6 +91,7 @@ def main() -> int:
         "list-documents": _list_documents,
         "get-generation-job-status": _get_generation_job_status,
         "list-generation-job-items": _list_generation_job_items,
+        "search-tenant": _search_tenant,
         "list-images": _list_images,
         "upload-image": _upload_image,
         "import-catalog": _import_catalog,
@@ -402,6 +404,53 @@ def _list_generation_job_items(base_url: str, config: dict) -> None:
             "documentIds": ",".join(_show(item.document_id) for item in response.items),
             "correlationIds": ",".join(_show(item.correlation_id) for item in response.items),
             "total": _show(response.page.total),
+        },
+    )
+
+
+def _search_tenant(base_url: str, config: dict) -> None:
+    """Searches the tenant (alpha) with the filters the scenario sets, each sent only when set, and
+    reports the grouped hits: per hit its catalogs, their states and the variants that matched."""
+    filters = {
+        python_name: config[name]
+        for name, python_name in (
+            ("q", "q"),
+            ("kind", "kind"),
+            ("registry", "registry"),
+            ("namespace", "namespace"),
+            ("catalogKey", "catalog_key"),
+            ("supplied", "supplied"),
+            ("changed", "changed"),
+            ("sort", "sort"),
+            ("page", "page"),
+            ("size", "size"),
+        )
+        if name in config
+    }
+    results = SearchApi(_client(base_url, config)).search_tenant(config["tenantKey"], **filters)
+    _report(
+        base_url,
+        {
+            "kinds": ",".join(hit.kind for hit in results.items),
+            "keys": ",".join(hit.key for hit in results.items),
+            "names": "|".join(hit.name for hit in results.items),
+            "catalogs": ";".join(
+                "+".join(
+                    f"{c.registry}/{c.namespace}/{c.catalog_key}#{c.release_id}@{_show(c.version)}"
+                    for c in hit.catalogs
+                )
+                for hit in results.items
+            ),
+            "catalogStates": ";".join(
+                "+".join(
+                    f"{_show_bool(c.editable)}:{_show(_enum(c.read_only_reason))}:{_show(_enum(c.status))}"
+                    for c in hit.catalogs
+                )
+                for hit in results.items
+            ),
+            "variants": ";".join("+".join(v.key for v in hit.variants) for hit in results.items),
+            "counts": ",".join(f"{c.kind}={c.total}" for c in results.counts),
+            "total": _show(results.page.total),
         },
     )
 
