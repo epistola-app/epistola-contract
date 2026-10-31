@@ -145,6 +145,7 @@ data class CatalogDependency(
     JsonSubTypes.Type(value = DependencyRef.Image::class, name = "image"),
     JsonSubTypes.Type(value = DependencyRef.CodeList::class, name = "codeList"),
     JsonSubTypes.Type(value = DependencyRef.Font::class, name = "font"),
+    JsonSubTypes.Type(value = DependencyRef.QualityProfile::class, name = "qualityProfile"),
 )
 sealed class DependencyRef {
     /**
@@ -206,6 +207,12 @@ sealed class DependencyRef {
         @JsonAlias("slug")
         override val key: String,
     ) : DependencyRef()
+
+    /** Quality profile in another catalog (wire v8, contract ADR 0010). */
+    data class QualityProfile(
+        override val catalogKey: String,
+        override val key: String,
+    ) : DependencyRef()
 }
 
 /**
@@ -219,7 +226,7 @@ sealed class DependencyRef {
  * Its members are of three kinds (contract ADR 0003, amendment of 2026-10-22):
  * - **the name**: [registry] (the authority, a domain), [namespace] and [key];
  * - **content**, which the fingerprint (V6) covers and which a release fixes: [defaultTheme],
- *   [presets] and [license];
+ *   [presets], [quality] and [license];
  * - **presentation**, information about the name rather than the release: [name], [description],
  *   [keywords], [presentation] (which images to show; the image resources themselves are content)
  *   and [attributes] (discovery labels). The fingerprint does not cover it, so it can be updated
@@ -262,6 +269,13 @@ class CatalogInfo private constructor(
     @get:JsonInclude(JsonInclude.Include.NON_NULL)
     val defaultTheme: CatalogThemeRef?,
     presets: List<CatalogPresetDeclaration>,
+    /**
+     * The quality profiles every template of the catalog uses, and the catalog's overrides of their
+     * rules (wire v8, contract ADR 0010); null means none. A template adds its own
+     * ([TemplateResource.quality]). Omitted from the JSON when null.
+     */
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val quality: QualityBinding?,
 ) {
     /** Immutable attributes applied to this catalog, preserving authored order. */
     val attributes: List<AttributeAssignment> = Collections.unmodifiableList(attributes.toList())
@@ -284,9 +298,9 @@ class CatalogInfo private constructor(
 
     /** Source-compatible constructor retained from catalog 1.0.1. */
     constructor(key: String, name: String, description: String? = null) :
-        this(key, name, description, emptyList(), emptySet(), null, null, null, null, null, emptyList())
+        this(key, name, description, emptyList(), emptySet(), null, null, null, null, null, emptyList(), null)
 
-    /** Copies the catalog while replacing any discovery metadata, its default theme or its declared presets. */
+    /** Copies the catalog while replacing any discovery metadata, its default theme, its declared presets or its quality profiles. */
     fun copyWithMetadata(
         attributes: List<AttributeAssignment> = this.attributes,
         keywords: Set<String> = this.keywords,
@@ -294,13 +308,14 @@ class CatalogInfo private constructor(
         license: CatalogLicense? = this.license,
         defaultTheme: CatalogThemeRef? = this.defaultTheme,
         presets: List<CatalogPresetDeclaration> = this.presets,
-    ): CatalogInfo = CatalogInfo(key, name, description, attributes, keywords, presentation, license, namespace, registry, defaultTheme, presets)
+        quality: QualityBinding? = this.quality,
+    ): CatalogInfo = CatalogInfo(key, name, description, attributes, keywords, presentation, license, namespace, registry, defaultTheme, presets, quality)
 
     /** Copies the catalog with [registry] and [namespace] in place of its current ones. */
     fun withNamespace(
         registry: String?,
         namespace: String?,
-    ): CatalogInfo = CatalogInfo(key, name, description, attributes, keywords, presentation, license, namespace, registry, defaultTheme, presets)
+    ): CatalogInfo = CatalogInfo(key, name, description, attributes, keywords, presentation, license, namespace, registry, defaultTheme, presets, quality)
 
     override fun equals(other: Any?): Boolean = this === other ||
         other is CatalogInfo &&
@@ -314,7 +329,8 @@ class CatalogInfo private constructor(
         presentation == other.presentation &&
         license == other.license &&
         defaultTheme == other.defaultTheme &&
-        presets == other.presets
+        presets == other.presets &&
+        quality == other.quality
 
     override fun hashCode(): Int {
         var result = key.hashCode()
@@ -328,11 +344,12 @@ class CatalogInfo private constructor(
         result = 31 * result + (license?.hashCode() ?: 0)
         result = 31 * result + (defaultTheme?.hashCode() ?: 0)
         result = 31 * result + presets.hashCode()
+        result = 31 * result + (quality?.hashCode() ?: 0)
         return result
     }
 
     override fun toString(): String = "CatalogInfo(registry=$registry, namespace=$namespace, key=$key, name=$name, description=$description, " +
-        "attributes=$attributes, keywords=$keywords, presentation=$presentation, license=$license, defaultTheme=$defaultTheme, presets=$presets)"
+        "attributes=$attributes, keywords=$keywords, presentation=$presentation, license=$license, defaultTheme=$defaultTheme, presets=$presets, quality=$quality)"
 
     companion object {
         /** Creates a catalog identity with optional discovery metadata. */
@@ -350,6 +367,7 @@ class CatalogInfo private constructor(
             @JsonProperty("registry") registry: String? = null,
             @JsonProperty("defaultTheme") defaultTheme: CatalogThemeRef? = null,
             @JsonProperty("presets") presets: List<CatalogPresetDeclaration>? = null,
+            @JsonProperty("quality") quality: QualityBinding? = null,
         ): CatalogInfo = CatalogInfo(
             key,
             name,
@@ -362,6 +380,7 @@ class CatalogInfo private constructor(
             registry,
             defaultTheme,
             presets.orEmpty(),
+            quality,
         )
 
         private fun immutableSortedSet(values: Set<String>): Set<String> = when {

@@ -62,6 +62,7 @@ internal object CatalogWireSchemaCheck {
             "image" to "ImageResource",
             "codeList" to "CodeListResource",
             "font" to "FontResource",
+            "qualityProfile" to "QualityProfileResource",
         ).mapValues { (_, definition) -> schemaAt("resource-detail-v8.schema.json#/\$defs/$definition") }
     }
 
