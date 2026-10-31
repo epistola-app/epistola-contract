@@ -1436,6 +1436,13 @@ libraries.
 
 ### Fixed
 
+- **Kotlin client: an enum query parameter with renamed constants sends its wire value.** A
+  parameter whose constants `x-enum-varnames` renames (`name` is reserved on a Kotlin enum) was
+  serialized with `toString()`, its constant name: `listTemplates(sort = SortListTemplates.byName)`
+  sent `sort=byName` rather than `sort=name`. Every enum the generator nests in an API class now
+  returns its wire value from `toString()`; the build fails if the generated code stops matching
+  the patch. Found by the `search-tenant` conformance scenario on its first run (`sort=byRelevance`).
+
 - **A v7 template naming its theme by its own catalog's key still verifies** (catalog, wire v8
   migration). Suite 1.x wrote a template's `themeCatalogKey` as its own catalog's key. The migration
   drops a reference to the catalog itself, and the legacy fingerprint check put the key back only
