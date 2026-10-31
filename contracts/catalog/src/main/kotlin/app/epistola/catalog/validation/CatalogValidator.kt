@@ -38,6 +38,10 @@ import app.epistola.catalog.protocol.FontResource
 import app.epistola.catalog.protocol.ImageResource
 import app.epistola.catalog.protocol.KeywordRule
 import app.epistola.catalog.protocol.PresetRule
+import app.epistola.catalog.protocol.QualityBinding
+import app.epistola.catalog.protocol.QualityProfileRef
+import app.epistola.catalog.protocol.QualityProfileResource
+import app.epistola.catalog.protocol.QualityProfiles
 import app.epistola.catalog.protocol.ReleaseBase
 import app.epistola.catalog.protocol.ResourceDetail
 import app.epistola.catalog.protocol.ResourceEntry
@@ -229,6 +233,22 @@ object CatalogValidationCodes {
     const val KEYWORD_DUPLICATE = "CATALOG_KEYWORD_DUPLICATE"
     const val KEYWORD_TOO_LONG = "CATALOG_KEYWORD_TOO_LONG"
     const val KEYWORD_LIMIT_EXCEEDED = "CATALOG_KEYWORD_LIMIT_EXCEEDED"
+
+    /** A quality profile's rule id is not a key, or is used twice in the profile (contract ADR 0010). */
+    const val QUALITY_RULE_ID_INVALID = "CATALOG_QUALITY_RULE_ID_INVALID"
+    const val QUALITY_RULE_ID_DUPLICATE = "CATALOG_QUALITY_RULE_ID_DUPLICATE"
+
+    /** A severity is not one of [app.epistola.catalog.protocol.QualityProfiles.SEVERITIES]. */
+    const val QUALITY_SEVERITY_INVALID = "CATALOG_QUALITY_SEVERITY_INVALID"
+
+    /** A rule's scope names a field role [app.epistola.catalog.protocol.QualityProfiles.FIELD_ROLES] does not know. */
+    const val QUALITY_RULE_SCOPE_INVALID = "CATALOG_QUALITY_RULE_SCOPE_INVALID"
+
+    /** A rule's `builtin` extra has an unknown type or a parameter that type does not take or needs. */
+    const val QUALITY_RULE_EXTRA_INVALID = "CATALOG_QUALITY_RULE_EXTRA_INVALID"
+
+    /** An override names a rule the profile, held in this catalog, does not have. */
+    const val QUALITY_OVERRIDE_RULE_UNKNOWN = "CATALOG_QUALITY_OVERRIDE_RULE_UNKNOWN"
     const val PRESENTATION_ASSET_MISSING = "CATALOG_PRESENTATION_ASSET_MISSING"
     const val PRESENTATION_RESOURCE_NOT_ASSET = "CATALOG_PRESENTATION_RESOURCE_NOT_ASSET"
     const val PRESENTATION_ASSET_MEDIA_TYPE_INVALID = "CATALOG_PRESENTATION_ASSET_MEDIA_TYPE_INVALID"
@@ -384,6 +404,7 @@ object ResourceValidator {
             is CodeListResource -> validateCodeList(resource, "$path.resource", findings)
             is ImageResource -> validateImage(resource, context, "$path.resource", findings)
             is FontResource -> validateFont(resource, context, "$path.resource", findings)
+            is QualityProfileResource -> validateQualityProfile(resource, "$path.resource", findings)
         }
         resource.metadata?.let {
             validateMetadata(
@@ -441,6 +462,7 @@ object ResourceValidator {
             )
         }
         validateDocument(resource.templateModel, context, "$path.templateModel", null, findings)
+        resource.quality?.let { validateQualityBinding(it, context, "$path.quality", findings) }
         val variantKeys = mutableSetOf<String>()
         resource.variants.forEachIndexed { index, variant ->
             validateKey(variant.key, "$path.variants[$index].key", findings)
@@ -658,6 +680,91 @@ object ResourceValidator {
                 "$path.codeListBinding",
                 findings,
             )
+        }
+    }
+
+    /** Rule ids are keys and unique, severities and scope roles known, `builtin` extras well formed (contract ADR 0010). */
+    private fun validateQualityProfile(
+        resource: QualityProfileResource,
+        path: String,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        val ids = mutableSetOf<String>()
+        resource.rules.forEachIndexed { index, rule ->
+            val rulePath = "$path.rules[$index]"
+            when {
+                !QualityProfiles.isValidRuleId(rule.id) -> findings.error(
+                    CatalogValidationCodes.QUALITY_RULE_ID_INVALID,
+                    "$rulePath.id",
+                    "rule id must be ${CatalogKeys.MIN_LENGTH} to ${CatalogKeys.MAX_LENGTH} characters matching ${CatalogKeys.PATTERN}",
+                )
+                !ids.add(rule.id) -> findings.error(CatalogValidationCodes.QUALITY_RULE_ID_DUPLICATE, "$rulePath.id", "rule id '${rule.id}' is duplicated")
+            }
+            validateSeverity(rule.severity, "$rulePath.severity", findings)
+            rule.scope?.roles?.forEach { role ->
+                if (role !in QualityProfiles.FIELD_ROLES) {
+                    findings.error(
+                        CatalogValidationCodes.QUALITY_RULE_SCOPE_INVALID,
+                        "$rulePath.scope.roles",
+                        "unknown field role '$role'; one of ${QualityProfiles.FIELD_ROLES.joinToString()}",
+                    )
+                }
+            }
+            rule.extras?.get(QualityProfiles.BUILTIN_KIND)?.let { builtin ->
+                QualityProfiles.builtinViolation(builtin)?.let {
+                    findings.error(CatalogValidationCodes.QUALITY_RULE_EXTRA_INVALID, "$rulePath.extras.${QualityProfiles.BUILTIN_KIND}", it)
+                }
+            }
+        }
+    }
+
+    private fun validateSeverity(
+        severity: String,
+        path: String,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        if (severity !in QualityProfiles.SEVERITIES) {
+            findings.error(CatalogValidationCodes.QUALITY_SEVERITY_INVALID, path, "severity must be one of ${QualityProfiles.SEVERITIES.joinToString()}")
+        }
+    }
+
+    /**
+     * A quality binding's profiles resolve, its overrides' severities are known, and an override of a
+     * profile held in this catalog names a rule that profile has (contract ADR 0010). A profile in
+     * another catalog is not read here, so its rule ids are the consumer's to check.
+     */
+    internal fun validateQualityBinding(
+        binding: QualityBinding,
+        context: ResourceValidationContext,
+        path: String,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        fun validateProfile(profile: QualityProfileRef, profilePath: String) {
+            profile.catalogKey?.let { alias ->
+                if (!CatalogAliases.isValid(alias)) {
+                    findings.error(
+                        CatalogValidationCodes.RESOURCE_KEY_INVALID,
+                        "$profilePath.catalogKey",
+                        "catalogKey must be an alias, ${CatalogAliases.MIN_LENGTH} to ${CatalogAliases.MAX_LENGTH} characters matching ${CatalogAliases.PATTERN}",
+                    )
+                }
+            }
+            validateReference(CatalogResourceReference("qualityProfile", profile.key, profile.catalogKey), context, "$profilePath.key", findings)
+        }
+        binding.profiles.forEachIndexed { index, profile -> validateProfile(profile, "$path.profiles[$index]") }
+        binding.overrides.forEachIndexed { index, override ->
+            val overridePath = "$path.overrides[$index]"
+            validateProfile(override.profile, "$overridePath.profile")
+            override.severity?.let { validateSeverity(it, "$overridePath.severity", findings) }
+            val local = override.profile.catalogKey == null || override.profile.catalogKey == context.catalogKey
+            val profile = if (local) context.resources["qualityProfile/${override.profile.key}"] as? QualityProfileResource else null
+            if (profile != null && profile.rules.none { it.id == override.ruleId }) {
+                findings.error(
+                    CatalogValidationCodes.QUALITY_OVERRIDE_RULE_UNKNOWN,
+                    "$overridePath.ruleId",
+                    "quality profile '${profile.key}' has no rule '${override.ruleId}'",
+                )
+            }
         }
     }
 
@@ -978,6 +1085,7 @@ object CatalogValidator {
             content = catalog.content,
         )
         manifest.catalog.defaultTheme?.let { validateDefaultTheme(manifest, it, context, findings) }
+        manifest.catalog.quality?.let { validateCatalogQuality(manifest, it, context, findings) }
         catalog.resourceDetails.toSortedMap().forEach { (key, detail) ->
             findings += ResourceValidator.validate(detail, context, "resources/$key.json").findings
         }
@@ -1247,6 +1355,31 @@ object CatalogValidator {
                     "defaultTheme names the catalog's own key '$alias'; a theme of the catalog itself names no catalog"
                 } else {
                     "defaultTheme names the catalog alias '$alias', which catalogDependencies does not declare"
+                },
+            )
+        }
+    }
+
+    /** The catalog's quality binding, as a template's is, and every alias it names declared (contract ADR 0010). */
+    private fun validateCatalogQuality(
+        manifest: CatalogManifest,
+        binding: QualityBinding,
+        context: ResourceValidationContext,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        val path = "catalog.json.catalog.quality"
+        ResourceValidator.validateQualityBinding(binding, context, path, findings)
+        val references = mutableListOf<CatalogReferences.Reference>()
+        CatalogReferences.inQualityBinding(binding, path, references)
+        val declared = manifest.catalogDependencies.orEmpty().mapTo(mutableSetOf()) { it.alias }
+        references.filter { it.alias !in declared }.forEach { reference ->
+            findings.error(
+                CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED,
+                reference.path,
+                if (reference.alias == manifest.catalog.key) {
+                    "quality names the catalog's own key '${reference.alias}'; a profile of the catalog itself names no catalog"
+                } else {
+                    "quality names the catalog alias '${reference.alias}', which catalogDependencies does not declare"
                 },
             )
         }
@@ -1535,6 +1668,7 @@ object CatalogValidator {
                 is DependencyRef.CodeList -> "codeList"
                 is DependencyRef.Font -> "font"
                 is DependencyRef.Image -> "image"
+                is DependencyRef.QualityProfile -> "qualityProfile"
             }
             val alias = dependency.catalogKey
             val key = "$type|$alias|${dependency.key}"

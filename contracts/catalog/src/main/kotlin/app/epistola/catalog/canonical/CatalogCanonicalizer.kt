@@ -515,7 +515,7 @@ object CatalogCanonicalizer {
                         "copyrightText" to license.copyrightText,
                     )
                 },
-            ),
+            ).also { content -> putQuality(content, info) },
             "resources" to manifest.resources
                 .sortedWith(compareBy({ it.type }, { it.key }))
                 .map { resource ->
@@ -635,6 +635,20 @@ object CatalogCanonicalizer {
                 .sortedWith(compareBy({ it.key }, { it.name }, { it.description }))
                 .map { preset -> linkedMapOf("key" to preset.key, "name" to preset.name, "description" to preset.description) }
         }
+        putQuality(catalog, info)
+    }
+
+    /**
+     * V5 and V6 cover the catalog's quality binding (wire v8, contract ADR 0010): which profiles its
+     * templates are checked against, and its overrides of their rules, are content. Written only when
+     * present, so a catalog without one keeps the fingerprint it had before quality profiles existed;
+     * in authored order, written as the model writes it.
+     */
+    private fun putQuality(
+        catalog: MutableMap<String, Any?>,
+        info: CatalogInfo,
+    ) {
+        info.quality?.let { catalog["quality"] = mapper.valueToTree(it) }
     }
 
     private fun canonicalCatalogInfo(
@@ -738,6 +752,7 @@ object CatalogCanonicalizer {
         is DependencyRef.CodeList -> "codeList" to catalogKey
         is DependencyRef.Font -> "font" to catalogKey
         is DependencyRef.Image -> "image" to catalogKey
+        is DependencyRef.QualityProfile -> "qualityProfile" to catalogKey
     }
 
     /**

@@ -67,5 +67,11 @@
   "CATALOG_PRESET_KEY_INVALID": "a declared preset's key is outside the preset key rule (wire v8)",
   "CATALOG_PRESET_DUPLICATE": "the catalog declares the same preset key more than once (wire v8)",
   "CATALOG_PRESET_NAME_INVALID": "a declared preset's name is blank or longer than 100 characters (wire v8)",
-  "CATALOG_PRESET_DESCRIPTION_INVALID": "a declared preset's description is longer than 500 characters (wire v8)"
+  "CATALOG_PRESET_DESCRIPTION_INVALID": "a declared preset's description is longer than 500 characters (wire v8)",
+  "CATALOG_QUALITY_RULE_ID_INVALID": "a quality profile's rule id is not a key (wire v8, contract ADR 0010)",
+  "CATALOG_QUALITY_RULE_ID_DUPLICATE": "a quality profile uses the same rule id more than once (wire v8)",
+  "CATALOG_QUALITY_SEVERITY_INVALID": "a quality rule's or override's severity is not info, warning or error (wire v8)",
+  "CATALOG_QUALITY_RULE_SCOPE_INVALID": "a quality rule's scope names an unknown field role (wire v8)",
+  "CATALOG_QUALITY_RULE_EXTRA_INVALID": "a quality rule's builtin extra has an unknown type, or a parameter that type does not take or needs (wire v8)",
+  "CATALOG_QUALITY_OVERRIDE_RULE_UNKNOWN": "a quality override names a rule the profile, held in the same catalog, does not have (wire v8)"
 }

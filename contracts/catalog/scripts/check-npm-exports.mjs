@@ -175,12 +175,15 @@ const sharedSchema = sharedTemplateSchema;
 const detailDefs = detailSchema.$defs;
 const manifestDefs = manifestSchema.$defs;
 const resourceKeys = [
-  ...['TemplateResource', 'ThemeResource', 'StencilResource', 'AttributeResource', 'ImageResource', 'CodeListResource', 'FontResource']
+  ...['TemplateResource', 'ThemeResource', 'StencilResource', 'AttributeResource', 'ImageResource', 'CodeListResource', 'FontResource', 'QualityProfileResource']
     .map((type) => [`${type} key`, detailDefs[type].properties.key]),
   ['template themeKey', detailDefs.TemplateResource.properties.themeKey],
   ['code list binding key', detailDefs.CodeListBindingRef.properties.key],
   ['data example key', detailDefs.DataExampleEntry.properties.key],
   ['variant key', detailDefs.VariantEntry.properties.key],
+  ['quality rule id', detailDefs.QualityRule.properties.id],
+  ['quality profile reference key', detailDefs.QualityProfileRef.properties.key],
+  ['quality override rule id', detailDefs.QualityRuleOverride.properties.ruleId],
   ['manifest resource entry key', manifestDefs.ResourceEntry.properties.key],
   ['dependency key', manifestDefs.CatalogDependencyRef.properties.key],
   ['attribute assignment key', manifestDefs.AttributeAssignment.properties.key],
@@ -188,6 +191,14 @@ const resourceKeys = [
   ['presentation imageKeys', manifestDefs.CatalogPresentation.properties.imageKeys.items],
   ['theme reference themeKey', sharedSchema.$defs.ThemeRef.oneOf[1].properties.themeKey],
 ];
+// Quality profiles (contract ADR 0010): the npm lists are the schema's.
+assert.deepEqual([...catalog.QUALITY_SEVERITIES], detailDefs.QualityRule.properties.severity.enum, 'npm and schema quality severities must agree');
+assert.deepEqual([...catalog.QUALITY_FIELD_ROLES], detailDefs.QualityRuleScope.properties.roles.items.enum, 'npm and schema quality field roles must agree');
+assert.deepEqual(
+  [...catalog.QUALITY_BUILTIN_TYPES],
+  detailDefs.QualityBuiltinExtra.oneOf.map((option) => option.properties.type.const),
+  'npm and schema quality builtin types must agree',
+);
 // A variant's attribute key may be qualified by a catalog key (`system.locale`), so it has a rule of its own.
 const variantAttributeKey = detailDefs.VariantEntry.properties.attributes.oneOf[0].propertyNames;
 assert.equal(catalog.CATALOG_ATTRIBUTE_KEY_PATTERN, variantAttributeKey.pattern, 'npm and schema variant attribute key patterns must agree');

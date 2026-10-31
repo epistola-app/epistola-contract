@@ -180,6 +180,10 @@
           "items": {
             "$ref": "#/$defs/CatalogPresetDeclaration"
           }
+        },
+        "quality": {
+          "description": "The quality profiles every template of the catalog uses, and the catalog's overrides of their rules (wire v8, contract ADR 0010). Content: the fingerprint covers it. Omitted when none.",
+          "$ref": "resource-detail-v8.schema.json#/$defs/QualityBinding"
         }
       },
       "required": [
@@ -537,7 +541,8 @@
             "stencil",
             "codeList",
             "font",
-            "image"
+            "image",
+            "qualityProfile"
           ]
         },
         "catalogKey": {
