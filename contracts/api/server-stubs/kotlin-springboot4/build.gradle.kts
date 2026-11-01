@@ -316,6 +316,16 @@ openApiGenerate {
             "Orientation" to "app.epistola.template.model.Orientation",
             "DocumentStyles" to "app.epistola.template.model.DocumentStyles",
             "BlockStylePreset" to "app.epistola.template.model.BlockStylePreset",
+            // Quality profiles are the catalog's own types, so the server binds the wire shape exactly:
+            // a rule's extras of every kind survive, typed as the catalog model types them.
+            "QualityRule" to "app.epistola.catalog.protocol.QualityRule",
+            "QualityRuleScope" to "app.epistola.catalog.protocol.QualityRuleScope",
+            "QualityRuleExamples" to "app.epistola.catalog.protocol.QualityRuleExamples",
+            "QualityBinding" to "app.epistola.catalog.protocol.QualityBinding",
+            "QualityProfileRef" to "app.epistola.catalog.protocol.QualityProfileRef",
+            "QualityRuleOverride" to "app.epistola.catalog.protocol.QualityRuleOverride",
+            // The catalog model types a severity as a string; the enum would be dead code.
+            "QualitySeverity" to "kotlin.String",
             "ProblemDetail" to "org.springframework.http.ProblemDetail",
             "ValidationProblemDetail" to "org.springframework.http.ProblemDetail",
             "DataModelValidationProblemDetail" to "org.springframework.http.ProblemDetail",

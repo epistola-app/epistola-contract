@@ -20,8 +20,9 @@ import app.epistola.template.model.ThemeRefOverride
  * | a `fontFamily` font reference in theme, preset, document or node styles | `catalogKey` (with `key`) |
  * | an attribute's code-list binding | `catalogKey` (with `key`) |
  * | a variant's attribute key | `<alias>.<key>` (`system.locale`) |
+ * | a template's quality binding | `quality.profiles[].catalogKey`, `quality.overrides[].profile.catalogKey` (with `key`) |
  *
- * The manifest's own references (`catalog.defaultTheme`, the `dependencies` index) are checked where
+ * The manifest's own references (`catalog.defaultTheme`, `catalog.quality`, the `dependencies` index) are checked where
  * the manifest is. A reference to the catalog itself names no alias; one that names the catalog's own
  * key names an alias the catalog does not declare.
  */
@@ -30,7 +31,7 @@ internal object CatalogReferences {
      * One reference into a catalog named by alias.
      *
      * @property type the resource type referred to (`theme`, `stencil`, `image`, `font`, `codeList`,
-     *   `attribute`).
+     *   `attribute`, `qualityProfile`).
      * @property key the resource's key in that catalog, or null when the content names none.
      * @property alias the alias the reference names.
      * @property path where the alias is named.
@@ -66,6 +67,7 @@ internal object CatalogReferences {
                         }
                     }
                 }
+                resource.quality?.let { inQualityBinding(it, "$path.quality", references) }
             }
             is StencilResource -> inDocument(resource.content, "$path.content", references)
             is ThemeResource -> {
@@ -77,9 +79,23 @@ internal object CatalogReferences {
             is AttributeResource -> resource.codeListBinding?.let { binding ->
                 binding.catalogKey?.let { references += Reference("codeList", binding.key, it, "$path.codeListBinding.catalogKey") }
             }
-            is CodeListResource, is ImageResource, is FontResource -> Unit
+            is CodeListResource, is ImageResource, is FontResource, is QualityProfileResource -> Unit
         }
         return references
+    }
+
+    /** The profiles a quality binding names in other catalogs, the overrides' included. */
+    fun inQualityBinding(
+        binding: QualityBinding,
+        path: String,
+        references: MutableList<Reference>,
+    ) {
+        binding.profiles.forEachIndexed { index, profile ->
+            profile.catalogKey?.let { references += Reference("qualityProfile", profile.key, it, "$path.profiles[$index].catalogKey") }
+        }
+        binding.overrides.forEachIndexed { index, override ->
+            override.profile.catalogKey?.let { references += Reference("qualityProfile", override.profile.key, it, "$path.overrides[$index].profile.catalogKey") }
+        }
     }
 
     private fun inDocument(

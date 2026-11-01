@@ -55,6 +55,9 @@
         },
         {
           "$ref": "#/$defs/FontResource"
+        },
+        {
+          "$ref": "#/$defs/QualityProfileResource"
         }
       ]
     },
@@ -143,6 +146,10 @@
         },
         "metadata": {
           "$ref": "#/$defs/ProducerMetadata"
+        },
+        "quality": {
+          "description": "The quality profiles the template adds to its catalog's, and its overrides of their rules (wire v8, contract ADR 0010). Omitted when none.",
+          "$ref": "#/$defs/QualityBinding"
         }
       },
       "required": [
@@ -654,6 +661,352 @@
       "required": [
         "key"
       ],
+      "additionalProperties": false
+    },
+    "QualityProfileResource": {
+      "description": "A quality profile (wire v8, contract ADR 0010): rules an organisation records about how its documents are written, independent of the systems that check them.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "qualityProfile"
+        },
+        "key": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50,
+          "description": "The resource's key: its public address within its catalog."
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/QualityRule"
+          }
+        },
+        "acceptedWords": {
+          "description": "Words the organisation uses on purpose (names, product terms) that a spelling check must not report. Left out when there are none.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels for finding the resource. Left out when there are none."
+        },
+        "metadata": {
+          "$ref": "#/$defs/ProducerMetadata"
+        }
+      },
+      "required": [
+        "type",
+        "key",
+        "name",
+        "rules"
+      ],
+      "additionalProperties": false
+    },
+    "QualityRule": {
+      "description": "One rule of a quality profile: a generic core every checking system and author reads, and extras per kind of checking system.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50,
+          "description": "The rule's address within its profile, unique there."
+        },
+        "title": {
+          "type": "string"
+        },
+        "intent": {
+          "description": "The rule in plain language: what and why. Shown to authors with every finding of the rule, and what a language model is asked to apply.",
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ]
+        },
+        "blocking": {
+          "description": "Whether an open finding of the rule stops a variant being marked ready and a release being cut. Left out when false.",
+          "type": "boolean"
+        },
+        "scope": {
+          "$ref": "#/$defs/QualityRuleScope"
+        },
+        "examples": {
+          "$ref": "#/$defs/QualityRuleExamples"
+        },
+        "extras": {
+          "description": "What a kind of checking system needs beyond the core, by kind (builtin, languagetool, llm, ...). Only builtin has a shape the contract fixes; a consumer keeps the extras of kinds it does not have.",
+          "allOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object"
+              }
+            },
+            {
+              "type": "object",
+              "properties": {
+                "builtin": {
+                  "$ref": "#/$defs/QualityBuiltinExtra"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "intent",
+        "severity"
+      ],
+      "additionalProperties": false
+    },
+    "QualityRuleScope": {
+      "description": "What a rule reads. Each list narrows; an absent one does not.",
+      "type": "object",
+      "properties": {
+        "roles": {
+          "description": "Field roles the rule reads; absent means prose.",
+          "type": "array",
+          "items": {
+            "enum": [
+              "prose",
+              "identifier",
+              "expression",
+              "value",
+              "reference"
+            ]
+          }
+        },
+        "components": {
+          "description": "Component types the rule reads.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "languages": {
+          "description": "BCP 47 language tags the rule applies to.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "QualityRuleExamples": {
+      "description": "Text that meets a rule and text that does not.",
+      "type": "object",
+      "properties": {
+        "good": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "bad": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "QualityBuiltinExtra": {
+      "description": "The extra of the builtin kind: one of the check types the built-in engine implements, with its parameters.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "repeated-word"
+            },
+            "allowed": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "description": "Per language, the words that may repeat (dat dat)."
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "max-sentence-words"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": [
+            "type",
+            "limit"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "double-space"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "space-before-punctuation"
+            },
+            "exceptLanguages": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Languages that put a space before punctuation."
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "word-list"
+            },
+            "entries": {
+              "description": "Per language, each phrase to avoid with the words to use instead.",
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "required": [
+            "type",
+            "entries"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "QualityProfileRef": {
+      "description": "A reference to a quality profile: in this catalog, or in another catalog this catalog depends on, named by the alias catalogDependencies declares for it.",
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50,
+          "description": "Key of the quality profile."
+        },
+        "catalogKey": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50,
+          "description": "The alias of the catalog holding the profile. Omitted means this catalog."
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "additionalProperties": false
+    },
+    "QualityRuleOverride": {
+      "description": "A change to one rule of a profile at the level of a quality binding: switch it off, or give it another severity.",
+      "type": "object",
+      "properties": {
+        "profile": {
+          "$ref": "#/$defs/QualityProfileRef"
+        },
+        "ruleId": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50,
+          "description": "The rule's id in that profile."
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "severity": {
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ]
+        }
+      },
+      "required": [
+        "profile",
+        "ruleId"
+      ],
+      "additionalProperties": false
+    },
+    "QualityBinding": {
+      "description": "Which quality profiles apply, and this level's overrides of their rules (wire v8, contract ADR 0010). A catalog's applies to every template; a template's adds to it.",
+      "type": "object",
+      "properties": {
+        "profiles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/QualityProfileRef"
+          }
+        },
+        "overrides": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/QualityRuleOverride"
+          }
+        }
+      },
       "additionalProperties": false
     }
   }

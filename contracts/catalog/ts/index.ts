@@ -79,7 +79,24 @@ export type {
   FontVariantEntry,
   DataExampleEntry,
   VariantEntry,
+  QualityProfileResource,
+  QualityRule,
+  QualityRuleScope,
+  QualityRuleExamples,
+  QualityBuiltinExtra,
+  QualityBinding,
+  QualityProfileRef,
+  QualityRuleOverride,
 } from '../generated/resource-detail.js'
+
+/** A quality rule's severities (wire v8, contract ADR 0010). */
+export const QUALITY_SEVERITIES = ['info', 'warning', 'error'] as const
+
+/** The field roles a quality rule's scope may name (wire v8, contract ADR 0010). */
+export const QUALITY_FIELD_ROLES = ['prose', 'identifier', 'expression', 'value', 'reference'] as const
+
+/** The check types of the `builtin` extra of a quality rule (wire v8, contract ADR 0010). */
+export const QUALITY_BUILTIN_TYPES = ['repeated-word', 'max-sentence-words', 'double-space', 'space-before-punctuation', 'word-list'] as const
 
 /** Maximum number of stencil instances allowed in one ancestor chain. */
 export const MAX_STENCIL_NESTING_DEPTH = 5

@@ -31,6 +31,7 @@ data class ResourceDetail(
         JsonSubTypes.Type(value = ImageResource::class, name = "image"),
         JsonSubTypes.Type(value = CodeListResource::class, name = "codeList"),
         JsonSubTypes.Type(value = FontResource::class, name = "font"),
+        JsonSubTypes.Type(value = QualityProfileResource::class, name = "qualityProfile"),
     )
     val resource: CatalogResource,
 )
@@ -93,6 +94,10 @@ sealed interface CatalogResource {
  * design decisions, known gaps -- at most [MAX_DESCRIPTION_LENGTH] characters, and is not rendered.
  * It is the source of the manifest resource entry's `description`: when both are present they must
  * be equal. Omitted when null, so a template without one canonicalizes as before.
+ *
+ * [quality] (wire v8, contract ADR 0010) names the quality profiles the template adds to its
+ * catalog's ([CatalogInfo.quality]) and the template's overrides of their rules. Omitted when null,
+ * so a template without one canonicalizes as before.
  */
 @JsonIgnoreProperties("themeNamespace", "themeRegistry")
 data class TemplateResource(
@@ -113,6 +118,8 @@ data class TemplateResource(
     override val tags: List<String> = emptyList(),
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     override val metadata: Map<String, Map<String, Any?>>? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val quality: QualityBinding? = null,
 ) : CatalogResource {
     override val type: String get() = "template"
 

@@ -11,6 +11,36 @@ libraries.
 
 ### Added
 
+- **Quality profiles** (alpha, wire v8, contract ADR 0010). A new resource type, `qualityProfile`,
+  records how an organisation writes: rules with a plain-language `intent`, a `severity`, an
+  optional `blocking` flag, a `scope` (field roles, components, languages), `examples`, and
+  `extras` per kind of checking system (`builtin`, typed: repeated words, a sentence limit, spacing,
+  word lists; any other kind an open object), plus `acceptedWords`. A catalog (`catalog.quality`)
+  and a template (`quality`) bind profiles, stacked, and may switch a rule off or change its
+  severity (`overrides`). Neither list in a binding is ordered: fingerprints cover it sorted, and
+  a profile bound twice or a rule overridden twice in one binding is an error. A profile in another
+  catalog is named by its dependency alias, like a theme. Kotlin: `QualityProfileResource`, `QualityRule`, `QualityBinding`, `QualityProfiles` and
+  `DependencyRef.QualityProfile`; npm: the matching types and `QUALITY_SEVERITIES`,
+  `QUALITY_FIELD_ROLES`, `QUALITY_BUILTIN_TYPES`. Seven validation codes, `CATALOG_QUALITY_*`. Additive:
+  catalogs without profiles keep their fingerprints, and an archive with one is refused by a build
+  that predates it.
+
+- **Quality profiles in the REST API** (alpha, `x-experimental`). A new `QualityProfiles` group
+  manages a release's profiles like its themes: `listQualityProfiles`, `createQualityProfile`,
+  `getQualityProfile`, `updateQualityProfile` (conditional with `If-Match`) and
+  `deleteQualityProfile`, under `…/releases/{release}/quality-profiles`. Reading needs
+  `REFERENCE_VIEW`; creating, changing and deleting needs a new permission, `QUALITY_EDIT`, which
+  Epistola Suite gives the `CONTENT_PUBLISHER` role rather than authors, since rules gate
+  releases. A rule is written as in the catalog wire format, its `extras`
+  an open map in every client. `CatalogReleaseDto`, `TemplateDto`, `CreateTemplateRequest`,
+  `UpdateTemplateRequest` and `UpdateCatalogReleaseRequest` gain an optional `quality` binding;
+  on an update, an empty binding removes it. Setting or changing one needs `QUALITY_EDIT` beside
+  the operation's own permission (403 without it). The Kotlin server stubs bind the catalog's own
+  classes (`app.epistola.catalog.protocol.QualityRule`, `QualityBinding`, …) and, as they
+  generate without default methods, a server must implement the five operations: one that does
+  not support quality profiles yet answers 501 `operation-not-implemented`, and refuses a
+  `quality` in a request the same way.
+
 - **A template can be created with its data contract** (`createTemplate`). `CreateTemplateRequest`
   takes optional `dataModel` and `dataExamples`, as `updateTemplate` does, so a template need not
   exist without them. Omitted or null, the template gets the empty schema `{}`, which any data
