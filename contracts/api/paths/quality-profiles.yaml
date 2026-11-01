@@ -56,9 +56,13 @@ quality-profiles:
 
       Create a quality profile in the draft. Refused with 400 for a rule id used twice, an
       unknown severity or field role, or a malformed `builtin` extra, and with 409 outside a draft.
+
+      Requires `QUALITY_EDIT`, not an author's edit permission: a profile's rules, blocking ones
+      above all, gate releases, so changing them is a publisher's decision (in Epistola Suite the
+      `CONTENT_PUBLISHER` role holds it); authors may only ignore findings.
     tags:
       - QualityProfiles
-    x-required-permissions: [REFERENCE_EDIT]
+    x-required-permissions: [QUALITY_EDIT]
     requestBody:
       required: true
       content:
@@ -144,11 +148,15 @@ quality-profiles-key:
       Update an existing quality profile. Only provided fields will be updated; `rules` and
       `acceptedWords` replace the current lists as a whole. Refused with 400 as on create, and for
       rules that drop a rule an override in the draft still names.
+
+      Requires `QUALITY_EDIT`, not an author's edit permission: a profile's rules, blocking ones
+      above all, gate releases, so changing them is a publisher's decision (in Epistola Suite the
+      `CONTENT_PUBLISHER` role holds it); authors may only ignore findings.
       Send the `ETag` from a read as `If-Match` to have the update refused with 412
       `resource-modified` if the resource changed since; without it, the last write wins.
     tags:
       - QualityProfiles
-    x-required-permissions: [REFERENCE_EDIT]
+    x-required-permissions: [QUALITY_EDIT]
     parameters:
       - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
     requestBody:
@@ -190,9 +198,13 @@ quality-profiles-key:
       Delete the quality profile from the draft. Refused with 409 outside a draft, and while
       anything in the draft still uses it: the draft's binding (`quality`) or a template's that
       names it, or an override of one of its rules. Change those bindings first.
+
+      Requires `QUALITY_EDIT`, not an author's edit permission: a profile's rules, blocking ones
+      above all, gate releases, so changing them is a publisher's decision (in Epistola Suite the
+      `CONTENT_PUBLISHER` role holds it); authors may only ignore findings.
     tags:
       - QualityProfiles
-    x-required-permissions: [REFERENCE_EDIT]
+    x-required-permissions: [QUALITY_EDIT]
     responses:
       '204':
         description: Quality profile deleted successfully

@@ -542,6 +542,10 @@ catalog-release:
       Send the `ETag` from `getCatalogRelease` or `listCatalogDependencies` as `If-Match` to have
       the update refused with 412 `resource-modified` if the draft's settings or dependency
       declarations changed since; without it, the last write wins.
+
+      Changing the draft's quality binding (`quality`, alpha) additionally needs `QUALITY_EDIT`:
+      a request whose `quality` differs from the current binding is refused with 403 without it.
+      A `quality` equal to the current one needs nothing more.
     tags:
       - Catalogs
     x-required-permissions: [TEMPLATE_EDIT]
