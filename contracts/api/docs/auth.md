@@ -152,20 +152,25 @@ Epistola Suite uses coarse tenant/platform roles to derive fine-grained permissi
 contract documents the enforced permission on each operation with `x-required-permissions`; platform
 operations use `x-required-platform-roles`.
 
+The whole vocabulary is data in the spec's `x-authorization` extension: the tenant roles and their
+identity-provider names, the platform roles, and each permission with the roles that grant it. It
+ships with the server stubs (`openapi/epistola-contract.yaml`), so a server can check its own
+roles against it, and a test holds the operations' declarations and the tables below to it.
+
 Tenant roles are composable and non-hierarchical:
 
 | Suite role | Grants |
 |------------|--------|
-| `CONTENT_VIEWER` | `TEMPLATE_VIEW`, `DOCUMENT_VIEW`, `THEME_VIEW`, `STENCIL_VIEW`, `REFERENCE_VIEW`, `CATALOG_VIEW`, `BACKUP_VIEW` |
+| `CONTENT_VIEWER` | `TEMPLATE_VIEW`, `DOCUMENT_VIEW`, `THEME_VIEW`, `STENCIL_VIEW`, `REFERENCE_VIEW`, `CATALOG_VIEW` |
 | `CONTENT_AUTHOR` | `TEMPLATE_EDIT`, `THEME_EDIT`, `STENCIL_EDIT`, `REFERENCE_EDIT` |
 | `DOCUMENT_GENERATOR` | `DOCUMENT_GENERATE` |
 | `CONTENT_PUBLISHER` | `QUALITY_EDIT` (create, change and delete quality profiles, and change a template's or a release's quality binding, alpha: the rules gate releases), `CATALOG_RELEASE` (release and discard catalog drafts), `ENVIRONMENT_DEPLOY` (deploy and undeploy releases of catalogs, released ones and drafts, in environments), `CATALOG_PUBLISH` (publish released releases to a release registry, alpha: the release leaves the installation) |
-| `TENANT_ADMINISTRATOR` | `TENANT_SETTINGS`, `TENANT_USERS`, `CATALOG_MANAGE`, `BACKUP_CREATE`, `DIAGNOSTICS_VIEW`, `AUDIT_VIEW`, `TENANT_RESTORE` |
+| `TENANT_ADMINISTRATOR` | `TENANT_SETTINGS`, `TENANT_USERS`, `CATALOG_MANAGE`, `DIAGNOSTICS_VIEW`, `DIAGNOSTICS_MANAGE`, `AUDIT_VIEW` |
 
-`BACKUP_VIEW`, `BACKUP_CREATE`, `DIAGNOSTICS_VIEW`, `AUDIT_VIEW` and `TENANT_RESTORE` grant Suite
-features outside this API: no operation in the contract requires them. Every other permission
-above is the `x-required-permissions` of at least one operation, and every permission an operation
-requires is in this table.
+`DIAGNOSTICS_VIEW`, `DIAGNOSTICS_MANAGE` and `AUDIT_VIEW` grant Suite features outside this API
+(`outsideApi` in `x-authorization`): no operation in the contract requires them. Every other
+permission above is the `x-required-permissions` of at least one operation, and every permission an
+operation requires is in this table.
 
 Platform roles:
 

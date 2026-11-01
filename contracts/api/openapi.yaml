@@ -388,6 +388,118 @@ x-client-identity:
 # error helpers agree with it. The slug list is open: new types may be added
 # without a major version bump, so clients switching on the slug must keep an
 # else branch.
+x-authorization:
+  description: >-
+    The authorization vocabulary of Epistola Suite, as data. Tenant roles are what an identity
+    provider or an API key's scope grants a caller in a tenant, composable and non-hierarchical;
+    each permission lists the roles that grant it. An operation names the permission it requires
+    in `x-required-permissions`, or the platform role in `x-required-platform-roles`, and a refused
+    request names the one it lacked in its `forbidden` problem. A permission marked `outsideApi`
+    gates Suite features no operation of this API reaches. `idpName` is the name an identity
+    provider emits for a role.
+  tenantRoles:
+    - name: CONTENT_VIEWER
+      idpName: content-viewer
+      description: Reads a tenant's content and the documents generated in it.
+    - name: CONTENT_AUTHOR
+      idpName: content-author
+      description: Creates and edits templates, themes, stencils and reference data.
+    - name: DOCUMENT_GENERATOR
+      idpName: document-generator
+      description: Generates documents.
+    - name: CONTENT_PUBLISHER
+      idpName: content-publisher
+      description: >-
+        Releases catalogs, deploys releases to environments, publishes them to release registries,
+        and sets the quality rules that gate releases. Separate from administration.
+    - name: TENANT_ADMINISTRATOR
+      idpName: tenant-administrator
+      description: >-
+        Administers a tenant: its settings, API keys, catalogs, diagnostics and audit trail. Does not
+        edit, release or deploy content.
+  platformRoles:
+    - name: TENANT_MANAGER
+      idpName: tenant-manager
+      description: Creates and deletes tenants across the platform, and manages their namespaces.
+    - name: PLATFORM_OBSERVER
+      idpName: platform-observer
+      description: Observes diagnostics and status across tenants, read-only.
+  permissions:
+    - name: TEMPLATE_VIEW
+      grantedBy: [CONTENT_VIEWER]
+      description: Read templates and their variants, images, and environments with what they deploy.
+    - name: TEMPLATE_EDIT
+      grantedBy: [CONTENT_AUTHOR]
+      description: >-
+        Create, change and delete templates, variants and images, and create, change and merge
+        catalog drafts.
+    - name: STENCIL_VIEW
+      grantedBy: [CONTENT_VIEWER]
+      description: Read stencils.
+    - name: STENCIL_EDIT
+      grantedBy: [CONTENT_AUTHOR]
+      description: Create, change and delete stencils.
+    - name: THEME_VIEW
+      grantedBy: [CONTENT_VIEWER]
+      description: Read themes.
+    - name: THEME_EDIT
+      grantedBy: [CONTENT_AUTHOR]
+      description: Create, change and delete themes.
+    - name: REFERENCE_VIEW
+      grantedBy: [CONTENT_VIEWER]
+      description: Read reference data (attributes, code lists, fonts) and quality profiles.
+    - name: REFERENCE_EDIT
+      grantedBy: [CONTENT_AUTHOR]
+      description: Create, change and delete attributes and code lists, and refresh code lists.
+    - name: DOCUMENT_VIEW
+      grantedBy: [CONTENT_VIEWER]
+      description: Read generated documents and generation jobs.
+    - name: DOCUMENT_GENERATE
+      grantedBy: [DOCUMENT_GENERATOR]
+      description: >-
+        Generate and preview documents, collect generation results, cancel generation jobs and
+        delete documents.
+    - name: CATALOG_VIEW
+      grantedBy: [CONTENT_VIEWER]
+      description: Read catalogs, their releases and drafts, and the releases available to install.
+    - name: CATALOG_MANAGE
+      grantedBy: [TENANT_ADMINISTRATOR]
+      description: Import catalogs, and install releases from a catalog's source or a release registry.
+    - name: CATALOG_RELEASE
+      grantedBy: [CONTENT_PUBLISHER]
+      description: Release catalog drafts, and discard them.
+    - name: ENVIRONMENT_DEPLOY
+      grantedBy: [CONTENT_PUBLISHER]
+      description: Choose which releases an environment serves.
+    - name: CATALOG_PUBLISH
+      grantedBy: [CONTENT_PUBLISHER]
+      description: >-
+        Publish released releases to a release registry (alpha). The release leaves the
+        installation and cannot be taken back.
+    - name: QUALITY_EDIT
+      grantedBy: [CONTENT_PUBLISHER]
+      description: >-
+        Create, change and delete quality profiles, and change a template's or a release's quality
+        binding (alpha). The rules gate releases.
+    - name: TENANT_SETTINGS
+      grantedBy: [TENANT_ADMINISTRATOR]
+      description: Change a tenant's settings and its environments.
+    - name: TENANT_USERS
+      grantedBy: [TENANT_ADMINISTRATOR]
+      description: Manage a tenant's API keys and consumers.
+    - name: DIAGNOSTICS_VIEW
+      grantedBy: [TENANT_ADMINISTRATOR]
+      outsideApi: true
+      description: Read a tenant's application logs and status.
+    - name: DIAGNOSTICS_MANAGE
+      grantedBy: [TENANT_ADMINISTRATOR]
+      outsideApi: true
+      description: Maintain the state the diagnostics pages show.
+    - name: AUDIT_VIEW
+      grantedBy: [TENANT_ADMINISTRATOR]
+      outsideApi: true
+      description: Read a tenant's audit trail.
+
 x-problem-types:
   base: https://epistola.app/errors/
   types:
