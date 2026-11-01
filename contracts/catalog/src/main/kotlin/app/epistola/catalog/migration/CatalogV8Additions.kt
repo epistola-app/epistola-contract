@@ -14,7 +14,7 @@ import tools.jackson.databind.node.ObjectNode
  * | Where | Member |
  * | --- | --- |
  * | a template's data examples | `key` (assigned from the name by [CatalogV7ToV8Migration]) |
- * | a template | `description` |
+ * | a template | `description`; `quality` (contract ADR 0010) |
  * | a template's variants | `description`; and `metadata`, which an early wire-v8 archive may still carry |
  * | a stencil | `readsTemplateData`; and a placeholder's `passParameters` in its content (both given by [CatalogV7ToV8Migration]) |
  * | every type but a stencil | `tags` |
@@ -49,6 +49,7 @@ internal object CatalogV8Additions {
         val copy = resource.deepCopy()
         copy.remove("tags")
         copy.remove("description")
+        copy.remove("quality")
         (copy["dataExamples"] as? ArrayNode)?.forEach { (it as? ObjectNode)?.remove("key") }
         (copy["variants"] as? ArrayNode)?.forEach {
             (it as? ObjectNode)?.let { variant ->

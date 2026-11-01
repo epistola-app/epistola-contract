@@ -1,0 +1,218 @@
+quality-profiles:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant (e.g., "acme-corp")
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
+
+  get:
+    operationId: listQualityProfiles
+    x-experimental: true
+    summary: List the quality profiles in a release of a catalog (alpha)
+    description: |
+      **Alpha** (`x-experimental`, contract ADR 0010): may still change in a minor release.
+
+      Retrieve the quality profiles of this release: the profiles its own catalog holds, not those
+      of the catalogs it depends on.
+    tags:
+      - QualityProfiles
+    x-required-permissions: [REFERENCE_VIEW]
+    parameters:
+      - name: q
+        in: query
+        description: Search term to filter quality profiles by name
+        schema:
+          type: string
+      - $ref: '../components/parameters/pagination.yaml#/Page'
+      - $ref: '../components/parameters/pagination.yaml#/Size'
+    responses:
+      '200':
+        description: List of quality profiles
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/quality-profiles.yaml#/QualityProfileListResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+  post:
+    operationId: createQualityProfile
+    x-experimental: true
+    summary: Create a quality profile (alpha)
+    description: |
+      **Alpha** (`x-experimental`, contract ADR 0010): may still change in a minor release.
+
+      Create a quality profile in the draft. Refused with 400 for a rule id used twice, an
+      unknown severity or field role, or a malformed `builtin` extra, and with 409 outside a draft.
+
+      Requires `QUALITY_EDIT`, not an author's edit permission: a profile's rules, blocking ones
+      above all, gate releases, so changing them is a publisher's decision (in Epistola Suite the
+      `CONTENT_PUBLISHER` role holds it); authors may only ignore findings.
+    tags:
+      - QualityProfiles
+    x-required-permissions: [QUALITY_EDIT]
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v2+json:
+          schema:
+            $ref: '../components/schemas/quality-profiles.yaml#/CreateQualityProfileRequest'
+    responses:
+      '201':
+        description: Quality profile created successfully
+        headers:
+          Location:
+            $ref: '../components/headers/location.yaml#/Location'
+            description: The quality profile's address (`getQualityProfile`)
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/quality-profiles.yaml#/QualityProfileDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
+
+quality-profiles-key:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant (e.g., "acme-corp")
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
+    - name: profileKey
+      in: path
+      required: true
+      description: Key of the quality profile
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
+
+  get:
+    operationId: getQualityProfile
+    x-experimental: true
+    summary: Get a quality profile by key (alpha)
+    description: |
+      **Alpha** (`x-experimental`, contract ADR 0010): may still change in a minor release.
+
+      Retrieve a quality profile with its rules.
+    tags:
+      - QualityProfiles
+    x-required-permissions: [REFERENCE_VIEW]
+    responses:
+      '200':
+        description: Quality profile details
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/quality-profiles.yaml#/QualityProfileDto'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+  patch:
+    operationId: updateQualityProfile
+    x-experimental: true
+    summary: Update a quality profile (alpha)
+    description: |
+      **Alpha** (`x-experimental`, contract ADR 0010): may still change in a minor release.
+
+      Update an existing quality profile. Only provided fields will be updated; `rules` and
+      `acceptedWords` replace the current lists as a whole. Refused with 400 as on create, and for
+      rules that drop a rule an override in the draft still names.
+
+      Requires `QUALITY_EDIT`, not an author's edit permission: a profile's rules, blocking ones
+      above all, gate releases, so changing them is a publisher's decision (in Epistola Suite the
+      `CONTENT_PUBLISHER` role holds it); authors may only ignore findings.
+      Send the `ETag` from a read as `If-Match` to have the update refused with 412
+      `resource-modified` if the resource changed since; without it, the last write wins.
+    tags:
+      - QualityProfiles
+    x-required-permissions: [QUALITY_EDIT]
+    parameters:
+      - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v2+json:
+          schema:
+            $ref: '../components/schemas/quality-profiles.yaml#/UpdateQualityProfileRequest'
+    responses:
+      '200':
+        description: Quality profile updated successfully
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/quality-profiles.yaml#/QualityProfileDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
+      '412':
+        $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
+
+  delete:
+    operationId: deleteQualityProfile
+    x-experimental: true
+    summary: Delete a quality profile (alpha)
+    description: |
+      **Alpha** (`x-experimental`, contract ADR 0010): may still change in a minor release.
+
+      Delete the quality profile from the draft. Refused with 409 outside a draft, and while
+      anything in the draft still uses it: the draft's binding (`quality`) or a template's that
+      names it, or an override of one of its rules. Change those bindings first.
+
+      Requires `QUALITY_EDIT`, not an author's edit permission: a profile's rules, blocking ones
+      above all, gate releases, so changing them is a publisher's decision (in Epistola Suite the
+      `CONTENT_PUBLISHER` role holds it); authors may only ignore findings.
+    tags:
+      - QualityProfiles
+    x-required-permissions: [QUALITY_EDIT]
+    responses:
+      '204':
+        description: Quality profile deleted successfully
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'

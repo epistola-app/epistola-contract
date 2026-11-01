@@ -78,6 +78,7 @@ class GeneratedApiContractTest {
             FontsApi.class,
             GenerationApi.class,
             ImagesApi.class,
+            QualityProfilesApi.class,
             StencilsApi.class,
             SystemApi.class,
             TemplatesApi.class,
@@ -541,6 +542,7 @@ class GeneratedApiContractTest {
                 "CodeListsApi.getCodeList", "CodeListsApi.updateCodeList", "CodeListsApi.updateCodeListEntryHidden",
                 "ConsumersApi.getConsumer", "ConsumersApi.updateConsumer",
                 "EnvironmentsApi.getEnvironment", "EnvironmentsApi.updateEnvironment",
+                "QualityProfilesApi.getQualityProfile", "QualityProfilesApi.updateQualityProfile",
                 "StencilsApi.getStencil", "StencilsApi.updateStencil",
                 "StencilsApi.getStencilContent", "StencilsApi.updateStencilContent",
                 "TemplatesApi.getTemplate", "TemplatesApi.updateTemplate",
@@ -552,7 +554,8 @@ class GeneratedApiContractTest {
                 "AttributesApi.createAttribute", "CatalogsApi.createCatalogRelease", "CodeListsApi.createCodeList",
                 "ConsumersApi.registerConsumer", "EnvironmentsApi.createEnvironment",
                 "GenerationApi.generateDocument", "GenerationApi.generateDocumentBatch",
-                "ImagesApi.uploadImage", "StencilsApi.createStencil", "TemplatesApi.createTemplate",
+                "ImagesApi.uploadImage", "QualityProfilesApi.createQualityProfile", "StencilsApi.createStencil",
+                "TemplatesApi.createTemplate",
                 "TenantsApi.createTenant", "ThemesApi.createTheme", "VariantsApi.createVariant");
         assertEquals(
                 operations.stream().sorted().collect(Collectors.toList()),

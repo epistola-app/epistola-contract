@@ -522,23 +522,30 @@ catalog-release:
 
   patch:
     operationId: updateCatalogRelease
-    summary: Update a draft release's name, default theme or presets
+    summary: Update a draft release's name, default theme, presets or quality binding
     description: |
       Changes a draft's own settings: its name, its default theme (the theme a template that names
-      none renders with) and its declared presets (the block styles its content may name). Each
+      none renders with), its declared presets (the block styles its content may name) and its
+      quality binding (alpha: the quality profiles its templates are checked against). Each
       changes only when the request names it: an omitted or null member keeps its value,
-      `clearDefaultTheme: true` removes the default theme and an empty `presets` array removes the
-      presets. Its address, its `releaseId`, does not change, and it keeps its name when it is
+      `clearDefaultTheme: true` removes the default theme, an empty `presets` array removes the
+      presets and an empty `quality` binding removes the binding. Its address, its `releaseId`, does not change, and it keeps its name when it is
       released. Refused with 409 for
       a name another draft of the catalog has, with 409 `catalog-read-only` when the catalog cannot
       be changed, and with 409 outside a draft: a released release cannot be
       changed, its name included; with 400 for a default theme that cannot be found or names a
       catalog the draft does not declare, for a `defaultTheme` together with `clearDefaultTheme`,
-      and for presets that repeat a key.
+      for presets that repeat a key, and for a quality binding `QualityBinding` refuses; with 501
+      `operation-not-implemented` for a `quality` by a server that does not support quality
+      profiles yet.
 
       Send the `ETag` from `getCatalogRelease` or `listCatalogDependencies` as `If-Match` to have
       the update refused with 412 `resource-modified` if the draft's settings or dependency
       declarations changed since; without it, the last write wins.
+
+      Changing the draft's quality binding (`quality`, alpha) additionally needs `QUALITY_EDIT`:
+      a request whose `quality` differs from the current binding is refused with 403 without it.
+      A `quality` equal to the current one needs nothing more.
     tags:
       - Catalogs
     x-required-permissions: [TEMPLATE_EDIT]
