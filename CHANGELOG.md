@@ -17,10 +17,11 @@ libraries.
   `extras` per kind of checking system (`builtin`, typed: repeated words, a sentence limit, spacing,
   word lists; any other kind an open object), plus `acceptedWords`. A catalog (`catalog.quality`)
   and a template (`quality`) bind profiles, stacked, and may switch a rule off or change its
-  severity (`overrides`). A profile in another catalog is named by its dependency alias, like a
-  theme. Kotlin: `QualityProfileResource`, `QualityRule`, `QualityBinding`, `QualityProfiles` and
+  severity (`overrides`). Neither list in a binding is ordered: fingerprints cover it sorted, and
+  a profile bound twice or a rule overridden twice in one binding is an error. A profile in another
+  catalog is named by its dependency alias, like a theme. Kotlin: `QualityProfileResource`, `QualityRule`, `QualityBinding`, `QualityProfiles` and
   `DependencyRef.QualityProfile`; npm: the matching types and `QUALITY_SEVERITIES`,
-  `QUALITY_FIELD_ROLES`, `QUALITY_BUILTIN_TYPES`. Six validation codes, `CATALOG_QUALITY_*`. Additive:
+  `QUALITY_FIELD_ROLES`, `QUALITY_BUILTIN_TYPES`. Seven validation codes, `CATALOG_QUALITY_*`. Additive:
   catalogs without profiles keep their fingerprints, and an archive with one is refused by a build
   that predates it.
 

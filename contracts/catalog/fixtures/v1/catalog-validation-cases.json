@@ -73,5 +73,6 @@
   "CATALOG_QUALITY_SEVERITY_INVALID": "a quality rule's or override's severity is not info, warning or error (wire v8)",
   "CATALOG_QUALITY_RULE_SCOPE_INVALID": "a quality rule's scope names an unknown field role (wire v8)",
   "CATALOG_QUALITY_RULE_EXTRA_INVALID": "a quality rule's builtin extra has an unknown type, or a parameter that type does not take or needs (wire v8)",
-  "CATALOG_QUALITY_OVERRIDE_RULE_UNKNOWN": "a quality override names a rule the profile, held in the same catalog, does not have (wire v8)"
+  "CATALOG_QUALITY_OVERRIDE_RULE_UNKNOWN": "a quality override names a rule the profile, held in the same catalog, does not have (wire v8)",
+  "CATALOG_QUALITY_BINDING_DUPLICATE": "a quality binding names the same profile twice, or overrides the same rule twice (wire v8)"
 }

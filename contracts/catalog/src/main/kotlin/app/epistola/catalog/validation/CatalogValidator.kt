@@ -249,6 +249,12 @@ object CatalogValidationCodes {
 
     /** An override names a rule the profile, held in this catalog, does not have. */
     const val QUALITY_OVERRIDE_RULE_UNKNOWN = "CATALOG_QUALITY_OVERRIDE_RULE_UNKNOWN"
+
+    /**
+     * A binding names the same profile twice, or overrides the same rule of a profile twice. Neither
+     * list is ordered (contract ADR 0010), so a second entry could only repeat or contradict the first.
+     */
+    const val QUALITY_BINDING_DUPLICATE = "CATALOG_QUALITY_BINDING_DUPLICATE"
     const val PRESENTATION_ASSET_MISSING = "CATALOG_PRESENTATION_ASSET_MISSING"
     const val PRESENTATION_RESOURCE_NOT_ASSET = "CATALOG_PRESENTATION_RESOURCE_NOT_ASSET"
     const val PRESENTATION_ASSET_MEDIA_TYPE_INVALID = "CATALOG_PRESENTATION_ASSET_MEDIA_TYPE_INVALID"
@@ -731,7 +737,9 @@ object ResourceValidator {
     /**
      * A quality binding's profiles resolve, its overrides' severities are known, and an override of a
      * profile held in this catalog names a rule that profile has (contract ADR 0010). A profile in
-     * another catalog is not read here, so its rule ids are the consumer's to check.
+     * another catalog is not read here, so its rule ids are the consumer's to check. Neither list is
+     * ordered, so a profile named twice, or a rule overridden twice, is reported rather than settled
+     * by position.
      */
     internal fun validateQualityBinding(
         binding: QualityBinding,
@@ -751,9 +759,23 @@ object ResourceValidator {
             }
             validateReference(CatalogResourceReference("qualityProfile", profile.key, profile.catalogKey), context, "$profilePath.key", findings)
         }
-        binding.profiles.forEachIndexed { index, profile -> validateProfile(profile, "$path.profiles[$index]") }
+        val profiles = mutableSetOf<QualityProfileRef>()
+        binding.profiles.forEachIndexed { index, profile ->
+            validateProfile(profile, "$path.profiles[$index]")
+            if (!profiles.add(profile)) {
+                findings.error(CatalogValidationCodes.QUALITY_BINDING_DUPLICATE, "$path.profiles[$index]", "quality profile '${profile.key}' is bound more than once")
+            }
+        }
+        val overridden = mutableSetOf<Pair<QualityProfileRef, String>>()
         binding.overrides.forEachIndexed { index, override ->
             val overridePath = "$path.overrides[$index]"
+            if (!overridden.add(override.profile to override.ruleId)) {
+                findings.error(
+                    CatalogValidationCodes.QUALITY_BINDING_DUPLICATE,
+                    overridePath,
+                    "rule '${override.ruleId}' of quality profile '${override.profile.key}' is overridden more than once",
+                )
+            }
             validateProfile(override.profile, "$overridePath.profile")
             override.severity?.let { validateSeverity(it, "$overridePath.severity", findings) }
             val local = override.profile.catalogKey == null || override.profile.catalogKey == context.catalogKey

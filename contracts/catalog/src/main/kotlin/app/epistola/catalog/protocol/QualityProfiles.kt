@@ -100,13 +100,37 @@ data class QualityRuleExamples(
  * A catalog's ([CatalogInfo.quality]) applies to every template in it; a template's
  * ([TemplateResource.quality]) adds to it. All their profiles' rules apply together; an override at
  * the template replaces one at the catalog for the same rule.
+ *
+ * Neither list is ordered: every profile applies, and an override is known by its profile and rule.
+ * Should precedence among the profiles of one binding ever matter, it gets a member of its own (an
+ * `order`), never a position in the list.
  */
 data class QualityBinding(
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val profiles: List<QualityProfileRef> = emptyList(),
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val overrides: List<QualityRuleOverride> = emptyList(),
-)
+) {
+    /**
+     * This binding with both lists in one fixed order, the form fingerprints cover: profiles by
+     * catalog and key, overrides by profile and rule. Two bindings that differ only in the order they
+     * were written in have the same canonical form.
+     */
+    fun canonical(): QualityBinding = QualityBinding(
+        profiles = profiles.sortedWith(PROFILE_ORDER),
+        overrides = overrides.sortedWith(
+            compareBy<QualityRuleOverride, QualityProfileRef>(PROFILE_ORDER) { it.profile }
+                .thenBy { it.ruleId }
+                .thenBy { it.enabled }
+                .thenBy { it.severity },
+        ),
+    )
+
+    private companion object {
+        /** A reference to this catalog's own profile sorts before one into another catalog. */
+        val PROFILE_ORDER: Comparator<QualityProfileRef> = compareBy({ it.catalogKey.orEmpty() }, { it.key })
+    }
+}
 
 /**
  * A reference to a [QualityProfileResource]. Like every reference into another catalog, it names the

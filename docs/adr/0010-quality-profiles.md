@@ -57,6 +57,14 @@ template; a template carries its own as `quality`, which adds to it. All the pro
 together; an override at the template replaces one at the catalog for the same rule. A profile from
 another catalog is listed in the manifest's `dependencies` as `qualityProfile`.
 
+Neither list is ordered. Every profile applies, and an override is known by its profile and rule, so
+the position of an entry decides nothing. Fingerprints therefore cover a binding sorted
+(`QualityBinding.canonical`: profiles by catalog and key, overrides by profile and rule), and writing
+the same binding in another order leaves the release's identity alone. Within one binding a profile
+bound twice, or a rule overridden twice, is an error rather than settled by which comes last. Should
+precedence among the profiles of one binding ever be needed, it becomes an explicit member (an
+`order`), never the position in the list.
+
 ### Wire v8, additive
 
 2.0, whose format v8 is, has had only alpha prereleases, so the type joins v8 rather than a v9. The
@@ -68,8 +76,8 @@ before this refuses an archive holding a profile, as it refuses any unknown reso
 
 The validator, not the model, holds a profile to its rules: rule ids are keys and unique, severities
 and roles known, a `builtin` extra well formed (`CATALOG_QUALITY_*`). A binding's profiles resolve
-like any reference, an alias must be declared, and an override of a profile in the same catalog must
-name a rule it has. A profile in another catalog is not read, so its rule ids are the consumer's to
+like any reference, an alias must be declared, an override of a profile in the same catalog must
+name a rule it has, and no profile or overridden rule appears twice in one binding. A profile in another catalog is not read, so its rule ids are the consumer's to
 check.
 
 ## Consequences
