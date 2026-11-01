@@ -11,6 +11,15 @@ libraries.
 
 ### Added
 
+- **The authorization vocabulary is data.** A new `x-authorization` extension lists Epistola
+  Suite's tenant roles (with the name an identity provider emits for each), its platform roles, and
+  every permission with the roles that grant it; a permission no operation requires is marked
+  `outsideApi`. It ships with the rest of the spec in the server stubs
+  (`openapi/epistola-contract.yaml`), so a server can hold its own roles and permissions to it. A
+  server-stub test, `AuthorizationVocabularyTest`, holds the operations' `x-required-permissions`
+  and `x-required-platform-roles`, and the role tables in `docs/auth.md`, to it. Writing it down
+  showed the table had drifted: it still listed `BACKUP_VIEW`, `BACKUP_CREATE` and
+  `TENANT_RESTORE`, which Epistola Suite withdrew, and lacked `DIAGNOSTICS_MANAGE`.
 - **A refused authorization says what was refused.** `forbidden` (403) keeps its one type and
   gains a shape, `ForbiddenProblemDetail`, with four optional members: `requiredPermission` and
   `tenantKey` for a permission the caller lacks in a tenant, `tenantKey` alone when the caller has
