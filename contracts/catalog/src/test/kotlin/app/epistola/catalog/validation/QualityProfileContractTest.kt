@@ -154,6 +154,54 @@ class QualityProfileContractTest {
         )
     }
 
+    @Test
+    fun `the order of a binding's profiles and overrides is not content`() {
+        val house = QualityProfileRef("house-style", catalogKey = "house")
+        val clear = QualityProfileRef("clear-language")
+        val written = QualityBinding(
+            profiles = listOf(house, clear),
+            overrides = listOf(
+                QualityRuleOverride(clear, "sentence-length", severity = "info"),
+                QualityRuleOverride(clear, "plain-words", enabled = false),
+                QualityRuleOverride(house, "plain-words", enabled = false),
+            ),
+        )
+        val reordered = QualityBinding(profiles = written.profiles.reversed(), overrides = written.overrides.reversed())
+
+        fun fingerprint(catalogQuality: QualityBinding? = null, templateQuality: QualityBinding? = null) = CatalogCanonicalizer.currentQualifiedFingerprint(archive(catalogQuality = catalogQuality, templateQuality = templateQuality)).toString()
+
+        assertEquals(fingerprint(catalogQuality = written), fingerprint(catalogQuality = reordered))
+        assertEquals(fingerprint(templateQuality = written), fingerprint(templateQuality = reordered))
+        assertEquals(
+            CatalogCanonicalizer.completePerResourceFingerprints(archive(templateQuality = written))["template/letter"],
+            CatalogCanonicalizer.completePerResourceFingerprints(archive(templateQuality = reordered))["template/letter"],
+        )
+        fun resourceJson(binding: QualityBinding) = CatalogCanonicalizer.canonicalResourceJson(archive(templateQuality = binding).resourceDetails.getValue("template/letter"))
+        assertEquals(resourceJson(written), resourceJson(reordered))
+        // What the binding says still counts.
+        assertNotEquals(fingerprint(catalogQuality = written), fingerprint(catalogQuality = written.copy(overrides = written.overrides.drop(1))))
+    }
+
+    @Test
+    fun `a profile bound twice, or a rule overridden twice, in one binding is reported`() {
+        val clear = QualityProfileRef("clear-language")
+        val twice = QualityBinding(
+            profiles = listOf(clear, clear),
+            overrides = listOf(
+                QualityRuleOverride(clear, "sentence-length", severity = "info"),
+                QualityRuleOverride(clear, "sentence-length", enabled = false),
+            ),
+        )
+
+        val codes = CatalogValidator.validate(archive(templateQuality = twice)).findings.map { it.code to it.path }
+
+        assertTrue(CatalogValidationCodes.QUALITY_BINDING_DUPLICATE to "resources/template/letter.json.resource.quality.profiles[1]" in codes, codes.toString())
+        assertTrue(CatalogValidationCodes.QUALITY_BINDING_DUPLICATE to "resources/template/letter.json.resource.quality.overrides[1]" in codes, codes.toString())
+        // The same rule may be overridden once at the catalog and once at the template: the template's wins.
+        val once = QualityBinding(overrides = twice.overrides.take(1))
+        assertTrue(CatalogValidator.validate(archive(catalogQuality = once, templateQuality = once)).findings.none { it.code == CatalogValidationCodes.QUALITY_BINDING_DUPLICATE })
+    }
+
     private fun profile(): QualityProfileResource = mapper.readValue(PROFILE, ResourceDetail::class.java).resource as QualityProfileResource
 
     /**

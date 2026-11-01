@@ -11,9 +11,11 @@ import app.epistola.catalog.protocol.CatalogDependency
 import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogKeys
 import app.epistola.catalog.protocol.CatalogManifest
+import app.epistola.catalog.protocol.CatalogResource
 import app.epistola.catalog.protocol.DependencyRef
 import app.epistola.catalog.protocol.ImageResource
 import app.epistola.catalog.protocol.ResourceDetail
+import app.epistola.catalog.protocol.TemplateResource
 import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ArrayNode
@@ -642,13 +644,14 @@ object CatalogCanonicalizer {
      * V5 and V6 cover the catalog's quality binding (wire v8, contract ADR 0010): which profiles its
      * templates are checked against, and its overrides of their rules, are content. Written only when
      * present, so a catalog without one keeps the fingerprint it had before quality profiles existed;
-     * in authored order, written as the model writes it.
+     * in its canonical order ([app.epistola.catalog.protocol.QualityBinding.canonical]), because the order it was written in means
+     * nothing.
      */
     private fun putQuality(
         catalog: MutableMap<String, Any?>,
         info: CatalogInfo,
     ) {
-        info.quality?.let { catalog["quality"] = mapper.valueToTree(it) }
+        info.quality?.let { catalog["quality"] = mapper.valueToTree(it.canonical()) }
     }
 
     private fun canonicalCatalogInfo(
@@ -806,7 +809,7 @@ object CatalogCanonicalizer {
      *
      * The surrounding [ResourceDetail.schemaVersion] is intentionally omitted.
      */
-    fun canonicalResourceJson(detail: ResourceDetail): String = mapper.writeValueAsString(sortKeys(mapper.valueToTree(detail.resource)))
+    fun canonicalResourceJson(detail: ResourceDetail): String = mapper.writeValueAsString(sortKeys(mapper.valueToTree(canonicalModel(detail.resource))))
 
     private fun entries(catalog: CatalogArchive): List<Entry> = catalog.resourceDetails.map { (key, detail) ->
         val detailPath = "resources/$key.json"
@@ -855,7 +858,7 @@ object CatalogCanonicalizer {
         variantTitle: Boolean = false,
         withoutLocations: Boolean = false,
     ): List<Entry> = catalog.resourceDetails.map { (key, detail) ->
-        val model: JsonNode = mapper.valueToTree(detail.resource)
+        val model: JsonNode = mapper.valueToTree(canonicalModel(detail.resource))
         if (variantTitle) withVariantTitles(model)
         if (withoutLocations) withoutContentUrls(model)
         val resourceNode = normalizeStencilProvenance(if (currentNames) model else legacyResource(model), legacyV4 = false)
@@ -864,6 +867,12 @@ object CatalogCanonicalizer {
             canonicalJson = mapper.writeValueAsString(sortKeys(withoutMetadata(resourceNode))),
             assetHash = assetHash(catalog, detail),
         )
+    }
+
+    /** The resource with the members whose written order means nothing put in one order: a template's quality binding. */
+    private fun canonicalModel(resource: CatalogResource): CatalogResource = when (resource) {
+        is TemplateResource -> resource.quality?.let { resource.copy(quality = it.canonical()) } ?: resource
+        else -> resource
     }
 
     /** Removes an image's and each font face's `contentUrl`, in place. */
