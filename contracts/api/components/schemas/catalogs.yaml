@@ -823,6 +823,14 @@ CatalogReleaseDto:
       items:
         $ref: '#/CatalogPresetDto'
       example: []
+    quality:
+      $ref: './quality-profiles.yaml#/QualityBinding'
+      x-experimental: true
+      description: |
+        The quality profiles every template of the release is checked against, and the release's
+        overrides of their rules (alpha, `x-experimental`, contract ADR 0010), as `catalog.quality`
+        in its catalog archive. A template adds its own (`TemplateDto.quality`). Absent when the
+        release binds none. A server that does not support quality profiles yet leaves it out.
 
 BehindReleaseDto:
   type: object
@@ -909,8 +917,8 @@ CreateCatalogReleaseRequest:
 UpdateCatalogReleaseRequest:
   type: object
   description: |
-    A partial update of a draft's own settings: its name, its default theme and its declared
-    presets. A member that is omitted or null keeps its current value: generated servers and
+    A partial update of a draft's own settings: its name, its default theme, its declared
+    presets and its quality binding. A member that is omitted or null keeps its current value: generated servers and
     clients cannot tell an omitted member from a null one, so null never means "remove".
   properties:
     name:
@@ -943,6 +951,16 @@ UpdateCatalogReleaseRequest:
         which is refused with 400 otherwise.
       items:
         $ref: '#/CatalogPresetDto'
+    quality:
+      oneOf:
+        - $ref: './quality-profiles.yaml#/QualityBinding'
+        - type: 'null'
+      x-experimental: true
+      description: |
+        The draft's quality binding, replacing the current one as a whole (alpha, `x-experimental`,
+        contract ADR 0010). Omitted or null keeps it; an empty binding (no `profiles` and no
+        `overrides`) removes it. Refused with 400 as `QualityBinding` describes, and with 501
+        `operation-not-implemented` by a server that does not support quality profiles yet.
 
 CatalogThemeReference:
   type: object

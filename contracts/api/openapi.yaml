@@ -166,6 +166,11 @@ info:
       (`publishReleaseToRegistry`), and another installation lists the releases of a catalog there
       (`listRegistryReleases`) and installs one (`installRegistryRelease`) as an import does. A
       release registry is named by the installation; it is not the `{registry}` of a catalog's name.
+    - **Quality profiles** (alpha, `x-experimental`, contract ADR 0010) record how an organisation
+      writes: rules with a plain-language intent, a severity and extras per kind of checking system
+      (`listQualityProfiles` and the rest of the group). A release binds the profiles every template
+      in it is checked against, and a template adds its own (`quality` on `CatalogReleaseDto` and
+      `TemplateDto`).
 
     Documents are rendered from releases, and a version range never matches a draft. A
     draft renders only in a preview that names its `releaseId`, and in an environment it is
@@ -664,6 +669,13 @@ tags:
       data examples. Edited in a draft, read in any release.
   - name: Themes
     description: Reusable sets of styles that templates render with, in a release of a catalog
+  - name: QualityProfiles
+    description: |
+      Rules an organisation records about how its documents are written, in a release of a catalog
+      (contract ADR 0010). A release and each template bind the profiles that apply (`quality`).
+
+      **Experimental**, like every operation in this group (`x-experimental: true`): see
+      "Experimental parts and server support" in the API description.
   - name: Environments
     description: |
       Environments (such as `staging` and `production`) and what they serve: deploying and
@@ -774,6 +786,12 @@ paths:
     $ref: './paths/themes.yaml#/themes'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/themes/{themeKey}:
     $ref: './paths/themes.yaml#/themes-id'
+
+  # Quality profiles (alpha)
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/quality-profiles:
+    $ref: './paths/quality-profiles.yaml#/quality-profiles'
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/quality-profiles/{profileKey}:
+    $ref: './paths/quality-profiles.yaml#/quality-profiles-key'
 
   # Environments
   /tenants/{tenantKey}/environments:
@@ -1005,6 +1023,30 @@ components:
       $ref: './components/schemas/themes.yaml#/UpdateThemeRequest'
     ThemeListResponse:
       $ref: './components/schemas/themes.yaml#/ThemeListResponse'
+
+    # Quality profile schemas (alpha)
+    QualityProfileDto:
+      $ref: './components/schemas/quality-profiles.yaml#/QualityProfileDto'
+    CreateQualityProfileRequest:
+      $ref: './components/schemas/quality-profiles.yaml#/CreateQualityProfileRequest'
+    UpdateQualityProfileRequest:
+      $ref: './components/schemas/quality-profiles.yaml#/UpdateQualityProfileRequest'
+    QualityProfileListResponse:
+      $ref: './components/schemas/quality-profiles.yaml#/QualityProfileListResponse'
+    QualityRule:
+      $ref: './components/schemas/quality-profiles.yaml#/QualityRule'
+    QualitySeverity:
+      $ref: './components/schemas/quality-profiles.yaml#/QualitySeverity'
+    QualityRuleScope:
+      $ref: './components/schemas/quality-profiles.yaml#/QualityRuleScope'
+    QualityRuleExamples:
+      $ref: './components/schemas/quality-profiles.yaml#/QualityRuleExamples'
+    QualityBinding:
+      $ref: './components/schemas/quality-profiles.yaml#/QualityBinding'
+    QualityProfileRef:
+      $ref: './components/schemas/quality-profiles.yaml#/QualityProfileRef'
+    QualityRuleOverride:
+      $ref: './components/schemas/quality-profiles.yaml#/QualityRuleOverride'
 
     # Environment schemas
     EnvironmentDto:

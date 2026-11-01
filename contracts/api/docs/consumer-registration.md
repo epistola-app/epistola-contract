@@ -1055,6 +1055,7 @@ scoped further, to a release of the catalog.
 | Releases | Catalog | `/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases` | `TEMPLATE_EDIT` (drafts); `CATALOG_RELEASE` (release, discard) |
 | Templates | Release | `…/releases/{release}/templates` | `TEMPLATE_EDIT` |
 | Themes | Release | `…/releases/{release}/themes` | `THEME_EDIT` |
+| Quality profiles (alpha) | Release | `…/releases/{release}/quality-profiles` | `REFERENCE_EDIT` |
 
 ## Appendix B: Scoping Coherence
 

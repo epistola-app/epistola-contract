@@ -231,7 +231,12 @@ consumer's to check.
 - A profile is a resource like any other: changing a rule changes its fingerprint and the
   catalog's.
 
-## Not in the REST API
+## In the REST API
 
-Profiles and bindings travel in the catalog wire format: archives, import, export and Exchange. The
-REST API has no endpoints for them yet.
+The REST API (alpha, `x-experimental`) manages a release's profiles like its themes, under
+`…/releases/{release}/quality-profiles`: `listQualityProfiles`, `createQualityProfile`,
+`getQualityProfile`, `updateQualityProfile` and `deleteQualityProfile`. A profile and a rule are
+written there as above. A binding is the `quality` member of a release (`CatalogReleaseDto`,
+`updateCatalogRelease`) and of a template (`TemplateDto`, `createTemplate`, `updateTemplate`); on an
+update it replaces the binding as a whole, and an empty one removes it. A server that does not
+support quality profiles yet answers 501 `operation-not-implemented`.
