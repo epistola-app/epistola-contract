@@ -275,6 +275,51 @@ export class ProblemDetailException extends ResponseError {
     return this.typeSlug === KnownProblemSlugs.AMBIGUOUS_VARIANT
   }
 
+  /** True when this problem is a refused authorization (`forbidden`, 403). */
+  get isForbiddenProblem(): boolean {
+    return this.typeSlug === KnownProblemSlugs.FORBIDDEN
+  }
+
+  /**
+   * The permission a `forbidden` problem says the caller lacks, as the operation's
+   * `x-required-permissions` names it (`TEMPLATE_EDIT`): grant the caller, or the API key, a role
+   * that carries it. `undefined` for any other problem, and when absent or not a string.
+   */
+  get requiredPermission(): string | undefined {
+    return this.forbiddenMember(ProblemExtensionMembers.REQUIRED_PERMISSION)
+  }
+
+  /**
+   * The tenant a `forbidden` problem is about, from its `tenantKey` member. Without a
+   * `requiredPermission`, the caller has no access to that tenant at all. `undefined` for any other
+   * problem, which may use the name for other things.
+   */
+  get refusedTenantKey(): string | undefined {
+    return this.forbiddenMember(ProblemExtensionMembers.TENANT_KEY)
+  }
+
+  /**
+   * The platform role a `forbidden` problem says the caller lacks (`TENANT_MANAGER`); `undefined`
+   * for any other problem, and when absent or not a string.
+   */
+  get requiredPlatformRole(): string | undefined {
+    return this.forbiddenMember(ProblemExtensionMembers.REQUIRED_PLATFORM_ROLE)
+  }
+
+  /**
+   * Why a policy refused the request, from the `reason` member of a `forbidden` problem: text for a
+   * person, sent when there is no single permission to grant. `undefined` for any other problem.
+   */
+  get refusalReason(): string | undefined {
+    return this.forbiddenMember(ProblemExtensionMembers.REASON)
+  }
+
+  private forbiddenMember(member: string): string | undefined {
+    if (this.typeSlug !== KnownProblemSlugs.FORBIDDEN) return undefined
+    const value = this.extensions[member]
+    return typeof value === 'string' ? value : undefined
+  }
+
   private mergeBaseMissingMember(member: string): string | undefined {
     if (this.typeSlug !== KnownProblemSlugs.MERGE_BASE_MISSING) return undefined
     const value = this.extensions[member]

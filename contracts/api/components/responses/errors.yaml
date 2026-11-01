@@ -224,6 +224,42 @@ CatalogRenderingDefaultsTooNewProblemDetail:
           description: The newest rendering defaults version this installation has.
           example: 6
 
+ForbiddenProblemDetail:
+  description: >-
+    A refused authorization (`forbidden`, 403). Every member is optional, and which ones are present
+    says what was refused: a permission in a tenant (`requiredPermission` and `tenantKey`), access to
+    the tenant itself (`tenantKey` alone), a platform role (`requiredPlatformRole`), or a policy the
+    server applies (`reason`). A client that knows none of them still knows the request was refused.
+  allOf:
+    - $ref: '#/ProblemDetail'
+    - type: object
+      properties:
+        requiredPermission:
+          type: string
+          description: >-
+            The permission the caller lacks, named as the operation's `x-required-permissions`
+            names it. Grant the caller, or the API key, a role that carries it.
+          example: TEMPLATE_EDIT
+        requiredPlatformRole:
+          type: string
+          description: >-
+            The platform role the caller lacks, named as the operation's `x-required-platform-roles`
+            names it.
+          example: TENANT_MANAGER
+        tenantKey:
+          type: string
+          description: >-
+            The tenant the refusal is about. Alone, without `requiredPermission`, the caller has no
+            access to this tenant at all.
+          example: acme-corp
+        reason:
+          type: string
+          description: >-
+            Why a policy refused the request, when the server decides by policy rather than by the
+            permissions a role carries, so that there is no single permission to grant. Text for a
+            person to read, not a code to switch on.
+          example: Only the release board deploys to production environments.
+
 DataModelValidationError:
   type: object
   description: A single data-example validation failure against the data model

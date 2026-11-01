@@ -139,6 +139,33 @@ public class ProblemDetailException : ApiException
     /// </summary>
     public IReadOnlyList<string> TiedVariants { get; }
 
+    /// <summary>
+    /// The permission a <c>forbidden</c> problem says the caller lacks, as the operation's
+    /// <c>x-required-permissions</c> names it (<c>TEMPLATE_EDIT</c>): grant the caller, or the API
+    /// key, a role that carries it. <c>null</c> for any other problem, and when absent.
+    /// </summary>
+    public string? RequiredPermission { get; }
+
+    /// <summary>
+    /// The tenant a <c>forbidden</c> problem is about, from its <c>tenantKey</c> member. Without a
+    /// <see cref="RequiredPermission"/>, the caller has no access to that tenant at all. <c>null</c>
+    /// for any other problem.
+    /// </summary>
+    public string? RefusedTenantKey { get; }
+
+    /// <summary>
+    /// The platform role a <c>forbidden</c> problem says the caller lacks (<c>TENANT_MANAGER</c>);
+    /// <c>null</c> for any other problem, and when absent.
+    /// </summary>
+    public string? RequiredPlatformRole { get; }
+
+    /// <summary>
+    /// Why a policy refused the request, from the <c>reason</c> member of a <c>forbidden</c>
+    /// problem: text for a person, sent when there is no single permission to grant. <c>null</c>
+    /// for any other problem.
+    /// </summary>
+    public string? RefusalReason { get; }
+
     /// <summary>The HTTP status of the error response.</summary>
     public HttpStatusCode StatusCode { get; }
 
@@ -160,7 +187,11 @@ public class ProblemDetailException : ApiException
         IReadOnlyList<string>? behind = null,
         IReadOnlyList<string>? environments = null,
         IReadOnlyList<CatalogReleaseRef>? pinnedBy = null,
-        IReadOnlyList<string>? tiedVariants = null)
+        IReadOnlyList<string>? tiedVariants = null,
+        string? requiredPermission = null,
+        string? refusedTenantKey = null,
+        string? requiredPlatformRole = null,
+        string? refusalReason = null)
         // ApiException is generated and nullable-oblivious; its errorContent/headers are
         // optional and accept null at runtime, so bridge the nullable values with `!`.
         : base((int)statusCode, BuildMessage(statusCode, problem), rawBody!, headers!)
@@ -180,6 +211,10 @@ public class ProblemDetailException : ApiException
         Environments = environments ?? new List<string>();
         PinnedBy = pinnedBy ?? new List<CatalogReleaseRef>();
         TiedVariants = tiedVariants ?? new List<string>();
+        RequiredPermission = requiredPermission;
+        RefusedTenantKey = refusedTenantKey;
+        RequiredPlatformRole = requiredPlatformRole;
+        RefusalReason = refusalReason;
         StatusCode = statusCode;
     }
 
@@ -233,6 +268,9 @@ public class ProblemDetailException : ApiException
 
     /// <summary>True when this problem said several variants match equally well.</summary>
     public bool IsAmbiguousVariantProblem => TypeSlug == KnownProblemSlugs.AMBIGUOUS_VARIANT;
+
+    /// <summary>True when this problem is a refused authorization (<c>forbidden</c>, 403).</summary>
+    public bool IsForbiddenProblem => TypeSlug == KnownProblemSlugs.FORBIDDEN;
 
     private static string BuildMessage(HttpStatusCode status, ProblemDetail problem)
     {

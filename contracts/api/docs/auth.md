@@ -228,14 +228,24 @@ Common causes:
 
 ### 403 Forbidden
 
-Returned when authenticated but lacking permission:
+Returned when authenticated but refused. The type is always `forbidden`; its members say what was
+refused, and every one is optional:
+
+| Member | Present when |
+| --- | --- |
+| `requiredPermission` | the caller lacks a permission in the tenant, named as the operation's `x-required-permissions` names it |
+| `tenantKey` | the refusal is about a tenant; alone, the caller has no access to that tenant at all |
+| `requiredPlatformRole` | the caller lacks a platform role, named as `x-required-platform-roles` names it |
+| `reason` | a policy refused the request: there is no single permission to grant, and the text says why |
 
 ```json
 {
   "type": "https://epistola.app/errors/forbidden",
   "title": "Forbidden",
   "status": 403,
-  "detail": "Access denied to tenant 'acme-corp'"
+  "detail": "Missing required permission: TEMPLATE_EDIT",
+  "requiredPermission": "TEMPLATE_EDIT",
+  "tenantKey": "acme-corp"
 }
 ```
 

@@ -58,6 +58,10 @@ public final class ProblemDetailParser {
         private final List<String> environments;
         private final List<CatalogReleaseRef> pinnedBy;
         private final List<String> tiedVariants;
+        private final String requiredPermission;
+        private final String refusedTenantKey;
+        private final String requiredPlatformRole;
+        private final String refusalReason;
 
         ParsedProblem(
                 ProblemDetail problem,
@@ -74,8 +78,16 @@ public final class ProblemDetailParser {
                 List<String> behind,
                 List<String> environments,
                 List<CatalogReleaseRef> pinnedBy,
-                List<String> tiedVariants) {
+                List<String> tiedVariants,
+                String requiredPermission,
+                String refusedTenantKey,
+                String requiredPlatformRole,
+                String refusalReason) {
             this.problem = problem;
+            this.requiredPermission = requiredPermission;
+            this.refusedTenantKey = refusedTenantKey;
+            this.requiredPlatformRole = requiredPlatformRole;
+            this.refusalReason = refusalReason;
             this.behind = behind;
             this.environments = environments;
             this.pinnedBy = pinnedBy;
@@ -187,6 +199,26 @@ public final class ProblemDetailParser {
         public List<String> tiedVariants() {
             return tiedVariants;
         }
+
+        /** The permission a {@code forbidden} problem names; {@code null} for any other problem. */
+        public String requiredPermission() {
+            return requiredPermission;
+        }
+
+        /** The tenant a {@code forbidden} problem is about; {@code null} for any other problem. */
+        public String refusedTenantKey() {
+            return refusedTenantKey;
+        }
+
+        /** The platform role a {@code forbidden} problem names; {@code null} for any other problem. */
+        public String requiredPlatformRole() {
+            return requiredPlatformRole;
+        }
+
+        /** Why a policy refused a {@code forbidden} problem's request; {@code null} for any other problem. */
+        public String refusalReason() {
+            return refusalReason;
+        }
     }
 
     /**
@@ -226,6 +258,8 @@ public final class ProblemDetailParser {
             // `version` and `fingerprint` are generic names, so they are read for this problem only.
             boolean mergeBaseMissing =
                     KnownProblemSlugs.MERGE_BASE_MISSING.equals(ProblemTypes.slugFor(problem.getType()));
+            // `tenantKey` and `reason` are generic names too: the refusal's members come from `forbidden` only.
+            boolean forbidden = KnownProblemSlugs.FORBIDDEN.equals(ProblemTypes.slugFor(problem.getType()));
             return new ParsedProblem(
                     problem,
                     readErrors(root),
@@ -241,7 +275,11 @@ public final class ProblemDetailParser {
                     readStrings(root, ProblemExtensionMembers.BEHIND),
                     readStrings(root, ProblemExtensionMembers.ENVIRONMENTS),
                     readReleaseRefs(root, ProblemExtensionMembers.PINNED_BY),
-                    readStrings(root, ProblemExtensionMembers.TIED_VARIANTS));
+                    readStrings(root, ProblemExtensionMembers.TIED_VARIANTS),
+                    forbidden ? stringMember(root, ProblemExtensionMembers.REQUIRED_PERMISSION) : null,
+                    forbidden ? stringMember(root, ProblemExtensionMembers.TENANT_KEY) : null,
+                    forbidden ? stringMember(root, ProblemExtensionMembers.REQUIRED_PLATFORM_ROLE) : null,
+                    forbidden ? stringMember(root, ProblemExtensionMembers.REASON) : null);
         } catch (RuntimeException e) {
             return null;
         }

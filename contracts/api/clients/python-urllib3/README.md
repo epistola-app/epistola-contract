@@ -139,6 +139,10 @@ except ProblemDetailException as e:
         case KnownProblemSlugs.AMBIGUOUS_VARIANT:
             # generate_document, preview_document: name one by variant_key
             log.warning("several variants match: %s", ", ".join(e.tied_variants))
+        case KnownProblemSlugs.FORBIDDEN:
+            # any refused authorization: a permission in a tenant, access to a tenant, a platform
+            # role, or a policy (refusal_reason), each read from this problem only
+            log.warning("refused: missing %s in %s", e.required_permission, e.refused_tenant_key)
         case KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW:
             # import_catalog / install_catalog_release: the release renders with rendering
             # defaults this installation does not have (renderingDefaultsVersion, supportedVersion)
@@ -161,12 +165,13 @@ except ProblemDetailException as e:
 `problem_status`, `detail`, `errors`, `validation_errors`, `missing_fields`, `invalid_fields`,
 `missing_dependencies`, `unreleased_dependencies`, `read_only_reason`, `unresolved_conflicts`,
 `missing_base_version`, `missing_base_fingerprint`, `behind`, `environments`, `pinned_by`,
-`tied_variants`, `is_validation_problem`, `is_data_model_validation_problem`,
+`tied_variants`, `required_permission`, `refused_tenant_key`, `required_platform_role`,
+`refusal_reason`, `is_validation_problem`, `is_data_model_validation_problem`,
 `is_template_data_problem`, `is_release_dependencies_missing_problem`,
 `is_release_dependencies_unreleased_problem`, `is_catalog_read_only_problem`,
 `is_merge_conflicts_unresolved_problem`, `is_merge_base_missing_problem`,
-`is_catalog_version_behind_problem`, `is_release_in_use_problem` and
-`is_ambiguous_variant_problem`. Each `pinned_by` entry is a
+`is_catalog_version_behind_problem`, `is_release_in_use_problem`,
+`is_ambiguous_variant_problem` and `is_forbidden_problem`. Each `pinned_by` entry is a
 `CatalogReleaseRef(registry, namespace, catalog_key, version, release_id)`. Each
 `missing_dependencies` entry is a `MissingDependency` whose `reason` is the wire string, so a
 reason a later contract adds is reported rather than lost. Each `unreleased_dependencies` entry is

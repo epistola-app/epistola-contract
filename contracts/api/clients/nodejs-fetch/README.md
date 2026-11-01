@@ -176,6 +176,11 @@ try {
       case KnownProblemSlugs.AMBIGUOUS_VARIANT:
         log.warn(`several variants match: ${e.tiedVariants.join(', ')}`)        // generateDocument, previewDocument: name one by variantKey
         break
+      case KnownProblemSlugs.FORBIDDEN:
+        // any refused authorization: a permission in a tenant, access to a tenant, a platform role,
+        // or a policy (refusalReason), each read from this problem only
+        log.warn(`refused: missing ${e.requiredPermission} in ${e.refusedTenantKey}`)
+        break
       case KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW:
         // importCatalog / installCatalogRelease: the release renders with rendering defaults this
         // installation does not have
@@ -207,7 +212,9 @@ ResponseError` sites keep working. It exposes `type`, `typeSlug`, `title`, `prob
 `missingDependencies`, `unreleasedDependencies`, `readOnlyReason`, `unresolvedConflicts`,
 `isMergeConflictsUnresolvedProblem`, `missingBaseVersion`, `missingBaseFingerprint`,
 `isMergeBaseMissingProblem`, `behind`, `isCatalogVersionBehindProblem`, `environments`,
-`pinnedBy`, `isReleaseInUseProblem`, `tiedVariants`, `isAmbiguousVariantProblem`, `extensions` (every member
+`pinnedBy`, `isReleaseInUseProblem`, `tiedVariants`, `isAmbiguousVariantProblem`,
+`requiredPermission`, `refusedTenantKey`, `requiredPlatformRole`, `refusalReason`,
+`isForbiddenProblem`, `extensions` (every member
 outside the RFC 9457 base five), `statusCode`, `rawBody`, `isValidationProblem`,
 `isDataModelValidationProblem`, `isTemplateDataProblem`, `isReleaseDependenciesMissingProblem`,
 `isReleaseDependenciesUnreleasedProblem`, and `isCatalogReadOnlyProblem`.

@@ -166,6 +166,28 @@ class ProblemDetailsTest {
     }
 
     @Test
+    fun `forbidden names the missing permission and its tenant as a 403`() {
+        val problem = ProblemDetails.forbidden(requiredPermission = "TEMPLATE_EDIT", tenantKey = "acme-corp")
+        assertEquals(URI.create("https://epistola.app/errors/forbidden"), problem.type)
+        assertEquals(403, problem.status)
+        assertEquals(mapOf("requiredPermission" to "TEMPLATE_EDIT", "tenantKey" to "acme-corp"), problem.properties)
+        assertEquals("forbidden", ProblemDetails.KnownSlugs.FORBIDDEN)
+    }
+
+    @Test
+    fun `forbidden writes only the members it is given`() {
+        assertEquals(null, ProblemDetails.forbidden().properties)
+        assertEquals(
+            mapOf("requiredPlatformRole" to "TENANT_MANAGER"),
+            ProblemDetails.forbidden(requiredPlatformRole = "TENANT_MANAGER").properties,
+        )
+        assertEquals(
+            mapOf("tenantKey" to "acme-corp", "reason" to "Only the release board deploys to production environments."),
+            ProblemDetails.forbidden(tenantKey = "acme-corp", reason = "Only the release board deploys to production environments.").properties,
+        )
+    }
+
+    @Test
     fun `catalogSourceUnavailable is one type sent as a 503 or a 502`() {
         val unreachable = ProblemDetails.catalogSourceUnavailable(HttpStatus.SERVICE_UNAVAILABLE, detail = "registry.gemeente-x.nl could not be reached")
         assertEquals(URI.create("https://epistola.app/errors/catalog-source-unavailable"), unreachable.type)

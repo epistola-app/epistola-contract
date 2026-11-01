@@ -11,6 +11,21 @@ libraries.
 
 ### Added
 
+- **A refused authorization says what was refused.** `forbidden` (403) keeps its one type and
+  gains a shape, `ForbiddenProblemDetail`, with four optional members: `requiredPermission` and
+  `tenantKey` for a permission the caller lacks in a tenant, `tenantKey` alone when the caller has
+  no access to the tenant, `requiredPlatformRole` for a platform role, and `reason` when a policy
+  refused the request and there is no single permission to grant. Permissions and roles are named
+  as the operation's `x-required-permissions` and `x-required-platform-roles` name them
+  (`TEMPLATE_EDIT`), so a client can match one against the other. Additive: a client that knows
+  none of them still has the type and the status. The server stubs build it with
+  `ProblemDetails.forbidden(...)`, writing only the members given, and all five clients surface
+  them, read from a `forbidden` problem only (`requiredPermission`, `refusedTenantKey`,
+  `requiredPlatformRole`, `refusalReason` and `isForbiddenProblem`, in each language's
+  spelling), since `tenantKey` and `reason` are names another problem may use. Conformance
+  scenarios `forbidden-problem` and `forbidden-members-from-forbidden-only` hold every client to
+  both. Epistola Suite sends its own 403 types today (`permission-denied`, `access-denied`,
+  `platform-access-denied`); it moves to `forbidden` with these members in 2.0.
 - **Quality profiles** (alpha, wire v8, contract ADR 0010). A new resource type, `qualityProfile`,
   records how an organisation writes: rules with a plain-language `intent`, a `severity`, an
   optional `blocking` flag, a `scope` (field roles, components, languages), `examples`, and

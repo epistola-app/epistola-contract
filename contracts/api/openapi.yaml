@@ -452,10 +452,12 @@ x-problem-types:
         API-key authentication.
     - slug: forbidden
       status: 403
-      schema: ProblemDetail
+      schema: ForbiddenProblemDetail
       description: >-
-        Authenticated, but the caller lacks the required role or tenant
-        permission.
+        Authenticated, but refused: the caller lacks a permission in the tenant
+        (`requiredPermission`, `tenantKey`), access to the tenant (`tenantKey`),
+        or a platform role (`requiredPlatformRole`), or a policy refused it
+        (`reason`). Every member is optional.
     - slug: not-found
       status: 404
       schema: ProblemDetail
@@ -1339,6 +1341,8 @@ components:
       $ref: './components/responses/errors.yaml#/MergeBaseMissingProblemDetail'
     CatalogRenderingDefaultsTooNewProblemDetail:
       $ref: './components/responses/errors.yaml#/CatalogRenderingDefaultsTooNewProblemDetail'
+    ForbiddenProblemDetail:
+      $ref: './components/responses/errors.yaml#/ForbiddenProblemDetail'
     DataModelValidationError:
       $ref: './components/responses/errors.yaml#/DataModelValidationError'
     TemplateDataValidationProblemDetail:

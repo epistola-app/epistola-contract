@@ -217,6 +217,10 @@ object Driver {
                     "problemFieldErrors" to e.errors.joinToString(",") { "${it.field}:${it.message}" },
                     "problemMissingFields" to e.missingFields.joinToString(",") { "${it.path}:${it.required}" },
                     "problemInvalidFields" to e.invalidFields.joinToString(",") { "${it.path}:${it.keyword}" },
+                    "problemRequiredPermission" to (e.requiredPermission ?: "null"),
+                    "problemRefusedTenantKey" to (e.refusedTenantKey ?: "null"),
+                    "problemRequiredPlatformRole" to (e.requiredPlatformRole ?: "null"),
+                    "problemRefusalReason" to (e.refusalReason ?: "null"),
                 ),
             )
         }

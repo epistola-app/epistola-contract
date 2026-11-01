@@ -250,6 +250,26 @@ test('a release-in-use problem names what uses the release', () => {
   assert.deepEqual(problem.pinnedBy.map((r) => `${r.catalogKey}@${r.version}#${r.releaseId}`), ['invoices@2.1.0#q8w2e4rt'])
 })
 
+test('a forbidden problem says what was refused', () => {
+  const problem = parse({ type: 'https://epistola.app/errors/forbidden', title: 'Forbidden', status: 403, requiredPermission: 'TEMPLATE_EDIT', tenantKey: 'acme-corp' }, 403)!
+  assert.equal(problem.isForbiddenProblem, true)
+  assert.equal(problem.requiredPermission, 'TEMPLATE_EDIT')
+  assert.equal(problem.refusedTenantKey, 'acme-corp')
+  assert.equal(problem.requiredPlatformRole, undefined)
+  assert.equal(problem.refusalReason, undefined)
+
+  const byPolicy = parse({ type: 'https://epistola.app/errors/forbidden', title: 'Forbidden', status: 403, reason: 'Only the release board deploys to production environments.' }, 403)!
+  assert.equal(byPolicy.refusalReason, 'Only the release board deploys to production environments.')
+  assert.equal(byPolicy.requiredPermission, undefined)
+})
+
+test('the forbidden members are read from a forbidden problem only', () => {
+  const problem = parse({ type: 'https://epistola.app/errors/conflict', title: 'Conflict', status: 409, tenantKey: 'acme-corp', reason: 'x' }, 409)!
+  assert.equal(problem.isForbiddenProblem, false)
+  assert.equal(problem.refusedTenantKey, undefined)
+  assert.equal(problem.refusalReason, undefined)
+})
+
 test('an ambiguous-variant problem lists the tied variants', () => {
   const problem = parse({ type: 'https://epistola.app/errors/ambiguous-variant', title: 'Ambiguous Variant', status: 409, tiedVariants: ['english', 'english-legal'] }, 409)!
   assert.equal(problem.isAmbiguousVariantProblem, true)
