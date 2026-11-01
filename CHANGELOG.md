@@ -25,6 +25,19 @@ libraries.
   catalogs without profiles keep their fingerprints, and an archive with one is refused by a build
   that predates it.
 
+- **Quality profiles in the REST API** (alpha, `x-experimental`). A new `QualityProfiles` group
+  manages a release's profiles like its themes: `listQualityProfiles`, `createQualityProfile`,
+  `getQualityProfile`, `updateQualityProfile` (conditional with `If-Match`) and
+  `deleteQualityProfile`, under `…/releases/{release}/quality-profiles`, with
+  `REFERENCE_VIEW`/`REFERENCE_EDIT`. A rule is written as in the catalog wire format, its `extras`
+  an open map in every client. `CatalogReleaseDto`, `TemplateDto`, `CreateTemplateRequest`,
+  `UpdateTemplateRequest` and `UpdateCatalogReleaseRequest` gain an optional `quality` binding;
+  on an update, an empty binding removes it. The Kotlin server stubs bind the catalog's own
+  classes (`app.epistola.catalog.protocol.QualityRule`, `QualityBinding`, …) and, as they
+  generate without default methods, a server must implement the five operations: one that does
+  not support quality profiles yet answers 501 `operation-not-implemented`, and refuses a
+  `quality` in a request the same way.
+
 - **A template can be created with its data contract** (`createTemplate`). `CreateTemplateRequest`
   takes optional `dataModel` and `dataExamples`, as `updateTemplate` does, so a template need not
   exist without them. Omitted or null, the template gets the empty schema `{}`, which any data

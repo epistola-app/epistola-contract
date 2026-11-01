@@ -115,6 +115,13 @@ TemplateDto:
       description: Example data sets for testing template rendering
       items:
         $ref: '#/DataExampleDto'
+    quality:
+      $ref: './quality-profiles.yaml#/QualityBinding'
+      x-experimental: true
+      description: |
+        The quality profiles this template adds to its release's (`CatalogReleaseDto.quality`), and
+        its overrides of their rules (alpha, `x-experimental`, contract ADR 0010). Absent when the
+        template binds none. A server that does not support quality profiles yet leaves it out.
     variants:
       type: array
       description: Summary of all variants for this template
@@ -450,6 +457,15 @@ CreateTemplateRequest:
             customer:
               name: Jane Smith
             invoiceNumber: INV-2026-001
+    quality:
+      $ref: './quality-profiles.yaml#/QualityBinding'
+      x-experimental: true
+      description: |
+        The quality profiles the template adds to its release's, and its overrides of their rules
+        (alpha, `x-experimental`, contract ADR 0010). Omitted: none. Refused with 400 as
+        `QualityBinding` describes, and with 501 `operation-not-implemented` by a server that does
+        not support quality profiles yet.
+
 UpdateTemplateRequest:
   type: object
   description: Request body for updating a template's metadata (all fields optional)
@@ -556,6 +572,17 @@ UpdateTemplateRequest:
       description: Updated data examples
       items:
         $ref: '#/DataExampleDto'
+    quality:
+      oneOf:
+        - $ref: './quality-profiles.yaml#/QualityBinding'
+        - type: 'null'
+      x-experimental: true
+      description: |
+        The template's quality binding, replacing the current one as a whole (alpha,
+        `x-experimental`, contract ADR 0010). Omitted or null keeps it; an empty binding (no
+        `profiles` and no `overrides`) removes it. Refused with 400 as `QualityBinding` describes,
+        and with 501 `operation-not-implemented` by a server that does not support quality profiles
+        yet.
 
 TemplateListResponse:
   description: List of templates
