@@ -150,3 +150,4 @@ make build-epistola-catalog
 - [Catalog licensing](docs/catalog-licensing.md)
 - [Registry](docs/catalog-registry.md)
 - [Portable validation](docs/portable-catalog-validation.md)
+- [Quality profiles](docs/quality-profiles.md)
