@@ -959,8 +959,10 @@ UpdateCatalogReleaseRequest:
       description: |
         The draft's quality binding, replacing the current one as a whole (alpha, `x-experimental`,
         contract ADR 0010). Omitted or null keeps it; an empty binding (no `profiles` and no
-        `overrides`) removes it. Refused with 400 as `QualityBinding` describes, and with 501
-        `operation-not-implemented` by a server that does not support quality profiles yet.
+        `overrides`) removes it. Changing it additionally needs `QUALITY_EDIT` (403 without it); a `quality` equal to the
+        current binding needs nothing more. Refused with 400 as `QualityBinding` describes,
+        and with 501 `operation-not-implemented` by a server that does not support quality profiles
+        yet.
 
 CatalogThemeReference:
   type: object

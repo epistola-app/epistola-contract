@@ -28,11 +28,14 @@ libraries.
 - **Quality profiles in the REST API** (alpha, `x-experimental`). A new `QualityProfiles` group
   manages a release's profiles like its themes: `listQualityProfiles`, `createQualityProfile`,
   `getQualityProfile`, `updateQualityProfile` (conditional with `If-Match`) and
-  `deleteQualityProfile`, under `…/releases/{release}/quality-profiles`, with
-  `REFERENCE_VIEW`/`REFERENCE_EDIT`. A rule is written as in the catalog wire format, its `extras`
+  `deleteQualityProfile`, under `…/releases/{release}/quality-profiles`. Reading needs
+  `REFERENCE_VIEW`; creating, changing and deleting needs a new permission, `QUALITY_EDIT`, which
+  Epistola Suite gives the `CONTENT_PUBLISHER` role rather than authors, since rules gate
+  releases. A rule is written as in the catalog wire format, its `extras`
   an open map in every client. `CatalogReleaseDto`, `TemplateDto`, `CreateTemplateRequest`,
   `UpdateTemplateRequest` and `UpdateCatalogReleaseRequest` gain an optional `quality` binding;
-  on an update, an empty binding removes it. The Kotlin server stubs bind the catalog's own
+  on an update, an empty binding removes it. Setting or changing one needs `QUALITY_EDIT` beside
+  the operation's own permission (403 without it). The Kotlin server stubs bind the catalog's own
   classes (`app.epistola.catalog.protocol.QualityRule`, `QualityBinding`, …) and, as they
   generate without default methods, a server must implement the five operations: one that does
   not support quality profiles yet answers 501 `operation-not-implemented`, and refuses a

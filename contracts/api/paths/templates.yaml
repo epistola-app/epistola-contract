@@ -50,6 +50,9 @@ templates:
     description: |
       Create a document template in the draft, optionally with its data contract (`dataModel`) and
       data examples. Without them the template has the empty schema `{}` and no examples.
+
+      Setting the template's quality binding (`quality`, alpha) additionally needs `QUALITY_EDIT`:
+      a request that sets one without it is refused with 403.
     tags:
       - Templates
     x-required-permissions: [TEMPLATE_EDIT]
@@ -134,6 +137,11 @@ templates-id:
       a change that breaks callers is reported when the catalog is released, not here.
       Send the `ETag` from a read as `If-Match` to have the update refused with 412
       `resource-modified` if the resource changed since; without it, the last write wins.
+
+      Changing the template's quality binding (`quality`, alpha) additionally needs
+      `QUALITY_EDIT`: a request whose `quality` differs from the current binding is refused with
+      403 without it. A `quality` equal to the current one, as a client that sends back what it
+      read does, needs nothing more.
     tags:
       - Templates
     x-required-permissions: [TEMPLATE_EDIT]

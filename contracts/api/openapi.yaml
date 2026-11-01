@@ -312,7 +312,9 @@ info:
     `TEMPLATE_VIEW`, `TEMPLATE_EDIT`, `DOCUMENT_GENERATE` and `CATALOG_MANAGE`. A caller has them
     through its tenant roles (`CONTENT_VIEWER`, `CONTENT_AUTHOR`, `DOCUMENT_GENERATOR`,
     `CONTENT_PUBLISHER`, `TENANT_ADMINISTRATOR`), the roles stored on its API key. Managing tenants
-    needs the platform role `TENANT_MANAGER`.
+    needs the platform role `TENANT_MANAGER`. A request member that needs a permission beyond its
+    operation's says so in its description: changing a quality binding (`quality`, alpha) needs
+    `QUALITY_EDIT` as well.
 
     ## Errors
 
@@ -673,6 +675,8 @@ tags:
     description: |
       Rules an organisation records about how its documents are written, in a release of a catalog
       (contract ADR 0010). A release and each template bind the profiles that apply (`quality`).
+      Reading them needs `REFERENCE_VIEW`; changing them, or a binding, needs `QUALITY_EDIT`, which
+      Epistola Suite gives the `CONTENT_PUBLISHER` role: rules gate releases.
 
       **Experimental**, like every operation in this group (`x-experimental: true`): see
       "Experimental parts and server support" in the API description.

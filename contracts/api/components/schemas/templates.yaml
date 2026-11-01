@@ -462,9 +462,9 @@ CreateTemplateRequest:
       x-experimental: true
       description: |
         The quality profiles the template adds to its release's, and its overrides of their rules
-        (alpha, `x-experimental`, contract ADR 0010). Omitted: none. Refused with 400 as
-        `QualityBinding` describes, and with 501 `operation-not-implemented` by a server that does
-        not support quality profiles yet.
+        (alpha, `x-experimental`, contract ADR 0010). Omitted: none. Setting one additionally needs
+        `QUALITY_EDIT` (403 without it). Refused with 400 as `QualityBinding` describes, and with 501
+        `operation-not-implemented` by a server that does not support quality profiles yet.
 
 UpdateTemplateRequest:
   type: object
@@ -580,9 +580,10 @@ UpdateTemplateRequest:
       description: |
         The template's quality binding, replacing the current one as a whole (alpha,
         `x-experimental`, contract ADR 0010). Omitted or null keeps it; an empty binding (no
-        `profiles` and no `overrides`) removes it. Refused with 400 as `QualityBinding` describes,
-        and with 501 `operation-not-implemented` by a server that does not support quality profiles
-        yet.
+        `profiles` and no `overrides`) removes it. Changing it additionally needs `QUALITY_EDIT` (403 without it); a `quality` equal to the
+        current binding needs nothing more. Refused with 400 as
+        `QualityBinding` describes, and with 501 `operation-not-implemented` by a server that does
+        not support quality profiles yet.
 
 TemplateListResponse:
   description: List of templates

@@ -240,3 +240,8 @@ written there as above. A binding is the `quality` member of a release (`Catalog
 `updateCatalogRelease`) and of a template (`TemplateDto`, `createTemplate`, `updateTemplate`); on an
 update it replaces the binding as a whole, and an empty one removes it. A server that does not
 support quality profiles yet answers 501 `operation-not-implemented`.
+
+Reading profiles needs `REFERENCE_VIEW`. Creating, changing and deleting them, and setting or
+changing a binding, needs `QUALITY_EDIT` (a binding: beside the operation's own permission).
+Epistola Suite gives it the `CONTENT_PUBLISHER` role, not authors: rules, blocking ones above all,
+gate releases, and authors may only ignore findings.
