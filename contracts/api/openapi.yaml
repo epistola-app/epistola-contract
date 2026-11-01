@@ -400,13 +400,18 @@ x-authorization:
   tenantRoles:
     - name: CONTENT_VIEWER
       idpName: content-viewer
-      description: Reads a tenant's content and the documents generated in it.
+      description: >-
+        Reads a tenant's content: templates, stencils, themes, reference data and catalogs. Not the
+        documents generated from it, which carry the data they were generated with.
     - name: CONTENT_AUTHOR
       idpName: content-author
       description: Creates and edits templates, themes, stencils and reference data.
     - name: DOCUMENT_GENERATOR
       idpName: document-generator
-      description: Generates documents.
+      description: Generates documents, and reads the documents and jobs generated in the tenant.
+    - name: DOCUMENT_READER
+      idpName: document-reader
+      description: Reads the documents and jobs generated in a tenant, without generating any.
     - name: CONTENT_PUBLISHER
       idpName: content-publisher
       description: >-
@@ -415,15 +420,21 @@ x-authorization:
     - name: TENANT_ADMINISTRATOR
       idpName: tenant-administrator
       description: >-
-        Administers a tenant: its settings, API keys, catalogs, diagnostics and audit trail. Does not
-        edit, release or deploy content.
+        Administers a tenant: its settings and integrations, its API keys, catalogs, diagnostics and
+        audit trail, and the feedback sent from it. Does not edit, release or deploy content.
   platformRoles:
     - name: TENANT_MANAGER
       idpName: tenant-manager
       description: Creates and deletes tenants across the platform, and manages their namespaces.
+    - name: INSTALLATION_ADMINISTRATOR
+      idpName: installation-administrator
+      description: >-
+        Maintains the installation itself rather than any tenant: its cluster nodes, the site banner,
+        and what it shares with Epistola.
     - name: PLATFORM_OBSERVER
       idpName: platform-observer
-      description: Observes diagnostics and status across tenants, read-only.
+      description: Reads the diagnostics and audit trail of every tenant, and changes nothing.
+      grantsInEveryTenant: [DIAGNOSTICS_VIEW, AUDIT_VIEW]
   permissions:
     - name: TEMPLATE_VIEW
       grantedBy: [CONTENT_VIEWER]
@@ -452,7 +463,7 @@ x-authorization:
       grantedBy: [CONTENT_AUTHOR]
       description: Create, change and delete attributes and code lists, and refresh code lists.
     - name: DOCUMENT_VIEW
-      grantedBy: [CONTENT_VIEWER]
+      grantedBy: [DOCUMENT_GENERATOR, DOCUMENT_READER]
       description: Read generated documents and generation jobs.
     - name: DOCUMENT_GENERATE
       grantedBy: [DOCUMENT_GENERATOR]
@@ -484,9 +495,23 @@ x-authorization:
     - name: TENANT_SETTINGS
       grantedBy: [TENANT_ADMINISTRATOR]
       description: Change a tenant's settings and its environments.
-    - name: TENANT_USERS
+    - name: CREDENTIALS_MANAGE
       grantedBy: [TENANT_ADMINISTRATOR]
-      description: Manage a tenant's API keys and consumers.
+      description: Manage the credentials that reach a tenant from outside, its API keys and consumers.
+    - name: INTEGRATIONS_MANAGE
+      grantedBy: [TENANT_ADMINISTRATOR]
+      outsideApi: true
+      description: >-
+        Change the settings that send a tenant's data out of the installation: the Exchange
+        connection, and quality and AI providers.
+    - name: FEEDBACK_SUBMIT
+      grantedBy: [CONTENT_VIEWER]
+      outsideApi: true
+      description: Send feedback to Epistola, and follow and comment on one's own.
+    - name: FEEDBACK_MANAGE
+      grantedBy: [TENANT_ADMINISTRATOR]
+      outsideApi: true
+      description: Follow, comment on and close all of a tenant's feedback.
     - name: DIAGNOSTICS_VIEW
       grantedBy: [TENANT_ADMINISTRATOR]
       outsideApi: true
@@ -494,7 +519,7 @@ x-authorization:
     - name: DIAGNOSTICS_MANAGE
       grantedBy: [TENANT_ADMINISTRATOR]
       outsideApi: true
-      description: Maintain the state the diagnostics pages show.
+      description: Maintain the state the diagnostics pages show, and run load tests.
     - name: AUDIT_VIEW
       grantedBy: [TENANT_ADMINISTRATOR]
       outsideApi: true
