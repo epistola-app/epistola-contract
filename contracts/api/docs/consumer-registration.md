@@ -321,9 +321,9 @@ is deliberate:
 
 | Operation | Who can perform it |
 |---|---|
-| Declare/update a dependency | The consumer itself, for its own record; or a caller allowed to update consumers (`TENANT_USERS`, or `consumers: manage`) |
+| Declare/update a dependency | The consumer itself, for its own record; or a caller allowed to update consumers (`CREDENTIALS_MANAGE`, or `consumers: manage`) |
 | Remove a dependency | The same |
-| List dependencies for a consumer | The consumer itself; or a caller allowed to view consumers (`TENANT_USERS`, or `consumers: read`) |
+| List dependencies for a consumer | The consumer itself; or a caller allowed to view consumers (`CREDENTIALS_MANAGE`, or `consumers: read`) |
 | List dependents for a template | A caller allowed to view consumers |
 
 The intent is that consumers manage their own dependencies as part of their deployment pipeline.
@@ -339,7 +339,7 @@ The operations live under the tenant, at `/tenants/{tenantKey}/consumers`. All a
 Every request and response body uses `application/vnd.epistola.v2+json`.
 
 **Authorization**: `listConsumers`, `getConsumer`, `updateConsumer`, `deleteConsumer`,
-`approveConsumer` and `rejectConsumer` require the Suite permission `TENANT_USERS`
+`approveConsumer` and `rejectConsumer` require the Suite permission `CREDENTIALS_MANAGE`
 (`x-required-permissions`). `registerConsumer` requires no authentication (`security: []`): the
 public key in the request establishes the consumer's identity. `rotatePublicKey` admits only the
 consumer itself: it declares `security: bearerAuth` alone and `x-required-authentication`, and the
@@ -840,12 +840,12 @@ In the spec (experimental):
 | Method | Path | Operation | Tag | Permission |
 |---|---|---|---|---|
 | `POST` | `/tenants/{tenantKey}/consumers/register` | `registerConsumer` | Consumers | none (unauthenticated) |
-| `GET` | `/tenants/{tenantKey}/consumers` | `listConsumers` | Consumers | `TENANT_USERS` |
-| `GET` | `/tenants/{tenantKey}/consumers/{consumerId}` | `getConsumer` | Consumers | `TENANT_USERS` |
-| `PATCH` | `/tenants/{tenantKey}/consumers/{consumerId}` | `updateConsumer` | Consumers | `TENANT_USERS` |
-| `DELETE` | `/tenants/{tenantKey}/consumers/{consumerId}` | `deleteConsumer` | Consumers | `TENANT_USERS` |
-| `POST` | `/tenants/{tenantKey}/consumers/{consumerId}/approve` | `approveConsumer` | Consumers | `TENANT_USERS` |
-| `POST` | `/tenants/{tenantKey}/consumers/{consumerId}/reject` | `rejectConsumer` | Consumers | `TENANT_USERS` |
+| `GET` | `/tenants/{tenantKey}/consumers` | `listConsumers` | Consumers | `CREDENTIALS_MANAGE` |
+| `GET` | `/tenants/{tenantKey}/consumers/{consumerId}` | `getConsumer` | Consumers | `CREDENTIALS_MANAGE` |
+| `PATCH` | `/tenants/{tenantKey}/consumers/{consumerId}` | `updateConsumer` | Consumers | `CREDENTIALS_MANAGE` |
+| `DELETE` | `/tenants/{tenantKey}/consumers/{consumerId}` | `deleteConsumer` | Consumers | `CREDENTIALS_MANAGE` |
+| `POST` | `/tenants/{tenantKey}/consumers/{consumerId}/approve` | `approveConsumer` | Consumers | `CREDENTIALS_MANAGE` |
+| `POST` | `/tenants/{tenantKey}/consumers/{consumerId}/reject` | `rejectConsumer` | Consumers | `CREDENTIALS_MANAGE` |
 | `PUT` | `/tenants/{tenantKey}/consumers/{consumerId}/public-key` | `rotatePublicKey` | Consumers | JWT signed with the current key |
 
 Proposed:
@@ -1050,7 +1050,7 @@ scoped further, to a release of the catalog.
 | Resource | Scope | Path Prefix | Management Permission |
 |---|---|---|---|
 | Tenants | Platform | `/tenants` | `TENANT_MANAGER` platform role (create, delete); `TENANT_SETTINGS` (update) |
-| Consumers | Tenant | `/tenants/{tenantKey}/consumers` | `TENANT_USERS` |
+| Consumers | Tenant | `/tenants/{tenantKey}/consumers` | `CREDENTIALS_MANAGE` |
 | Environments | Tenant | `/tenants/{tenantKey}/environments` | `TENANT_SETTINGS`; `ENVIRONMENT_DEPLOY` to deploy and undeploy |
 | Releases | Catalog | `/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases` | `TEMPLATE_EDIT` (drafts); `CATALOG_RELEASE` (release, discard) |
 | Templates | Release | `…/releases/{release}/templates` | `TEMPLATE_EDIT` |

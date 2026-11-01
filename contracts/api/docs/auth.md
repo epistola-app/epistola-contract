@@ -161,23 +161,30 @@ Tenant roles are composable and non-hierarchical:
 
 | Suite role | Grants |
 |------------|--------|
-| `CONTENT_VIEWER` | `TEMPLATE_VIEW`, `DOCUMENT_VIEW`, `THEME_VIEW`, `STENCIL_VIEW`, `REFERENCE_VIEW`, `CATALOG_VIEW` |
+| `CONTENT_VIEWER` | `TEMPLATE_VIEW`, `THEME_VIEW`, `STENCIL_VIEW`, `REFERENCE_VIEW`, `CATALOG_VIEW`, `FEEDBACK_SUBMIT` |
 | `CONTENT_AUTHOR` | `TEMPLATE_EDIT`, `THEME_EDIT`, `STENCIL_EDIT`, `REFERENCE_EDIT` |
-| `DOCUMENT_GENERATOR` | `DOCUMENT_GENERATE` |
+| `DOCUMENT_GENERATOR` | `DOCUMENT_GENERATE`, `DOCUMENT_VIEW` |
+| `DOCUMENT_READER` | `DOCUMENT_VIEW` |
 | `CONTENT_PUBLISHER` | `QUALITY_EDIT` (create, change and delete quality profiles, and change a template's or a release's quality binding, alpha: the rules gate releases), `CATALOG_RELEASE` (release and discard catalog drafts), `ENVIRONMENT_DEPLOY` (deploy and undeploy releases of catalogs, released ones and drafts, in environments), `CATALOG_PUBLISH` (publish released releases to a release registry, alpha: the release leaves the installation) |
-| `TENANT_ADMINISTRATOR` | `TENANT_SETTINGS`, `TENANT_USERS`, `CATALOG_MANAGE`, `DIAGNOSTICS_VIEW`, `DIAGNOSTICS_MANAGE`, `AUDIT_VIEW` |
+| `TENANT_ADMINISTRATOR` | `TENANT_SETTINGS`, `CREDENTIALS_MANAGE`, `INTEGRATIONS_MANAGE`, `CATALOG_MANAGE`, `DIAGNOSTICS_VIEW`, `DIAGNOSTICS_MANAGE`, `AUDIT_VIEW`, `FEEDBACK_MANAGE` |
 
-`DIAGNOSTICS_VIEW`, `DIAGNOSTICS_MANAGE` and `AUDIT_VIEW` grant Suite features outside this API
-(`outsideApi` in `x-authorization`): no operation in the contract requires them. Every other
-permission above is the `x-required-permissions` of at least one operation, and every permission an
-operation requires is in this table.
+Reading content and reading what was generated from it are separate: `CONTENT_VIEWER` does not
+grant `DOCUMENT_VIEW`, because a generated document carries the data it was generated with. Grant
+`DOCUMENT_READER` to someone who reads documents without generating them.
+
+`INTEGRATIONS_MANAGE`, `FEEDBACK_SUBMIT`, `FEEDBACK_MANAGE`, `DIAGNOSTICS_VIEW`, `DIAGNOSTICS_MANAGE`
+and `AUDIT_VIEW` grant Suite features outside this API (`outsideApi` in `x-authorization`): no
+operation in the contract requires them. Every other permission above is the
+`x-required-permissions` of at least one operation, and every permission an operation requires is in
+this table.
 
 Platform roles:
 
 | Suite platform role | Grants |
 |---------------------|--------|
-| `TENANT_MANAGER` | Create and delete tenants across the platform |
-| `PLATFORM_OBSERVER` | Cross-tenant read-only diagnostics/status observation |
+| `TENANT_MANAGER` | Create and delete tenants across the platform, and manage their namespaces |
+| `INSTALLATION_ADMINISTRATOR` | Maintain the installation: its cluster nodes, the site banner, and what it shares with Epistola |
+| `PLATFORM_OBSERVER` | `DIAGNOSTICS_VIEW` and `AUDIT_VIEW` in every tenant, read-only |
 
 Important: `TENANT_ADMINISTRATOR` does not imply releasing, deploying or editing content. Grant
 `CONTENT_AUTHOR` and/or `CONTENT_PUBLISHER` alongside administration when an administrator also
@@ -266,7 +273,7 @@ Common causes:
 
 1. **Use an API key for production** — the supported method; the JWT methods are experimental
 2. **Send it as `Authorization: ApiKey <key>`**, the one header the contract defines for it
-3. **Issue each key with the fewest roles it needs** — a service that generates and downloads documents needs `DOCUMENT_GENERATOR` and `CONTENT_VIEWER`, not `TENANT_ADMINISTRATOR`
+3. **Issue each key with the fewest roles it needs** — a service that generates and downloads documents needs `DOCUMENT_GENERATOR` alone, not `CONTENT_VIEWER` or `TENANT_ADMINISTRATOR`
 4. **Set an expiry on keys** — and rotate by issuing a new key before revoking the old one
 
 When trying the experimental JWT methods:

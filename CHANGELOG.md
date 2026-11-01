@@ -523,6 +523,17 @@ libraries.
 
 ### Changed
 
+- **The 2.0 authorization vocabulary.** (BREAKING) `TENANT_USERS` is `CREDENTIALS_MANAGE`, the
+  permission the six consumer operations require. Reading content and reading what was generated
+  from it are separated: `CONTENT_VIEWER` no longer grants `DOCUMENT_VIEW`, which a generated
+  document's data needs, and `DOCUMENT_GENERATOR` grants it beside `DOCUMENT_GENERATE`, so an
+  integration that generates and downloads documents needs that one role. A new tenant role,
+  `DOCUMENT_READER` (`document-reader`), reads documents without generating any. Permissions for
+  Suite features outside this API: `INTEGRATIONS_MANAGE` (settings that send a tenant's data out),
+  `FEEDBACK_SUBMIT` and `FEEDBACK_MANAGE`. A new platform role, `INSTALLATION_ADMINISTRATOR`
+  (`installation-administrator`), maintains the installation itself, and `PLATFORM_OBSERVER` names
+  what it grants in every tenant (`grantsInEveryTenant`: `DIAGNOSTICS_VIEW`, `AUDIT_VIEW`). From
+  Epistola Suite ADR 0048.
 - **Bounds, paging and enums the 2.0 review found missing** (BREAKING). Each would be a tightening
   after 2.0.0. Epistola Suite may not implement them yet; its server stubs' list methods change
   signature with the sort parameters.
