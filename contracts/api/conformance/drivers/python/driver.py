@@ -204,6 +204,10 @@ def _problem(base_url: str, config: dict) -> None:
                 "problemInvalidFields": ",".join(
                     f"{f.path}:{f.keyword}" for f in exc.invalid_fields
                 ),
+                "problemRequiredPermission": _show(exc.required_permission),
+                "problemRefusedTenantKey": _show(exc.refused_tenant_key),
+                "problemRequiredPlatformRole": _show(exc.required_platform_role),
+                "problemRefusalReason": _show(exc.refusal_reason),
             },
         )
 

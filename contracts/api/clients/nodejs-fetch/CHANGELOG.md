@@ -11,6 +11,10 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Added
 
+- `ProblemDetailException.requiredPermission`, `refusedTenantKey`, `requiredPlatformRole`,
+  `refusalReason` and `isForbiddenProblem`: what a `forbidden` problem says was refused (a
+  permission in a tenant, access to a tenant, a platform role, or a policy's reason), read from that
+  problem only.
 - `ProblemDetailException.behind` and `isCatalogVersionBehindProblem` (a `catalog-version-behind`
   problem's versions to acknowledge), `environments`, `pinnedBy` (each a `CatalogReleaseRef`) and
   `isReleaseInUseProblem` (what a `release-in-use` problem says uses the release), and

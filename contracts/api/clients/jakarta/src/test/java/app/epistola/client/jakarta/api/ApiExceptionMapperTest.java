@@ -322,6 +322,45 @@ class ApiExceptionMapperTest {
     }
 
     @Test
+    void a_forbidden_problem_says_what_was_refused() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(403, PROBLEM_JSON,
+                        """
+                        {"type": "https://epistola.app/errors/forbidden", "title": "Forbidden", "status": 403,
+                         "requiredPermission": "TEMPLATE_EDIT", "tenantKey": "acme-corp"}
+                        """)));
+
+        assertTrue(e.isForbiddenProblem());
+        assertEquals("TEMPLATE_EDIT", e.getRequiredPermission());
+        assertEquals("acme-corp", e.getRefusedTenantKey());
+        assertNull(e.getRequiredPlatformRole());
+        assertNull(e.getRefusalReason());
+
+        ProblemDetailException byPolicy = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(403, PROBLEM_JSON,
+                        """
+                        {"type": "https://epistola.app/errors/forbidden", "title": "Forbidden", "status": 403,
+                         "reason": "Only the release board deploys to production environments."}
+                        """)));
+        assertEquals("Only the release board deploys to production environments.", byPolicy.getRefusalReason());
+        assertNull(byPolicy.getRequiredPermission());
+    }
+
+    @Test
+    void the_forbidden_members_are_read_from_a_forbidden_problem_only() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(409, PROBLEM_JSON,
+                        """
+                        {"type": "https://epistola.app/errors/conflict", "title": "Conflict", "status": 409,
+                         "tenantKey": "acme-corp", "reason": "x"}
+                        """)));
+
+        assertFalse(e.isForbiddenProblem());
+        assertNull(e.getRefusedTenantKey());
+        assertNull(e.getRefusalReason());
+    }
+
+    @Test
     void a_merge_conflicts_unresolved_problem_lists_the_conflicts() {
         ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
                 StubServer.StubResponse.of(409, PROBLEM_JSON,

@@ -329,6 +329,8 @@ try {
             println("undeploy from ${e.environments}; pinned by ${e.pinnedBy.map { "${it.catalogKey}@${it.version}" }}")
         KnownProblemSlugs.AMBIGUOUS_VARIANT ->           // generateDocument, previewDocument: name one by variantKey
             println("several variants match: ${e.tiedVariants}")
+        KnownProblemSlugs.FORBIDDEN ->                   // any refused authorization
+            println(e.requiredPermission?.let { "grant a role with $it in ${e.refusedTenantKey}" } ?: e.refusalReason ?: e.detail)
         KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW -> // importCatalog, installCatalogRelease
             println("upgrade Epistola: the release renders with defaults ${e.extensions["renderingDefaultsVersion"]}, this has up to ${e.extensions["supportedVersion"]}")
         KnownProblemSlugs.RELEASE_NUMBER_TAKEN ->        // publishReleaseToRegistry (alpha), importCatalog, install…Release
@@ -359,7 +361,10 @@ release a `merge-base-missing` problem asks to install first, read from that pro
 `catalog-version-behind` problem asks to name in `acknowledgedBehind`), `environments`, `pinnedBy`
 and `isReleaseInUseProblem` (what a `release-in-use` problem says still uses the release),
 `tiedVariants` and `isAmbiguousVariantProblem` (the variants an `ambiguous-variant` problem says
-match equally well), `isValidationProblem`,
+match equally well), `requiredPermission`, `requiredPlatformRole`, `refusedTenantKey`,
+`refusalReason` and `isForbiddenProblem` (what a `forbidden` problem says was refused: a permission
+in a tenant, access to a tenant, a platform role, or a policy's reason, read from that problem
+only), `isValidationProblem`,
 `isDataModelValidationProblem`, `isReleaseDependenciesMissingProblem`,
 `isReleaseDependenciesUnreleasedProblem`, `isCatalogReadOnlyProblem`, and `extensions`. See [error-types.md](../../docs/error-types.md) for the full list of problem `type`
 slugs.

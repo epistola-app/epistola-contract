@@ -96,6 +96,8 @@ def parse_problem(
             validation_errors = {}
 
     merge_base_missing = problem_types.slug_for(problem.type) == KnownProblemSlugs.MERGE_BASE_MISSING
+    # `tenantKey` and `reason` are generic names too: the refusal's members come from `forbidden` only.
+    forbidden = problem_types.slug_for(problem.type) == KnownProblemSlugs.FORBIDDEN
     return ProblemDetailException(
         problem=problem,
         errors=errors,
@@ -116,6 +118,10 @@ def parse_problem(
         environments=_strings(tree, "environments"),
         pinned_by=_release_refs(tree, "pinnedBy"),
         tied_variants=_strings(tree, "tiedVariants"),
+        required_permission=_string(tree, "requiredPermission") if forbidden else None,
+        refused_tenant_key=_string(tree, "tenantKey") if forbidden else None,
+        required_platform_role=_string(tree, "requiredPlatformRole") if forbidden else None,
+        refusal_reason=_string(tree, "reason") if forbidden else None,
     )
 
 

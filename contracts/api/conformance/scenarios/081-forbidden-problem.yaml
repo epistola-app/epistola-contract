@@ -1,0 +1,47 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: forbidden-problem
+title: A refused authorization says what was refused, and only a forbidden problem is read for it
+why: >
+  Every refusal is `forbidden`, one type, so a consumer cannot tell from the type alone whether to
+  grant a role or to give up. The members say it: `requiredPermission` and `tenantKey` name what to
+  grant and where. A client that drops them leaves the integrator reading server logs to fix a key's
+  scope, which is exactly what the members exist to prevent.
+
+  `tenantKey` and `reason` are generic names another problem may use for something else, so a
+  client reads them from a `forbidden` problem only; `forbidden-members-from-forbidden-only` holds
+  every client to that.
+
+action:
+  name: problem
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: main
+    release: 2.0.0
+
+script:
+  - status: 403
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/forbidden
+      title: Forbidden
+      status: 403
+      detail: "Missing required permission: TEMPLATE_VIEW"
+      requiredPermission: TEMPLATE_VIEW
+      tenantKey: acme-corp
+
+expect:
+  requestCount: 1
+  report:
+    problemTypeSlug: forbidden
+    problemStatus: 403
+    problemRequiredPermission: TEMPLATE_VIEW
+    problemRefusedTenantKey: acme-corp
+    # Absent members read as absent, not as an empty string or a guess.
+    problemRequiredPlatformRole: "null"
+    problemRefusalReason: "null"

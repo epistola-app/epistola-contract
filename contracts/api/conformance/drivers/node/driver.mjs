@@ -172,6 +172,10 @@ async function problem(baseUrl, config) {
       problemFieldErrors: error.errors.map((e) => `${e.field}:${e.message}`).join(','),
       problemMissingFields: error.missingFields.map((f) => `${f.path}:${f.required}`).join(','),
       problemInvalidFields: error.invalidFields.map((f) => `${f.path}:${f.keyword}`).join(','),
+      problemRequiredPermission: show(error.requiredPermission),
+      problemRefusedTenantKey: show(error.refusedTenantKey),
+      problemRequiredPlatformRole: show(error.requiredPlatformRole),
+      problemRefusalReason: show(error.refusalReason),
     })
   }
 }

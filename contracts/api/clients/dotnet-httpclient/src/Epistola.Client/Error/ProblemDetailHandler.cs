@@ -87,7 +87,11 @@ public sealed class ProblemDetailHandler : DelegatingHandler
             behind: parsed.Behind,
             environments: parsed.Environments,
             pinnedBy: parsed.PinnedBy,
-            tiedVariants: parsed.TiedVariants);
+            tiedVariants: parsed.TiedVariants,
+            requiredPermission: parsed.RequiredPermission,
+            refusedTenantKey: parsed.RefusedTenantKey,
+            requiredPlatformRole: parsed.RequiredPlatformRole,
+            refusalReason: parsed.RefusalReason);
     }
 
     /// <summary>
@@ -127,6 +131,8 @@ public sealed class ProblemDetailHandler : DelegatingHandler
 
             // `version` and `fingerprint` are generic names, so they are read for this problem only.
             var mergeBaseMissing = ProblemTypes.SlugFor(problem.Type) == KnownProblemSlugs.MERGE_BASE_MISSING;
+            // `tenantKey` and `reason` are generic names too: the refusal's members come from `forbidden` only.
+            var forbidden = ProblemTypes.SlugFor(problem.Type) == KnownProblemSlugs.FORBIDDEN;
 
             return new ParsedProblem(
                 problem,
@@ -143,7 +149,11 @@ public sealed class ProblemDetailHandler : DelegatingHandler
                 Strings(tree, "behind"),
                 Strings(tree, "environments"),
                 Entries(tree, "pinnedBy", CatalogReleaseRef.FromMember),
-                Strings(tree, "tiedVariants"));
+                Strings(tree, "tiedVariants"),
+                forbidden ? StringMember(tree, "requiredPermission") : null,
+                forbidden ? StringMember(tree, "tenantKey") : null,
+                forbidden ? StringMember(tree, "requiredPlatformRole") : null,
+                forbidden ? StringMember(tree, "reason") : null);
         }
         catch (JsonException)
         {
@@ -251,6 +261,18 @@ public sealed class ProblemDetailHandler : DelegatingHandler
         /// <summary>The variant keys an <c>ambiguous-variant</c> problem lists; empty when absent.</summary>
         public IReadOnlyList<string> TiedVariants { get; }
 
+        /// <summary>The permission a <c>forbidden</c> problem names; <c>null</c> for any other problem.</summary>
+        public string? RequiredPermission { get; }
+
+        /// <summary>The tenant a <c>forbidden</c> problem is about; <c>null</c> for any other problem.</summary>
+        public string? RefusedTenantKey { get; }
+
+        /// <summary>The platform role a <c>forbidden</c> problem names; <c>null</c> for any other problem.</summary>
+        public string? RequiredPlatformRole { get; }
+
+        /// <summary>Why a policy refused a <c>forbidden</c> problem's request; <c>null</c> for any other problem.</summary>
+        public string? RefusalReason { get; }
+
         public ParsedProblem(
             ProblemDetail problem,
             IReadOnlyList<ValidationError> errors,
@@ -266,7 +288,11 @@ public sealed class ProblemDetailHandler : DelegatingHandler
             IReadOnlyList<string>? behind = null,
             IReadOnlyList<string>? environments = null,
             IReadOnlyList<CatalogReleaseRef>? pinnedBy = null,
-            IReadOnlyList<string>? tiedVariants = null)
+            IReadOnlyList<string>? tiedVariants = null,
+            string? requiredPermission = null,
+            string? refusedTenantKey = null,
+            string? requiredPlatformRole = null,
+            string? refusalReason = null)
         {
             Problem = problem;
             Errors = errors;
@@ -283,6 +309,10 @@ public sealed class ProblemDetailHandler : DelegatingHandler
             Environments = environments ?? new List<string>();
             PinnedBy = pinnedBy ?? new List<CatalogReleaseRef>();
             TiedVariants = tiedVariants ?? new List<string>();
+            RequiredPermission = requiredPermission;
+            RefusedTenantKey = refusedTenantKey;
+            RequiredPlatformRole = requiredPlatformRole;
+            RefusalReason = refusalReason;
         }
     }
 }

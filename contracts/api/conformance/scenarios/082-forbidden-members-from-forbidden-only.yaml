@@ -1,0 +1,43 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: forbidden-members-from-forbidden-only
+title: A problem that is not forbidden is never read as a refusal
+why: >
+  `tenantKey` and `reason` are ordinary words, and a problem of another type may carry members of
+  those names that mean something else. A client that read them from any problem would report a
+  missing release as a refusal about a tenant, and send its user to grant a role that would change nothing.
+  The members are a `forbidden` problem's, and only a `forbidden` problem is read for them.
+
+action:
+  name: problem
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: main
+    release: 2.0.0
+
+script:
+  - status: 404
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/not-found
+      title: Not Found
+      status: 404
+      detail: The catalog has no release 2.0.0
+      tenantKey: acme-corp
+      reason: no-such-release
+      requiredPermission: TEMPLATE_VIEW
+
+expect:
+  requestCount: 1
+  report:
+    problemTypeSlug: not-found
+    problemStatus: 404
+    problemRequiredPermission: "null"
+    problemRefusedTenantKey: "null"
+    problemRequiredPlatformRole: "null"
+    problemRefusalReason: "null"

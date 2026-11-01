@@ -124,6 +124,21 @@ object ProblemDetails {
     /** Extension member listing the variants that match equally well (`AmbiguousVariantProblemDetail`). */
     const val TIED_VARIANTS_PROPERTY: String = ProblemExtensionMembers.TIED_VARIANTS
 
+    /**
+     * Extension member naming the permission a `forbidden` problem's caller lacks, as the operation's
+     * `x-required-permissions` names it (`ForbiddenProblemDetail`).
+     */
+    const val REQUIRED_PERMISSION_PROPERTY: String = ProblemExtensionMembers.REQUIRED_PERMISSION
+
+    /** Extension member naming the platform role a `forbidden` problem's caller lacks (`ForbiddenProblemDetail`). */
+    const val REQUIRED_PLATFORM_ROLE_PROPERTY: String = ProblemExtensionMembers.REQUIRED_PLATFORM_ROLE
+
+    /** Extension member naming the tenant a `forbidden` problem is about (`ForbiddenProblemDetail`). */
+    const val TENANT_KEY_PROPERTY: String = ProblemExtensionMembers.TENANT_KEY
+
+    /** Extension member saying why a policy refused a `forbidden` problem's request (`ForbiddenProblemDetail`). */
+    const val REASON_PROPERTY: String = ProblemExtensionMembers.REASON
+
     // The mapping is shared with the clients, which use it in the other direction.
     private val uris = ProblemTypeUris.of(TYPE_BASE)
 
@@ -178,7 +193,7 @@ object ProblemDetails {
         /** 401 — API-key authentication is disabled for this deployment. */
         const val API_KEY_AUTH_DISABLED: String = KnownProblemSlugs.API_KEY_AUTH_DISABLED
 
-        /** 403 — authenticated but not allowed to perform the operation. */
+        /** 403 — authenticated but refused (use [forbidden]). */
         const val FORBIDDEN: String = KnownProblemSlugs.FORBIDDEN
 
         /** 404 — the addressed resource does not exist. */
@@ -454,6 +469,31 @@ object ProblemDetails {
     ): ProblemDetail {
         val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED), detail, instance)
         problem.setProperty(UNRESOLVED_CONFLICTS_PROPERTY, unresolvedConflicts)
+        return problem
+    }
+
+    /**
+     * Builds a `forbidden` [ProblemDetail] (403): like [of] plus whichever extension members say what
+     * was refused (the `ForbiddenProblemDetail` shape from the contract), each written only when
+     * given. Name the [requiredPermission] and [tenantKey] for a permission the caller lacks in a
+     * tenant, the [tenantKey] alone when the caller has no access to the tenant, the
+     * [requiredPlatformRole] for a platform role, and a [reason] when a policy refused the request
+     * and there is no single permission to grant. Permissions and roles are named as the operation's
+     * `x-required-permissions` and `x-required-platform-roles` name them.
+     */
+    fun forbidden(
+        requiredPermission: String? = null,
+        tenantKey: String? = null,
+        requiredPlatformRole: String? = null,
+        reason: String? = null,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        val problem = of(HttpStatusCode.valueOf(403), typeFor(KnownProblemSlugs.FORBIDDEN), detail, instance)
+        if (requiredPermission != null) problem.setProperty(REQUIRED_PERMISSION_PROPERTY, requiredPermission)
+        if (tenantKey != null) problem.setProperty(TENANT_KEY_PROPERTY, tenantKey)
+        if (requiredPlatformRole != null) problem.setProperty(REQUIRED_PLATFORM_ROLE_PROPERTY, requiredPlatformRole)
+        if (reason != null) problem.setProperty(REASON_PROPERTY, reason)
         return problem
     }
 

@@ -218,6 +218,10 @@ try {
     } else if (KnownProblemSlugs.AMBIGUOUS_VARIANT.equals(slug)) {
         // generateDocument / previewDocument: name one by variantKey
         log.warn("several variants match: {}", e.getTiedVariants());
+    } else if (KnownProblemSlugs.FORBIDDEN.equals(slug)) {
+        // any refused authorization: a permission in a tenant, access to a tenant, a platform role,
+        // or a policy (getRefusalReason), each read from this problem only
+        log.warn("refused: missing {} in {}", e.getRequiredPermission(), e.getRefusedTenantKey());
     } else if (KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW.equals(slug)) {
         // importCatalog / installCatalogRelease: the release renders with rendering defaults this
         // installation does not have (renderingDefaultsVersion, supportedVersion in the body)
