@@ -59,6 +59,10 @@ public class ApiExceptionMapper implements ResponseExceptionMapper<ApiException>
                 parsed.environments(),
                 parsed.pinnedBy(),
                 parsed.tiedVariants(),
+                parsed.requiredPermission(),
+                parsed.refusedTenantKey(),
+                parsed.requiredPlatformRole(),
+                parsed.refusalReason(),
                 body);
     }
 

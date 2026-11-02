@@ -119,6 +119,11 @@ catch (ProblemDetailException e)
         case KnownProblemSlugs.AMBIGUOUS_VARIANT:        // GenerateDocument, PreviewDocument: name one by VariantKey
             Console.WriteLine($"several variants match: {string.Join(", ", e.TiedVariants)}");
             break;
+        case KnownProblemSlugs.FORBIDDEN:                // any refused authorization
+            Console.WriteLine(e.RequiredPermission != null
+                ? $"grant a role with {e.RequiredPermission} in {e.RefusedTenantKey}"
+                : e.RefusalReason ?? e.Detail);
+            break;
         default:                                 // always keep a default branch: a type this client
             Console.WriteLine($"{e.ProblemStatus} {e.Title}");  // does not know is handled by its status
             break;

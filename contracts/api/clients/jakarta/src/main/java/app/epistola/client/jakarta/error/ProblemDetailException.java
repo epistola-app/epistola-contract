@@ -55,6 +55,10 @@ public class ProblemDetailException extends ApiException {
     private final List<String> environments;
     private final List<CatalogReleaseRef> pinnedBy;
     private final List<String> tiedVariants;
+    private final String requiredPermission;
+    private final String refusedTenantKey;
+    private final String requiredPlatformRole;
+    private final String refusalReason;
     private final int statusCode;
     private final String responseBody;
     private final String message;
@@ -203,7 +207,44 @@ public class ProblemDetailException extends ApiException {
             List<CatalogReleaseRef> pinnedBy,
             List<String> tiedVariants,
             String responseBody) {
+        this(response, problem, errors, validationErrors, missingFields, invalidFields, missingDependencies,
+                unreleasedDependencies, readOnlyReason, unresolvedConflicts, missingBaseVersion,
+                missingBaseFingerprint, behind, environments, pinnedBy, tiedVariants, null, null, null, null,
+                responseBody);
+    }
+
+    /**
+     * The same, for a problem that may also say what a refused authorization ({@code forbidden})
+     * refused: the permission the caller lacks, the tenant, the platform role, or a policy's reason.
+     * The parser reads these from a {@code forbidden} problem only.
+     */
+    public ProblemDetailException(
+            Response response,
+            ProblemDetail problem,
+            List<ValidationError> errors,
+            Map<String, List<DataModelValidationError>> validationErrors,
+            List<MissingDataField> missingFields,
+            List<InvalidDataField> invalidFields,
+            List<MissingDependency> missingDependencies,
+            List<UnreleasedDependency> unreleasedDependencies,
+            String readOnlyReason,
+            List<String> unresolvedConflicts,
+            String missingBaseVersion,
+            String missingBaseFingerprint,
+            List<String> behind,
+            List<String> environments,
+            List<CatalogReleaseRef> pinnedBy,
+            List<String> tiedVariants,
+            String requiredPermission,
+            String refusedTenantKey,
+            String requiredPlatformRole,
+            String refusalReason,
+            String responseBody) {
         super(response);
+        this.requiredPermission = requiredPermission;
+        this.refusedTenantKey = refusedTenantKey;
+        this.requiredPlatformRole = requiredPlatformRole;
+        this.refusalReason = refusalReason;
         this.behind = unmodifiable(behind);
         this.environments = unmodifiable(environments);
         this.pinnedBy = unmodifiable(pinnedBy);
@@ -470,6 +511,46 @@ public class ProblemDetailException extends ApiException {
     /** True when this problem said several variants match equally well. */
     public boolean isAmbiguousVariantProblem() {
         return KnownProblemSlugs.AMBIGUOUS_VARIANT.equals(getTypeSlug());
+    }
+
+    /** True when this problem is a refused authorization ({@code forbidden}, 403). */
+    public boolean isForbiddenProblem() {
+        return KnownProblemSlugs.FORBIDDEN.equals(getTypeSlug());
+    }
+
+    /**
+     * The permission a {@code forbidden} problem says the caller lacks, as the operation's
+     * {@code x-required-permissions} names it ({@code TEMPLATE_EDIT}): grant the caller, or the API
+     * key, a role that carries it. {@code null} for any other problem, and when absent.
+     */
+    public String getRequiredPermission() {
+        return requiredPermission;
+    }
+
+    /**
+     * The tenant a {@code forbidden} problem is about, from its {@code tenantKey} member. Without a
+     * required permission, the caller has no access to that tenant at all. {@code null} for any
+     * other problem.
+     */
+    public String getRefusedTenantKey() {
+        return refusedTenantKey;
+    }
+
+    /**
+     * The platform role a {@code forbidden} problem says the caller lacks ({@code TENANT_MANAGER});
+     * {@code null} for any other problem, and when absent.
+     */
+    public String getRequiredPlatformRole() {
+        return requiredPlatformRole;
+    }
+
+    /**
+     * Why a policy refused the request, from the {@code reason} member of a {@code forbidden}
+     * problem: text for a person, sent when there is no single permission to grant. {@code null}
+     * for any other problem.
+     */
+    public String getRefusalReason() {
+        return refusalReason;
     }
 
     private static <T> List<T> unmodifiable(List<T> list) {

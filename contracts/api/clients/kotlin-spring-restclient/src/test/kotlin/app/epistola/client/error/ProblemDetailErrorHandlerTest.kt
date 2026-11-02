@@ -276,6 +276,42 @@ class ProblemDetailErrorHandlerTest {
     }
 
     @Test
+    fun `surfaces what a forbidden problem says was refused`() {
+        val body = """
+            {"type":"https://epistola.app/errors/forbidden","title":"Forbidden","status":403,
+             "requiredPermission":"TEMPLATE_EDIT","tenantKey":"acme-corp"}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> { handleErrorResponse(response(HttpStatus.FORBIDDEN, body)) }
+        assertTrue(ex.isForbiddenProblem)
+        assertEquals("TEMPLATE_EDIT", ex.requiredPermission)
+        assertEquals("acme-corp", ex.refusedTenantKey)
+        assertNull(ex.requiredPlatformRole)
+        assertNull(ex.refusalReason)
+
+        val byPolicy = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(
+                response(
+                    HttpStatus.FORBIDDEN,
+                    """{"type":"https://epistola.app/errors/forbidden","title":"Forbidden","status":403,"reason":"Only the release board deploys to production environments."}""",
+                ),
+            )
+        }
+        assertEquals("Only the release board deploys to production environments.", byPolicy.refusalReason)
+        assertNull(byPolicy.requiredPermission)
+    }
+
+    @Test
+    fun `reads the forbidden members from a forbidden problem only`() {
+        val body = """{"type":"https://epistola.app/errors/conflict","title":"Conflict","status":409,"tenantKey":"acme-corp","reason":"x"}"""
+
+        val ex = assertFailsWith<ProblemDetailException> { handleErrorResponse(response(HttpStatus.CONFLICT, body)) }
+        assertFalse(ex.isForbiddenProblem)
+        assertNull(ex.refusedTenantKey)
+        assertNull(ex.refusalReason)
+    }
+
+    @Test
     fun `surfaces the unresolved conflicts of a merge-conflicts-unresolved problem in order`() {
         val body = """
             {"type":"https://epistola.app/errors/merge-conflicts-unresolved","title":"Merge Conflicts Unresolved",

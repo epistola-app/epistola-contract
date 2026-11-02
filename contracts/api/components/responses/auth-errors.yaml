@@ -25,13 +25,37 @@ ApiKeyAuthDisabledError:
         detail: "API-key authentication is disabled for this deployment. Use Authorization: Bearer <jwt>."
 
 ForbiddenError:
-  description: Authenticated but insufficient permissions for the requested resource
+  description: >-
+    Authenticated, but refused. The members say what was refused: a permission in the tenant, access
+    to the tenant, a platform role, or a policy.
   content:
     application/problem+json:
       schema:
-        $ref: './errors.yaml#/ProblemDetail'
-      example:
-        type: https://epistola.app/errors/forbidden
-        title: Forbidden
-        status: 403
-        detail: Access denied to tenant 'acme-corp'
+        $ref: './errors.yaml#/ForbiddenProblemDetail'
+      examples:
+        missingPermission:
+          summary: The caller lacks a permission in the tenant
+          value:
+            type: https://epistola.app/errors/forbidden
+            title: Forbidden
+            status: 403
+            detail: "Missing required permission: TEMPLATE_EDIT"
+            requiredPermission: TEMPLATE_EDIT
+            tenantKey: acme-corp
+        noTenantAccess:
+          summary: The caller has no access to the tenant
+          value:
+            type: https://epistola.app/errors/forbidden
+            title: Forbidden
+            status: 403
+            detail: Access denied to tenant 'acme-corp'
+            tenantKey: acme-corp
+        refusedByPolicy:
+          summary: A policy refused the request
+          value:
+            type: https://epistola.app/errors/forbidden
+            title: Forbidden
+            status: 403
+            detail: Refused by policy
+            tenantKey: acme-corp
+            reason: Only the release board deploys to production environments.

@@ -152,27 +152,39 @@ Epistola Suite uses coarse tenant/platform roles to derive fine-grained permissi
 contract documents the enforced permission on each operation with `x-required-permissions`; platform
 operations use `x-required-platform-roles`.
 
+The whole vocabulary is data in the spec's `x-authorization` extension: the tenant roles and their
+identity-provider names, the platform roles, and each permission with the roles that grant it. It
+ships with the server stubs (`openapi/epistola-contract.yaml`), so a server can check its own
+roles against it, and a test holds the operations' declarations and the tables below to it.
+
 Tenant roles are composable and non-hierarchical:
 
 | Suite role | Grants |
 |------------|--------|
-| `CONTENT_VIEWER` | `TEMPLATE_VIEW`, `DOCUMENT_VIEW`, `THEME_VIEW`, `STENCIL_VIEW`, `REFERENCE_VIEW`, `CATALOG_VIEW`, `BACKUP_VIEW` |
+| `CONTENT_VIEWER` | `TEMPLATE_VIEW`, `THEME_VIEW`, `STENCIL_VIEW`, `REFERENCE_VIEW`, `CATALOG_VIEW`, `FEEDBACK_SUBMIT` |
 | `CONTENT_AUTHOR` | `TEMPLATE_EDIT`, `THEME_EDIT`, `STENCIL_EDIT`, `REFERENCE_EDIT` |
-| `DOCUMENT_GENERATOR` | `DOCUMENT_GENERATE` |
+| `DOCUMENT_GENERATOR` | `DOCUMENT_GENERATE`, `DOCUMENT_VIEW` |
+| `DOCUMENT_READER` | `DOCUMENT_VIEW` |
 | `CONTENT_PUBLISHER` | `QUALITY_EDIT` (create, change and delete quality profiles, and change a template's or a release's quality binding, alpha: the rules gate releases), `CATALOG_RELEASE` (release and discard catalog drafts), `ENVIRONMENT_DEPLOY` (deploy and undeploy releases of catalogs, released ones and drafts, in environments), `CATALOG_PUBLISH` (publish released releases to a release registry, alpha: the release leaves the installation) |
-| `TENANT_ADMINISTRATOR` | `TENANT_SETTINGS`, `TENANT_USERS`, `CATALOG_MANAGE`, `BACKUP_CREATE`, `DIAGNOSTICS_VIEW`, `AUDIT_VIEW`, `TENANT_RESTORE` |
+| `TENANT_ADMINISTRATOR` | `TENANT_SETTINGS`, `CREDENTIALS_MANAGE`, `INTEGRATIONS_MANAGE`, `CATALOG_MANAGE`, `DIAGNOSTICS_VIEW`, `DIAGNOSTICS_MANAGE`, `AUDIT_VIEW`, `FEEDBACK_MANAGE` |
 
-`BACKUP_VIEW`, `BACKUP_CREATE`, `DIAGNOSTICS_VIEW`, `AUDIT_VIEW` and `TENANT_RESTORE` grant Suite
-features outside this API: no operation in the contract requires them. Every other permission
-above is the `x-required-permissions` of at least one operation, and every permission an operation
-requires is in this table.
+Reading content and reading what was generated from it are separate: `CONTENT_VIEWER` does not
+grant `DOCUMENT_VIEW`, because a generated document carries the data it was generated with. Grant
+`DOCUMENT_READER` to someone who reads documents without generating them.
+
+`INTEGRATIONS_MANAGE`, `FEEDBACK_SUBMIT`, `FEEDBACK_MANAGE`, `DIAGNOSTICS_VIEW`, `DIAGNOSTICS_MANAGE`
+and `AUDIT_VIEW` grant Suite features outside this API (`outsideApi` in `x-authorization`): no
+operation in the contract requires them. Every other permission above is the
+`x-required-permissions` of at least one operation, and every permission an operation requires is in
+this table.
 
 Platform roles:
 
 | Suite platform role | Grants |
 |---------------------|--------|
-| `TENANT_MANAGER` | Create and delete tenants across the platform |
-| `PLATFORM_OBSERVER` | Cross-tenant read-only diagnostics/status observation |
+| `TENANT_MANAGER` | Create and delete tenants across the platform, and manage their namespaces |
+| `INSTALLATION_ADMINISTRATOR` | Maintain the installation: its cluster nodes, the site banner, and what it shares with Epistola |
+| `PLATFORM_OBSERVER` | `DIAGNOSTICS_VIEW` and `AUDIT_VIEW` in every tenant, read-only |
 
 Important: `TENANT_ADMINISTRATOR` does not imply releasing, deploying or editing content. Grant
 `CONTENT_AUTHOR` and/or `CONTENT_PUBLISHER` alongside administration when an administrator also
@@ -228,14 +240,24 @@ Common causes:
 
 ### 403 Forbidden
 
-Returned when authenticated but lacking permission:
+Returned when authenticated but refused. The type is always `forbidden`; its members say what was
+refused, and every one is optional:
+
+| Member | Present when |
+| --- | --- |
+| `requiredPermission` | the caller lacks a permission in the tenant, named as the operation's `x-required-permissions` names it |
+| `tenantKey` | the refusal is about a tenant; alone, the caller has no access to that tenant at all |
+| `requiredPlatformRole` | the caller lacks a platform role, named as `x-required-platform-roles` names it |
+| `reason` | a policy refused the request: there is no single permission to grant, and the text says why |
 
 ```json
 {
   "type": "https://epistola.app/errors/forbidden",
   "title": "Forbidden",
   "status": 403,
-  "detail": "Access denied to tenant 'acme-corp'"
+  "detail": "Missing required permission: TEMPLATE_EDIT",
+  "requiredPermission": "TEMPLATE_EDIT",
+  "tenantKey": "acme-corp"
 }
 ```
 
@@ -251,7 +273,7 @@ Common causes:
 
 1. **Use an API key for production** — the supported method; the JWT methods are experimental
 2. **Send it as `Authorization: ApiKey <key>`**, the one header the contract defines for it
-3. **Issue each key with the fewest roles it needs** — a service that generates and downloads documents needs `DOCUMENT_GENERATOR` and `CONTENT_VIEWER`, not `TENANT_ADMINISTRATOR`
+3. **Issue each key with the fewest roles it needs** — a service that generates and downloads documents needs `DOCUMENT_GENERATOR` alone, not `CONTENT_VIEWER` or `TENANT_ADMINISTRATOR`
 4. **Set an expiry on keys** — and rotate by issuing a new key before revoking the old one
 
 When trying the experimental JWT methods:

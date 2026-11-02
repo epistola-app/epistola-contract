@@ -396,6 +396,45 @@ public class ProblemDetailHandlerTest
     }
 
     [Fact]
+    public async Task ThrowsWithWhatAForbiddenProblemSaysWasRefused()
+    {
+        const string body = """
+            {"type": "https://epistola.app/errors/forbidden", "title": "Forbidden", "status": 403,
+             "requiredPermission": "TEMPLATE_EDIT", "tenantKey": "acme-corp"}
+            """;
+        var client = ClientReturning(HttpStatusCode.Forbidden, "application/problem+json", body);
+
+        var ex = await Assert.ThrowsAsync<ProblemDetailException>(() => client.PostAsync("templates", null));
+        Assert.True(ex.IsForbiddenProblem);
+        Assert.Equal("TEMPLATE_EDIT", ex.RequiredPermission);
+        Assert.Equal("acme-corp", ex.RefusedTenantKey);
+        Assert.Null(ex.RequiredPlatformRole);
+        Assert.Null(ex.RefusalReason);
+    }
+
+    [Fact]
+    public void ParseProblemReadsAPolicyReasonFromAForbiddenProblem()
+    {
+        var parsed = ProblemDetailHandler.ParseProblem(
+            """{"type": "https://epistola.app/errors/forbidden", "title": "Forbidden", "status": 403, "reason": "Only the release board deploys to production environments."}""");
+
+        Assert.NotNull(parsed);
+        Assert.Equal("Only the release board deploys to production environments.", parsed!.RefusalReason);
+        Assert.Null(parsed.RequiredPermission);
+    }
+
+    [Fact]
+    public void ParseProblemReadsTheForbiddenMembersFromAForbiddenProblemOnly()
+    {
+        var parsed = ProblemDetailHandler.ParseProblem(
+            """{"type": "https://epistola.app/errors/conflict", "title": "Conflict", "status": 409, "tenantKey": "acme-corp", "reason": "x"}""");
+
+        Assert.NotNull(parsed);
+        Assert.Null(parsed!.RefusedTenantKey);
+        Assert.Null(parsed.RefusalReason);
+    }
+
+    [Fact]
     public void ParseProblemReadsNoReadOnlyReasonThatIsNotAString()
     {
         var parsed = ProblemDetailHandler.ParseProblem(

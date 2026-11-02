@@ -164,6 +164,10 @@ public static class Driver
                 ["problemFieldErrors"] = string.Join(",", e.Errors.Select(error => $"{error.Field}:{error.Message}")),
                 ["problemMissingFields"] = string.Join(",", e.MissingFields.Select(f => $"{f.Path}:{(f.Required ? "true" : "false")}")),
                 ["problemInvalidFields"] = string.Join(",", e.InvalidFields.Select(f => $"{f.Path}:{f.Keyword}")),
+                ["problemRequiredPermission"] = Show(e.RequiredPermission),
+                ["problemRefusedTenantKey"] = Show(e.RefusedTenantKey),
+                ["problemRequiredPlatformRole"] = Show(e.RequiredPlatformRole),
+                ["problemRefusalReason"] = Show(e.RefusalReason),
             });
         }
     }
