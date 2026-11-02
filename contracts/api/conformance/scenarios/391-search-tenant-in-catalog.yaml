@@ -1,0 +1,94 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: search-tenant-in-catalog
+title: A search scoped to one catalog sends only that catalog, and keeps kinds it does not know
+why: >
+  A palette opened inside a catalog starts scoped to it, with nothing typed yet: the request names
+  the catalog by `registry`, `namespace` and `catalogKey` and nothing else, so the server applies
+  its own defaults (no text, most recently changed first). A filter the caller did not set stays off
+  the wire, never sent empty or as a default the contract does not declare. The catalog here is
+  one the server supplies, so it is not editable and says why, and the catalog hit itself has no
+  resource status. A hit's kind is a string, not an enum: a resource type added to the server after
+  the client was built must still be read, not fail the whole page.
+
+action:
+  name: search-tenant
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantKey: acme-corp
+    registry: exchange.epistola.app
+    namespace: epistola
+    catalogKey: system
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      items:
+        - kind: catalog
+          key: system
+          name: System
+          description: Fonts, code lists and attributes Epistola supplies
+          lastModified: "2026-10-01T00:00:00Z"
+          catalogs:
+            - registry: exchange.epistola.app
+              namespace: epistola
+              catalogKey: system
+              catalogName: System
+              releaseId: s1y2s3t4
+              version: "2.0.0"
+              editable: false
+              readOnlyReason: supplied-by-epistola
+              status: null
+          variants: []
+        - kind: snippet
+          key: address-block
+          name: Address block
+          lastModified: "2026-10-01T00:00:00Z"
+          catalogs:
+            - registry: exchange.epistola.app
+              namespace: epistola
+              catalogKey: system
+              catalogName: System
+              releaseId: s1y2s3t4
+              version: "2.0.0"
+              editable: false
+              readOnlyReason: supplied-by-epistola
+              status: released
+          variants: []
+      counts:
+        - kind: catalog
+          total: 1
+        - kind: snippet
+          total: 1
+      page: { number: 0, size: 20, total: 2, totalPages: 1 }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/search
+      queryParams:
+        registry: exchange.epistola.app
+        namespace: epistola
+        catalogKey: system
+        q: { absent: true }
+        kind: { absent: true }
+        supplied: { absent: true }
+        changed: { absent: true }
+        sort: { absent: true }
+        page: { whenPresent: '0' }
+        size: { whenPresent: '20' }
+  report:
+    kinds: catalog,snippet
+    keys: system,address-block
+    names: System|Address block
+    catalogs: exchange.epistola.app/epistola/system#s1y2s3t4@2.0.0;exchange.epistola.app/epistola/system#s1y2s3t4@2.0.0
+    catalogStates: false:supplied-by-epistola:null;false:supplied-by-epistola:released
+    variants: ;
+    counts: catalog=1,snippet=1
+    total: '2'
