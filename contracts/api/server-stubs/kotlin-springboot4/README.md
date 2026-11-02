@@ -138,6 +138,15 @@ ProblemDetails.catalogRenderingDefaultsTooNew(
     detail = "letters 1.1.0 renders with rendering defaults version 9, which this Epistola does not have (it has up to 6)",
 )
 
+// 403 forbidden: any refused authorization. Name what was refused: a permission in a tenant
+// (requiredPermission and tenantKey), access to the tenant (tenantKey alone), a platform role
+// (requiredPlatformRole), or a policy (reason). Each member is written only when given.
+ProblemDetails.forbidden(
+    requiredPermission = "TEMPLATE_EDIT",
+    tenantKey = "acme-corp",
+    detail = "Missing required permission: TEMPLATE_EDIT",
+)
+
 // 503 or 502 catalog-source-unavailable: listAvailableCatalogReleases and installCatalogRelease,
 // when the catalog's source cannot be used. 503 when it could not be reached or timed
 // out (set Retry-After on the response when you can tell), 502 when it answered badly.

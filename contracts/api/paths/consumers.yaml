@@ -76,7 +76,7 @@ consumer-collection:
       with optional filtering by status.
     tags:
       - Consumers
-    x-required-permissions: [TENANT_USERS]
+    x-required-permissions: [CREDENTIALS_MANAGE]
     parameters:
       - name: q
         in: query
@@ -130,7 +130,7 @@ consumer-resource:
       Retrieve details of a specific consumer in this tenant.
     tags:
       - Consumers
-    x-required-permissions: [TENANT_USERS]
+    x-required-permissions: [CREDENTIALS_MANAGE]
     responses:
       '200':
         description: Consumer details
@@ -160,7 +160,7 @@ consumer-resource:
       `resource-modified` if the resource changed since; without it, the last write wins.
     tags:
       - Consumers
-    x-required-permissions: [TENANT_USERS]
+    x-required-permissions: [CREDENTIALS_MANAGE]
     parameters:
       - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
     requestBody:
@@ -209,7 +209,7 @@ consumer-resource:
         (orphaned reference).
     tags:
       - Consumers
-    x-required-permissions: [TENANT_USERS]
+    x-required-permissions: [CREDENTIALS_MANAGE]
     responses:
       '204':
         description: Consumer deleted
@@ -247,7 +247,7 @@ consumer-approve:
       to `active`.
     tags:
       - Consumers
-    x-required-permissions: [TENANT_USERS]
+    x-required-permissions: [CREDENTIALS_MANAGE]
     requestBody:
       required: true
       content:
@@ -296,7 +296,7 @@ consumer-reject:
       to `rejected`. Optionally provide a reason.
     tags:
       - Consumers
-    x-required-permissions: [TENANT_USERS]
+    x-required-permissions: [CREDENTIALS_MANAGE]
     requestBody:
       required: false
       content:

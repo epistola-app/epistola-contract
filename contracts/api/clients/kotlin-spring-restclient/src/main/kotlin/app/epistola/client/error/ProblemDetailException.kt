@@ -231,6 +231,37 @@ class ProblemDetailException(
     /** True when this problem said several variants match equally well. */
     val isAmbiguousVariantProblem: Boolean get() = typeSlug == KnownProblemSlugs.AMBIGUOUS_VARIANT
 
+    /** True when this problem is a refused authorization (`forbidden`, 403). */
+    val isForbiddenProblem: Boolean get() = typeSlug == KnownProblemSlugs.FORBIDDEN
+
+    /**
+     * The permission a `forbidden` problem says the caller lacks, as the operation's
+     * `x-required-permissions` names it (`TEMPLATE_EDIT`): grant the caller, or the API key, a role
+     * that carries it. Null for any other problem, and when the member is absent or not a string.
+     */
+    val requiredPermission: String? get() = forbiddenMember(ProblemExtensionMembers.REQUIRED_PERMISSION)
+
+    /**
+     * The platform role a `forbidden` problem says the caller lacks (`TENANT_MANAGER`); null for any
+     * other problem, and when the member is absent or not a string.
+     */
+    val requiredPlatformRole: String? get() = forbiddenMember(ProblemExtensionMembers.REQUIRED_PLATFORM_ROLE)
+
+    /**
+     * The tenant a `forbidden` problem is about, from its `tenantKey` member. Without a
+     * [requiredPermission], the caller has no access to that tenant at all. Null for any other
+     * problem, which may use the name for other things.
+     */
+    val refusedTenantKey: String? get() = forbiddenMember(ProblemExtensionMembers.TENANT_KEY)
+
+    /**
+     * Why a policy refused the request, from the `reason` member of a `forbidden` problem: text for a
+     * person, sent when there is no single permission to grant. Null for any other problem.
+     */
+    val refusalReason: String? get() = forbiddenMember(ProblemExtensionMembers.REASON)
+
+    private fun forbiddenMember(name: String): String? = if (isForbiddenProblem) extensions[name] as? String else null
+
     /**
      * One extension member's array of objects, converted to [T]. An entry of an unexpected shape
      * yields nothing rather than a guess: a malformed problem body should not become a confident

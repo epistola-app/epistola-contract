@@ -123,6 +123,10 @@ class ProblemDetailException(ApiException):
         environments: Optional[List[str]] = None,
         pinned_by: Optional[List[CatalogReleaseRef]] = None,
         tied_variants: Optional[List[str]] = None,
+        required_permission: Optional[str] = None,
+        refused_tenant_key: Optional[str] = None,
+        required_platform_role: Optional[str] = None,
+        refusal_reason: Optional[str] = None,
     ) -> None:
         super().__init__(
             status=status_code,
@@ -180,6 +184,19 @@ class ProblemDetailException(ApiException):
         #: The keys of the variants an ``ambiguous-variant`` problem (409, from generating or
         #: previewing a document) says match the request's attributes equally well; else ``[]``.
         self.tied_variants = tied_variants or []
+        #: The permission a ``forbidden`` problem (403) says the caller lacks, as the operation's
+        #: ``x-required-permissions`` names it (``TEMPLATE_EDIT``): grant the caller, or the API key,
+        #: a role that carries it; else ``None``.
+        self.required_permission = required_permission
+        #: The tenant a ``forbidden`` problem is about, from its ``tenantKey`` member. Without a
+        #: ``required_permission``, the caller has no access to that tenant at all; else ``None``.
+        self.refused_tenant_key = refused_tenant_key
+        #: The platform role a ``forbidden`` problem says the caller lacks (``TENANT_MANAGER``);
+        #: else ``None``.
+        self.required_platform_role = required_platform_role
+        #: Why a policy refused the request, from the ``reason`` member of a ``forbidden`` problem:
+        #: text for a person, sent when there is no single permission to grant; else ``None``.
+        self.refusal_reason = refusal_reason
         #: The HTTP status of the error response.
         self.status_code = status_code
 
@@ -260,6 +277,11 @@ class ProblemDetailException(ApiException):
     def is_ambiguous_variant_problem(self) -> bool:
         """True when this problem said several variants match equally well."""
         return self.type_slug == KnownProblemSlugs.AMBIGUOUS_VARIANT
+
+    @property
+    def is_forbidden_problem(self) -> bool:
+        """True when this problem is a refused authorization (``forbidden``, 403)."""
+        return self.type_slug == KnownProblemSlugs.FORBIDDEN
 
     @property
     def is_data_model_validation_problem(self) -> bool:

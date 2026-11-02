@@ -265,7 +265,15 @@ public final class Driver {
                             "problemInvalidFields",
                                     e.getInvalidFields().stream()
                                             .map(field -> field.getPath() + ":" + field.getKeyword())
-                                            .collect(Collectors.joining(","))));
+                                            .collect(Collectors.joining(",")),
+                            "problemRequiredPermission",
+                                    e.getRequiredPermission() == null ? "null" : e.getRequiredPermission(),
+                            "problemRefusedTenantKey",
+                                    e.getRefusedTenantKey() == null ? "null" : e.getRefusedTenantKey(),
+                            "problemRequiredPlatformRole",
+                                    e.getRequiredPlatformRole() == null ? "null" : e.getRequiredPlatformRole(),
+                            "problemRefusalReason",
+                                    e.getRefusalReason() == null ? "null" : e.getRefusalReason()));
         }
     }
 

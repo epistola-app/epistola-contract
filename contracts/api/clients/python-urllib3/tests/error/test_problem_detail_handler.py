@@ -408,6 +408,30 @@ def test_an_ambiguous_variant_problem_lists_the_tied_variants():
     assert exc.tied_variants == ["english", "english-legal"]
 
 
+def test_a_forbidden_problem_says_what_was_refused():
+    body = json.dumps({"type": "https://epistola.app/errors/forbidden", "title": "Forbidden", "status": 403, "requiredPermission": "TEMPLATE_EDIT", "tenantKey": "acme-corp"})
+    exc = parse_problem(body, 403)
+    assert exc is not None
+    assert exc.is_forbidden_problem
+    assert exc.required_permission == "TEMPLATE_EDIT"
+    assert exc.refused_tenant_key == "acme-corp"
+    assert exc.required_platform_role is None
+    assert exc.refusal_reason is None
+
+    by_policy = parse_problem(json.dumps({"type": "https://epistola.app/errors/forbidden", "title": "Forbidden", "status": 403, "reason": "Only the release board deploys to production environments."}), 403)
+    assert by_policy is not None
+    assert by_policy.refusal_reason == "Only the release board deploys to production environments."
+    assert by_policy.required_permission is None
+
+
+def test_the_forbidden_members_are_read_from_a_forbidden_problem_only():
+    exc = parse_problem(json.dumps({"type": "https://epistola.app/errors/conflict", "title": "Conflict", "status": 409, "tenantKey": "acme-corp", "reason": "x"}), 409)
+    assert exc is not None
+    assert not exc.is_forbidden_problem
+    assert exc.refused_tenant_key is None
+    assert exc.refusal_reason is None
+
+
 def test_a_read_only_reason_that_is_not_a_string_reads_as_none():
     not_a_string = parse_problem(json.dumps({"title": "Catalog Read Only", "status": 409, "readOnlyReason": 7}), 409)
     plain = parse_problem(json.dumps({"title": "Conflict", "status": 409}), 409)

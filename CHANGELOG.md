@@ -11,6 +11,30 @@ libraries.
 
 ### Added
 
+- **The authorization vocabulary is data.** A new `x-authorization` extension lists Epistola
+  Suite's tenant roles (with the name an identity provider emits for each), its platform roles, and
+  every permission with the roles that grant it; a permission no operation requires is marked
+  `outsideApi`. It ships with the rest of the spec in the server stubs
+  (`openapi/epistola-contract.yaml`), so a server can hold its own roles and permissions to it. A
+  server-stub test, `AuthorizationVocabularyTest`, holds the operations' `x-required-permissions`
+  and `x-required-platform-roles`, and the role tables in `docs/auth.md`, to it. Writing it down
+  showed the table had drifted: it still listed `BACKUP_VIEW`, `BACKUP_CREATE` and
+  `TENANT_RESTORE`, which Epistola Suite withdrew, and lacked `DIAGNOSTICS_MANAGE`.
+- **A refused authorization says what was refused.** `forbidden` (403) keeps its one type and
+  gains a shape, `ForbiddenProblemDetail`, with four optional members: `requiredPermission` and
+  `tenantKey` for a permission the caller lacks in a tenant, `tenantKey` alone when the caller has
+  no access to the tenant, `requiredPlatformRole` for a platform role, and `reason` when a policy
+  refused the request and there is no single permission to grant. Permissions and roles are named
+  as the operation's `x-required-permissions` and `x-required-platform-roles` name them
+  (`TEMPLATE_EDIT`), so a client can match one against the other. Additive: a client that knows
+  none of them still has the type and the status. The server stubs build it with
+  `ProblemDetails.forbidden(...)`, writing only the members given, and all five clients surface
+  them, read from a `forbidden` problem only (`requiredPermission`, `refusedTenantKey`,
+  `requiredPlatformRole`, `refusalReason` and `isForbiddenProblem`, in each language's
+  spelling), since `tenantKey` and `reason` are names another problem may use. Conformance
+  scenarios `forbidden-problem` and `forbidden-members-from-forbidden-only` hold every client to
+  both. Epistola Suite sends its own 403 types today (`permission-denied`, `access-denied`,
+  `platform-access-denied`); it moves to `forbidden` with these members in 2.0.
 - **Quality profiles** (alpha, wire v8, contract ADR 0010). A new resource type, `qualityProfile`,
   records how an organisation writes: rules with a plain-language `intent`, a `severity`, an
   optional `blocking` flag, a `scope` (field roles, components, languages), `examples`, and
@@ -499,6 +523,17 @@ libraries.
 
 ### Changed
 
+- **The 2.0 authorization vocabulary.** (BREAKING) `TENANT_USERS` is `CREDENTIALS_MANAGE`, the
+  permission the six consumer operations require. Reading content and reading what was generated
+  from it are separated: `CONTENT_VIEWER` no longer grants `DOCUMENT_VIEW`, which a generated
+  document's data needs, and `DOCUMENT_GENERATOR` grants it beside `DOCUMENT_GENERATE`, so an
+  integration that generates and downloads documents needs that one role. A new tenant role,
+  `DOCUMENT_READER` (`document-reader`), reads documents without generating any. Permissions for
+  Suite features outside this API: `INTEGRATIONS_MANAGE` (settings that send a tenant's data out),
+  `FEEDBACK_SUBMIT` and `FEEDBACK_MANAGE`. A new platform role, `INSTALLATION_ADMINISTRATOR`
+  (`installation-administrator`), maintains the installation itself, and `PLATFORM_OBSERVER` names
+  what it grants in every tenant (`grantsInEveryTenant`: `DIAGNOSTICS_VIEW`, `AUDIT_VIEW`). From
+  Epistola Suite ADR 0048.
 - **Bounds, paging and enums the 2.0 review found missing** (BREAKING). Each would be a tightening
   after 2.0.0. Epistola Suite may not implement them yet; its server stubs' list methods change
   signature with the sort parameters.
