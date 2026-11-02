@@ -64,6 +64,21 @@ libraries.
   generate without default methods, a server must implement the five operations: one that does
   not support quality profiles yet answers 501 `operation-not-implemented`, and refuses a
   `quality` in a request the same way.
+- **Searching a tenant by name** (`searchTenant`, `GET /tenants/{tenantKey}/search`, alpha), the
+  REST side of Epistola Suite ADR 0043. It finds catalogs and the resources in them, of every type,
+  by name and key, in the release each catalog shows by default, and groups before it pages: a
+  variant is found under its template (`SearchHit.variants`), and one resource in several catalogs
+  is one hit listing each (`SearchHit.catalogs`, with the release searched and the resource's status
+  there). Filters `q`, `kind` (a string, as `SearchHit.kind` is, so a new resource type needs no
+  contract change), the catalog (`registry`, `namespace`, `catalogKey`), `supplied` and `changed`;
+  `sort` (`SearchSort`: `relevance` or `lastModified`); and `counts`, the hits per kind under every
+  filter but `kind`. It needs `CATALOG_VIEW`, and leaves out the hits of a kind the caller may not
+  read (`TEMPLATE_VIEW`, `STENCIL_VIEW`, …) rather than refusing. A new `Search` tag, so the server
+  stubs gain a `SearchApi` interface of their own and no existing interface gains a method. Epistola
+  Suite may not implement it yet. Conformance scenarios `search-tenant` and
+  `search-tenant-in-catalog` (driver action `search-tenant`) hold all five clients to sending each
+  filter only when set, the booleans as `true` and `false`, and to reading grouped hits, a draft's
+  missing version, a supplied catalog's read-only reason and a kind they do not know.
 
 - **A template can be created with its data contract** (`createTemplate`). `CreateTemplateRequest`
   takes optional `dataModel` and `dataExamples`, as `updateTemplate` does, so a template need not
@@ -1435,6 +1450,13 @@ libraries.
   before 1.3.0, is replaced by `template-listing-by-key`.
 
 ### Fixed
+
+- **Kotlin client: an enum query parameter with renamed constants sends its wire value.** A
+  parameter whose constants `x-enum-varnames` renames (`name` is reserved on a Kotlin enum) was
+  serialized with `toString()`, its constant name: `listTemplates(sort = SortListTemplates.byName)`
+  sent `sort=byName` rather than `sort=name`. Every enum the generator nests in an API class now
+  returns its wire value from `toString()`; the build fails if the generated code stops matching
+  the patch. Found by the `search-tenant` conformance scenario on its first run (`sort=byRelevance`).
 
 - **A v7 template naming its theme by its own catalog's key still verifies** (catalog, wire v8
   migration). Suite 1.x wrote a template's `themeCatalogKey` as its own catalog's key. The migration

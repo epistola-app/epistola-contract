@@ -23,6 +23,9 @@ import app.epistola.client.jakarta.error.ProblemDetailException;
 import app.epistola.client.jakarta.identity.ClientIdentity;
 import app.epistola.client.jakarta.api.CodeListsApi;
 import app.epistola.client.jakarta.api.TenantsApi;
+import app.epistola.client.jakarta.api.SearchApi;
+import app.epistola.client.jakarta.model.SearchHit;
+import app.epistola.client.jakarta.model.SearchResults;
 import app.epistola.client.jakarta.model.DocumentGenerationItemDto;
 import app.epistola.client.jakarta.model.GenerationItemStatus;
 import app.epistola.client.jakarta.model.GenerationJobItemListResponse;
@@ -120,6 +123,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -159,6 +163,7 @@ public final class Driver {
                 case "list-documents" -> listDocuments(baseUrl, config);
                 case "get-generation-job-status" -> getGenerationJobStatus(baseUrl, config);
                 case "list-generation-job-items" -> listGenerationJobItems(baseUrl, config);
+                case "search-tenant" -> searchTenant(baseUrl, config);
                 case "list-images" -> listImages(baseUrl, config);
                 case "upload-image" -> uploadImage(baseUrl, config);
                 case "import-catalog" -> importCatalog(baseUrl, config);
@@ -584,6 +589,51 @@ public final class Driver {
                                 .collect(Collectors.joining(",")),
                         "templateKeys", documents.stream().map(DocumentDto::getTemplateKey).collect(Collectors.joining(",")),
                         "variantKeys", documents.stream().map(DocumentDto::getVariantKey).collect(Collectors.joining(","))));
+    }
+
+    /**
+     * Searches the tenant (alpha) with the filters the scenario sets, each sent only when set, and
+     * reports the grouped hits: per hit its catalogs, their states and the variants that matched.
+     */
+    private static void searchTenant(String baseUrl, JsonObject config) {
+        SearchResults results = clients(baseUrl, config)
+                .api(SearchApi.class)
+                .searchTenant(
+                        config.getString("tenantKey"),
+                        optional(config, "q"),
+                        optional(config, "kind"),
+                        optional(config, "registry"),
+                        optional(config, "namespace"),
+                        optional(config, "catalogKey"),
+                        optionalBoolean(config, "supplied"),
+                        optionalBoolean(config, "changed"),
+                        optional(config, "sort"),
+                        config.containsKey("page") && !config.isNull("page") ? config.getInt("page") : null,
+                        config.containsKey("size") && !config.isNull("size") ? config.getInt("size") : null);
+        List<SearchHit> hits = results.getItems();
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("kinds", hits.stream().map(SearchHit::getKind).collect(Collectors.joining(",")));
+        values.put("keys", hits.stream().map(SearchHit::getKey).collect(Collectors.joining(",")));
+        values.put("names", hits.stream().map(SearchHit::getName).collect(Collectors.joining("|")));
+        values.put("catalogs", hits.stream()
+                .map(hit -> hit.getCatalogs().stream()
+                        .map(c -> c.getRegistry() + "/" + c.getNamespace() + "/" + c.getCatalogKey() + "#" + c.getReleaseId()
+                                + "@" + String.valueOf(c.getVersion()))
+                        .collect(Collectors.joining("+")))
+                .collect(Collectors.joining(";")));
+        values.put("catalogStates", hits.stream()
+                .map(hit -> hit.getCatalogs().stream()
+                        .map(c -> c.getEditable() + ":" + String.valueOf(c.getReadOnlyReason()) + ":" + String.valueOf(c.getStatus()))
+                        .collect(Collectors.joining("+")))
+                .collect(Collectors.joining(";")));
+        values.put("variants", hits.stream()
+                .map(hit -> hit.getVariants().stream().map(v -> v.getKey()).collect(Collectors.joining("+")))
+                .collect(Collectors.joining(";")));
+        values.put("counts", results.getCounts().stream()
+                .map(count -> count.getKind() + "=" + count.getTotal())
+                .collect(Collectors.joining(",")));
+        values.put("total", String.valueOf(results.getPage().getTotal()));
+        report(baseUrl, values);
     }
 
     /**

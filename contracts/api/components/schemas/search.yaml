@@ -1,0 +1,212 @@
+# Searching a tenant (alpha, `searchTenant`): grouped hits, a count per kind, and the page.
+
+SearchResults:
+  type: object
+  description: |
+    One page of a search of the tenant (alpha): its hits, grouped before they were paged, and how
+    many hits there are of each kind.
+  required:
+    - items
+    - counts
+    - page
+  properties:
+    items:
+      type: array
+      description: The hits on this page, in the order the search ranked them
+      items:
+        $ref: '#/SearchHit'
+    counts:
+      type: array
+      description: |
+        The number of hits of each kind under every filter but `kind`, one entry per kind with at
+        least one hit, largest first. With `kind` given, still the counts of every kind, so a client
+        can offer to widen the search again.
+      items:
+        $ref: '#/SearchKindCount'
+    page:
+      $ref: './common.yaml#/PageMeta'
+  example:
+    items:
+      - kind: template
+        key: invoice
+        name: Invoice
+        description: The monthly invoice
+        lastModified: "2026-10-30T14:12:00Z"
+        catalogs:
+          - registry: exchange.epistola.app
+            namespace: acme-corp
+            catalogKey: letters
+            catalogName: Letters
+            releaseId: k7m2x9qa
+            version: null
+            editable: true
+            readOnlyReason: null
+            status: modified
+        variants:
+          - key: english
+            name: Invoice (English)
+    counts:
+      - kind: template
+        total: 1
+    page:
+      number: 0
+      size: 20
+      total: 1
+      totalPages: 1
+
+SearchHit:
+  type: object
+  description: |
+    One thing a search found (alpha): a catalog, or a resource with every catalog it was found in.
+    A template is also the hit for its variants that matched (`variants`).
+  required:
+    - kind
+    - key
+    - name
+    - lastModified
+    - catalogs
+    - variants
+  properties:
+    kind:
+      type: string
+      minLength: 1
+      maxLength: 64
+      description: |
+        What the hit is: `catalog`, or a resource type as the portable catalog format names it
+        (`template`, `stencil`, `theme`, `attribute`, `code-list`, `font`, `image`, …). A string,
+        not an enum: a client keeps a kind it does not know.
+      example: template
+    key:
+      type: string
+      minLength: 1
+      maxLength: 50
+      description: |
+        For a resource, its key (`ResourceKey`) in each of `catalogs`. For a catalog, its
+        `catalogKey`; `catalogs` then names that catalog alone.
+      example: invoice
+    name:
+      type: string
+      description: |
+        Display name: of the catalog, or of the resource in the first of `catalogs`, since one
+        resource in several catalogs may be named differently in each.
+      example: Invoice
+    description:
+      type: [string, "null"]
+      description: The description, as `name` is taken; null or absent when there is none
+      example: The monthly invoice
+    lastModified:
+      type: string
+      format: date-time
+      description: |
+        When it last changed: the most recent change among `catalogs`, for a resource; for a
+        catalog, of the release it was searched in
+      example: "2026-10-30T14:12:00Z"
+    catalogs:
+      type: array
+      minItems: 1
+      description: |
+        Where it was found, one entry per catalog: the tenant's own catalogs before those the server
+        supplies. One entry for a catalog hit.
+      items:
+        $ref: '#/SearchHitCatalog'
+    variants:
+      type: array
+      description: |
+        For a template, those of its variants whose name or key matched, in the order they ranked;
+        empty when only the template itself matched, without `q`, and for every other kind.
+      items:
+        $ref: '#/SearchHitVariant'
+
+SearchHitCatalog:
+  type: object
+  description: |
+    A catalog a hit was found in (alpha), and the release of it that was searched: the one the
+    catalog shows by default. Its `releaseId` is the `{release}` that opens the hit there.
+  required:
+    - registry
+    - namespace
+    - catalogKey
+    - catalogName
+    - releaseId
+    - editable
+  properties:
+    registry:
+      $ref: './identifiers.yaml#/Registry'
+      description: Registry of the catalog, always written in full, never `~`
+      example: exchange.epistola.app
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      example: acme-corp
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      example: letters
+    catalogName:
+      type: string
+      description: Display name of the catalog
+      example: Letters
+    releaseId:
+      $ref: './identifiers.yaml#/CatalogReleaseId'
+      description: The release that was searched, by its `releaseId`, a draft's or a released one's
+      example: k7m2x9qa
+    version:
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
+      description: The version of that release; null or absent when it is a draft
+      example: null
+    editable:
+      type: boolean
+      description: Whether the catalog can be changed in this installation, as `CatalogDto.editable`
+      example: true
+    readOnlyReason:
+      # Inline and not required, as CatalogDto.readOnlyReason: the .NET generator types a required
+      # enum, or a nullable reference to one, as non-nullable, so null could not be read.
+      type: [string, "null"]
+      enum: [editing-disabled, supplied-by-epistola, null]
+      description: |
+        Why the catalog cannot be changed, as `CatalogDto.readOnlyReason`; `supplied-by-epistola`
+        marks a catalog the server supplies. Null or absent exactly when `editable` is true.
+      example: null
+    status:
+      # Inline and not required, as readOnlyReason above. The values are ResourceStatus's.
+      type: [string, "null"]
+      enum: [new, modified, ready, released, null]
+      description: |
+        The resource's status in that release, one of `ResourceStatus`: how it stands against the
+        release's base. Null or absent for a catalog hit.
+      example: modified
+
+SearchHitVariant:
+  type: object
+  description: A variant of a template hit whose name or key matched (alpha)
+  required:
+    - key
+    - name
+  properties:
+    key:
+      $ref: './identifiers.yaml#/ResourceKey'
+      example: english
+    name:
+      type: string
+      description: Display name of the variant
+      example: Invoice (English)
+
+SearchKindCount:
+  type: object
+  description: How many hits of one kind a search has (alpha)
+  required:
+    - kind
+    - total
+  properties:
+    kind:
+      type: string
+      minLength: 1
+      maxLength: 64
+      description: The kind, as `SearchHit.kind`
+      example: template
+    total:
+      type: integer
+      format: int64
+      minimum: 1
+      description: The number of hits of this kind, every page together
+      example: 12

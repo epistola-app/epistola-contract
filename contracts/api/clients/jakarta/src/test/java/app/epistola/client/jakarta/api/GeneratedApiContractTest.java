@@ -79,6 +79,7 @@ class GeneratedApiContractTest {
             GenerationApi.class,
             ImagesApi.class,
             QualityProfilesApi.class,
+            SearchApi.class,
             StencilsApi.class,
             SystemApi.class,
             TemplatesApi.class,

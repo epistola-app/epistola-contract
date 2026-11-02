@@ -39,6 +39,7 @@ Available interfaces:
 - `ThemesApi`, `EnvironmentsApi`, `StencilsApi`, `CatalogsApi` — supporting resources
 - `GenerationApi` — document generation + result collection
 - `AttributesApi` — variant selection criteria
+- `SearchApi` — searching a tenant's catalogs and resources by name (alpha)
 
 ## Error Responses
 
