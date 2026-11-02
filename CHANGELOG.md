@@ -1458,6 +1458,10 @@ libraries.
   returns its wire value from `toString()`; the build fails if the generated code stops matching
   the patch. Found by the `search-tenant` conformance scenario on its first run (`sort=byRelevance`).
 
+- **`deleteStencil` says a stencil in use is not deleted.** It said the delete went through and left
+  the templates and stencils using the stencil naming one that does not exist. Epistola Suite
+  refuses it: `409 conflict` while a template or another stencil, of the same catalog or another,
+  still uses the stencil, its `detail` naming them. Documentation only.
 - **A v7 template naming its theme by its own catalog's key still verifies** (catalog, wire v8
   migration). Suite 1.x wrote a template's `themeCatalogKey` as its own catalog's key. The migration
   drops a reference to the catalog itself, and the legacy fingerprint check put the key back only

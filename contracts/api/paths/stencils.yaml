@@ -173,10 +173,10 @@ stencils-id:
     operationId: deleteStencil
     summary: Delete a stencil
     description: |
-      Delete the stencil from the draft. The templates and stencils that use it hold a reference,
-      not a copy, so their instances then name a stencil that does not exist: they are
-      not changed, and the draft cannot be released until they are edited (`listStencilUsage`
-      lists them beforehand). Refused with 409 outside a draft.
+      Delete the stencil from the draft. Refused with 409 outside a draft, and while a template
+      or another stencil still uses it, of this catalog or of another (`conflict`, its `detail`
+      naming them): they hold a reference, not a copy, and would name a stencil that does not
+      exist. `listStencilUsage` lists the template variants beforehand; change those uses first.
     tags:
       - Stencils
     x-required-permissions: [STENCIL_EDIT]
