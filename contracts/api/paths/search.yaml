@@ -39,9 +39,14 @@ search:
 
       `counts` gives the number of hits of each kind under every filter but `kind`, for showing
       the kinds a search could narrow to.
+
+      Searching needs `CATALOG_VIEW`. Each hit also needs the permission that reads its kind
+      (`TEMPLATE_VIEW` for a template or an image, `STENCIL_VIEW`, `THEME_VIEW`, `REFERENCE_VIEW`
+      for reference data and quality profiles). A hit the caller may not read is left out, and is
+      not counted in `total` or `counts`; the search is not refused for it.
     tags:
       - Search
-    x-required-permissions: [TEMPLATE_VIEW]
+    x-required-permissions: [CATALOG_VIEW]
     parameters:
       - name: q
         in: query
