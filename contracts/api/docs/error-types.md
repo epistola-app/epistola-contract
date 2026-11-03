@@ -24,6 +24,12 @@ whichever resource it is, and a refused authorization is `forbidden`. New types 
 minor version: a client handles a type it does not recognize by its `status`, as the generic type
 of that status.
 
+An operation lists the problems it answers with among its responses, except six that any operation
+may answer: `method-not-allowed`, `not-acceptable`, `content-too-large`, `unsupported-media-type`,
+`internal-error` and `operation-not-implemented`. `x-problem-types` marks them `anyOperation: true`,
+so tools can tell them apart, as the conformance harness does when it checks a scripted response
+against the operation it answers.
+
 ## Canonical problem types
 
 | `type` | slug | status | shape | when |
