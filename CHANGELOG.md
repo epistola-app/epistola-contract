@@ -580,6 +580,11 @@ libraries.
   releases its dependencies pin. A release is refused when a resource references an undeclared
   catalog, a declaration pins no release or one the tenant does not have, or two paths pin
   different releases of one catalog. `CatalogChangesDto` reports `dependenciesChanged`.
+- **Forgejo CI for private internal branches** (`.forgejo/workflows/ci.yml`). Epistola's internal
+  Forgejo keeps a synced copy of this repository plus private branches under `internal/`, for
+  example a security fix before its disclosure. Those branches now run the same checks as
+  `build.yml` on Forgejo's runners. GitHub ignores the file, and on Forgejo it replaces the
+  `.github/workflows` that were being started there (and failing) for every synced push.
 
 ### Changed
 

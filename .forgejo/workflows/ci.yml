@@ -1,0 +1,69 @@
+# Forgejo CI for private `internal/**` branches.
+#
+# Epistola's Forgejo (code.int.epistola.io) keeps a copy of this repository that is synced from
+# GitHub, plus private `internal/**` branches (for example a security fix before its disclosure)
+# that never reach GitHub. This workflow checks those branches on Forgejo's own runners.
+#
+# It only exists on Forgejo's side: GitHub ignores `.forgejo/`, and once this directory exists
+# Forgejo ignores `.github/workflows`, so the synced public branches and tags start nothing there.
+# Publishing (Maven, npm, NuGet, PyPI, releases) stays with GitHub. The checks are the ones
+# build.yml runs, driven through the Makefile in one job instead of one job per client. Actions are
+# referenced by full URL because Forgejo resolves short names against its own action mirror, not
+# github.com.
+name: CI (Forgejo, internal branches)
+
+on:
+  push:
+    branches: ["internal/**"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Lint, build, test and conformance
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # The job's GITHUB_TOKEN is a Forgejo token, which api.github.com refuses with 401 when mise
+    # resolves GitHub-hosted tools. Emptied, mise's `github:` backend falls back to GitHub's anonymous
+    # rate limit; its `ubi:` backend still fails, so oasdiff (`ubi:`, only used by `make breaking`,
+    # which this workflow does not run) is left out. Job-wide: the Makefile runs mise as well.
+    env:
+      GITHUB_TOKEN: ""
+      MISE_DISABLE_TOOLS: ubi:oasdiff/oasdiff
+    steps:
+      - name: Checkout
+        uses: https://github.com/actions/checkout@v6
+
+      # protocol-java compiles with a Java 21 toolchain, which a GitHub runner has preinstalled where
+      # Gradle looks for one. Installed first, so mise's Java 25 stays the default; Gradle is pointed
+      # at it through the JAVA_HOME_21_X64 that setup-java exports.
+      - name: Set up the Java 21 toolchain
+        uses: https://github.com/actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Let Gradle find the Java 21 toolchain
+        run: |
+          mkdir -p ~/.gradle
+          echo "org.gradle.java.installations.fromEnv=JAVA_HOME_21_X64" >> ~/.gradle/gradle.properties
+
+      # Not the job's token either, for the same reason.
+      - name: Setup tools with mise
+        uses: https://github.com/jdx/mise-action@v4
+        with:
+          github_token: ""
+
+      - name: Setup Gradle
+        uses: https://github.com/gradle/actions/setup-gradle@v5
+
+      - name: Check license metadata
+        run: make license-check
+
+      - name: Validate and bundle the OpenAPI spec
+        run: make lint bundle
+
+      - name: Build and test every module
+        run: make build
+
+      - name: Cross-client conformance
+        run: make conformance
