@@ -13,7 +13,7 @@ import { ProblemExtensionMembers } from '../generated/knownProblemSlugs.js'
 import { ProblemDetailException } from './problemDetailException.js'
 import { BLANK_TYPE, PROBLEM_JSON } from './problemTypes.js'
 
-const BASE_MEMBERS = new Set(['type', 'title', 'status', 'detail', 'instance'])
+const BASE_MEMBERS = new Set(['type', 'title', 'status', 'detail', 'instance', 'help'])
 
 /** True when a `Content-Type` header value names the RFC 9457 problem media type, parameters aside. */
 export function isProblemJson(contentType: string | null | undefined): boolean {
@@ -48,6 +48,7 @@ export function parseProblem(body: string, statusCode: number, response: Respons
     status: typeof node.status === 'number' ? node.status : statusCode,
     detail: typeof node.detail === 'string' ? node.detail : undefined,
     instance: typeof node.instance === 'string' ? node.instance : undefined,
+    help: typeof node.help === 'string' ? node.help : undefined,
   }
 
   let errors: ValidationError[] = []

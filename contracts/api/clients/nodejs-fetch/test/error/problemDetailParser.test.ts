@@ -22,9 +22,26 @@ test('parses a base problem and exposes the type slug', () => {
   assert.equal(problem.statusCode, 404)
   assert.equal(problem.detail, 'tenant acme not found')
   assert.equal(problem.instance, '/api/tenants/acme')
+  assert.equal(problem.help, undefined)
   assert.equal(problem.message, '404 Not Found: tenant acme not found')
   assert.equal(problem.isValidationProblem, false)
   assert.equal(problem.isDataModelValidationProblem, false)
+  assert.deepEqual(problem.extensions, {})
+})
+
+test('parses help as a base member, not an extension', () => {
+  const help = 'https://epistola.app/errors/not-found?operation=getTemplate'
+  const problem = parse({ type: 'https://epistola.app/errors/not-found', title: 'Not Found', status: 404, help }, 404)!
+  assert.equal(problem.help, help)
+  assert.equal(problem.problem.help, help)
+  // The context is in help; type stays the registered URI.
+  assert.equal(problem.type, 'https://epistola.app/errors/not-found')
+  assert.deepEqual(problem.extensions, {})
+})
+
+test('a help that is not a string is dropped, not surfaced', () => {
+  const problem = parse({ type: 'https://epistola.app/errors/not-found', title: 'Not Found', status: 404, help: 42 }, 404)!
+  assert.equal(problem.help, undefined)
   assert.deepEqual(problem.extensions, {})
 })
 

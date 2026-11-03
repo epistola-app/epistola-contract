@@ -210,6 +210,7 @@ def _problem(base_url: str, config: dict) -> None:
                 "problemRefusedTenantKey": _show(exc.refused_tenant_key),
                 "problemRequiredPlatformRole": _show(exc.required_platform_role),
                 "problemRefusalReason": _show(exc.refusal_reason),
+                "problemHelp": _show(exc.help),
             },
         )
 

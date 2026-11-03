@@ -37,8 +37,32 @@ class ProblemDetailParserTest {
         assertEquals("Not Found", parsed.problem().getTitle());
         assertEquals(404, parsed.problem().getStatus());
         assertEquals("Template 'monthly-invoice' does not exist", parsed.problem().getDetail());
+        assertEquals(
+                "/api/tenants/acme-corp/catalogs/default/templates/monthly-invoice",
+                parsed.problem().getInstance());
+        assertNull(parsed.problem().getHelp());
         assertTrue(parsed.errors().isEmpty());
         assertTrue(parsed.validationErrors().isEmpty());
+    }
+
+    @Test
+    void reads_help_as_a_base_problem_member() {
+        var parsed = ProblemDetailParser.parse(
+                """
+                {
+                  "type": "https://epistola.app/errors/not-found",
+                  "title": "Not Found",
+                  "status": 404,
+                  "help": "https://epistola.app/errors/not-found?operation=getTemplate"
+                }
+                """);
+
+        assertNotNull(parsed);
+        assertEquals(
+                "https://epistola.app/errors/not-found?operation=getTemplate",
+                parsed.problem().getHelp().toString());
+        // Still the registered URI: the context is in help, never in type.
+        assertEquals("https://epistola.app/errors/not-found", parsed.problem().getType().toString());
     }
 
     @Test

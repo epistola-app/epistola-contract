@@ -162,7 +162,9 @@ except ProblemDetailException as e:
 
 `ProblemDetailException` extends the generated `ApiException`, so existing
 `except ApiException` sites keep working. It exposes `type`, `type_slug`, `title`,
-`problem_status`, `detail`, `errors`, `validation_errors`, `missing_fields`, `invalid_fields`,
+`problem_status`, `detail`, `help` (the type's page with this request's context, such as
+`?operation=getTemplate`, or `None`: switch on the type, not on this, and open it for hints),
+`errors`, `validation_errors`, `missing_fields`, `invalid_fields`,
 `missing_dependencies`, `unreleased_dependencies`, `read_only_reason`, `unresolved_conflicts`,
 `missing_base_version`, `missing_base_fingerprint`, `behind`, `environments`, `pinned_by`,
 `tied_variants`, `required_permission`, `refused_tenant_key`, `required_platform_role`,

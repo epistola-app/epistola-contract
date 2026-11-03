@@ -7,6 +7,7 @@ package app.epistola.client.model
 import app.epistola.client.infrastructure.Serializer
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -35,12 +36,24 @@ class ProblemDetailExtensionsTest {
     }
 
     @Test
-    fun `the five named fields do not also land in extensions`() {
-        val json = """{"type":"about:blank","title":"X","status":400,"detail":"d","instance":"i"}"""
+    fun `the six named fields do not also land in extensions`() {
+        val json = """
+            {"type":"about:blank","title":"X","status":400,"detail":"d","instance":"i",
+             "help":"https://epistola.app/errors/not-found?operation=getTemplate"}
+        """.trimIndent()
 
         val problem = mapper.readValue(json, ProblemDetail::class.java)
 
         assertTrue(problem.extensions.isEmpty(), "${problem.extensions}")
+        assertEquals("i", problem.instance)
+        assertEquals("https://epistola.app/errors/not-found?operation=getTemplate", problem.help)
+    }
+
+    @Test
+    fun `an absent help is null`() {
+        val problem = mapper.readValue("""{"title":"X","status":400}""", ProblemDetail::class.java)
+
+        assertNull(problem.help)
     }
 
     @Test
