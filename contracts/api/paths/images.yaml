@@ -157,6 +157,8 @@ image-content:
             schema:
               type: string
               format: binary
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -203,6 +205,8 @@ image-resource:
     responses:
       '204':
         description: Image deleted.
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

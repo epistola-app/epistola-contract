@@ -107,6 +107,8 @@ attributes-key:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/attributes.yaml#/AttributeDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -168,6 +170,8 @@ attributes-key:
     responses:
       '204':
         description: Attribute definition deleted successfully
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

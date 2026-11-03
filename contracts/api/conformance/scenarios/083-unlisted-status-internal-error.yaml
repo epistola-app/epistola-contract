@@ -1,0 +1,39 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: unlisted-status-internal-error
+title: A 500 `internal-error`, which no operation lists, is surfaced as its slug like any other problem
+why: >
+  The contract does not list 500 on each operation: any operation may answer it, and its type is the
+  registered generic `internal-error`. Generated clients decode the responses an operation declares and
+  may treat any other status differently, as an untyped error that never reaches the problem
+  parser. A consumer switching on the slug then sees nothing it can branch on. `listTemplates`
+  declares no 500, so this is the path every unlisted status takes.
+
+action:
+  name: problem
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: main
+    release: 2.0.0
+
+script:
+  - status: 500
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/internal-error
+      title: Internal Server Error
+      status: 500
+      detail: The server failed to answer the request
+      instance: /api/tenants/acme-corp/catalogs/~/acme-corp/main/releases/2.0.0/templates
+
+expect:
+  requestCount: 1
+  report:
+    problemTypeSlug: internal-error
+    problemStatus: 500
+    problemTitle: Internal Server Error

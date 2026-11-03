@@ -3,7 +3,10 @@
 # responses (401/403) live in auth-errors.yaml.
 
 ValidationFailedError:
-  description: The request body or parameters failed validation
+  description: >-
+    The request body or parameters are invalid: `validation-error`, with `errors[]` naming each
+    field that failed, or `bad-request` for a request that cannot be read, such as a malformed
+    query string or body
   content:
     application/problem+json:
       schema:

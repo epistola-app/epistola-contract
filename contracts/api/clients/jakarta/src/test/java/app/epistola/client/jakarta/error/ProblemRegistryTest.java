@@ -37,6 +37,11 @@ class ProblemRegistryTest {
         assertEquals("namespace-not-granted", KnownProblemSlugs.NAMESPACE_NOT_GRANTED);
         assertEquals("data-model-validation-error", KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR);
         assertEquals("rate-limited", KnownProblemSlugs.RATE_LIMITED);
+        assertEquals("method-not-allowed", KnownProblemSlugs.METHOD_NOT_ALLOWED);
+        assertEquals("not-acceptable", KnownProblemSlugs.NOT_ACCEPTABLE);
+        assertEquals("content-too-large", KnownProblemSlugs.CONTENT_TOO_LARGE);
+        assertEquals("unsupported-media-type", KnownProblemSlugs.UNSUPPORTED_MEDIA_TYPE);
+        assertEquals("internal-error", KnownProblemSlugs.INTERNAL_ERROR);
         assertEquals("release-dependencies-missing", KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING);
         assertEquals("release-dependencies-unreleased", KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED);
         assertEquals("catalog-read-only", KnownProblemSlugs.CATALOG_READ_ONLY);

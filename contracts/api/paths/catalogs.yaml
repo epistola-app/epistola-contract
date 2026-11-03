@@ -80,6 +80,8 @@ catalog-available-releases:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/AvailableCatalogReleases'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -214,6 +216,8 @@ catalog-changes:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/CatalogChangesDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -250,6 +254,8 @@ catalog-mark-ready:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/CatalogChangesDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -292,6 +298,8 @@ catalog-dependencies:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/CatalogDependencyListResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -513,6 +521,8 @@ catalog-release:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/CatalogReleaseDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -598,6 +608,8 @@ catalog-release:
     responses:
       '204':
         description: The draft is discarded
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -638,6 +650,8 @@ catalog-release-preview:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/CatalogDraftReleasePreview'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

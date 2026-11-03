@@ -122,6 +122,8 @@ variants-id:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/variants.yaml#/VariantDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -182,6 +184,8 @@ variants-id:
     responses:
       '204':
         description: Variant deleted successfully
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -238,6 +242,8 @@ variant-set-default:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/variants.yaml#/VariantDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -295,6 +301,8 @@ variant-content:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/variants.yaml#/VariantContentDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -386,6 +394,8 @@ variant-mark-ready:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/variants.yaml#/VariantContentDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
