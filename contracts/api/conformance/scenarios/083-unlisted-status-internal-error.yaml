@@ -37,3 +37,5 @@ expect:
     problemTypeSlug: internal-error
     problemStatus: 500
     problemTitle: Internal Server Error
+    # The body sends no `help`, so the client surfaces none rather than inventing one.
+    problemHelp: "null"

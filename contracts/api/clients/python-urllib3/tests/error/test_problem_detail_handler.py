@@ -24,8 +24,28 @@ def test_parses_base_problem_and_exposes_type_slug():
     assert exc.type_slug == KnownProblemSlugs.NOT_FOUND
     assert exc.problem_status == 404
     assert exc.detail == "tenant acme not found"
+    assert exc.help is None
     assert not exc.is_validation_problem
     assert not exc.is_data_model_validation_problem
+
+
+def test_parses_help_as_a_base_member_beside_the_type():
+    body = json.dumps(
+        {
+            "type": "https://epistola.app/errors/not-found",
+            "title": "Not Found",
+            "status": 404,
+            "instance": "/api/tenants/acme-corp/templates/invoice",
+            "help": "https://epistola.app/errors/not-found?operation=getTemplate",
+        }
+    )
+    exc = parse_problem(body, 404)
+    assert exc is not None
+    assert exc.help == "https://epistola.app/errors/not-found?operation=getTemplate"
+    assert exc.problem.instance == "/api/tenants/acme-corp/templates/invoice"
+    # The context is in help; type stays the registered URI.
+    assert exc.type == "https://epistola.app/errors/not-found"
+    assert exc.type_slug == KnownProblemSlugs.NOT_FOUND
 
 
 def test_parses_catalog_source_unavailable_as_a_503_and_as_a_502():

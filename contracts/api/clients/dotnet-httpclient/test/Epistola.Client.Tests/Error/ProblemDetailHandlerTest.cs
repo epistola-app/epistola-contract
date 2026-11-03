@@ -40,6 +40,20 @@ public class ProblemDetailHandlerTest
         Assert.Equal("not-found", ex.TypeSlug);
         Assert.Equal(404, ex.ProblemStatus);
         Assert.Equal("gone", ex.Detail);
+        Assert.Null(ex.Help);
+    }
+
+    [Fact]
+    public async Task SurfacesTheHelpLinkOfAProblem()
+    {
+        var body = "{\"type\":\"https://epistola.app/errors/not-found\",\"title\":\"Not Found\",\"status\":404," +
+                   "\"instance\":\"/thing\",\"help\":\"https://epistola.app/errors/not-found?operation=getTemplate\"}";
+        var client = ClientReturning(HttpStatusCode.NotFound, "application/problem+json", body);
+
+        var ex = await Assert.ThrowsAsync<ProblemDetailException>(() => client.GetAsync("thing"));
+        Assert.Equal("https://epistola.app/errors/not-found?operation=getTemplate", ex.Help);
+        Assert.Equal("/thing", ex.Problem.Instance);
+        Assert.Equal("not-found", ex.TypeSlug);
     }
 
     [Theory]

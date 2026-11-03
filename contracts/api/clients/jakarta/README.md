@@ -247,6 +247,10 @@ The slug is a plain `String`, so on Java 21 a `switch` with `case null, default 
 `ProblemDetailException` extends the generated `ApiException`, so `catch (ApiException e)` keeps
 working. Error responses that are not parseable problem+json stay a plain `ApiException`.
 
+`getHelp()` is the problem type's page with this request's context in its query, such as
+`https://epistola.app/errors/not-found?operation=getTemplate`, or `null` when the server sent none.
+Switch on the type, not on this; open it, or log it, for hints on what to do.
+
 Some Epistola Suite deployments disable API-key authentication entirely; that arrives as
 `KnownProblemSlugs.API_KEY_AUTH_DISABLED`, which is the signal to guide the caller to JWT auth.
 

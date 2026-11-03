@@ -40,7 +40,7 @@ import { BLANK_TYPE, slugFor } from './problemTypes.js'
  */
 export class ProblemDetailException extends ResponseError {
   constructor(
-    /** The parsed base problem (`type`, `title`, `status`, `detail`, `instance`). */
+    /** The parsed base problem (`type`, `title`, `status`, `detail`, `instance`, `help`). */
     readonly problem: ProblemDetail,
     /** Field-level validation errors when the body was a `ValidationProblemDetail`, else empty. */
     readonly errors: readonly ValidationError[],
@@ -50,7 +50,7 @@ export class ProblemDetailException extends ResponseError {
      */
     readonly validationErrors: Readonly<Record<string, readonly DataModelValidationError[]>>,
     /**
-     * Every problem member outside `type`/`title`/`status`/`detail`/`instance`, keyed by its JSON
+     * Every problem member outside `type`/`title`/`status`/`detail`/`instance`/`help`, keyed by its JSON
      * name — so an extension member on any problem type the contract adds later can be read
      * without a client release.
      */
@@ -98,6 +98,16 @@ export class ProblemDetailException extends ResponseError {
   /** URI reference identifying this occurrence (RFC 9457 `instance`), if the server provided one. */
   get instance(): string | undefined {
     return this.problem.instance
+  }
+
+  /**
+   * The problem type's page with this request's context in its query, such as
+   * `https://epistola.app/errors/not-found?operation=getTemplate`, or undefined when the server sent
+   * none. Switch on the type ({@link typeSlug}), not on this; open it for hints on what to do. It
+   * names contract terms only, never a value, so it can be logged or shared.
+   */
+  get help(): string | undefined {
+    return this.problem.help
   }
 
   /** True when this problem carried field-level validation errors. */

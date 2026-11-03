@@ -223,6 +223,7 @@ object Driver {
                     "problemRefusedTenantKey" to (e.refusedTenantKey ?: "null"),
                     "problemRequiredPlatformRole" to (e.requiredPlatformRole ?: "null"),
                     "problemRefusalReason" to (e.refusalReason ?: "null"),
+                    "problemHelp" to (e.help ?: "null"),
                 ),
             )
         }

@@ -178,6 +178,7 @@ async function problem(baseUrl, config) {
       problemRefusedTenantKey: show(error.refusedTenantKey),
       problemRequiredPlatformRole: show(error.requiredPlatformRole),
       problemRefusalReason: show(error.refusalReason),
+      problemHelp: show(error.help),
     })
   }
 }

@@ -134,7 +134,7 @@ class ProblemDetailException(ApiException):
             body=raw_body,
         )
         self.headers = headers
-        #: The parsed base problem (``type``, ``title``, ``status``, ``detail``, ``instance``).
+        #: The parsed base problem (``type``, ``title``, ``status``, ``detail``, ``instance``, ``help``).
         self.problem = problem
         #: Field-level validation errors when the body was a ``ValidationProblemDetail``, else ``[]``.
         self.errors = errors
@@ -227,6 +227,15 @@ class ProblemDetailException(ApiException):
     def detail(self) -> Optional[str]:
         """Occurrence-specific explanation (RFC 9457 ``detail``), if the server provided one."""
         return self.problem.detail
+
+    @property
+    def help(self) -> Optional[str]:
+        """The problem type's page with this request's context in its query, such as
+        ``https://epistola.app/errors/not-found?operation=getTemplate``, or ``None`` when the server
+        sent none. Switch on the type (:attr:`type_slug`), not on this; open it for hints on what to
+        do. It names contract terms only, never a value, so it can be logged or shared.
+        """
+        return self.problem.help
 
     @property
     def is_validation_problem(self) -> bool:

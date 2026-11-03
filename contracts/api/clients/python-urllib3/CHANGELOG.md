@@ -22,6 +22,9 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Added
 
+- `ProblemDetailException.help`: the problem type's page with this request's context in its query
+  (`?operation=getTemplate`), the contract's new optional base member `help`, or `None` when the
+  server sent none. Switch on the type, not on this; open it for hints.
 - `ProblemDetailException.required_permission`, `refused_tenant_key`, `required_platform_role`,
   `refusal_reason` and `is_forbidden_problem`: what a `forbidden` problem says was refused (a
   permission in a tenant, access to a tenant, a platform role, or a policy's reason), read from that
