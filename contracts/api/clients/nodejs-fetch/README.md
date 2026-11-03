@@ -208,14 +208,16 @@ try {
 
 `ProblemDetailException` extends the generated `ResponseError`, so existing `instanceof
 ResponseError` sites keep working. It exposes `type`, `typeSlug`, `title`, `problemStatus`,
-`detail`, `instance`, `errors`, `validationErrors`, `missingFields`, `invalidFields`,
+`detail`, `instance`, `help` (the type's page with this request's context, such as
+`?operation=getTemplate`, or `undefined`: switch on the type, not on this, and open it for hints),
+`errors`, `validationErrors`, `missingFields`, `invalidFields`,
 `missingDependencies`, `unreleasedDependencies`, `readOnlyReason`, `unresolvedConflicts`,
 `isMergeConflictsUnresolvedProblem`, `missingBaseVersion`, `missingBaseFingerprint`,
 `isMergeBaseMissingProblem`, `behind`, `isCatalogVersionBehindProblem`, `environments`,
 `pinnedBy`, `isReleaseInUseProblem`, `tiedVariants`, `isAmbiguousVariantProblem`,
 `requiredPermission`, `refusedTenantKey`, `requiredPlatformRole`, `refusalReason`,
 `isForbiddenProblem`, `extensions` (every member
-outside the RFC 9457 base five), `statusCode`, `rawBody`, `isValidationProblem`,
+outside the base members, RFC 9457's five and `help`), `statusCode`, `rawBody`, `isValidationProblem`,
 `isDataModelValidationProblem`, `isTemplateDataProblem`, `isReleaseDependenciesMissingProblem`,
 `isReleaseDependenciesUnreleasedProblem`, and `isCatalogReadOnlyProblem`.
 

@@ -160,6 +160,22 @@ object ProblemDetails {
      */
     fun genericSlugFor(status: Int): String? = GENERIC_SLUGS[status]
 
+    /** The base member a problem links its page with this request's context through ([helpFor]). */
+    const val HELP_PROPERTY: String = "help"
+
+    /**
+     * The `help` link of a problem of type [slug] that operation [operationId] answered: the type's
+     * page, with the operation as its context, so the page can give the hints for it. The context
+     * names the contract's terms only, never a value: an [operationId] that is not shaped like one
+     * (letters and digits, as the contract's are) is left out, and the link is the type's page.
+     */
+    fun helpFor(slug: String, operationId: String?): URI {
+        val type = typeFor(slug)
+        return if (operationId != null && OPERATION_ID.matches(operationId)) URI.create("$type?operation=$operationId") else type
+    }
+
+    private val OPERATION_ID = Regex("^[A-Za-z][A-Za-z0-9]*$")
+
     private val GENERIC_SLUGS: Map<Int, String> = mapOf(
         400 to KnownProblemSlugs.BAD_REQUEST,
         401 to KnownProblemSlugs.UNAUTHORIZED,

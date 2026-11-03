@@ -46,6 +46,22 @@ class ProblemDetailErrorHandlerTest {
         assertEquals("not-found", ex.typeSlug)
         assertEquals("Tenant 'acme' was not found", ex.detail)
         assertEquals(HttpStatus.NOT_FOUND, ex.statusCode)
+        assertNull(ex.help)
+    }
+
+    @Test
+    fun `surfaces help as a base member, not an extension`() {
+        val body = """
+            {"type":"https://epistola.app/errors/not-found","title":"Not Found","status":404,
+             "help":"https://epistola.app/errors/not-found?operation=getTemplate"}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(response(HttpStatus.NOT_FOUND, body))
+        }
+        assertEquals("https://epistola.app/errors/not-found?operation=getTemplate", ex.help)
+        assertEquals("not-found", ex.typeSlug)
+        assertFalse(ex.extensions.containsKey("help"), "${ex.extensions}")
     }
 
     @Test

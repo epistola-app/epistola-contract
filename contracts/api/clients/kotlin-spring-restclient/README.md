@@ -345,7 +345,8 @@ try {
 ```
 
 `ProblemDetailException` exposes `type`, `typeSlug`, `title`, `problemStatus`, `detail`,
-`errors` (field-level validation errors, empty unless it's a validation problem),
+`help` (the type's page with this request's context, such as `?operation=getTemplate`, or `null`;
+switch on the type, not on this, and open it for hints), `errors` (field-level validation errors, empty unless it's a validation problem),
 `validationErrors` (per-example data-model failures, empty unless it's a
 `data-model-validation-error` problem), `missingDependencies` (the dependency releases a
 `release-dependencies-missing` problem lists, each with its `reason` kept as the string the server
@@ -378,7 +379,7 @@ hides information.
 
 A problem body can carry members this contract doesn't give a dedicated name — the API may add
 one to any existing or future problem type without that being a breaking change. `extensions` is a
-`Map<String, Any?>` of everything the five RFC 9457 base fields don't already cover:
+`Map<String, Any?>` of everything the base fields (RFC 9457's five and `help`) don't already cover:
 
 ```kotlin
 } catch (e: ProblemDetailException) {

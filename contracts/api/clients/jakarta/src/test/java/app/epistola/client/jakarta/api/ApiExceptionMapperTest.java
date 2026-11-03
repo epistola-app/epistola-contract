@@ -49,8 +49,22 @@ class ApiExceptionMapperTest {
         assertEquals(404, e.getProblemStatus());
         assertEquals("Not Found", e.getTitle());
         assertEquals("Tenant 'acme-corp' does not exist", e.getDetail());
+        assertNull(e.getHelp());
         assertFalse(e.isValidationProblem());
         assertFalse(e.isDataModelValidationProblem());
+    }
+
+    @Test
+    void a_problem_surfaces_its_help_link_beside_the_type() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(404, PROBLEM_JSON,
+                        """
+                        {"type":"https://epistola.app/errors/not-found","title":"Not Found","status":404,
+                         "help":"https://epistola.app/errors/not-found?operation=getTenant"}
+                        """)));
+
+        assertEquals(KnownProblemSlugs.NOT_FOUND, e.getTypeSlug());
+        assertEquals("https://epistola.app/errors/not-found?operation=getTenant", e.getHelp());
     }
 
     @Test

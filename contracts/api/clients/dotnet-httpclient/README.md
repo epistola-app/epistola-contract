@@ -230,6 +230,10 @@ catch (ProblemDetailException e) when (e.TypeSlug == KnownProblemSlugs.CATALOG_S
 `ProblemDetailException` extends the generated `ApiException`, so existing `catch (ApiException)`
 sites keep working. Non-problem errors fall through to the generated `ApiException`.
 
+`Help` is the problem type's page with this request's context in its query, such as
+`https://epistola.app/errors/not-found?operation=getTemplate`, or `null` when the server sent none.
+Switch on the type, not on this; open it, or log it, for hints on what to do.
+
 ## Document generation & result collection
 
 Poll completed/failed generation results with `ResultCollector` — NDJSON streaming (constant memory),

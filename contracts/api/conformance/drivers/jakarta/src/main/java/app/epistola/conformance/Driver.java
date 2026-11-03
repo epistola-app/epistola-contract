@@ -255,30 +255,38 @@ public final class Driver {
         } catch (ProblemDetailException e) {
             report(
                     baseUrl,
-                    Map.of(
-                            "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
-                            "problemStatus", e.getStatusCode(),
-                            "problemTitle", e.getTitle() == null ? "<null>" : e.getTitle(),
-                            "problemFieldErrors",
+                    Map.ofEntries(
+                            Map.entry("problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug()),
+                            Map.entry("problemStatus", e.getStatusCode()),
+                            Map.entry("problemTitle", e.getTitle() == null ? "<null>" : e.getTitle()),
+                            Map.entry(
+                                    "problemFieldErrors",
                                     e.getErrors().stream()
                                             .map(error -> error.getField() + ":" + error.getMessage())
-                                            .collect(Collectors.joining(",")),
-                            "problemMissingFields",
+                                            .collect(Collectors.joining(","))),
+                            Map.entry(
+                                    "problemMissingFields",
                                     e.getMissingFields().stream()
                                             .map(field -> field.getPath() + ":" + field.getRequired())
-                                            .collect(Collectors.joining(",")),
-                            "problemInvalidFields",
+                                            .collect(Collectors.joining(","))),
+                            Map.entry(
+                                    "problemInvalidFields",
                                     e.getInvalidFields().stream()
                                             .map(field -> field.getPath() + ":" + field.getKeyword())
-                                            .collect(Collectors.joining(",")),
-                            "problemRequiredPermission",
-                                    e.getRequiredPermission() == null ? "null" : e.getRequiredPermission(),
-                            "problemRefusedTenantKey",
-                                    e.getRefusedTenantKey() == null ? "null" : e.getRefusedTenantKey(),
-                            "problemRequiredPlatformRole",
-                                    e.getRequiredPlatformRole() == null ? "null" : e.getRequiredPlatformRole(),
-                            "problemRefusalReason",
-                                    e.getRefusalReason() == null ? "null" : e.getRefusalReason()));
+                                            .collect(Collectors.joining(","))),
+                            Map.entry(
+                                    "problemRequiredPermission",
+                                    e.getRequiredPermission() == null ? "null" : e.getRequiredPermission()),
+                            Map.entry(
+                                    "problemRefusedTenantKey",
+                                    e.getRefusedTenantKey() == null ? "null" : e.getRefusedTenantKey()),
+                            Map.entry(
+                                    "problemRequiredPlatformRole",
+                                    e.getRequiredPlatformRole() == null ? "null" : e.getRequiredPlatformRole()),
+                            Map.entry(
+                                    "problemRefusalReason",
+                                    e.getRefusalReason() == null ? "null" : e.getRefusalReason()),
+                            Map.entry("problemHelp", e.getHelp() == null ? "null" : e.getHelp())));
         }
     }
 

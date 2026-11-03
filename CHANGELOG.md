@@ -11,6 +11,19 @@ libraries.
 
 ### Added
 
+- **A problem may link its type's page with this request's context.** The base `ProblemDetail`
+  gains an optional member, `help`: the type's page with the request's context in its query, such
+  as `https://epistola.app/errors/not-found?operation=getTemplate`, so the page can give the hints
+  that fit the request. `type` stays exactly the registered URI and is still what to switch on;
+  `help` is not for comparing. It names the contract's terms only, never a value from the request
+  or the installation, so it can be logged or shared as it is. A server may leave it out. The
+  server stubs build it with `ProblemDetails.helpFor(slug, operationId)`, which leaves out an
+  operation id that is not shaped like one rather than carry it. Every client surfaces it as a
+  base member, never among the extension members: `help` on the Kotlin, Python and Node.js
+  clients' `ProblemDetailException` (and on the Kotlin client's hand-written `ProblemDetail`),
+  `getHelp()` on the Jakarta client's, and `Help` on the .NET client's. Conformance scenario
+  `problem-details` holds every client to surfacing it exactly as sent, and
+  `unlisted-status-internal-error` to surfacing none when the body has none.
 - **Every status a server answers has a registered problem type.** The registry gains the generic
   types of five statuses it had none for: `method-not-allowed` (405), `not-acceptable` (406),
   `content-too-large` (413), `unsupported-media-type` (415) and `internal-error` (500). Like 501

@@ -32,7 +32,7 @@ namespace Epistola.Client.Error;
 /// </summary>
 public class ProblemDetailException : ApiException
 {
-    /// <summary>The parsed base problem (<c>type</c>, <c>title</c>, <c>status</c>, <c>detail</c>, <c>instance</c>).</summary>
+    /// <summary>The parsed base problem (<c>type</c>, <c>title</c>, <c>status</c>, <c>detail</c>, <c>instance</c>, <c>help</c>).</summary>
     public ProblemDetail Problem { get; }
 
     /// <summary>Field-level validation errors when the body was a <c>ValidationProblemDetail</c>, else empty.</summary>
@@ -235,6 +235,14 @@ public class ProblemDetailException : ApiException
 
     /// <summary>Occurrence-specific explanation (RFC 9457 <c>detail</c>), if the server provided one.</summary>
     public string? Detail => Problem.Detail;
+
+    /// <summary>
+    /// The problem type's page with this request's context in its query, such as
+    /// <c>https://epistola.app/errors/not-found?operation=getTemplate</c>, or <c>null</c> when the
+    /// server sent none. Switch on the type (<see cref="TypeSlug"/>), not on this; open it for hints
+    /// on what to do. It names contract terms only, never a value, so it can be logged or shared.
+    /// </summary>
+    public string? Help => Problem.Help;
 
     /// <summary>True when this problem carried field-level validation errors.</summary>
     public bool IsValidationProblem => Errors.Count > 0;

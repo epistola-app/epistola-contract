@@ -10,10 +10,18 @@ with `Content-Type: application/problem+json`. Every problem body carries:
 | `status` | integer | HTTP status code |
 | `detail` | string (optional) | explanation specific to this occurrence |
 | `instance` | string (URI reference, optional) | identifies this specific occurrence |
+| `help` | string (URI, optional) | the `type`'s page with this request's context, such as `?operation=getTemplate`: hints for what was called. Names from this contract only, never values. Switch on `type`, not on this |
 
 Every problem uses a `type` in the `https://epistola.app/errors/{slug}` namespace, including one the
 server's framework raises before the request reaches application code, such as a malformed request
 (`bad-request`) or a method the operation does not take (`method-not-allowed`).
+
+A problem's `type` is always exactly its registered URI, and opening it gives the general
+explanation of the type. `help`, when present, opens the same page with the request's context in
+its query, such as the `operation` that answered, so the page can give the hints for that
+operation. The context is made of this contract's own names, never a value from the request or the
+installation: a `help` link can be shared, logged or opened in a browser without disclosing
+anything.
 
 A response may carry additional domain-specific **extension members** as top-level fields.
 Clients must ignore members they do not recognize.

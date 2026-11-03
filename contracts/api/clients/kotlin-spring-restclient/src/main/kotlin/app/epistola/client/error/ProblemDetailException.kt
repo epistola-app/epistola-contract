@@ -40,7 +40,7 @@ import java.nio.charset.Charset
  * as a closed set of fields.
  */
 class ProblemDetailException(
-    /** The parsed base problem (`type`, `title`, `status`, `detail`, `instance`). */
+    /** The parsed base problem (`type`, `title`, `status`, `detail`, `instance`, `help`). */
     val problem: ProblemDetail,
     /** Field-level validation errors when the body was a `ValidationProblemDetail`, else empty. */
     val errors: List<ValidationError>,
@@ -84,7 +84,15 @@ class ProblemDetailException(
     val detail: String? get() = problem.detail
 
     /**
-     * Every problem member outside `type`/`title`/`status`/`detail`/`instance`, keyed by its JSON
+     * The problem type's page with this request's context in its query, such as
+     * `https://epistola.app/errors/not-found?operation=getTemplate`, or `null` when the server sent
+     * none. Switch on the type ([typeSlug]), not on this; open it for hints on what to do. It names
+     * contract terms only, never a value, so it can be logged or shared.
+     */
+    val help: String? get() = problem.help
+
+    /**
+     * Every problem member outside `type`/`title`/`status`/`detail`/`instance`/`help`, keyed by its JSON
      * name — `catalog-schema-too-old`'s `version` and `baselineVersion`, or any extension member on
      * any problem type the contract adds later, without needing a client release to read it.
      */
