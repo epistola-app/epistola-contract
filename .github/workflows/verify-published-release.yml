@@ -1,0 +1,77 @@
+name: Verify published release
+
+# Checks that a release's catalog can be fetched from Maven Central and npm the way a consumer
+# fetches it. It runs apart from the release workflow: Maven Central can take hours to serve a new
+# version, and nothing in the release depends on when it does. What the artifacts contain is
+# checked before anything is published (release.yml, check-release-artifacts.sh and the consumer
+# test on the packed tarball); this checks only that they arrived.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to verify, without the leading v (e.g. 2.0.0-beta.1)'
+        required: true
+        type: string
+
+jobs:
+  verify-catalog:
+    name: Catalog on Maven Central and npm
+    runs-on: ubuntu-latest
+    # Polling runs for up to five hours; leave room for the checks after it.
+    timeout-minutes: 330
+    env:
+      VERSION: ${{ inputs.version || github.event.release.tag_name }}
+    steps:
+      - name: Normalize version
+        run: echo "VERSION=${VERSION#v}" >> "$GITHUB_ENV"
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node and Java
+        uses: ./.github/actions/setup-build-tools
+
+      - name: Wait for the catalog on Maven Central
+        run: |
+          BASE="https://repo1.maven.org/maven2/app/epistola/contract/epistola-catalog/$VERSION"
+          # Every 5 minutes for 5 hours.
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error "$BASE/epistola-catalog-$VERSION.pom" --output catalog.pom &&
+               curl --fail --silent --show-error "$BASE/epistola-catalog-$VERSION.jar" --output catalog.jar &&
+               curl --fail --silent --show-error "$BASE/epistola-catalog-$VERSION-javadoc.jar" --output catalog-javadoc.jar; then
+              echo "Available after $(( (attempt - 1) * 5 )) minutes"
+              break
+            fi
+            if [ "$attempt" -eq 60 ]; then
+              echo "::error::epistola-catalog $VERSION is not on Maven Central after 5 hours"
+              exit 1
+            fi
+            sleep 300
+          done
+          grep -F '<artifactId>epistola-catalog</artifactId>' catalog.pom
+          unzip -Z1 catalog.jar | grep -Fx 'app/epistola/catalog/validation/CatalogValidator.class'
+          unzip -Z1 catalog-javadoc.jar | grep -Fx 'index.html'
+
+      - name: Install and import the catalog from npm
+        run: |
+          for attempt in $(seq 1 30); do
+            if [ "$(npm view "@epistola.app/epistola-catalog@$VERSION" version 2>/dev/null)" = "$VERSION" ]; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "::error::@epistola.app/epistola-catalog $VERSION is not on npm after 30 minutes"
+              exit 1
+            fi
+            sleep 60
+          done
+          CONSUMER=$(mktemp -d)
+          cd "$CONSUMER"
+          npm init --yes > /dev/null
+          npm install --ignore-scripts --no-audit --no-fund "@epistola.app/epistola-catalog@$VERSION"
+          node --input-type=module <<'NODE'
+          import { componentRegistry } from '@epistola.app/epistola-catalog/registry'
+
+          if (!componentRegistry?.components?.length) throw new Error('component registry is empty')
+          NODE
