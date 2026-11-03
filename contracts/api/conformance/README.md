@@ -236,6 +236,10 @@ meta line, which the clients parse leniently enough to have never noticed.
 there is no schema to hold bytes to. Everything else, including each NDJSON line, is validated
 against the schema the clients generate from.
 
+A status the operation does not list is refused, unless the registry marks a problem type of that
+status `anyOperation` (405, 406, 413, 415, 500, 501): any operation may answer it, so it is checked
+as a plain `ProblemDetail`.
+
 ## What it has caught
 
 All four of these were live in released clients, and all four were invisible to those clients' own

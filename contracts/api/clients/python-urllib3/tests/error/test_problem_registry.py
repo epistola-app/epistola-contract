@@ -42,6 +42,11 @@ EXPECTED_SLUGS = {
     "RESOURCE_MODIFIED": "resource-modified",
     "DATA_MODEL_VALIDATION_ERROR": "data-model-validation-error",
     "RATE_LIMITED": "rate-limited",
+    "METHOD_NOT_ALLOWED": "method-not-allowed",
+    "NOT_ACCEPTABLE": "not-acceptable",
+    "CONTENT_TOO_LARGE": "content-too-large",
+    "UNSUPPORTED_MEDIA_TYPE": "unsupported-media-type",
+    "INTERNAL_ERROR": "internal-error",
     "CATALOG_SOURCE_UNAVAILABLE": "catalog-source-unavailable",
 }
 

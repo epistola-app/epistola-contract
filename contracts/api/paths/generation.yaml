@@ -235,6 +235,8 @@ job-detail:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/generation.yaml#/DocumentGenerationJobDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -252,6 +254,8 @@ job-detail:
     responses:
       '204':
         description: Job cancelled successfully
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -303,6 +307,8 @@ job-items:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/generation.yaml#/GenerationJobItemListResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -421,6 +427,8 @@ document-detail:
             schema:
               type: integer
             description: File size in bytes
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -438,6 +446,8 @@ document-detail:
     responses:
       '204':
         description: Document deleted successfully
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

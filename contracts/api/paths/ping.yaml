@@ -52,3 +52,5 @@ ping:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/ping.yaml#/PongResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'

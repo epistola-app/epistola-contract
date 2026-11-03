@@ -161,9 +161,9 @@ ProblemDetails.catalogSourceUnavailable(
 
 The advice that turns exceptions into responses is **application code** — it lives in your
 server, not in this library (which ships no auto-registered error handling). Map your domain
-exceptions to a problem with a specific `type`; Spring's framework-generated 4xx (malformed
-JSON, unsupported media type, 405, …) already carry a `type` (`about:blank` by default), so
-there is nothing extra to stamp on them:
+exceptions to a problem with a specific `type`. The contract allows registered types only, so
+give the problems Spring generates itself (malformed JSON, an unsupported media type, a 405, …,
+`about:blank` by default) the generic type of their status, `ProblemDetails.genericSlugFor(status)`:
 
 ```kotlin
 @RestControllerAdvice

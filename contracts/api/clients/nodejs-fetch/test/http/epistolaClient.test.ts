@@ -42,7 +42,8 @@ test('a generated call carries identity, the declared Accept, the vendor Content
     assert.equal(request.headers['x-ep-node-id'], 'test-node')
     assert.match(request.headers['user-agent'], /^epistola-contract\/[^ ]+ acme-billing\/9\.9\.9$/)
     assert.match(request.headers['content-type'], /^application\/vnd\.epistola\.v2\+json(;.*)?$/)
-    assert.equal(request.headers.accept, VENDOR_JSON)
+    // ping declares a 400 too, so the problem document is asked for alongside the success body.
+    assert.equal(request.headers.accept, `${VENDOR_JSON}, application/problem+json`)
     assert.equal(request.headers.authorization, 'ApiKey epk_test')
     assert.deepEqual(JSON.parse(request.body.toString('utf8')), { name: 'Test' })
   } finally {

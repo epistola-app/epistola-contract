@@ -102,6 +102,8 @@ environments-id:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/environments.yaml#/EnvironmentDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -163,6 +165,8 @@ environments-id:
     responses:
       '204':
         description: Environment deleted successfully
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -205,6 +209,8 @@ environment-deployments:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/environments.yaml#/DeploymentListResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -349,6 +355,8 @@ environment-deployment-release:
     responses:
       '204':
         description: The environment no longer serves the release
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
