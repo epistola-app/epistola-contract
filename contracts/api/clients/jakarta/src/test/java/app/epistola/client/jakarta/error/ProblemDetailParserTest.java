@@ -91,6 +91,26 @@ class ProblemDetailParserTest {
     }
 
     @Test
+    void a_field_error_carries_the_code_that_says_why_it_failed_or_null_without_one() {
+        var parsed = ProblemDetailParser.parse(
+                """
+                {
+                  "type": "https://epistola.app/errors/validation-error",
+                  "title": "Validation Failed",
+                  "status": 400,
+                  "errors": [
+                    {"field": "name", "message": "too short", "code": "min-length"},
+                    {"field": "key", "message": "must match a pattern"}
+                  ]
+                }
+                """);
+
+        assertNotNull(parsed);
+        assertEquals(KnownValidationCodes.MIN_LENGTH, parsed.errors().get(0).getCode());
+        assertNull(parsed.errors().get(1).getCode());
+    }
+
+    @Test
     void reads_the_validation_errors_extension_of_a_data_model_problem() {
         var parsed = ProblemDetailParser.parse(
                 """

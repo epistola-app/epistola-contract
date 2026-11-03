@@ -10,8 +10,9 @@
 #      (api/models/rest/…) into generated/  (mirrors the Kotlin openApiGenerate
 #      task and the .NET csharp generator step).
 #   2. The derived-source generator emits contract_version, known_problem_slugs,
-#      and model_validation into src/epistola_client/_generated/ from the spec's
-#      info.version, x-problem-types registry, and schema constraints
+#      known_validation_codes, and model_validation into src/epistola_client/_generated/
+#      from the spec's info.version, x-problem-types and x-validation-codes registries,
+#      and schema constraints
 #      (mirrors the Kotlin generateContractVersionResource / generateProblemSlugs /
 #       generateValidation tasks and the .NET Epistola.Client.Gen program).
 #
@@ -53,7 +54,7 @@ find "$GEN_OUT" -mindepth 1 -maxdepth 1 \
   ! -name '.openapi-generator' \
   -exec rm -rf {} +
 
-echo "==> Generating derived sources (contract_version, known_problem_slugs, model_validation)"
+echo "==> Generating derived sources (contract_version, known_problem_slugs, known_validation_codes, model_validation)"
 mkdir -p "$DERIVED_OUT"
 # Run the generator in an isolated uv environment. Do not run it as the project:
 # hatchling reads the generated contract_version.py for the package version, and

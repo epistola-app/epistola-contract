@@ -21,6 +21,7 @@
  *                             types of every operation, which is what the Accept header is built from
  *     knownProblemSlugs.ts    KnownProblemSlugs + GENERATED_PROBLEM_TYPE_BASE + ProblemExtensionMembers,
  *                             from x-problem-types and the problem schemas it names
+ *     knownValidationCodes.ts KnownValidationCodes, from x-validation-codes
  *     modelValidation.ts      MODEL_CONSTRAINTS + validateModel() + per-model validators, from the
  *                             schema constraints
  *     index.ts                re-exports the above
@@ -50,6 +51,7 @@ function main(argv) {
   write(outDir, 'contractMediaTypes.ts', generateContractMediaTypes(model))
   write(outDir, 'contractOperations.ts', generateContractOperations(model))
   write(outDir, 'knownProblemSlugs.ts', generateProblemSlugs(model))
+  write(outDir, 'knownValidationCodes.ts', generateValidationCodes(model))
   write(outDir, 'modelValidation.ts', generateModelValidation(model))
   write(outDir, 'index.ts', generateIndex())
 }
@@ -86,6 +88,32 @@ function specModel(root) {
       constantName: entry.slug.toUpperCase().replace(/-/g, '_'),
     }
   })
+
+  const validationRegistry = root['x-validation-codes']
+  if (!isObject(validationRegistry)) {
+    fail('bundled spec has no x-validation-codes extension — the validation-code constants cannot be generated')
+  }
+  const rawCodes = Array.isArray(validationRegistry.codes) ? validationRegistry.codes : []
+  if (rawCodes.length < 20) {
+    fail(`x-validation-codes lists only ${rawCodes.length} codes (expected at least 20) — was the registry truncated?`)
+  }
+  const validationCodes = rawCodes.map((entry) => {
+    if (typeof entry?.code !== 'string') {
+      fail(`an x-validation-codes entry has no code: ${JSON.stringify(entry)}`)
+    }
+    if (!['constraint', 'template', 'domain'].includes(entry.kind)) {
+      fail(`x-validation-codes entry '${entry.code}' has kind '${entry.kind}' (expected constraint, template or domain)`)
+    }
+    return {
+      code: entry.code,
+      kind: entry.kind,
+      description: String(entry.description ?? '').replace(/\s+/g, ' ').trim(),
+      constantName: entry.code.toUpperCase().replace(/-/g, '_'),
+    }
+  })
+  if (new Set(validationCodes.map((c) => c.code)).size !== validationCodes.length) {
+    fail('x-validation-codes registers a code twice')
+  }
 
   const identity = root['x-client-identity']
   if (!isObject(identity)) {
@@ -218,7 +246,7 @@ function specModel(root) {
     fail('the bundled spec has no operations')
   }
 
-  return { version, problemTypeBase, problemTypes, clientIdentity, vendorMediaTypes, problemExtensionMembers, constrainedSchemas, operations }
+  return { version, problemTypeBase, problemTypes, validationCodes, clientIdentity, vendorMediaTypes, problemExtensionMembers, constrainedSchemas, operations }
 }
 
 // --- Emitters ---
@@ -465,6 +493,32 @@ ${wrappers}
 `
 }
 
+function generateValidationCodes(model) {
+  const constants = model.validationCodes
+    .map((c) => `  /** ${c.kind} — ${c.description} */\n  ${c.constantName}: ${str(c.code)},`)
+    .join('\n')
+  return `${HEADER}
+/**
+ * The codes that say why a field of a \`validation-error\` failed (\`ValidationError.code\`), from
+ * the contract's validation-code registry (the spec's \`x-validation-codes\` extension /
+ * \`docs/error-types.md\`): \`constraint\` codes name the JSON Schema keyword a value broke,
+ * \`template\` codes a finding in template or stencil content, \`domain\` codes a rule the server
+ * applies beyond the schema.
+ *
+ * Convenience constants for \`switch (error.code)\`. \`code\` is deliberately a plain
+ * \`string | undefined\` (not a union of these) so the API can introduce new codes in a minor
+ * version without forcing a client release — always keep a \`default\` branch.
+ * \`Object.values(KnownValidationCodes)\` lists every code, in registry order.
+ */
+export const KnownValidationCodes = {
+${constants}
+} as const
+
+/** One of the registered validation codes. Compare \`code\` against these, but never narrow it to them. */
+export type KnownValidationCode = (typeof KnownValidationCodes)[keyof typeof KnownValidationCodes]
+`
+}
+
 function generateIndex() {
   return `${HEADER}
 export * from './contractVersion.js'
@@ -472,6 +526,7 @@ export * from './contractIdentity.js'
 export * from './contractMediaTypes.js'
 export * from './contractOperations.js'
 export * from './knownProblemSlugs.js'
+export * from './knownValidationCodes.js'
 export * from './modelValidation.js'
 `
 }

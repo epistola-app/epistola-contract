@@ -99,6 +99,21 @@ class ProblemDetailErrorHandlerTest {
     }
 
     @Test
+    fun `a field error carries the code that says why it failed, or null without one`() {
+        val body = """
+            {"type":"https://epistola.app/errors/validation-error","title":"Bad Request","status":400,
+             "errors":[{"field":"name","message":"too short","code":"min-length"},
+                       {"field":"key","message":"must match a pattern"}]}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(response(HttpStatus.BAD_REQUEST, body))
+        }
+        assertEquals(KnownValidationCodes.MIN_LENGTH, ex.errors[0].code)
+        assertNull(ex.errors[1].code)
+    }
+
+    @Test
     fun `populates per-example validation errors for a data-model validation problem`() {
         val body = """
             {"type":"https://epistola.app/errors/data-model-validation-error",

@@ -251,6 +251,11 @@ working. Error responses that are not parseable problem+json stay a plain `ApiEx
 `https://epistola.app/errors/not-found?operation=getTemplate`, or `null` when the server sent none.
 Switch on the type, not on this; open it, or log it, for hints on what to do.
 
+Each field error's `getCode()` says why the field failed (`min-length`, `stencil-recursion`,
+`catalog-resources-not-ready`, ...), or is `null` when the server sent none. Compare it against
+`KnownValidationCodes`, generated from the contract's registry, and keep a `default` branch: new
+codes may come in a minor version.
+
 Some Epistola Suite deployments disable API-key authentication entirely; that arrives as
 `KnownProblemSlugs.API_KEY_AUTH_DISABLED`, which is the signal to guide the caller to JWT auth.
 

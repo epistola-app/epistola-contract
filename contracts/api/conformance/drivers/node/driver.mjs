@@ -172,6 +172,7 @@ async function problem(baseUrl, config) {
       problemStatus: error.statusCode,
       problemTitle: error.title ?? '<null>',
       problemFieldErrors: error.errors.map((e) => `${e.field}:${e.message}`).join(','),
+      problemFieldCodes: error.errors.map((e) => `${e.field}:${show(e.code)}`).join(','),
       problemMissingFields: error.missingFields.map((f) => `${f.path}:${f.required}`).join(','),
       problemInvalidFields: error.invalidFields.map((f) => `${f.path}:${f.keyword}`).join(','),
       problemRequiredPermission: show(error.requiredPermission),

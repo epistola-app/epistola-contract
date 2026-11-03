@@ -85,6 +85,19 @@ public class ProblemDetailHandlerTest
     }
 
     [Fact]
+    public async Task AFieldErrorCarriesTheCodeThatSaysWhyItFailedOrNullWithoutOne()
+    {
+        var body = "{\"type\":\"https://epistola.app/errors/validation-error\",\"title\":\"Bad Request\",\"status\":400," +
+                   "\"errors\":[{\"field\":\"name\",\"message\":\"too short\",\"code\":\"min-length\"}," +
+                   "{\"field\":\"key\",\"message\":\"must match a pattern\"}]}";
+        var client = ClientReturning((HttpStatusCode)400, "application/problem+json", body);
+
+        var ex = await Assert.ThrowsAsync<ProblemDetailException>(() => client.GetAsync("thing"));
+        Assert.Equal(KnownValidationCodes.MIN_LENGTH, ex.Errors[0].Code);
+        Assert.Null(ex.Errors[1].Code);
+    }
+
+    [Fact]
     public async Task PassesThroughNonProblemErrors()
     {
         var client = ClientReturning(HttpStatusCode.InternalServerError, "text/plain", "boom");

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: EUPL-1.2
 
+using System.Linq;
 using Epistola.Client.Error;
 using Xunit;
 
@@ -52,5 +53,15 @@ public class ProblemRegistryTest
         Assert.Equal("environment-deployment-refused", KnownProblemSlugs.ENVIRONMENT_DEPLOYMENT_REFUSED);
         Assert.Equal("resource-modified", KnownProblemSlugs.RESOURCE_MODIFIED);
         Assert.Equal("catalog-source-unavailable", KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE);
+    }
+
+    [Fact]
+    public void ValidationCodesAreGeneratedWithTheirDocumentedValues()
+    {
+        Assert.Equal("pattern", KnownValidationCodes.PATTERN);
+        Assert.Equal("stencil-recursion", KnownValidationCodes.STENCIL_RECURSION);
+        Assert.Equal("catalog-resources-not-ready", KnownValidationCodes.CATALOG_RESOURCES_NOT_READY);
+        Assert.Equal(51, KnownValidationCodes.All.Count);
+        Assert.Equal(KnownValidationCodes.All.Count, KnownValidationCodes.All.Distinct().Count());
     }
 }

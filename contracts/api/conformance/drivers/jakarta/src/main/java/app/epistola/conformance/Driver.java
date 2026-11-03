@@ -265,6 +265,12 @@ public final class Driver {
                                             .map(error -> error.getField() + ":" + error.getMessage())
                                             .collect(Collectors.joining(","))),
                             Map.entry(
+                                    "problemFieldCodes",
+                                    e.getErrors().stream()
+                                            .map(error -> error.getField() + ":"
+                                                    + (error.getCode() == null ? "null" : error.getCode()))
+                                            .collect(Collectors.joining(","))),
+                            Map.entry(
                                     "problemMissingFields",
                                     e.getMissingFields().stream()
                                             .map(field -> field.getPath() + ":" + field.getRequired())

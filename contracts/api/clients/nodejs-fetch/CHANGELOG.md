@@ -11,6 +11,10 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Added
 
+- `KnownValidationCodes` (and the `KnownValidationCode` type), generated from the contract's
+  `x-validation-codes` registry: one constant per code that says why a field of a
+  `validation-error` failed. Compare a field error's `code` (`undefined` when the server sent none)
+  against them, keeping a `default` branch.
 - `ProblemDetailException.help`: the problem type's page with this request's context in its query
   (`?operation=getTemplate`), the contract's new optional base member `help`, or `undefined` when
   the server sent none. Switch on the type, not on this; open it for hints. It is a base member, so
