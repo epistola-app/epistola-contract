@@ -8,6 +8,7 @@ import app.epistola.catalog.canonical.CatalogCanonicalizer
 import app.epistola.catalog.migration.CatalogWireSchema
 import app.epistola.catalog.protocol.FontResource
 import app.epistola.catalog.protocol.ImageResource
+import com.fasterxml.jackson.annotation.JsonInclude
 import org.apache.commons.compress.archivers.zip.Zip64Mode
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream
@@ -31,10 +32,15 @@ import java.util.zip.ZipEntry
  * [app.epistola.catalog.canonical.CatalogCanonicalizer] for content identity.
  */
 object CatalogArchiveWriter {
+    // A null property is left out rather than written as `null`, which the published schemas do
+    // not allow for most members; a reader takes the two alike. Only properties: a `null` inside
+    // free-form content (a data example, a data model) is a value and stays. The fingerprint is
+    // computed over the bound model, not these bytes, so it is the same either way.
     private val mapper = jsonMapper {
         addModule(kotlinModule())
         enable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
         enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+        changeDefaultPropertyInclusion { it.withValueInclusion(JsonInclude.Include.NON_NULL) }
     }
 
     /**
@@ -43,6 +49,14 @@ object CatalogArchiveWriter {
      * The writer emits `catalog.json`, every resource detail, and every asset
      * referenced by an [AssetResource]. [output] is closed when ZIP encoding
      * completes or fails.
+     *
+     * When [CatalogArchive.dependencies] is not empty, each carried release is
+     * written, thin, at `dependencies/{registry}/{namespace}/{catalogKey}/{releaseVersion}.zip`
+     * (wire v8). They change neither `catalog.json` nor the fingerprint: an
+     * archive written with its dependencies and one written without have the
+     * same manifest bytes. The archive's own content stays within the
+     * per-archive limits, each carried release within them too, and the whole
+     * within [CatalogArchivePolicy.maxTotalCompressedBytes].
      *
      * @throws IllegalArgumentException when limits are invalid or exceeded,
      *   an asset path is unsafe, or referenced content cannot be provided.
@@ -60,15 +74,49 @@ object CatalogArchiveWriter {
         require(catalog.resourceDetails.values.all { it.schemaVersion == CatalogWireSchema.CURRENT_VERSION }) {
             "catalog resource details must all use schemaVersion ${CatalogWireSchema.CURRENT_VERSION}"
         }
-        val manifest = if (catalog.sourceSchemaVersion < CatalogWireSchema.CURRENT_VERSION && catalog.manifest.release.fingerprint != null) {
+        // A catalog migrated from an older wire version is written with the fingerprint wire v8
+        // requires, computed from its content, whether its source carried a legacy one or, as wire
+        // v7 allowed, none: a v8 release always carries its identity.
+        val fingerprinted = if (catalog.sourceSchemaVersion < CatalogWireSchema.CURRENT_VERSION) {
             catalog.manifest.copy(
                 release = catalog.manifest.release.copy(
-                    fingerprint = CatalogCanonicalizer.currentFingerprint(catalog).value,
+                    fingerprint = CatalogCanonicalizer.currentQualifiedFingerprint(catalog).toString(),
                 ),
             )
         } else {
             catalog.manifest
         }
+        // A detail is written where its key files it. A migrated catalog may still declare where
+        // its source filed it -- under a key the v7-to-v8 migration padded or cut -- so the entry is
+        // pointed at the file this writer actually writes.
+        val manifest = fingerprinted.copy(
+            resources = fingerprinted.resources.map { entry ->
+                val written = "resources/${entry.type}/${entry.key}.json"
+                if ("${entry.type}/${entry.key}" in catalog.resourceDetails && entry.detailUrl.removePrefix("./") != written) {
+                    entry.copy(detailUrl = "./$written")
+                } else {
+                    entry
+                }
+            },
+        )
+        require(catalog.dependencies.size <= policy.maxDependencies) {
+            "catalog archive would carry more than ${policy.maxDependencies} releases"
+        }
+        val carried = catalog.dependencies.associate { release ->
+            require(release.archive.dependencies.isEmpty()) {
+                "carried release $release carries releases itself; carried releases are flat"
+            }
+            val identity = release.archive.manifest
+            require(
+                identity.catalog.registry == release.registry &&
+                    identity.catalog.namespace == release.namespace &&
+                    identity.catalog.key == release.catalogKey &&
+                    identity.release.version == release.releaseVersion,
+            ) { "carried archive at ${release.path} is not release $release" }
+            val bytes = java.io.ByteArrayOutputStream().also { write(release.archive, it, policy) }.toByteArray()
+            release.path to bytes
+        }
+        require(carried.size == catalog.dependencies.size) { "a release is carried more than once" }
         val jsonEntries = buildMap {
             put("catalog.json", mapper.writeValueAsBytes(manifest))
             catalog.resourceDetails.toSortedMap().forEach { (key, detail) ->
@@ -89,11 +137,16 @@ object CatalogArchiveWriter {
             .map(::normalizedContentPath)
             .distinct()
             .sorted()
-        val paths = (jsonEntries.keys + binaries).sorted()
-        require(paths.size <= policy.maxEntries) { "catalog archive would exceed ${policy.maxEntries} entries" }
+        val ownPaths = (jsonEntries.keys + binaries)
+        require(ownPaths.size <= policy.maxEntries) { "catalog archive would exceed ${policy.maxEntries} entries" }
+        require(ownPaths.none { it.startsWith(app.epistola.catalog.protocol.CatalogDependencyArchivePaths.DIRECTORY) }) {
+            "a catalog's own content may not be under ${app.epistola.catalog.protocol.CatalogDependencyArchivePaths.DIRECTORY}"
+        }
+        val paths = (ownPaths + carried.keys).sorted()
+        val outputLimit = if (carried.isEmpty()) policy.maxCompressedBytes else policy.maxTotalCompressedBytes
 
         var expanded = 0L
-        ZipArchiveOutputStream(BufferedOutputStream(BoundedOutputStream(output, policy.maxCompressedBytes))).use { zip ->
+        ZipArchiveOutputStream(BufferedOutputStream(BoundedOutputStream(output, outputLimit))).use { zip ->
             zip.setEncoding("UTF-8")
             zip.setUseZip64(Zip64Mode.AsNeeded)
             zip.setLevel(Deflater.DEFAULT_COMPRESSION)
@@ -105,7 +158,10 @@ object CatalogArchiveWriter {
                 }
                 zip.putArchiveEntry(entry)
                 val bytes = jsonEntries[path]
-                if (bytes != null) {
+                val carriedBytes = carried[path]
+                if (carriedBytes != null) {
+                    zip.write(carriedBytes)
+                } else if (bytes != null) {
                     expanded += bytes.size
                     require(expanded <= policy.maxExpandedBytes) {
                         "catalog archive content exceeds ${policy.maxExpandedBytes} bytes"

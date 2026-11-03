@@ -1,28 +1,20 @@
 templates:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the catalog
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
 
   get:
     operationId: listTemplates
-    summary: List templates for a tenant
-    description: Retrieve all document templates belonging to a specific tenant.
+    summary: List the templates in a release of a catalog
+    description: Retrieve the document templates of this release.
     tags:
       - Templates
     x-required-permissions: [TEMPLATE_VIEW]
@@ -34,13 +26,13 @@ templates:
           type: string
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
-      - $ref: '../components/parameters/sorting.yaml#/Sort'
+      - $ref: '../components/parameters/sorting.yaml#/TemplateSort'
       - $ref: '../components/parameters/sorting.yaml#/Direction'
     responses:
       '200':
         description: List of templates
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/templates.yaml#/TemplateListResponse'
       '400':
@@ -55,101 +47,30 @@ templates:
   post:
     operationId: createTemplate
     summary: Create a new template
-    description: Create a new document template for the specified tenant.
+    description: |
+      Create a document template in the draft, optionally with its data contract (`dataModel`) and
+      data examples. Without them the template has the empty schema `{}` and no examples.
+
+      Setting the template's quality binding (`quality`, alpha) additionally needs `QUALITY_EDIT`:
+      a request that sets one without it is refused with 403.
     tags:
       - Templates
     x-required-permissions: [TEMPLATE_EDIT]
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/templates.yaml#/CreateTemplateRequest'
     responses:
       '201':
         description: Template created successfully
+        headers:
+          Location:
+            $ref: '../components/headers/location.yaml#/Location'
+            description: The template's address (`getTemplate`)
         content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/schemas/templates.yaml#/TemplateDto'
-      '400':
-        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
-
-templates-id:
-  parameters:
-    - name: tenantId
-      in: path
-      required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the catalog
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: templateId
-      in: path
-      required: true
-      description: Slug identifier of the template
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-
-  get:
-    operationId: getTemplate
-    summary: Get template by ID
-    description: Retrieve details of a specific document template including its model and data examples.
-    tags:
-      - Templates
-    x-required-permissions: [TEMPLATE_VIEW]
-    responses:
-      '200':
-        description: Template details
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/schemas/templates.yaml#/TemplateDto'
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
-
-  patch:
-    operationId: updateTemplate
-    summary: Update a template
-    description: Update an existing document template's properties, model, or data examples.
-    tags:
-      - Templates
-    x-required-permissions: [TEMPLATE_EDIT]
-    requestBody:
-      required: true
-      content:
-        application/vnd.epistola.v1+json:
-          schema:
-            $ref: '../components/schemas/templates.yaml#/UpdateTemplateRequest'
-    responses:
-      '200':
-        description: Template updated successfully
-        content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/templates.yaml#/TemplateDto'
       '400':
@@ -161,7 +82,101 @@ templates-id:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
+      '422':
+        $ref: '../components/responses/problem-responses.yaml#/UnprocessableEntityError'
+
+templates-id:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant (e.g., "acme-corp")
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
+    - name: templateKey
+      in: path
+      required: true
+      description: Key of the template
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
+
+  get:
+    operationId: getTemplate
+    summary: Get a template by key
+    description: Retrieve details of a specific document template including its model and data examples.
+    tags:
+      - Templates
+    x-required-permissions: [TEMPLATE_VIEW]
+    responses:
+      '200':
+        description: Template details
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/templates.yaml#/TemplateDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+  patch:
+    operationId: updateTemplate
+    summary: Update a template
+    description: |
+      Update a document template's properties, data model or data examples in the draft. The data contract is part of the template: an edit clears the template's ready mark, and
+      a change that breaks callers is reported when the catalog is released, not here.
+      Send the `ETag` from a read as `If-Match` to have the update refused with 412
+      `resource-modified` if the resource changed since; without it, the last write wins.
+
+      Changing the template's quality binding (`quality`, alpha) additionally needs
+      `QUALITY_EDIT`: a request whose `quality` differs from the current binding is refused with
+      403 without it. A `quality` equal to the current one, as a client that sends back what it
+      read does, needs nothing more.
+    tags:
+      - Templates
+    x-required-permissions: [TEMPLATE_EDIT]
+    parameters:
+      - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v2+json:
+          schema:
+            $ref: '../components/schemas/templates.yaml#/UpdateTemplateRequest'
+    responses:
+      '200':
+        description: Template updated successfully
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/templates.yaml#/TemplateDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
+      '412':
+        $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
       '422':
         $ref: '../components/responses/problem-responses.yaml#/UnprocessableEntityError'
 
@@ -175,70 +190,62 @@ templates-id:
     responses:
       '204':
         description: Template deleted successfully
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
 
 template-validate:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - name: templateKey
       in: path
       required: true
-      description: Slug identifier of the catalog
+      description: Key of the template
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: templateId
-      in: path
-      required: true
-      description: Slug identifier of the template
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
 
   post:
     operationId: validateTemplateData
     summary: Validate template input data
     description: |
-      Validate input data against the template's JSON Schema before submitting a generation job.
-      This endpoint provides pre-flight validation to catch schema violations early, enabling
-      faster feedback during development and before batch submission.
+      Validate input data against the template's data contract (`dataModel`) before submitting a
+      generation job. This endpoint provides pre-flight validation to catch schema violations early,
+      enabling faster feedback during development and before batch submission.
 
       Besides `errors`, the result says which fields are missing (`missingFields`) and which supplied
       values are wrong (`invalidFields`), each with a JSON Pointer into `data` and the field's JSON
-      Schema, so a client can ask for exactly those. Pass `variantId`, `versionId` or
-      `environmentId` to check against the version that would be rendered; the optional fields that
-      version's template reads are then reported as missing too.
+      Schema, so a client can ask for exactly those. The data is checked against the release that
+      would be rendered for the same selection (`versionRange`, `environmentKey`, or the highest
+      release), and the optional fields that release's template reads are reported as missing too.
     tags:
       - Templates
     x-required-permissions: [TEMPLATE_VIEW]
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/validation.yaml#/ValidateTemplateDataRequest'
     responses:
       '200':
         description: Validation completed (check the 'valid' field for result)
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/validation.yaml#/TemplateDataValidationResult'
       '400':
@@ -249,3 +256,49 @@ template-validate:
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+template-mark-ready:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant (e.g., "acme-corp")
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
+    - name: templateKey
+      in: path
+      required: true
+      description: Key of the template
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
+
+  post:
+    operationId: markTemplateReady
+    summary: Mark every variant of the template ready
+    description: |
+      Marks each variant of the template ready, including its data contract, in one action. Returns
+      the template with the status of each variant.
+    tags:
+      - Templates
+    x-required-permissions: [TEMPLATE_EDIT]
+    responses:
+      '200':
+        description: The template, with each variant's status
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/templates.yaml#/TemplateDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'

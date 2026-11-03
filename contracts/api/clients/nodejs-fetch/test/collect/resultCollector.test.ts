@@ -15,14 +15,14 @@ import type { ServerResponse } from 'node:http'
 import { EpistolaClient, ResultCollector, type GenerationResult, type PartitionAssignment } from '../../src/index.js'
 import { sleep, startServer, waitFor, type RecordedRequest, type TestServer } from '../helpers/server.js'
 
-const NDJSON = 'application/vnd.epistola.v1+ndjson'
+const NDJSON = 'application/vnd.epistola.v2+ndjson'
 const RESULTS = [
-  { sequence: 501, requestId: '11111111-1111-4111-8111-000000000501', templateId: 'invoice', status: 'COMPLETED', correlationId: 'inv-1', completedAt: '2026-02-01T08:05:00Z' },
-  { sequence: 502, requestId: '11111111-1111-4111-8111-000000000502', templateId: 'invoice', status: 'FAILED', error: 'render failed', completedAt: '2026-02-01T08:05:00Z' },
-  { sequence: 503, requestId: '11111111-1111-4111-8111-000000000503', templateId: 'invoice', status: 'COMPLETED', completedAt: '2026-02-01T08:05:00Z' },
+  { sequence: 501, requestId: '11111111-1111-4111-8111-000000000501', templateKey: 'invoice', registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'letters', version: '1.4.0', status: 'completed', correlationId: 'inv-1', completedAt: '2026-02-01T08:05:00Z' },
+  { sequence: 502, requestId: '11111111-1111-4111-8111-000000000502', templateKey: 'invoice', registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'letters', version: '1.4.0', status: 'failed', error: 'render failed', completedAt: '2026-02-01T08:05:00Z' },
+  { sequence: 503, requestId: '11111111-1111-4111-8111-000000000503', templateKey: 'invoice', registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'letters', version: '1.4.0', status: 'completed', completedAt: '2026-02-01T08:05:00Z' },
 ]
-const META = { _meta: true, hasMore: true, count: 3, lastSequence: 503, partitions: { total: 8, mine: [0, 3], hash: 'murmur3' } }
-const EMPTY_META = { _meta: true, hasMore: false, count: 0, lastSequence: 503, partitions: { total: 8, mine: [0, 3], hash: 'murmur3' } }
+const META = { _meta: true, hasMore: true, resultCount: 3, lastSequence: 503, partitions: { total: 8, mine: [0, 3], hash: 'murmur3' } }
+const EMPTY_META = { _meta: true, hasMore: false, resultCount: 0, lastSequence: 503, partitions: { total: 8, mine: [0, 3], hash: 'murmur3' } }
 
 function ndjson(lines: unknown[]): Buffer {
   return Buffer.from(lines.map((line) => JSON.stringify(line)).join('\n') + '\n', 'utf8')
@@ -37,7 +37,7 @@ function respond(res: ServerResponse, lines: unknown[], gzip = false): void {
 function collector(server: TestServer, handled: GenerationResult[], configure: (b: ReturnType<typeof ResultCollector.builder>) => void = () => undefined): ResultCollector {
   const builder = ResultCollector.builder()
     .client(EpistolaClient.builder(`${server.url}/api`, 'epk_test').build())
-    .tenantId('acme-corp')
+    .tenantKey('acme-corp')
     .batchSize(5)
     .handler((result) => {
       handled.push(result)
@@ -59,7 +59,7 @@ for (const gzip of [false, true]) {
 
       const first = await subject.collectOnce()
       assert.deepEqual(handled.map((r) => r.sequence), [501, 502, 503])
-      assert.deepEqual(handled.map((r) => r.status), ['COMPLETED', 'FAILED', 'COMPLETED'])
+      assert.deepEqual(handled.map((r) => r.status), ['completed', 'failed', 'completed'])
       assert.ok(handled[0].completedAt instanceof Date)
       assert.equal(first.count, 3)
       // The meta line comes last, so reaching it at all is the proof the stream was read to the end.
@@ -73,7 +73,7 @@ for (const gzip of [false, true]) {
       const [firstRequest, secondRequest] = server.requests
       assert.equal(firstRequest.method, 'POST')
       assert.equal(firstRequest.path, '/api/tenants/acme-corp/generation/collect')
-      assert.match(firstRequest.headers['content-type'], /^application\/vnd\.epistola\.v1\+json/)
+      assert.match(firstRequest.headers['content-type'], /^application\/vnd\.epistola\.v2\+json/)
       assert.equal(firstRequest.headers.accept, NDJSON)
       assert.match(firstRequest.headers['accept-encoding'], /(^|[ ,])gzip($|[ ,;])/)
       assert.equal(firstRequest.headers.authorization, 'ApiKey epk_test')
@@ -85,6 +85,29 @@ for (const gzip of [false, true]) {
     }
   })
 }
+
+test('a result names its catalog, and its release unless it was rendered from a draft', async () => {
+  const lines = [
+    RESULTS[0],
+    { ...RESULTS[2], registry: 'registry.gemeente-x.nl', namespace: 'huisstijl', catalogKey: 'letters', version: null },
+    { ...META, hasMore: false, resultCount: 2 },
+  ]
+  const server = await startServer((_, res) => respond(res, lines))
+  try {
+    const handled: GenerationResult[] = []
+    await collector(server, handled).collectOnce()
+
+    assert.deepEqual(
+      handled.map((r) => [r.registry, r.namespace, r.catalogKey, r.version]),
+      [
+        ['exchange.epistola.app', 'acme-corp', 'letters', '1.4.0'],
+        ['registry.gemeente-x.nl', 'huisstijl', 'letters', null],
+      ],
+    )
+  } finally {
+    await server.close()
+  }
+})
 
 test('a handler that throws leaves the batch unacknowledged, so it is redelivered', async () => {
   const server = await startServer((_, res) => respond(res, [...RESULTS, META]))
@@ -224,12 +247,12 @@ test('routing helpers are safe before an assignment is known', async () => {
 
 test('the builder guards its inputs', () => {
   const client = EpistolaClient.builder('https://x.example/api').build()
-  assert.throws(() => ResultCollector.builder().tenantId('t').handler(() => undefined).build(), /client is required/)
-  assert.throws(() => ResultCollector.builder().client(client).handler(() => undefined).build(), /tenantId is required/)
-  assert.throws(() => ResultCollector.builder().client(client).tenantId('t').build(), /handler is required/)
+  assert.throws(() => ResultCollector.builder().tenantKey('t').handler(() => undefined).build(), /client is required/)
+  assert.throws(() => ResultCollector.builder().client(client).handler(() => undefined).build(), /tenantKey is required/)
+  assert.throws(() => ResultCollector.builder().client(client).tenantKey('t').build(), /handler is required/)
   assert.throws(() => ResultCollector.builder().batchSize(0), RangeError)
   assert.throws(() => ResultCollector.builder().batchSize(10_001), RangeError)
   assert.throws(() => ResultCollector.builder().backoffMultiplier(1), RangeError)
   assert.throws(() => ResultCollector.builder().minIntervalMs(0), RangeError)
-  assert.throws(() => ResultCollector.builder().client(client).tenantId('t').handler(() => undefined).minIntervalMs(500).maxIntervalMs(100).build(), RangeError)
+  assert.throws(() => ResultCollector.builder().client(client).tenantKey('t').handler(() => undefined).minIntervalMs(500).maxIntervalMs(100).build(), RangeError)
 })

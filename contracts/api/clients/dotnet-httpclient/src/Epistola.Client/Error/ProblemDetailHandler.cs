@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -76,14 +77,31 @@ public sealed class ProblemDetailHandler : DelegatingHandler
             body,
             headers: null,
             missingFields: parsed.MissingFields,
-            invalidFields: parsed.InvalidFields);
+            invalidFields: parsed.InvalidFields,
+            missingDependencies: parsed.MissingDependencies,
+            unreleasedDependencies: parsed.UnreleasedDependencies,
+            readOnlyReason: parsed.ReadOnlyReason,
+            unresolvedConflicts: parsed.UnresolvedConflicts,
+            missingBaseVersion: parsed.MissingBaseVersion,
+            missingBaseFingerprint: parsed.MissingBaseFingerprint,
+            behind: parsed.Behind,
+            environments: parsed.Environments,
+            pinnedBy: parsed.PinnedBy,
+            tiedVariants: parsed.TiedVariants,
+            requiredPermission: parsed.RequiredPermission,
+            refusedTenantKey: parsed.RefusedTenantKey,
+            requiredPlatformRole: parsed.RequiredPlatformRole,
+            refusalReason: parsed.RefusalReason);
     }
 
     /// <summary>
     /// Parses a problem+json body into its base <see cref="ProblemDetail"/> plus the field-level
     /// <c>errors</c> array, the per-example <c>validationErrors</c> map, and the
     /// <c>missingFields</c> / <c>invalidFields</c> arrays a <c>template-data-invalid</c> problem
-    /// carries. Returns <c>null</c> on any parse failure. Internal and self-contained so it can be
+    /// carries, the <c>missingDependencies</c> array of a <c>release-dependencies-missing</c>
+    /// problem, the <c>unreleasedDependencies</c> array of a
+    /// <c>release-dependencies-unreleased</c> problem, and the <c>readOnlyReason</c> of a
+    /// <c>catalog-read-only</c> problem. Returns <c>null</c> on any parse failure. Internal and self-contained so it can be
     /// unit-tested without a live server.
     /// </summary>
     internal static ParsedProblem? ParseProblem(string body)
@@ -111,18 +129,47 @@ public sealed class ProblemDetailHandler : DelegatingHandler
                     ?? new Dictionary<string, List<DataModelValidationError>>();
             }
 
+            // `version` and `fingerprint` are generic names, so they are read for this problem only.
+            var mergeBaseMissing = ProblemTypes.SlugFor(problem.Type) == KnownProblemSlugs.MERGE_BASE_MISSING;
+            // `tenantKey` and `reason` are generic names too: the refusal's members come from `forbidden` only.
+            var forbidden = ProblemTypes.SlugFor(problem.Type) == KnownProblemSlugs.FORBIDDEN;
+
             return new ParsedProblem(
                 problem,
                 errors,
                 validationErrors,
                 Members<MissingDataField>(tree, "missingFields"),
-                Members<InvalidDataField>(tree, "invalidFields"));
+                Members<InvalidDataField>(tree, "invalidFields"),
+                Entries(tree, "missingDependencies", MissingDependency.FromMember),
+                Entries(tree, "unreleasedDependencies", UnreleasedDependency.FromMember),
+                tree["readOnlyReason"] is JValue { Type: JTokenType.String } reason ? (string?)reason : null,
+                Strings(tree, "unresolvedConflicts"),
+                mergeBaseMissing ? StringMember(tree, "version") : null,
+                mergeBaseMissing ? StringMember(tree, "fingerprint") : null,
+                Strings(tree, "behind"),
+                Strings(tree, "environments"),
+                Entries(tree, "pinnedBy", CatalogReleaseRef.FromMember),
+                Strings(tree, "tiedVariants"),
+                forbidden ? StringMember(tree, "requiredPermission") : null,
+                forbidden ? StringMember(tree, "tenantKey") : null,
+                forbidden ? StringMember(tree, "requiredPlatformRole") : null,
+                forbidden ? StringMember(tree, "reason") : null);
         }
         catch (JsonException)
         {
             return null;
         }
     }
+
+    /// <summary>An array of strings; an entry that is not a string is skipped, absent yields an empty list.</summary>
+    private static List<string> Strings(JObject tree, string member) =>
+        tree[member] is JArray array
+            ? array.Where(c => c.Type == JTokenType.String).Select(c => (string)c!).ToList()
+            : new List<string>();
+
+    /// <summary>A string member, or <c>null</c> when absent or not a string.</summary>
+    private static string? StringMember(JObject tree, string name) =>
+        tree[name] is JValue { Type: JTokenType.String } value ? (string?)value : null;
 
     /// <summary>
     /// One extension member that is an array of objects, or an empty list when absent or malformed.
@@ -145,6 +192,30 @@ public sealed class ProblemDetailHandler : DelegatingHandler
         }
     }
 
+    /// <summary>
+    /// A dependency member (<c>missingDependencies</c>, <c>unreleasedDependencies</c>), entry by
+    /// entry: unlike <see cref="Members{T}"/>, a malformed entry is skipped on its own, so one bad
+    /// entry does not hide what the others name. Absent or not an array yields an empty list.
+    /// </summary>
+    private static List<T> Entries<T>(JObject tree, string member, Func<JToken?, T?> parse)
+        where T : class
+    {
+        var result = new List<T>();
+        if (tree[member] is not JArray array)
+        {
+            return result;
+        }
+        foreach (var entry in array)
+        {
+            var dependency = parse(entry);
+            if (dependency != null)
+            {
+                result.Add(dependency);
+            }
+        }
+        return result;
+    }
+
     /// <summary>A parsed problem body: base <see cref="ProblemDetail"/> plus each extension collection.</summary>
     internal sealed class ParsedProblem
     {
@@ -160,18 +231,88 @@ public sealed class ProblemDetailHandler : DelegatingHandler
         /// <summary>Supplied values that break the contract, from the same problem; empty when absent.</summary>
         public IReadOnlyList<InvalidDataField> InvalidFields { get; }
 
+        /// <summary>Dependency releases from a <c>ReleaseDependenciesMissingProblemDetail</c>; empty when absent.</summary>
+        public IReadOnlyList<MissingDependency> MissingDependencies { get; }
+
+        /// <summary>Dependency drafts from a <c>ReleaseDependenciesUnreleasedProblemDetail</c>; empty when absent.</summary>
+        public IReadOnlyList<UnreleasedDependency> UnreleasedDependencies { get; }
+
+        /// <summary>Why a <c>catalog-read-only</c> problem refused a write, as sent; <c>null</c> when absent or not a string.</summary>
+        public string? ReadOnlyReason { get; }
+
+        /// <summary>The conflicts a <c>merge-conflicts-unresolved</c> problem lists; empty when absent.</summary>
+        public IReadOnlyList<string> UnresolvedConflicts { get; }
+
+        /// <summary>The version a <c>merge-base-missing</c> problem names; <c>null</c> for any other problem.</summary>
+        public string? MissingBaseVersion { get; }
+
+        /// <summary>The fingerprint a <c>merge-base-missing</c> problem names; <c>null</c> for any other problem.</summary>
+        public string? MissingBaseFingerprint { get; }
+
+        /// <summary>The versions a <c>catalog-version-behind</c> problem lists; empty when absent.</summary>
+        public IReadOnlyList<string> Behind { get; }
+
+        /// <summary>The environments a <c>release-in-use</c> problem lists; empty when absent.</summary>
+        public IReadOnlyList<string> Environments { get; }
+
+        /// <summary>The releases a <c>release-in-use</c> problem says pin the release; empty when absent.</summary>
+        public IReadOnlyList<CatalogReleaseRef> PinnedBy { get; }
+
+        /// <summary>The variant keys an <c>ambiguous-variant</c> problem lists; empty when absent.</summary>
+        public IReadOnlyList<string> TiedVariants { get; }
+
+        /// <summary>The permission a <c>forbidden</c> problem names; <c>null</c> for any other problem.</summary>
+        public string? RequiredPermission { get; }
+
+        /// <summary>The tenant a <c>forbidden</c> problem is about; <c>null</c> for any other problem.</summary>
+        public string? RefusedTenantKey { get; }
+
+        /// <summary>The platform role a <c>forbidden</c> problem names; <c>null</c> for any other problem.</summary>
+        public string? RequiredPlatformRole { get; }
+
+        /// <summary>Why a policy refused a <c>forbidden</c> problem's request; <c>null</c> for any other problem.</summary>
+        public string? RefusalReason { get; }
+
         public ParsedProblem(
             ProblemDetail problem,
             IReadOnlyList<ValidationError> errors,
             IReadOnlyDictionary<string, List<DataModelValidationError>> validationErrors,
             IReadOnlyList<MissingDataField> missingFields,
-            IReadOnlyList<InvalidDataField> invalidFields)
+            IReadOnlyList<InvalidDataField> invalidFields,
+            IReadOnlyList<MissingDependency>? missingDependencies = null,
+            IReadOnlyList<UnreleasedDependency>? unreleasedDependencies = null,
+            string? readOnlyReason = null,
+            IReadOnlyList<string>? unresolvedConflicts = null,
+            string? missingBaseVersion = null,
+            string? missingBaseFingerprint = null,
+            IReadOnlyList<string>? behind = null,
+            IReadOnlyList<string>? environments = null,
+            IReadOnlyList<CatalogReleaseRef>? pinnedBy = null,
+            IReadOnlyList<string>? tiedVariants = null,
+            string? requiredPermission = null,
+            string? refusedTenantKey = null,
+            string? requiredPlatformRole = null,
+            string? refusalReason = null)
         {
             Problem = problem;
             Errors = errors;
             ValidationErrors = validationErrors;
             MissingFields = missingFields;
             InvalidFields = invalidFields;
+            MissingDependencies = missingDependencies ?? new List<MissingDependency>();
+            UnreleasedDependencies = unreleasedDependencies ?? new List<UnreleasedDependency>();
+            ReadOnlyReason = readOnlyReason;
+            UnresolvedConflicts = unresolvedConflicts ?? new List<string>();
+            MissingBaseVersion = missingBaseVersion;
+            MissingBaseFingerprint = missingBaseFingerprint;
+            Behind = behind ?? new List<string>();
+            Environments = environments ?? new List<string>();
+            PinnedBy = pinnedBy ?? new List<CatalogReleaseRef>();
+            TiedVariants = tiedVariants ?? new List<string>();
+            RequiredPermission = requiredPermission;
+            RefusedTenantKey = refusedTenantKey;
+            RequiredPlatformRole = requiredPlatformRole;
+            RefusalReason = refusalReason;
         }
     }
 }

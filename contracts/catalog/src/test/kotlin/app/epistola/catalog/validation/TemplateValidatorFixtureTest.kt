@@ -28,7 +28,9 @@ class TemplateValidatorFixtureTest {
     @Test
     fun `every fixture produces its stable finding code`() {
         val fixture = javaClass.getResourceAsStream("/META-INF/epistola-catalog/fixtures/v1/template-validation.json")!!.use(mapper::readTree)
-        val fixtureCodes = fixture["invalidCases"].mapTo(mutableSetOf<String>()) { it["code"].asString() }
+        val invalidCodes = fixture["invalidCases"].mapTo(mutableSetOf<String>()) { it["code"].asString() }
+        val warningCodes = fixture["warningCases"].mapTo(mutableSetOf<String>()) { it["code"].asString() }
+        val fixtureCodes = invalidCodes + warningCodes
 
         assertEquals(
             TemplateValidationLimits.MAX_STENCIL_NESTING_DEPTH,
@@ -39,6 +41,8 @@ class TemplateValidatorFixtureTest {
             fixtureCodes,
             "versioned fixtures must contain exactly one focused case for every public finding code",
         )
+        assertEquals(TemplateValidationCodes.WARNINGS, warningCodes, "warning cases must be exactly the warning-only codes")
+        assertTrue(invalidCodes.intersect(warningCodes).isEmpty(), "a code is either an error or a warning")
 
         fixture["invalidCases"].forEach { invalid ->
             val code = invalid["code"].asString()
@@ -53,6 +57,20 @@ class TemplateValidatorFixtureTest {
                 report.findings,
                 "$scenario findings must be deterministic",
             )
+        }
+
+        fixture["warningCases"].forEach { warning ->
+            val code = warning["code"].asString()
+            val scenario = warning["scenario"].asString()
+            val (document, context) = scenario(scenario)
+            val report = TemplateValidator.validate(document, context)
+
+            assertTrue(report.valid, "$scenario must stay valid; got ${report.findings}")
+            assertTrue(
+                report.findings.any { it.code == code && it.severity == ValidationSeverity.WARNING },
+                "$scenario should produce $code as a warning; got ${report.findings}",
+            )
+            assertTrue(report.findings.none { it.code == code && it.severity == ValidationSeverity.ERROR }, scenario)
         }
     }
 
@@ -133,7 +151,7 @@ class TemplateValidatorFixtureTest {
         id,
         "stencil",
         slots = listOf("$id-children"),
-        props = mapOf("stencilId" to slug, "version" to 1),
+        props = mapOf("stencilKey" to slug),
     )
 
     private fun stencilDefinition(vararg placeholders: Node): TemplateDocument {
@@ -194,8 +212,7 @@ class TemplateValidatorFixtureTest {
         alias: String? = null,
     ): TemplateDocument {
         val props = mutableMapOf<String, Any?>(
-            "stencilId" to "invoice",
-            "version" to 1,
+            "stencilKey" to "invoice",
             "parameterBindings" to bindings,
             "parameterSchemaSnapshot" to schema,
         )

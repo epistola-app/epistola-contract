@@ -4,6 +4,8 @@
 
 package app.epistola.template.model
 
+import com.fasterxml.jackson.annotation.JsonAlias
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 
@@ -114,7 +116,9 @@ data class TemplateDocument(
  * @property type Component type key (e.g. "text", "container", "columns", "root").
  * @property slots Ordered slot IDs owned by this node.
  * @property styles Inline CSS-like style overrides.
- * @property stylePreset Reference to a named preset in the theme's block style presets.
+ * @property stylePreset Names one of the catalog's available block style presets: those its manifest
+ *   declares ([app.epistola.catalog.protocol.CatalogInfo.presets]) plus those of the catalogs it depends on
+ *   (ADR 0007). The rendering theme's block style presets supply the styles.
  * @property props Type-specific properties (content, expression, column config, etc.).
  */
 data class Node(
@@ -146,7 +150,7 @@ data class Slot(
  *
  * JSON wire format uses a `type` discriminator:
  *   `{"type": "inherit"}` → [ThemeRef.Inherit]
- *   `{"type": "override", "themeId": "my-theme"}` → [ThemeRefOverride]
+ *   `{"type": "override", "themeKey": "my-theme"}` → [ThemeRefOverride]
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes(
@@ -168,12 +172,22 @@ class ThemeRefInherit : ThemeRef() {
 }
 
 /**
- * Override with a specific theme by ID, optionally from a specific catalog.
+ * Override with a specific theme by key, optionally from another catalog.
  *
- * @property themeId Theme slug identifier.
- * @property catalogKey Catalog containing the theme. Null means same catalog as the owning template.
+ * An earlier draft of catalog wire v8 also named the theme's catalog by `namespace` and `registry`.
+ * They are ignored when binding, so that documents stored with them still bind; the catalog
+ * migrator's wire check refuses them in a v8 archive.
+ *
+ * @property themeKey Key of the theme: its public address within its catalog. Until catalog wire v8
+ *   the member was called `themeId`; binding reads either name, so that documents stored under
+ *   earlier versions still bind.
+ * @property catalogKey The alias of the catalog containing the theme, as the owning catalog's
+ *   dependency list declares it (catalog wire v8, contract ADR 0003). Null means the same catalog as
+ *   the owning template, which a reference never names by its own key.
  */
+@JsonIgnoreProperties("namespace", "registry")
 data class ThemeRefOverride(
-    val themeId: String,
+    @JsonAlias("themeId")
+    val themeKey: String,
     val catalogKey: String? = null,
 ) : ThemeRef()

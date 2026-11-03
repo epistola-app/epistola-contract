@@ -5,23 +5,44 @@
 package app.epistola.catalog.validation
 
 import app.epistola.catalog.archive.ArchiveContentProvider
+import app.epistola.catalog.archive.ArchiveValidationCodes
 import app.epistola.catalog.archive.CatalogArchive
+import app.epistola.catalog.archive.CatalogArchiveDependencies
 import app.epistola.catalog.archive.CatalogArchivePolicy
 import app.epistola.catalog.archive.CatalogArchiveReader
 import app.epistola.catalog.canonical.CatalogCanonicalizer
-import app.epistola.catalog.canonical.CatalogFingerprintVersion
+import app.epistola.catalog.canonical.QualifiedCatalogFingerprint
+import app.epistola.catalog.migration.CatalogMigrationOptions
 import app.epistola.catalog.migration.CatalogWireSchema
 import app.epistola.catalog.protocol.AttributeResource
 import app.epistola.catalog.protocol.BinaryRef
+import app.epistola.catalog.protocol.CatalogAliases
+import app.epistola.catalog.protocol.CatalogArchivePaths
+import app.epistola.catalog.protocol.CatalogDependency
+import app.epistola.catalog.protocol.CatalogDependencyArchivePaths
 import app.epistola.catalog.protocol.CatalogInfo
+import app.epistola.catalog.protocol.CatalogKeys
 import app.epistola.catalog.protocol.CatalogKeywords
+import app.epistola.catalog.protocol.CatalogManifest
+import app.epistola.catalog.protocol.CatalogMetadata
+import app.epistola.catalog.protocol.CatalogNamespaces
+import app.epistola.catalog.protocol.CatalogPresets
+import app.epistola.catalog.protocol.CatalogReferences
+import app.epistola.catalog.protocol.CatalogReleaseIds
+import app.epistola.catalog.protocol.CatalogReleaseVersions
 import app.epistola.catalog.protocol.CatalogResource
-import app.epistola.catalog.protocol.CatalogSlugs
+import app.epistola.catalog.protocol.CatalogThemeRef
 import app.epistola.catalog.protocol.CodeListResource
 import app.epistola.catalog.protocol.DependencyRef
 import app.epistola.catalog.protocol.FontResource
 import app.epistola.catalog.protocol.ImageResource
 import app.epistola.catalog.protocol.KeywordRule
+import app.epistola.catalog.protocol.PresetRule
+import app.epistola.catalog.protocol.QualityBinding
+import app.epistola.catalog.protocol.QualityProfileRef
+import app.epistola.catalog.protocol.QualityProfileResource
+import app.epistola.catalog.protocol.QualityProfiles
+import app.epistola.catalog.protocol.ReleaseBase
 import app.epistola.catalog.protocol.ResourceDetail
 import app.epistola.catalog.protocol.ResourceEntry
 import app.epistola.catalog.protocol.StencilResource
@@ -69,12 +90,17 @@ data class CatalogValidationReport(
 /**
  * Consumer boundary for references whose target lives outside the catalog.
  *
+ * Content names another catalog by alias (contract ADR 0003). The validator resolves the alias through the
+ * catalog's dependency list first, so a resolver receives the declared catalog's name -- its key,
+ * namespace and registry -- and never an alias; a reference whose alias the list does not declare is
+ * reported as such and never reaches it.
+ *
  * Implementations must not perform persistence or authorization changes.
  * Returning [ResourceResolution.UNKNOWN] leaves the reference unchecked;
  * returning [ResourceResolution.MISSING] produces a stable finding.
  */
 fun interface CatalogDependencyResolver {
-    /** Resolves one external resource identity. */
+    /** Resolves one external resource identity: a resource of the declared catalog [reference] names. */
     fun resolve(reference: CatalogResourceReference): ResourceResolution
 
     companion object {
@@ -90,11 +116,14 @@ fun interface CatalogDependencyResolver {
  * @property dependencyResolver lookup boundary for external resource closure.
  * @property verifyFingerprint whether a declared release fingerprint must
  *   equal a supported canonical fingerprint.
+ * @property migration what the caller knows that an archive from before the current wire version
+ *   does not say, notably the registry and namespace of a catalog-v7 archive. Used when validating a ZIP stream.
  */
 data class CatalogValidationPolicy(
     val archive: CatalogArchivePolicy = CatalogArchivePolicy(),
     val dependencyResolver: CatalogDependencyResolver = CatalogDependencyResolver.UNKNOWN,
     val verifyFingerprint: Boolean = true,
+    val migration: CatalogMigrationOptions = CatalogMigrationOptions.DEFAULT,
 )
 
 /**
@@ -111,13 +140,89 @@ object CatalogValidationCodes {
     const val MANIFEST_DETAIL_UNDECLARED = "CATALOG_MANIFEST_DETAIL_UNDECLARED"
     const val RESOURCE_SCHEMA_MISMATCH = "CATALOG_RESOURCE_SCHEMA_MISMATCH"
     const val RESOURCE_TYPE_MISMATCH = "CATALOG_RESOURCE_TYPE_MISMATCH"
-    const val RESOURCE_SLUG_MISMATCH = "CATALOG_RESOURCE_SLUG_MISMATCH"
+    const val RESOURCE_KEY_MISMATCH = "CATALOG_RESOURCE_KEY_MISMATCH"
     const val RESOURCE_NAME_MISMATCH = "CATALOG_RESOURCE_NAME_MISMATCH"
-    const val RESOURCE_SLUG_INVALID = "CATALOG_RESOURCE_SLUG_INVALID"
+
+    /**
+     * A key outside the one resource key rule ([CatalogKeys.RESOURCE]): a resource's or a variant's
+     * key, a variant's attribute key, a resource dependency's key, or the key a reference in a
+     * resource names (a template's theme, a font, a code-list binding).
+     */
+    const val RESOURCE_KEY_INVALID = "CATALOG_RESOURCE_KEY_INVALID"
     const val RESOURCE_REFERENCE_MISSING = "CATALOG_RESOURCE_REFERENCE_MISSING"
     const val DEPENDENCY_REFERENCE_MISSING = "CATALOG_DEPENDENCY_REFERENCE_MISSING"
     const val DEPENDENCY_DUPLICATE = "CATALOG_DEPENDENCY_DUPLICATE"
+
+    /**
+     * A namespace is missing or malformed: the catalog's own or a catalog dependency's is missing or
+     * not a slug.
+     */
+    const val NAMESPACE_INVALID = "CATALOG_NAMESPACE_INVALID"
+
+    /**
+     * A registry is missing or malformed: the catalog's own or a catalog dependency's is missing or
+     * not a DNS name written in full.
+     */
+    const val REGISTRY_INVALID = "CATALOG_REGISTRY_INVALID"
+
+    /**
+     * A reference names a catalog by an alias that `catalogDependencies` does not declare (contract ADR 0003):
+     * a resource dependency, the default theme, or a reference inside content (a theme, stencil,
+     * image or font, a code-list binding, a variant's qualified attribute key). Reported at the
+     * reference.
+     */
+    const val DEPENDENCY_CATALOG_UNDECLARED = "CATALOG_DEPENDENCY_CATALOG_UNDECLARED"
+
+    /**
+     * A catalog dependency's `alias` is missing, breaks the alias rule
+     * ([app.epistola.catalog.protocol.CatalogAliases]: the catalog key rule), or is the catalog's own
+     * key, which content uses for the catalog itself (wire v8, contract ADR 0003).
+     */
+    const val DEPENDENCY_ALIAS_INVALID = "CATALOG_DEPENDENCY_ALIAS_INVALID"
+
+    /** Two catalog dependencies declare the same `alias` (wire v8, contract ADR 0003). */
+    const val DEPENDENCY_ALIAS_DUPLICATE = "CATALOG_DEPENDENCY_ALIAS_DUPLICATE"
+
+    /** `catalogDependencies` declares the same catalog (registry, namespace and key) more than once. */
+    const val DEPENDENCY_CATALOG_DUPLICATE = "CATALOG_DEPENDENCY_CATALOG_DUPLICATE"
+
+    /** A catalog dependency, or a resource dependency, names the catalog itself. */
+    const val DEPENDENCY_CATALOG_SELF = "CATALOG_DEPENDENCY_CATALOG_SELF"
+
+    /**
+     * A catalog dependency's pinned release (`releaseVersion`) is not a release number
+     * ([CatalogReleaseVersions]: `MAJOR.MINOR.PATCH`, or `MAJOR.MINOR.PATCH-<namespace>.<N>` for a patch release).
+     */
+    const val DEPENDENCY_CATALOG_VERSION_INVALID = "CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID"
+
+    /**
+     * A catalog dependency's `releaseFingerprint` does not pair with its `releaseVersion`: missing
+     * although a release is recorded, set although none is, or not in the form that names a known
+     * algorithm (`v6:<lowercase SHA-256 hex>`).
+     */
+    const val DEPENDENCY_CATALOG_FINGERPRINT_INVALID = "CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID"
+
+    /** `release.version` is not a release number ([CatalogReleaseVersions]: `MAJOR.MINOR.PATCH`, or `MAJOR.MINOR.PATCH-<namespace>.<N>` for a patch release). */
     const val RELEASE_VERSION_INVALID = "CATALOG_RELEASE_VERSION_INVALID"
+
+    /** `release.releaseId` is not a release id ([CatalogReleaseIds]). */
+    const val RELEASE_ID_INVALID = "CATALOG_RELEASE_ID_INVALID"
+
+    /**
+     * `release.metadata` is empty, names more than [CatalogMetadata.MAX_NAMESPACES]
+     * namespaces, or names one that is not a reverse-DNS namespace ([CatalogMetadata]).
+     */
+    const val RELEASE_METADATA_INVALID = "CATALOG_RELEASE_METADATA_INVALID"
+
+    /** `release.metadata` exceeds [CatalogMetadata.MAX_SERIALIZED_BYTES] serialized. */
+    const val RELEASE_METADATA_TOO_LARGE = "CATALOG_RELEASE_METADATA_TOO_LARGE"
+
+    /**
+     * `release.base` names its version by other than a release number ([CatalogReleaseVersions]),
+     * or its fingerprint by other than a known qualified algorithm (`v6:<hex>`,
+     * [ReleaseBase.isValidFingerprint]).
+     */
+    const val RELEASE_BASE_INVALID = "CATALOG_RELEASE_BASE_INVALID"
     const val RELEASE_TIMESTAMP_INVALID = "CATALOG_RELEASE_TIMESTAMP_INVALID"
     const val RELEASE_FINGERPRINT_INVALID = "CATALOG_RELEASE_FINGERPRINT_INVALID"
     const val RELEASE_FINGERPRINT_MISMATCH = "CATALOG_RELEASE_FINGERPRINT_MISMATCH"
@@ -128,6 +233,28 @@ object CatalogValidationCodes {
     const val KEYWORD_DUPLICATE = "CATALOG_KEYWORD_DUPLICATE"
     const val KEYWORD_TOO_LONG = "CATALOG_KEYWORD_TOO_LONG"
     const val KEYWORD_LIMIT_EXCEEDED = "CATALOG_KEYWORD_LIMIT_EXCEEDED"
+
+    /** A quality profile's rule id is not a key, or is used twice in the profile (contract ADR 0010). */
+    const val QUALITY_RULE_ID_INVALID = "CATALOG_QUALITY_RULE_ID_INVALID"
+    const val QUALITY_RULE_ID_DUPLICATE = "CATALOG_QUALITY_RULE_ID_DUPLICATE"
+
+    /** A severity is not one of [app.epistola.catalog.protocol.QualityProfiles.SEVERITIES]. */
+    const val QUALITY_SEVERITY_INVALID = "CATALOG_QUALITY_SEVERITY_INVALID"
+
+    /** A rule's scope names a field role [app.epistola.catalog.protocol.QualityProfiles.FIELD_ROLES] does not know. */
+    const val QUALITY_RULE_SCOPE_INVALID = "CATALOG_QUALITY_RULE_SCOPE_INVALID"
+
+    /** A rule's `builtin` extra has an unknown type or a parameter that type does not take or needs. */
+    const val QUALITY_RULE_EXTRA_INVALID = "CATALOG_QUALITY_RULE_EXTRA_INVALID"
+
+    /** An override names a rule the profile, held in this catalog, does not have. */
+    const val QUALITY_OVERRIDE_RULE_UNKNOWN = "CATALOG_QUALITY_OVERRIDE_RULE_UNKNOWN"
+
+    /**
+     * A binding names the same profile twice, or overrides the same rule of a profile twice. Neither
+     * list is ordered (contract ADR 0010), so a second entry could only repeat or contradict the first.
+     */
+    const val QUALITY_BINDING_DUPLICATE = "CATALOG_QUALITY_BINDING_DUPLICATE"
     const val PRESENTATION_ASSET_MISSING = "CATALOG_PRESENTATION_ASSET_MISSING"
     const val PRESENTATION_RESOURCE_NOT_ASSET = "CATALOG_PRESENTATION_RESOURCE_NOT_ASSET"
     const val PRESENTATION_ASSET_MEDIA_TYPE_INVALID = "CATALOG_PRESENTATION_ASSET_MEDIA_TYPE_INVALID"
@@ -148,19 +275,77 @@ object CatalogValidationCodes {
     const val CODE_LIST_CODE_DUPLICATE = "CATALOG_CODE_LIST_CODE_DUPLICATE"
     const val ATTRIBUTE_VALUES_CONFLICT = "CATALOG_ATTRIBUTE_VALUES_CONFLICT"
     const val TEMPLATE_EXAMPLE_NAME_DUPLICATE = "CATALOG_TEMPLATE_EXAMPLE_NAME_DUPLICATE"
+
+    /** Two data examples of one template have the same key (wire v8). */
+    const val TEMPLATE_EXAMPLE_KEY_DUPLICATE = "CATALOG_TEMPLATE_EXAMPLE_KEY_DUPLICATE"
+
+    /**
+     * A data example has no key, or one outside [CatalogKeys.RESOURCE] (wire v8). A catalog
+     * migrated from wire v7 has one for every example, derived from its name.
+     */
+    const val TEMPLATE_EXAMPLE_KEY_INVALID = "CATALOG_TEMPLATE_EXAMPLE_KEY_INVALID"
+
+    /** A template's description is longer than [TemplateResource.MAX_DESCRIPTION_LENGTH] (wire v8). */
+    const val TEMPLATE_DESCRIPTION_INVALID = "CATALOG_TEMPLATE_DESCRIPTION_INVALID"
+
+    /**
+     * A template's description and its manifest resource entry's description are both present and
+     * differ. The template's own is the source the entry copies (wire v8).
+     */
+    const val RESOURCE_DESCRIPTION_MISMATCH = "CATALOG_RESOURCE_DESCRIPTION_MISMATCH"
+
+    /**
+     * A resource's metadata is empty, names more than [CatalogMetadata.MAX_NAMESPACES]
+     * namespaces, or names one that is not a reverse-DNS namespace ([CatalogMetadata]).
+     */
+    const val RESOURCE_METADATA_INVALID = "CATALOG_RESOURCE_METADATA_INVALID"
+
+    /** A resource's serialized metadata exceeds [CatalogMetadata.MAX_SERIALIZED_BYTES]. */
+    const val RESOURCE_METADATA_TOO_LARGE = "CATALOG_RESOURCE_METADATA_TOO_LARGE"
+
+    /**
+     * A manifest resource entry's `detailUrl` is not a relative path below the manifest's directory
+     * ([app.epistola.catalog.protocol.CatalogArchivePaths]); checked for a catalog read at wire v8.
+     * [MANIFEST_DETAIL_PATH_INVALID] covers a well-formed path to the wrong place.
+     */
+    const val MANIFEST_DETAIL_URL_INVALID = "CATALOG_MANIFEST_DETAIL_URL_INVALID"
     const val TEMPLATE_DATA_SCHEMA_INVALID = "CATALOG_TEMPLATE_DATA_SCHEMA_INVALID"
+
+    /**
+     * A theme's `spacingUnit` is out of its rule: from wire v8, points from 0.5 to 16 with at most two
+     * decimals, as the API takes it; before, any positive finite number.
+     */
+    const val THEME_SPACING_UNIT_INVALID = "CATALOG_THEME_SPACING_UNIT_INVALID"
     const val TEMPLATE_DATA_EXAMPLE_INVALID = "CATALOG_TEMPLATE_DATA_EXAMPLE_INVALID"
-    const val TEMPLATE_VARIANT_ID_DUPLICATE = "CATALOG_TEMPLATE_VARIANT_ID_DUPLICATE"
+    const val TEMPLATE_VARIANT_KEY_DUPLICATE = "CATALOG_TEMPLATE_VARIANT_KEY_DUPLICATE"
     const val TEMPLATE_VARIANT_DEFAULT_INVALID = "CATALOG_TEMPLATE_VARIANT_DEFAULT_INVALID"
+
+    /** A declared preset's key breaks [app.epistola.catalog.protocol.CatalogPresets.KEY_PATTERN] (wire v8, ADR 0007). */
+    const val PRESET_KEY_INVALID = "CATALOG_PRESET_KEY_INVALID"
+
+    /** The catalog declares the same preset key more than once (wire v8, ADR 0007). */
+    const val PRESET_DUPLICATE = "CATALOG_PRESET_DUPLICATE"
+
+    /** A declared preset's name is blank or too long (wire v8, ADR 0007). */
+    const val PRESET_NAME_INVALID = "CATALOG_PRESET_NAME_INVALID"
+
+    /** A declared preset's description is too long (wire v8, ADR 0007). */
+    const val PRESET_DESCRIPTION_INVALID = "CATALOG_PRESET_DESCRIPTION_INVALID"
 }
 
 /**
  * In-memory catalog graph supplied to [ResourceValidator].
  *
- * @property catalogKey identity used for same-catalog references.
- * @property resources resources keyed by `type/slug`.
+ * @property catalogKey identity used for same-catalog references: a reference naming no alias, or
+ *   this key, is to the catalog itself.
+ * @property resources resources keyed by `type/key`.
  * @property paths normalized archive paths available through the catalog.
  * @property dependencyResolver lookup boundary for other catalogs.
+ * @property catalogDependencies the catalog's dependency list, which every alias content names must
+ *   be declared in (contract ADR 0003), and through which an alias is resolved to the catalog a resolver
+ *   receives. Null when the list is not known, as when a resource is validated outside its catalog:
+ *   aliases are then not checked, and a reference reaches the resolver with its alias as the catalog
+ *   key.
  */
 data class ResourceValidationContext(
     val catalogKey: String,
@@ -175,6 +360,14 @@ data class ResourceValidationContext(
      * than failed -- an absent archive is not a wrong hash.
      */
     val content: ArchiveContentProvider? = null,
+    val catalogDependencies: List<CatalogDependency>? = null,
+    /**
+     * The wire version the catalog was read at, before migration. Rules a later version introduced
+     * apply only from that version, so that an archive written earlier stays acceptable: from wire v8
+     * a binary's `contentUrl` must be a relative path below the manifest's directory
+     * ([CatalogArchivePaths]), where earlier versions required a `./` path without `..` segments.
+     */
+    val sourceSchemaVersion: Int = CatalogWireSchema.CURRENT_VERSION,
 )
 
 /**
@@ -198,18 +391,9 @@ object ResourceValidator {
     ): CatalogValidationReport {
         val findings = mutableListOf<CatalogValidationFinding>()
         val resource = detail.resource
-        // Per type, not one loose rule for all of them: the bounds mirror the columns a consumer
-        // stores a slug in, so a name that passes here is one every consumer can actually hold.
-        // Checking the loose rule instead let a catalog publish a 30-character theme slug that
-        // then failed on install with a database error, with no diagnosis in between.
-        val rule = CatalogSlugs.byType[resource.type] ?: CatalogSlugs.ANY
-        if (!CatalogSlugs.matches(rule, resource.slug)) {
-            findings.error(
-                CatalogValidationCodes.RESOURCE_SLUG_INVALID,
-                "$path.resource.slug",
-                "slug must be ${rule.minLength} to ${rule.maxLength} characters matching ${rule.pattern}",
-            )
-        }
+        // One rule for every type (wire v8): the bounds fit the columns every consumer stores a
+        // key in, so a key that passes here is one every consumer can actually hold.
+        validateKey(resource.key, "$path.resource.key", findings)
         when (resource) {
             is TemplateResource -> validateTemplate(resource, context, "$path.resource", findings)
             is StencilResource -> {
@@ -226,8 +410,47 @@ object ResourceValidator {
             is CodeListResource -> validateCodeList(resource, "$path.resource", findings)
             is ImageResource -> validateImage(resource, context, "$path.resource", findings)
             is FontResource -> validateFont(resource, context, "$path.resource", findings)
+            is QualityProfileResource -> validateQualityProfile(resource, "$path.resource", findings)
         }
+        resource.metadata?.let {
+            validateMetadata(
+                it,
+                "$path.resource.metadata",
+                CatalogValidationCodes.RESOURCE_METADATA_INVALID,
+                CatalogValidationCodes.RESOURCE_METADATA_TOO_LARGE,
+                findings,
+            )
+        }
+        validateAliases(resource, context, "$path.resource", findings)
         return CatalogValidationReport(findings.sorted())
+    }
+
+    /**
+     * Every alias the resource's content names is declared in the catalog's dependency list (contract ADR
+     * 0003). The catalog's own key is never one: content names the catalog itself by naming no alias,
+     * so that the release does not depend on the name its fingerprint leaves out. Skipped when the
+     * list is not known.
+     */
+    private fun validateAliases(
+        resource: CatalogResource,
+        context: ResourceValidationContext,
+        path: String,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        val declared = context.catalogDependencies?.mapTo(mutableSetOf()) { it.alias } ?: return
+        CatalogReferences.inResource(resource, path)
+            .filter { it.alias !in declared }
+            .forEach { reference ->
+                findings.error(
+                    CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED,
+                    reference.path,
+                    if (reference.alias == context.catalogKey) {
+                        "${reference.type} reference names the catalog's own key '${reference.alias}'; a reference to the catalog itself names no catalog"
+                    } else {
+                        "${reference.type} reference names the catalog alias '${reference.alias}', which catalogDependencies does not declare"
+                    },
+                )
+            }
     }
 
     private fun validateTemplate(
@@ -236,14 +459,31 @@ object ResourceValidator {
         path: String,
         findings: MutableList<CatalogValidationFinding>,
     ) {
-        resource.themeId?.let { themeId ->
-            validateReference("theme", themeId, resource.themeCatalogKey, context, "$path.themeId", findings)
+        resource.themeKey?.let { themeKey ->
+            validateReference(
+                CatalogResourceReference("theme", themeKey, resource.themeCatalogKey),
+                context,
+                "$path.themeKey",
+                findings,
+            )
         }
         validateDocument(resource.templateModel, context, "$path.templateModel", null, findings)
-        val variantSlugs = mutableSetOf<String>()
+        resource.quality?.let { validateQualityBinding(it, context, "$path.quality", findings) }
+        val variantKeys = mutableSetOf<String>()
         resource.variants.forEachIndexed { index, variant ->
-            if (!variantSlugs.add(variant.slug)) {
-                findings.error(CatalogValidationCodes.TEMPLATE_VARIANT_ID_DUPLICATE, "$path.variants[$index].slug", "variant slug '${variant.slug}' is duplicated")
+            validateKey(variant.key, "$path.variants[$index].key", findings)
+            variant.attributes?.keys?.sorted()?.forEach { attribute ->
+                if (!CatalogKeys.isValidAttributeKey(attribute)) {
+                    findings.error(
+                        CatalogValidationCodes.RESOURCE_KEY_INVALID,
+                        "$path.variants[$index].attributes.$attribute",
+                        "variant attribute key must be an attribute key, or <alias>.<key> for another catalog's attribute, " +
+                            "each part ${CatalogKeys.MIN_LENGTH} to ${CatalogKeys.MAX_LENGTH} characters",
+                    )
+                }
+            }
+            if (!variantKeys.add(variant.key)) {
+                findings.error(CatalogValidationCodes.TEMPLATE_VARIANT_KEY_DUPLICATE, "$path.variants[$index].key", "variant key '${variant.key}' is duplicated")
             }
             variant.templateModel?.let { validateDocument(it, context, "$path.variants[$index].templateModel", null, findings) }
         }
@@ -251,13 +491,42 @@ object ResourceValidator {
         if (defaults > 1) {
             findings.error(CatalogValidationCodes.TEMPLATE_VARIANT_DEFAULT_INVALID, "$path.variants", "at most one variant may be the default")
         }
+        resource.description?.let { description ->
+            if (description.codePointCount(0, description.length) > TemplateResource.MAX_DESCRIPTION_LENGTH) {
+                findings.error(
+                    CatalogValidationCodes.TEMPLATE_DESCRIPTION_INVALID,
+                    "$path.description",
+                    "description must be at most ${TemplateResource.MAX_DESCRIPTION_LENGTH} characters",
+                )
+            }
+        }
         val exampleNames = mutableSetOf<String>()
+        val exampleKeys = mutableSetOf<String>()
         resource.dataExamples.orEmpty().forEachIndexed { index, example ->
             if (!exampleNames.add(example.name)) {
                 findings.error(
                     CatalogValidationCodes.TEMPLATE_EXAMPLE_NAME_DUPLICATE,
                     "$path.dataExamples[$index].name",
                     "data example name '${example.name}' is duplicated",
+                )
+            }
+            val key = example.key
+            val rule = CatalogKeys.RESOURCE
+            if (key == null || !CatalogKeys.matches(rule, key)) {
+                findings.error(
+                    CatalogValidationCodes.TEMPLATE_EXAMPLE_KEY_INVALID,
+                    "$path.dataExamples[$index].key",
+                    if (key == null) {
+                        "data example '${example.name}' has no key"
+                    } else {
+                        "data example key must be ${rule.minLength} to ${rule.maxLength} characters matching ${rule.pattern}"
+                    },
+                )
+            } else if (!exampleKeys.add(key)) {
+                findings.error(
+                    CatalogValidationCodes.TEMPLATE_EXAMPLE_KEY_DUPLICATE,
+                    "$path.dataExamples[$index].key",
+                    "data example key '$key' is duplicated",
                 )
             }
         }
@@ -268,13 +537,55 @@ object ResourceValidator {
             }
             if (schemaErrors.isEmpty()) {
                 resource.dataExamples.orEmpty().forEachIndexed { index, example ->
-                    PortableJsonSchema.validate(example.data, schema).forEach { message ->
+                    // Rendering fills an absent property from its schema default before it validates the
+                    // data, so an example is held to what rendering would accept.
+                    PortableJsonSchema.validate(PortableJsonSchema.withDefaults(example.data, schema), schema).forEach { message ->
                         findings.error(CatalogValidationCodes.TEMPLATE_DATA_EXAMPLE_INVALID, "$path.dataExamples[$index].data", message)
                     }
                 }
             }
         }
     }
+
+    /**
+     * Holds a release's or a resource's metadata to [CatalogMetadata]: one to sixteen
+     * reverse-DNS namespaces, at most 8 KiB serialized, reported as [invalid] and [tooLarge]. What a
+     * namespace holds is its producer's business, not checked here.
+     */
+    internal fun validateMetadata(
+        metadata: Map<String, Map<String, Any?>>,
+        path: String,
+        invalid: String,
+        tooLarge: String,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        if (metadata.size !in CatalogMetadata.MIN_NAMESPACES..CatalogMetadata.MAX_NAMESPACES) {
+            findings.error(
+                invalid,
+                path,
+                "metadata must name ${CatalogMetadata.MIN_NAMESPACES} to ${CatalogMetadata.MAX_NAMESPACES} namespaces; omit it when empty",
+            )
+        }
+        metadata.keys.sorted().forEach { namespace ->
+            if (!CatalogMetadata.isValidNamespace(namespace)) {
+                findings.error(
+                    invalid,
+                    "$path.$namespace",
+                    "metadata namespace '$namespace' must be a lowercase reverse-DNS name of at most ${CatalogMetadata.NAMESPACE_MAX_LENGTH} characters",
+                )
+            }
+        }
+        val size = metadataMapper.writeValueAsBytes(metadata).size
+        if (size > CatalogMetadata.MAX_SERIALIZED_BYTES) {
+            findings.error(
+                tooLarge,
+                path,
+                "metadata is $size bytes serialized; at most ${CatalogMetadata.MAX_SERIALIZED_BYTES} are allowed",
+            )
+        }
+    }
+
+    private val metadataMapper = jsonMapper { addModule(kotlinModule()) }
 
     private fun validateDocument(
         document: TemplateDocument,
@@ -290,9 +601,8 @@ object ResourceValidator {
                     if (containingStencil == null) TemplateDocumentKind.TEMPLATE else TemplateDocumentKind.STENCIL
                 override val currentCatalogKey: String = context.catalogKey
                 override val containingStencil: CatalogResourceReference? = containingStencil?.let {
-                    CatalogResourceReference("stencil", it.slug, context.catalogKey, it.version)
+                    CatalogResourceReference("stencil", it.key, context.catalogKey)
                 }
-                override val allowDraftStencilReferences: Boolean = false
 
                 override fun resolveResource(reference: CatalogResourceReference): ResourceResolution = resolveReference(reference, context)
             },
@@ -330,8 +640,17 @@ object ResourceValidator {
         resource.blockStylePresets.orEmpty().forEach { (name, value) ->
             validateFontRefs(value.styles, context, "$path.blockStylePresets.$name.styles", findings)
         }
-        if (resource.spacingUnit != null && (!resource.spacingUnit.isFinite() || resource.spacingUnit <= 0)) {
-            findings.error(CatalogValidationCodes.TEMPLATE_DATA_SCHEMA_INVALID, "$path.spacingUnit", "spacingUnit must be a positive finite number")
+        appendTemplateFindings(TemplateValidator.validateThemeStyles(resource.documentStyles, resource.blockStylePresets, resource.defaultBlockStyles), findings, path)
+        resource.spacingUnit?.let { unit ->
+            // From wire v8 the rule the API and rendering use; an archive written before keeps the
+            // looser one it was made under.
+            val message = if (context.sourceSchemaVersion >= SPACING_UNIT_BOUNDED_SINCE_WIRE_VERSION) {
+                "spacingUnit must be a number of points from 0.5 to 16 with at most two decimals"
+                    .takeUnless { unit.isFinite() && unit in 0.5f..16f && java.math.BigDecimal(unit.toString()).stripTrailingZeros().scale() <= 2 }
+            } else {
+                "spacingUnit must be a positive finite number".takeUnless { unit.isFinite() && unit > 0 }
+            }
+            message?.let { findings.error(CatalogValidationCodes.THEME_SPACING_UNIT_INVALID, "$path.spacingUnit", it) }
         }
     }
 
@@ -342,9 +661,9 @@ object ResourceValidator {
         findings: MutableList<CatalogValidationFinding>,
     ) {
         val font = styles?.get("fontFamily") as? Map<*, *> ?: return
-        val slug = font["slug"] as? String ?: return
+        val key = font["key"] as? String ?: return
         val catalogKey = font["catalogKey"] as? String
-        validateReference("font", slug, catalogKey, context, "$path.fontFamily", findings)
+        validateReference(CatalogResourceReference("font", key, catalogKey), context, "$path.fontFamily", findings)
     }
 
     private fun validateAttribute(
@@ -361,7 +680,113 @@ object ResourceValidator {
             )
         }
         resource.codeListBinding?.let {
-            validateReference("codeList", it.slug, it.catalogKey, context, "$path.codeListBinding", findings)
+            validateReference(
+                CatalogResourceReference("codeList", it.key, it.catalogKey),
+                context,
+                "$path.codeListBinding",
+                findings,
+            )
+        }
+    }
+
+    /** Rule ids are keys and unique, severities and scope roles known, `builtin` extras well formed (contract ADR 0010). */
+    private fun validateQualityProfile(
+        resource: QualityProfileResource,
+        path: String,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        val ids = mutableSetOf<String>()
+        resource.rules.forEachIndexed { index, rule ->
+            val rulePath = "$path.rules[$index]"
+            when {
+                !QualityProfiles.isValidRuleId(rule.id) -> findings.error(
+                    CatalogValidationCodes.QUALITY_RULE_ID_INVALID,
+                    "$rulePath.id",
+                    "rule id must be ${CatalogKeys.MIN_LENGTH} to ${CatalogKeys.MAX_LENGTH} characters matching ${CatalogKeys.PATTERN}",
+                )
+                !ids.add(rule.id) -> findings.error(CatalogValidationCodes.QUALITY_RULE_ID_DUPLICATE, "$rulePath.id", "rule id '${rule.id}' is duplicated")
+            }
+            validateSeverity(rule.severity, "$rulePath.severity", findings)
+            rule.scope?.roles?.forEach { role ->
+                if (role !in QualityProfiles.FIELD_ROLES) {
+                    findings.error(
+                        CatalogValidationCodes.QUALITY_RULE_SCOPE_INVALID,
+                        "$rulePath.scope.roles",
+                        "unknown field role '$role'; one of ${QualityProfiles.FIELD_ROLES.joinToString()}",
+                    )
+                }
+            }
+            rule.extras?.get(QualityProfiles.BUILTIN_KIND)?.let { builtin ->
+                QualityProfiles.builtinViolation(builtin)?.let {
+                    findings.error(CatalogValidationCodes.QUALITY_RULE_EXTRA_INVALID, "$rulePath.extras.${QualityProfiles.BUILTIN_KIND}", it)
+                }
+            }
+        }
+    }
+
+    private fun validateSeverity(
+        severity: String,
+        path: String,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        if (severity !in QualityProfiles.SEVERITIES) {
+            findings.error(CatalogValidationCodes.QUALITY_SEVERITY_INVALID, path, "severity must be one of ${QualityProfiles.SEVERITIES.joinToString()}")
+        }
+    }
+
+    /**
+     * A quality binding's profiles resolve, its overrides' severities are known, and an override of a
+     * profile held in this catalog names a rule that profile has (contract ADR 0010). A profile in
+     * another catalog is not read here, so its rule ids are the consumer's to check. Neither list is
+     * ordered, so a profile named twice, or a rule overridden twice, is reported rather than settled
+     * by position.
+     */
+    internal fun validateQualityBinding(
+        binding: QualityBinding,
+        context: ResourceValidationContext,
+        path: String,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        fun validateProfile(profile: QualityProfileRef, profilePath: String) {
+            profile.catalogKey?.let { alias ->
+                if (!CatalogAliases.isValid(alias)) {
+                    findings.error(
+                        CatalogValidationCodes.RESOURCE_KEY_INVALID,
+                        "$profilePath.catalogKey",
+                        "catalogKey must be an alias, ${CatalogAliases.MIN_LENGTH} to ${CatalogAliases.MAX_LENGTH} characters matching ${CatalogAliases.PATTERN}",
+                    )
+                }
+            }
+            validateReference(CatalogResourceReference("qualityProfile", profile.key, profile.catalogKey), context, "$profilePath.key", findings)
+        }
+        val profiles = mutableSetOf<QualityProfileRef>()
+        binding.profiles.forEachIndexed { index, profile ->
+            validateProfile(profile, "$path.profiles[$index]")
+            if (!profiles.add(profile)) {
+                findings.error(CatalogValidationCodes.QUALITY_BINDING_DUPLICATE, "$path.profiles[$index]", "quality profile '${profile.key}' is bound more than once")
+            }
+        }
+        val overridden = mutableSetOf<Pair<QualityProfileRef, String>>()
+        binding.overrides.forEachIndexed { index, override ->
+            val overridePath = "$path.overrides[$index]"
+            if (!overridden.add(override.profile to override.ruleId)) {
+                findings.error(
+                    CatalogValidationCodes.QUALITY_BINDING_DUPLICATE,
+                    overridePath,
+                    "rule '${override.ruleId}' of quality profile '${override.profile.key}' is overridden more than once",
+                )
+            }
+            validateProfile(override.profile, "$overridePath.profile")
+            override.severity?.let { validateSeverity(it, "$overridePath.severity", findings) }
+            val local = override.profile.catalogKey == null || override.profile.catalogKey == context.catalogKey
+            val profile = if (local) context.resources["qualityProfile/${override.profile.key}"] as? QualityProfileResource else null
+            if (profile != null && profile.rules.none { it.id == override.ruleId }) {
+                findings.error(
+                    CatalogValidationCodes.QUALITY_OVERRIDE_RULE_UNKNOWN,
+                    "$overridePath.ruleId",
+                    "quality profile '${profile.key}' has no rule '${override.ruleId}'",
+                )
+            }
         }
     }
 
@@ -427,8 +852,15 @@ object ResourceValidator {
         // hash implies cannot escape the archive.
         @Suppress("DEPRECATION")
         val contentUrl = binary.contentUrl
-        if (contentUrl != null && (!contentUrl.startsWith("./") || '\\' in contentUrl || ".." in contentUrl.split('/'))) {
-            findings.error(CatalogValidationCodes.ASSET_PATH_INVALID, "$path.contentUrl", "contentUrl must be a safe relative archive path")
+        val safe = when {
+            contentUrl == null -> true
+            // Wire v8 states the rule every path into the catalog follows.
+            context.sourceSchemaVersion >= ARCHIVE_PATHS_SINCE_WIRE_VERSION -> CatalogArchivePaths.isValid(contentUrl)
+            // Earlier versions are held to what they were always held to.
+            else -> contentUrl.startsWith("./") && '\\' !in contentUrl && ".." !in contentUrl.split('/')
+        }
+        if (!safe) {
+            findings.error(CatalogValidationCodes.ASSET_PATH_INVALID, "$path.contentUrl", "contentUrl must be a relative path below the manifest's directory")
             return
         }
         if (contentPath !in context.paths) {
@@ -471,41 +903,78 @@ object ResourceValidator {
         }
     }
 
-    private fun validateReference(
-        type: String,
-        slug: String,
-        catalogKey: String?,
+    /**
+     * The catalog's default theme (wire v8, ADR 0007): a theme reference like a template's, resolved
+     * in the catalog itself or, when it names another catalog's alias, through the resolver.
+     */
+    internal fun validateDefaultTheme(
+        theme: CatalogThemeRef,
         context: ResourceValidationContext,
         path: String,
         findings: MutableList<CatalogValidationFinding>,
     ) {
-        val resolution = resolveReference(CatalogResourceReference(type, slug, catalogKey), context)
+        theme.catalogKey?.let { catalogKey ->
+            if (!CatalogAliases.isValid(catalogKey)) {
+                findings.error(
+                    CatalogValidationCodes.RESOURCE_KEY_INVALID,
+                    "$path.catalogKey",
+                    "catalogKey must be an alias, ${CatalogAliases.MIN_LENGTH} to ${CatalogAliases.MAX_LENGTH} characters matching ${CatalogAliases.PATTERN}",
+                )
+            }
+        }
+        validateReference(CatalogResourceReference("theme", theme.key, theme.catalogKey), context, "$path.key", findings)
+    }
+
+    private fun validateReference(
+        reference: CatalogResourceReference,
+        context: ResourceValidationContext,
+        path: String,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        if (!CatalogKeys.isValid(reference.key)) {
+            findings.error(
+                CatalogValidationCodes.RESOURCE_KEY_INVALID,
+                path,
+                "${reference.type} reference key must be ${CatalogKeys.MIN_LENGTH} to ${CatalogKeys.MAX_LENGTH} characters matching ${CatalogKeys.PATTERN}",
+            )
+            return
+        }
+        val resolution = resolveReference(reference, context)
         if (resolution == ResourceResolution.MISSING) {
-            findings.error(CatalogValidationCodes.RESOURCE_REFERENCE_MISSING, path, "$type resource '$slug' cannot be resolved")
+            findings.error(CatalogValidationCodes.RESOURCE_REFERENCE_MISSING, path, "${reference.type} resource '${reference.key}' cannot be resolved")
         }
     }
 
-    private fun resolveReference(
+    /**
+     * Resolves within the catalog when the reference names no alias, or the catalog's own key, and
+     * otherwise through the consumer's resolver, with the alias resolved to the catalog the
+     * dependency list declares for it (contract ADR 0003). An alias the list does not declare resolves to
+     * [ResourceResolution.UNKNOWN]: it is reported once, as undeclared ([validateAliases]).
+     */
+    internal fun resolveReference(
         reference: CatalogResourceReference,
         context: ResourceValidationContext,
     ): ResourceResolution {
-        if (reference.catalogKey != null && reference.catalogKey != context.catalogKey) {
-            return context.dependencyResolver.resolve(reference)
+        val alias = reference.catalogKey
+        if (alias == null || alias == context.catalogKey) {
+            context.resources["${reference.type}/${reference.key}"] ?: return ResourceResolution.MISSING
+            return ResourceResolution.PRESENT
         }
-        val resource = context.resources["${reference.type}/${reference.slug}"]
-            ?: return ResourceResolution.MISSING
-        if (
-            reference.type == "stencil" &&
-            reference.version != null &&
-            (resource as? StencilResource)?.version != reference.version
-        ) {
-            return ResourceResolution.MISSING
-        }
-        return ResourceResolution.PRESENT
+        val declared = context.catalogDependencies ?: return context.dependencyResolver.resolve(reference)
+        val dependency = declared.firstOrNull { it.alias == alias } ?: return ResourceResolution.UNKNOWN
+        return context.dependencyResolver.resolve(
+            reference.copy(catalogKey = dependency.catalogKey, namespace = dependency.namespace, registry = dependency.registry),
+        )
     }
 
     private val MEDIA_TYPE = Regex("^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$")
 }
+
+/** The wire version from which every path into the catalog is held to [CatalogArchivePaths]. */
+private const val ARCHIVE_PATHS_SINCE_WIRE_VERSION = 8
+
+/** The wire version from which a theme's `spacingUnit` is held to 0.5 to 16 points, two decimals. */
+private const val SPACING_UNIT_BOUNDED_SINCE_WIRE_VERSION = 8
 
 /**
  * Entry point for complete portable catalog validation.
@@ -534,13 +1003,13 @@ object CatalogValidator {
         input: InputStream,
         policy: CatalogValidationPolicy = CatalogValidationPolicy(),
     ): CatalogValidationReport {
-        val read = CatalogArchiveReader.read(input, policy.archive)
+        val read = CatalogArchiveReader.read(input, policy.archive, policy.migration)
         val archiveFindings = read.findings.map {
             CatalogValidationFinding(it.code, ValidationSeverity.ERROR, it.path, it.message)
         }
         val archive = read.archive ?: return CatalogValidationReport(archiveFindings.sorted())
         return archive.use {
-            CatalogValidationReport((archiveFindings + validate(it, policy).findings).sorted())
+            CatalogValidationReport((archiveFindings + validate(it, policy).findings).distinct().sorted())
         }
     }
 
@@ -563,12 +1032,13 @@ object CatalogValidator {
             )
         }
         validateRelease(catalog, policy, findings)
-        validateDependencies(manifest.dependencies.orEmpty(), policy, findings)
+        validateCatalogDependencies(manifest, catalog.sourceSchemaVersion >= RELEASE_COMPLETE_SINCE_WIRE_VERSION, findings)
+        validateDependencies(manifest, policy, findings)
 
         val manifestKeys = mutableSetOf<String>()
         val entriesByKey = linkedMapOf<String, ResourceEntry>()
         manifest.resources.forEachIndexed { index, entry ->
-            val key = "${entry.type}/${entry.slug}"
+            val key = "${entry.type}/${entry.key}"
             if (!manifestKeys.add(key)) {
                 findings.error(CatalogValidationCodes.MANIFEST_RESOURCE_DUPLICATE, "catalog.json.resources[$index]", "resource '$key' is duplicated")
             }
@@ -577,16 +1047,25 @@ object CatalogValidator {
             // An image migrated from catalog v6 keeps its file under `resources/asset/`: the
             // migration renames the type and cannot move the file. Accepted so such an archive
             // stays installable; anything written at v7 uses the type's own directory.
-            val legacyPath = if (entry.type == "image") "resources/asset/${entry.slug}.json" else null
+            val legacyPath = if (entry.type == "image") "resources/asset/${entry.key}.json" else null
             val declaredPath = entry.detailUrl.removePrefix("./")
-            if (declaredPath != expectedPath && declaredPath != legacyPath) {
+            // Likewise a key the v7-to-v8 migration padded or cut (CatalogKeys.migrate): the file
+            // keeps the name the source key gave it.
+            val migratedPath = declaredPath.takeIf { catalog.sourceSchemaVersion < ARCHIVE_PATHS_SINCE_WIRE_VERSION && isMigratedDetailPath(it, entry) }
+            if (catalog.sourceSchemaVersion >= ARCHIVE_PATHS_SINCE_WIRE_VERSION && !CatalogArchivePaths.isValid(entry.detailUrl)) {
+                findings.error(
+                    CatalogValidationCodes.MANIFEST_DETAIL_URL_INVALID,
+                    "catalog.json.resources[$index].detailUrl",
+                    "detailUrl must be a relative path below the manifest's directory",
+                )
+            } else if (declaredPath != expectedPath && declaredPath != legacyPath && declaredPath != migratedPath) {
                 findings.error(
                     CatalogValidationCodes.MANIFEST_DETAIL_PATH_INVALID,
                     "catalog.json.resources[$index].detailUrl",
                     "detailUrl must be './$expectedPath' or '$expectedPath'",
                 )
             }
-            if ((expectedPath !in catalog.paths && legacyPath !in catalog.paths) || key !in catalog.resourceDetails) {
+            if ((expectedPath !in catalog.paths && legacyPath !in catalog.paths && migratedPath !in catalog.paths) || key !in catalog.resourceDetails) {
                 findings.error(CatalogValidationCodes.MANIFEST_DETAIL_MISSING, expectedPath, "manifest resource '$key' has no detail document")
             }
         }
@@ -602,22 +1081,86 @@ object CatalogValidator {
                 if (detail.resource.type != entry.type) {
                     findings.error(CatalogValidationCodes.RESOURCE_TYPE_MISMATCH, "$path.resource.type", "resource type differs from manifest")
                 }
-                if (detail.resource.slug != entry.slug) {
-                    findings.error(CatalogValidationCodes.RESOURCE_SLUG_MISMATCH, "$path.resource.slug", "resource slug differs from manifest")
+                if (detail.resource.key != entry.key) {
+                    findings.error(CatalogValidationCodes.RESOURCE_KEY_MISMATCH, "$path.resource.key", "resource key differs from manifest")
                 }
                 if (detail.resource.name != entry.name) {
                     findings.error(CatalogValidationCodes.RESOURCE_NAME_MISMATCH, "$path.resource.name", "resource name differs from manifest")
+                }
+                // A template's description is the source the manifest entry copies (wire v8).
+                val description = (detail.resource as? TemplateResource)?.description
+                if (description != null && entry.description != null && description != entry.description) {
+                    findings.error(CatalogValidationCodes.RESOURCE_DESCRIPTION_MISMATCH, "$path.resource.description", "template description differs from manifest")
                 }
             }
         }
         val resources = catalog.resourceDetails.mapValues { it.value.resource }
         validateCatalogInfo(manifest.catalog, resources, findings)
-        val context = ResourceValidationContext(manifest.catalog.slug, resources, catalog.paths, policy.dependencyResolver)
+        val context = ResourceValidationContext(
+            catalogKey = manifest.catalog.key,
+            resources = resources,
+            paths = catalog.paths,
+            dependencyResolver = policy.dependencyResolver,
+            catalogDependencies = manifest.catalogDependencies.orEmpty(),
+            sourceSchemaVersion = catalog.sourceSchemaVersion,
+            // The archive's bytes, so a binary's declared contentHash is checked against them (#91).
+            content = catalog.content,
+        )
+        manifest.catalog.defaultTheme?.let { validateDefaultTheme(manifest, it, context, findings) }
+        manifest.catalog.quality?.let { validateCatalogQuality(manifest, it, context, findings) }
         catalog.resourceDetails.toSortedMap().forEach { (key, detail) ->
             findings += ResourceValidator.validate(detail, context, "resources/$key.json").findings
         }
-        validateStencilComposition(resources, manifest.catalog.slug, findings)
+        validateStencilComposition(resources, manifest.catalog.key, findings)
+        validateCarriedReleases(catalog, policy, findings)
         return CatalogValidationReport(findings.distinct().sorted())
+    }
+
+    /**
+     * The releases [catalog] carries (wire v8): the same rules the reader applies
+     * ([CatalogArchiveDependencies]), and each release validated as a catalog of its own, its
+     * findings reported under its path (`dependencies/…/1.0.0.zip!/catalog.json`).
+     */
+    private fun validateCarriedReleases(
+        catalog: CatalogArchive,
+        policy: CatalogValidationPolicy,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        if (catalog.dependencies.isEmpty()) return
+        val carried = catalog.dependencies.associate {
+            CatalogDependencyArchivePaths.Coordinates(it.registry, it.namespace, it.catalogKey, it.releaseVersion) to it.archive
+        }
+        CatalogArchiveDependencies.check(catalog.manifest, carried).findings.forEach {
+            findings.error(it.code, it.path, it.message)
+        }
+        catalog.dependencies.forEach { release ->
+            if (release.archive.dependencies.isNotEmpty()) {
+                findings.error(
+                    ArchiveValidationCodes.ARCHIVE_DEPENDENCY_NESTED,
+                    release.path,
+                    "a carried release may not carry releases itself: every release lives in the outer archive's dependencies/",
+                )
+            }
+            validate(release.archive, policy).findings.forEach {
+                findings += it.copy(path = CatalogArchiveDependencies.nested(release.path, it.path))
+            }
+        }
+    }
+
+    /**
+     * Whether [declaredPath] is where a catalog written before wire v8 filed [entry] under the key
+     * the v7-to-v8 migration rewrote ([CatalogKeys.migrate]): the type's directory (or `asset/` for an
+     * image from catalog v6), named by the source key.
+     */
+    private fun isMigratedDetailPath(
+        declaredPath: String,
+        entry: ResourceEntry,
+    ): Boolean {
+        if (!declaredPath.endsWith(".json")) return false
+        val directory = declaredPath.substringBeforeLast('/', "")
+        val sourceKey = declaredPath.substringAfterLast('/').removeSuffix(".json")
+        val directories = setOfNotNull("resources/${entry.type}", "resources/asset".takeIf { entry.type == "image" })
+        return directory in directories && sourceKey != entry.key && CatalogKeys.migrate(sourceKey) == entry.key
     }
 
     private fun validateStencilComposition(
@@ -627,7 +1170,7 @@ object CatalogValidator {
     ) {
         val stencils = resources.values
             .filterIsInstance<StencilResource>()
-            .associateBy { StencilResourceIdentity(it.slug, it.version) }
+            .associateBy { StencilResourceIdentity(it.key) }
         val edges = stencils.mapValues { (_, stencil) ->
             val parentByNode = stencil.content.slots.values
                 .flatMap { slot -> slot.children.map { child -> child to slot.nodeId } }
@@ -648,13 +1191,13 @@ object CatalogValidator {
                 .filter { it.type == "stencil" && !hasStencilAncestor(it) }
                 .sortedBy(Node::id)
                 .mapNotNull { node ->
-                    val slug = node.props?.get("stencilId") as? String ?: return@mapNotNull null
-                    val version = (node.props["version"] as? Number)?.toInt() ?: return@mapNotNull null
+                    val stencilKey = node.props?.get("stencilKey") as? String ?: return@mapNotNull null
+                    // A stencil of another catalog, by its alias, is outside this catalog's graph.
                     val referenceCatalog = node.props["catalogKey"] as? String ?: catalogKey
                     if (referenceCatalog != catalogKey) return@mapNotNull null
                     StencilCompositionEdge(
-                        target = StencilResourceIdentity(slug, version),
-                        path = "resources/stencil/${stencil.slug}.json.resource.content.nodes.${node.id}.props.stencilId",
+                        target = StencilResourceIdentity(stencilKey),
+                        path = "resources/stencil/${stencil.key}.json.resource.content.nodes.${node.id}.props.stencilKey",
                     )
                 }
         }
@@ -671,7 +1214,7 @@ object CatalogValidator {
                     findings.error(
                         TemplateValidationCodes.STENCIL_RECURSION,
                         edge.path,
-                        "stencil '${target.slug}' would contain itself transitively",
+                        "stencil '${target.key}' would contain itself transitively",
                     )
                     return@forEach
                 }
@@ -694,7 +1237,7 @@ object CatalogValidator {
             }
         }
 
-        stencils.keys.sortedWith(compareBy({ it.slug }, { it.version })).forEach { stencil ->
+        stencils.keys.sortedBy { it.key }.forEach { stencil ->
             if ((greatestDepth[stencil] ?: 0) < 1) {
                 greatestDepth[stencil] = 1
                 visit(stencil, setOf(stencil), 1)
@@ -708,22 +1251,72 @@ object CatalogValidator {
         findings: MutableList<CatalogValidationFinding>,
     ) {
         val release = catalog.manifest.release
-        if (!SEMVER.matches(release.version)) {
-            findings.error(CatalogValidationCodes.RELEASE_VERSION_INVALID, "catalog.json.release.version", "release version must be SemVer")
+        if (!CatalogReleaseVersions.isValid(release.version)) {
+            findings.error(
+                CatalogValidationCodes.RELEASE_VERSION_INVALID,
+                "catalog.json.release.version",
+                "release version must be MAJOR.MINOR.PATCH, or MAJOR.MINOR.PATCH-<namespace>.<N> for a patch release, and nothing else",
+            )
         }
+        release.releaseId?.let {
+            if (!CatalogReleaseIds.isValid(it)) {
+                findings.error(
+                    CatalogValidationCodes.RELEASE_ID_INVALID,
+                    "catalog.json.release.releaseId",
+                    "releaseId must be lowercase letters, digits and single hyphens, " +
+                        "${CatalogReleaseIds.MIN_LENGTH} to ${CatalogReleaseIds.MAX_LENGTH} characters",
+                )
+            }
+        }
+        release.metadata?.let {
+            ResourceValidator.validateMetadata(
+                it,
+                "catalog.json.release.metadata",
+                CatalogValidationCodes.RELEASE_METADATA_INVALID,
+                CatalogValidationCodes.RELEASE_METADATA_TOO_LARGE,
+                findings,
+            )
+        }
+        release.base?.let { validateReleaseBase(it, findings) }
         release.releasedAt?.let {
             if (runCatching { OffsetDateTime.parse(it) }.isFailure) {
                 findings.error(CatalogValidationCodes.RELEASE_TIMESTAMP_INVALID, "catalog.json.release.releasedAt", "releasedAt must be an ISO-8601 offset timestamp")
             }
         }
+        if (release.fingerprint == null && catalog.sourceSchemaVersion >= RELEASE_COMPLETE_SINCE_WIRE_VERSION) {
+            // The fingerprint is the release's identity, which a pin and a base name. A catalog
+            // migrated from wire v7, where it was optional, keeps going without one.
+            findings.error(
+                CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID,
+                "catalog.json.release.fingerprint",
+                "a release carries its fingerprint, the identity a pin and a base name: " +
+                    "${CatalogCanonicalizer.releaseFingerprintVersion(catalog.sourceSchemaVersion).label}:<lowercase SHA-256 hex>",
+            )
+        }
         release.fingerprint?.let {
-            if (!SHA256.matches(it)) {
-                findings.error(CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID, "catalog.json.release.fingerprint", "fingerprint must be a lowercase SHA-256 hex string")
+            // From wire v8 the fingerprint names its algorithm, and a release is fingerprinted with
+            // the one its wire version fixes: an older algorithm covers less, so accepting it would
+            // verify less, and a newer one, from a later wire version, is not this version's.
+            // Before wire v8 it is bare hex and the wire version implies the algorithm.
+            val qualified = catalog.sourceSchemaVersion >= QUALIFIED_FINGERPRINT_SINCE_WIRE_VERSION
+            val required = if (qualified) CatalogCanonicalizer.releaseFingerprintVersion(catalog.sourceSchemaVersion) else null
+            val invalid = if (required != null) {
+                QualifiedCatalogFingerprint.parse(it)?.version != required
+            } else {
+                !SHA256.matches(it)
+            }
+            if (invalid) {
+                val message = if (qualified) {
+                    "fingerprint must name the algorithm of wire v${catalog.sourceSchemaVersion}: ${required?.label}:<lowercase SHA-256 hex>"
+                } else {
+                    "fingerprint must be a lowercase SHA-256 hex string"
+                }
+                findings.error(CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID, "catalog.json.release.fingerprint", message)
             } else if (policy.verifyFingerprint) {
                 val matches = when {
-                    catalog.sourceSchemaVersion >= CatalogWireSchema.CURRENT_VERSION ->
-                        CatalogCanonicalizer.matchesFingerprint(catalog, it, CatalogFingerprintVersion.V4)
-                    // Migration may have rewritten keywords the fingerprint was computed over.
+                    qualified -> CatalogCanonicalizer.matchesQualifiedFingerprint(catalog, it)
+                    // Migration may have rewritten keywords, or removed stencil versions, that the
+                    // fingerprint was computed over.
                     catalog.sourceSchemaVersion >= V4_FINGERPRINT_SINCE_WIRE_VERSION ->
                         CatalogCanonicalizer.matchesSourceV4Fingerprint(catalog, it)
                     else -> CatalogCanonicalizer.matchesFingerprint(catalog, it)
@@ -744,33 +1337,115 @@ object CatalogValidator {
         }
     }
 
+    /**
+     * Holds `release.base` to a release number and a known qualified fingerprint. Whether the base
+     * is a release the receiver has, and whether it is below this release, is the receiver's to
+     * judge; the base is kept as given.
+     */
+    private fun validateReleaseBase(
+        base: ReleaseBase,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        val path = "catalog.json.release.base"
+        if (!CatalogReleaseVersions.isValid(base.version)) {
+            findings.error(CatalogValidationCodes.RELEASE_BASE_INVALID, "$path.version", "base version must be MAJOR.MINOR.PATCH, or MAJOR.MINOR.PATCH-<namespace>.<N> for a patch release, and nothing else")
+        }
+        if (!ReleaseBase.isValidFingerprint(base.fingerprint)) {
+            findings.error(CatalogValidationCodes.RELEASE_BASE_INVALID, "$path.fingerprint", "base fingerprint must name a known algorithm: v6:<lowercase SHA-256 hex>")
+        }
+    }
+
+    /**
+     * A default theme in another catalog lives in a catalog this one depends on (ADR 0007), so its
+     * alias must be declared in catalogDependencies, which pins the release it renders with (contract ADR
+     * 0003).
+     */
+    private fun validateDefaultTheme(
+        manifest: CatalogManifest,
+        theme: CatalogThemeRef,
+        context: ResourceValidationContext,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        val path = "catalog.json.catalog.defaultTheme"
+        ResourceValidator.validateDefaultTheme(theme, context, path, findings)
+        val alias = theme.catalogKey ?: return
+        if (manifest.catalogDependencies.orEmpty().none { it.alias == alias }) {
+            findings.error(
+                CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED,
+                path,
+                if (alias == manifest.catalog.key) {
+                    "defaultTheme names the catalog's own key '$alias'; a theme of the catalog itself names no catalog"
+                } else {
+                    "defaultTheme names the catalog alias '$alias', which catalogDependencies does not declare"
+                },
+            )
+        }
+    }
+
+    /** The catalog's quality binding, as a template's is, and every alias it names declared (contract ADR 0010). */
+    private fun validateCatalogQuality(
+        manifest: CatalogManifest,
+        binding: QualityBinding,
+        context: ResourceValidationContext,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        val path = "catalog.json.catalog.quality"
+        ResourceValidator.validateQualityBinding(binding, context, path, findings)
+        val references = mutableListOf<CatalogReferences.Reference>()
+        CatalogReferences.inQualityBinding(binding, path, references)
+        val declared = manifest.catalogDependencies.orEmpty().mapTo(mutableSetOf()) { it.alias }
+        references.filter { it.alias !in declared }.forEach { reference ->
+            findings.error(
+                CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED,
+                reference.path,
+                if (reference.alias == manifest.catalog.key) {
+                    "quality names the catalog's own key '${reference.alias}'; a profile of the catalog itself names no catalog"
+                } else {
+                    "quality names the catalog alias '${reference.alias}', which catalogDependencies does not declare"
+                },
+            )
+        }
+    }
+
     private fun validateCatalogInfo(
         catalog: CatalogInfo,
         resources: Map<String, CatalogResource>,
         findings: MutableList<CatalogValidationFinding>,
     ) {
+        CatalogPresets.violations(catalog.presets).forEach { violation ->
+            findings.error(
+                when (violation.rule) {
+                    PresetRule.KEY_INVALID -> CatalogValidationCodes.PRESET_KEY_INVALID
+                    PresetRule.NAME_INVALID -> CatalogValidationCodes.PRESET_NAME_INVALID
+                    PresetRule.DESCRIPTION_TOO_LONG -> CatalogValidationCodes.PRESET_DESCRIPTION_INVALID
+                    PresetRule.DUPLICATE -> CatalogValidationCodes.PRESET_DUPLICATE
+                },
+                "catalog.json.catalog.presets[${violation.index}].${violation.member}",
+                violation.message,
+            )
+        }
         val seenAttributes = mutableSetOf<Pair<String, String>>()
         catalog.attributes.forEachIndexed { index, attribute ->
             val path = "catalog.json.catalog.attributes[$index]"
-            if (!ATTRIBUTE_IDENTITY.matches(attribute.catalog)) {
+            if (!ATTRIBUTE_IDENTITY.matches(attribute.catalogKey)) {
                 findings.error(
                     CatalogValidationCodes.CATALOG_ATTRIBUTE_IDENTITY_INVALID,
-                    "$path.catalog",
-                    "attribute catalog must contain lowercase letters, digits, and hyphens",
+                    "$path.catalogKey",
+                    "attribute catalogKey must contain lowercase letters, digits, and hyphens",
                 )
             }
-            if (!ATTRIBUTE_IDENTITY.matches(attribute.key)) {
+            if (!CatalogKeys.isValid(attribute.key)) {
                 findings.error(
                     CatalogValidationCodes.CATALOG_ATTRIBUTE_IDENTITY_INVALID,
                     "$path.key",
-                    "attribute key must contain lowercase letters, digits, and hyphens",
+                    "attribute key must be ${CatalogKeys.MIN_LENGTH} to ${CatalogKeys.MAX_LENGTH} characters matching ${CatalogKeys.PATTERN}",
                 )
             }
-            if (!seenAttributes.add(attribute.catalog to attribute.key)) {
+            if (!seenAttributes.add(attribute.catalogKey to attribute.key)) {
                 findings.error(
                     CatalogValidationCodes.CATALOG_ATTRIBUTE_DUPLICATE,
                     path,
-                    "attribute '${attribute.catalog}.${attribute.key}' is duplicated",
+                    "attribute '${attribute.catalogKey}.${attribute.key}' is duplicated",
                 )
             }
         }
@@ -829,12 +1504,12 @@ object CatalogValidator {
             }
         }
         val presentation = catalog.presentation ?: return
-        presentation.iconAssetSlug?.let { slug ->
-            validatePresentationAsset(slug, "catalog.json.catalog.presentation.iconAssetSlug", resources, findings)
+        presentation.iconImageKey?.let { key ->
+            validatePresentationAsset(key, "catalog.json.catalog.presentation.iconImageKey", resources, findings)
         }
         val seen = mutableSetOf<String>()
-        presentation.imageAssetSlugs.forEachIndexed { index, slug ->
-            val path = "catalog.json.catalog.presentation.imageAssetSlugs[$index]"
+        presentation.imageKeys.forEachIndexed { index, slug ->
+            val path = "catalog.json.catalog.presentation.imageKeys[$index]"
             if (!seen.add(slug)) {
                 findings.error(
                     CatalogValidationCodes.PRESENTATION_IMAGE_DUPLICATE,
@@ -854,7 +1529,7 @@ object CatalogValidator {
     ) {
         val asset = resources["image/$slug"] as? ImageResource
         if (asset == null) {
-            val code = if (resources.values.any { it.slug == slug }) {
+            val code = if (resources.values.any { it.key == slug }) {
                 CatalogValidationCodes.PRESENTATION_RESOURCE_NOT_ASSET
             } else {
                 CatalogValidationCodes.PRESENTATION_ASSET_MISSING
@@ -874,46 +1549,199 @@ object CatalogValidator {
         }
     }
 
+    /**
+     * Wire v8: the catalog names its registry in full and its namespace, and declares each catalog it
+     * depends on once, never itself, under an alias of its own (contract ADR 0003), with, unless migrated, the
+     * release it pins: its fingerprint, and the number it had.
+     */
+    /**
+     * Holds `catalogDependencies` to its rules. When [pinned] (an archive written at wire v8 or
+     * later, not one migrated from wire v7, which had no pins), every declaration pins a release: a
+     * release renders with particular releases of its dependencies, and its fingerprint covers them.
+     */
+    private fun validateCatalogDependencies(
+        manifest: CatalogManifest,
+        pinned: Boolean,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        val own = CatalogIdentity(manifest.catalog.registry, manifest.catalog.namespace, manifest.catalog.key)
+        validateTopLevelIdentity(manifest.catalog.registry, manifest.catalog.namespace, "catalog.json.catalog", "catalog", findings)
+        val seen = mutableSetOf<CatalogIdentity>()
+        val aliases = mutableSetOf<String>()
+        manifest.catalogDependencies.orEmpty().forEachIndexed { index, dependency ->
+            val path = "catalog.json.catalogDependencies[$index]"
+            val identity = CatalogIdentity(dependency.registry, dependency.namespace, dependency.catalogKey)
+            when {
+                !CatalogAliases.isValid(dependency.alias) -> findings.error(
+                    CatalogValidationCodes.DEPENDENCY_ALIAS_INVALID,
+                    "$path.alias",
+                    "alias must be ${CatalogAliases.MIN_LENGTH} to ${CatalogAliases.MAX_LENGTH} characters matching ${CatalogAliases.PATTERN}",
+                )
+                dependency.alias == manifest.catalog.key -> findings.error(
+                    CatalogValidationCodes.DEPENDENCY_ALIAS_INVALID,
+                    "$path.alias",
+                    "alias '${dependency.alias}' is the catalog's own key, which content uses for the catalog itself",
+                )
+                !aliases.add(dependency.alias) -> findings.error(
+                    CatalogValidationCodes.DEPENDENCY_ALIAS_DUPLICATE,
+                    "$path.alias",
+                    "alias '${dependency.alias}' is declared more than once",
+                )
+            }
+            validateTopLevelIdentity(dependency.registry, dependency.namespace, path, "catalog dependency", findings)
+            if (!CatalogKeys.matches(CatalogKeys.CATALOG, dependency.catalogKey)) {
+                findings.error(
+                    CatalogValidationCodes.RESOURCE_KEY_INVALID,
+                    "$path.catalogKey",
+                    "catalogKey must be ${CatalogKeys.CATALOG.minLength} to ${CatalogKeys.CATALOG.maxLength} characters matching ${CatalogKeys.CATALOG.pattern}",
+                )
+            }
+            if (identity == own) {
+                findings.error(CatalogValidationCodes.DEPENDENCY_CATALOG_SELF, path, "a catalog cannot depend on itself")
+            }
+            if (!seen.add(identity)) {
+                findings.error(
+                    CatalogValidationCodes.DEPENDENCY_CATALOG_DUPLICATE,
+                    path,
+                    "catalog $identity is declared more than once",
+                )
+            }
+            if (pinned && dependency.releaseVersion == null) {
+                findings.error(
+                    CatalogValidationCodes.DEPENDENCY_CATALOG_VERSION_INVALID,
+                    "$path.releaseVersion",
+                    "a release pins every catalog it declares: releaseVersion and releaseFingerprint are required",
+                )
+            }
+            dependency.releaseVersion?.let { release ->
+                if (!CatalogReleaseVersions.isValid(release)) {
+                    findings.error(
+                        CatalogValidationCodes.DEPENDENCY_CATALOG_VERSION_INVALID,
+                        "$path.releaseVersion",
+                        "releaseVersion must be MAJOR.MINOR.PATCH, or MAJOR.MINOR.PATCH-<namespace>.<N> for a patch release, and nothing else",
+                    )
+                }
+            }
+            val fingerprintFinding = when {
+                dependency.releaseVersion == null && dependency.releaseFingerprint != null ->
+                    "releaseFingerprint must be null when no releaseVersion is recorded"
+                dependency.releaseVersion != null && dependency.releaseFingerprint == null ->
+                    "releaseFingerprint is required when a releaseVersion is recorded"
+                dependency.releaseFingerprint != null && !CatalogDependency.isValidReleaseFingerprint(dependency.releaseFingerprint) ->
+                    "releaseFingerprint must name a known algorithm: v6:<lowercase SHA-256 hex>"
+                else -> null
+            }
+            fingerprintFinding?.let { findings.error(CatalogValidationCodes.DEPENDENCY_CATALOG_FINGERPRINT_INVALID, "$path.releaseFingerprint", it) }
+        }
+    }
+
+    /** Where an archive names a catalog at its top level, both registry and namespace are required. */
+    private fun validateTopLevelIdentity(
+        registry: String?,
+        namespace: String?,
+        path: String,
+        what: String,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        when {
+            registry == null -> findings.error(CatalogValidationCodes.REGISTRY_INVALID, "$path.registry", "$what names no registry")
+            !CatalogNamespaces.isValidRegistry(registry) -> findings.error(
+                CatalogValidationCodes.REGISTRY_INVALID,
+                "$path.registry",
+                "$what registry '$registry' must be a DNS name written in full",
+            )
+        }
+        when {
+            namespace == null -> findings.error(CatalogValidationCodes.NAMESPACE_INVALID, "$path.namespace", "$what names no namespace")
+            !CatalogNamespaces.isValid(namespace) -> findings.error(
+                CatalogValidationCodes.NAMESPACE_INVALID,
+                "$path.namespace",
+                "$what namespace '$namespace' must be a lowercase slug",
+            )
+        }
+    }
+
+    /** A catalog's identity: registry, namespace and key. Parts are null only in a malformed manifest. */
+    private data class CatalogIdentity(
+        val registry: String?,
+        val namespace: String?,
+        val catalogKey: String,
+    ) {
+        override fun toString(): String = "'$catalogKey' in namespace '$namespace' of registry '$registry'"
+    }
+
+    /**
+     * The manifest's index of what the content uses in other catalogs (`dependencies`): each entry
+     * names a declared alias (contract ADR 0003), never the catalog itself, at most once, and resolves through
+     * the consumer's resolver against the catalog the alias is declared for.
+     */
     private fun validateDependencies(
-        dependencies: List<DependencyRef>,
+        manifest: CatalogManifest,
         policy: CatalogValidationPolicy,
         findings: MutableList<CatalogValidationFinding>,
     ) {
+        val declared = manifest.catalogDependencies.orEmpty().associateBy { it.alias }
         val seen = mutableSetOf<String>()
-        dependencies.forEachIndexed { index, dependency ->
-            val reference = when (dependency) {
-                is DependencyRef.Theme -> CatalogResourceReference("theme", dependency.slug, dependency.catalogKey)
-                is DependencyRef.Stencil -> CatalogResourceReference("stencil", dependency.slug, dependency.catalogKey)
-                is DependencyRef.CodeList -> CatalogResourceReference("codeList", dependency.slug, dependency.catalogKey)
-                is DependencyRef.Font -> CatalogResourceReference("font", dependency.slug, dependency.catalogKey)
-                is DependencyRef.Image -> CatalogResourceReference("image", dependency.slug, dependency.catalogKey)
+        manifest.dependencies.orEmpty().forEachIndexed { index, dependency ->
+            val path = "catalog.json.dependencies[$index]"
+            val type = when (dependency) {
+                is DependencyRef.Theme -> "theme"
+                is DependencyRef.Stencil -> "stencil"
+                is DependencyRef.CodeList -> "codeList"
+                is DependencyRef.Font -> "font"
+                is DependencyRef.Image -> "image"
+                is DependencyRef.QualityProfile -> "qualityProfile"
             }
-            val key = "${reference.type}|${reference.catalogKey.orEmpty()}|${reference.slug}"
+            val alias = dependency.catalogKey
+            val key = "$type|$alias|${dependency.key}"
             if (!seen.add(key)) {
-                findings.error(CatalogValidationCodes.DEPENDENCY_DUPLICATE, "catalog.json.dependencies[$index]", "dependency '$key' is duplicated")
+                findings.error(CatalogValidationCodes.DEPENDENCY_DUPLICATE, path, "dependency '$key' is duplicated")
             }
-            if (policy.dependencyResolver.resolve(reference) == ResourceResolution.MISSING) {
+            if (!CatalogKeys.isValid(dependency.key)) {
+                findings.error(
+                    CatalogValidationCodes.RESOURCE_KEY_INVALID,
+                    "$path.key",
+                    "dependency key must be ${CatalogKeys.MIN_LENGTH} to ${CatalogKeys.MAX_LENGTH} characters matching ${CatalogKeys.PATTERN}",
+                )
+            }
+            val catalog = declared[alias]
+            when {
+                alias == manifest.catalog.key -> findings.error(
+                    CatalogValidationCodes.DEPENDENCY_CATALOG_SELF,
+                    path,
+                    "dependency '$key' names the catalog itself",
+                )
+                catalog == null -> findings.error(
+                    CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED,
+                    path,
+                    "dependency '$key' names the catalog alias '$alias', which catalogDependencies does not declare",
+                )
+            }
+            val reference = CatalogResourceReference(type, dependency.key, catalog?.catalogKey ?: alias, catalog?.namespace, catalog?.registry)
+            if (catalog != null && policy.dependencyResolver.resolve(reference) == ResourceResolution.MISSING) {
                 findings.error(
                     CatalogValidationCodes.DEPENDENCY_REFERENCE_MISSING,
-                    "catalog.json.dependencies[$index]",
+                    path,
                     "dependency '$key' cannot be resolved",
                 )
             }
         }
     }
 
-    private val SEMVER = Regex(
-        "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$",
-    )
     private val SHA256 = Regex("^[0-9a-f]{64}$")
 
     /** Wire version from which a catalog must carry a V4 fingerprint. */
     private const val V4_FINGERPRINT_SINCE_WIRE_VERSION = 6
+
+    /** Wire version from which a catalog must carry a V5 fingerprint. */
+    private const val QUALIFIED_FINGERPRINT_SINCE_WIRE_VERSION = 8
+
+    /** The wire version from which a release carries its fingerprint and pins every dependency. */
+    private const val RELEASE_COMPLETE_SINCE_WIRE_VERSION = 8
     private val ATTRIBUTE_IDENTITY = Regex("^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 
     private data class StencilResourceIdentity(
-        val slug: String,
-        val version: Int,
+        val key: String,
     )
 
     private data class StencilCompositionEdge(
@@ -940,12 +1768,38 @@ private object PortableJsonSchema {
         )
     }
 
+    /**
+     * Problems with [schema] itself, references included. The validator resolves a `$ref` only when
+     * data reaches it, so the schema's validators are initialized here: a reference that resolves to
+     * nothing is reported now, not missed for a model without examples or thrown out of [validate].
+     * Nothing is fetched, so only a local pointer or a bundled schema resolves.
+     */
     fun checkSchema(schema: Map<String, Any?>): List<String> = runCatching {
-        schemaRegistry.getSchema(mapper.writeValueAsString(schema))
+        schemaRegistry.getSchema(mapper.writeValueAsString(schema)).initializeValidators()
     }.fold(
         onSuccess = { emptyList() },
         onFailure = { listOf("invalid JSON Schema: ${it.message}") },
     )
+
+    /**
+     * [data] with each absent property's `default` filled in, recursing into nested objects. A present
+     * value, an explicit `null` included, is kept: a `default` stands in only for an absent key.
+     * Composition keywords (`allOf`, `oneOf`, `anyOf`) are not expanded.
+     */
+    @Suppress("UNCHECKED_CAST")
+    fun withDefaults(
+        data: Map<String, Any?>,
+        schema: Map<String, Any?>,
+    ): Map<String, Any?> {
+        val properties = schema["properties"] as? Map<String, Any?> ?: return data
+        val result = LinkedHashMap(data)
+        for ((name, property) in properties) {
+            val propertySchema = property as? Map<String, Any?> ?: continue
+            if (name !in result && "default" in propertySchema) result[name] = propertySchema["default"]
+            (result[name] as? Map<String, Any?>)?.let { nested -> result[name] = withDefaults(nested, propertySchema) }
+        }
+        return result
+    }
 
     fun validate(
         value: Any?,
@@ -976,6 +1830,22 @@ private object PortableJsonSchema {
 
     private const val LENIENT_DATE_TIME_PATTERN =
         "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?(Z|[+-]\\d{2}:\\d{2})?$"
+}
+
+/** Reports [key] at [path] unless it satisfies the one resource key rule ([CatalogKeys.RESOURCE]). */
+private fun validateKey(
+    key: String,
+    path: String,
+    findings: MutableList<CatalogValidationFinding>,
+    what: String = "key",
+) {
+    if (!CatalogKeys.isValid(key)) {
+        findings.error(
+            CatalogValidationCodes.RESOURCE_KEY_INVALID,
+            path,
+            "$what must be ${CatalogKeys.MIN_LENGTH} to ${CatalogKeys.MAX_LENGTH} characters matching ${CatalogKeys.PATTERN}",
+        )
+    }
 }
 
 private fun MutableList<CatalogValidationFinding>.error(

@@ -18,18 +18,19 @@ class EpistolaJsonTest {
         // attributes is typed `array` in the contract with no null in the union, so writing it as
         // null is a request no server validating against the spec accepts.
         val json = EpistolaJson.objectMapper.writeValueAsString(
-            GenerateDocumentRequest(catalogId = "default", templateId = "invoice", data = mapOf("x" to 1)),
+            GenerateDocumentRequest(namespace = "acme-corp", catalogKey = "default", templateKey = "invoice", data = mapOf("x" to 1)),
         )
 
         assertFalse(json.contains("attributes"), json)
         assertFalse(json.contains("null"), json)
-        assertTrue(json.contains("\"catalogId\":\"default\""), json)
+        assertTrue(json.contains("\"namespace\":\"acme-corp\""), json)
+        assertTrue(json.contains("\"catalogKey\":\"default\""), json)
     }
 
     @Test
     fun `a partial update carries only the field it set`() {
-        // description and contact are documented "null to clear" — writing them as null turns a
-        // rename into a rename plus an erase.
+        // A server built to a contract before 2.0 reads a null description or contact as "clear",
+        // so writing them as null turns a rename into a rename plus an erase.
         val json = EpistolaJson.objectMapper.writeValueAsString(UpdateConsumerRequest(name = "Billing Service"))
 
         assertEquals("""{"name":"Billing Service"}""", json)

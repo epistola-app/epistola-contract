@@ -35,7 +35,7 @@ export interface MetricsListener {
 
 interface CollectorSettings {
   readonly client: EpistolaClient
-  readonly tenantId: string
+  readonly tenantKey: string
   readonly batchSize: number
   readonly backoff: PollBackoff
   readonly kickIntervalMs: number
@@ -64,7 +64,7 @@ interface CollectorSettings {
  * ```ts
  * const collector = ResultCollector.builder()
  *   .client(client)
- *   .tenantId('acme')
+ *   .tenantKey('acme')
  *   .handler(async (result) => console.log(result.requestId, result.status))
  *   .build()
  *
@@ -212,14 +212,14 @@ export class ResultCollector {
   }
 
   private async doCollect(): Promise<CollectResult> {
-    const { client, tenantId, batchSize, handler } = this.settings
+    const { client, tenantKey, batchSize, handler } = this.settings
     // No acknowledgeUpTo at all until something has been processed: sending 0 would acknowledge
     // sequence 0 rather than mean "nothing".
     const body = this.lastAcknowledged === undefined
       ? { limit: batchSize }
       : { acknowledgeUpTo: this.lastAcknowledged, limit: batchSize }
 
-    const response = await client.fetch(`${client.baseUrl}/tenants/${encodeURIComponent(tenantId)}/generation/collect`, {
+    const response = await client.fetch(`${client.baseUrl}/tenants/${encodeURIComponent(tenantKey)}/generation/collect`, {
       method: 'POST',
       headers: {
         ...client.requestHeaders(),
@@ -319,7 +319,7 @@ export class ResultCollector {
 /** Fluent builder for {@link ResultCollector}. */
 export class ResultCollectorBuilder {
   private clientValue: EpistolaClient | undefined
-  private tenantIdValue: string | undefined
+  private tenantKeyValue: string | undefined
   private batchSizeValue = 100
   private minIntervalMsValue = 1_000
   private maxIntervalMsValue = 30_000
@@ -337,8 +337,8 @@ export class ResultCollectorBuilder {
   }
 
   /** The tenant whose results to collect. */
-  tenantId(tenantId: string): this {
-    this.tenantIdValue = tenantId
+  tenantKey(tenantKey: string): this {
+    this.tenantKeyValue = tenantKey
     return this
   }
 
@@ -415,15 +415,15 @@ export class ResultCollectorBuilder {
     if (this.clientValue === undefined) {
       throw new RangeError('client is required')
     }
-    if (this.tenantIdValue === undefined) {
-      throw new RangeError('tenantId is required')
+    if (this.tenantKeyValue === undefined) {
+      throw new RangeError('tenantKey is required')
     }
     if (this.handlerValue === undefined) {
       throw new RangeError('handler is required')
     }
     return ResultCollector.assemble({
       client: this.clientValue,
-      tenantId: this.tenantIdValue,
+      tenantKey: this.tenantKeyValue,
       batchSize: this.batchSizeValue,
       backoff: PollBackoff.of(this.minIntervalMsValue, this.maxIntervalMsValue, this.backoffMultiplierValue),
       kickIntervalMs: this.kickIntervalMsValue,

@@ -53,10 +53,10 @@ class WildFlyDeploymentTest {
     private static final String WAR_NAME = "epistola-smoke";
 
     private static final String PONG =
-            "{\"status\":\"UP\",\"timestamp\":\"2026-09-02T10:00:00Z\"}";
+            "{\"status\":\"up\",\"timestamp\":\"2026-09-02T10:00:00Z\"}";
 
-    private static final String IMAGE = "{\"key\":\"logo\",\"tenantId\":\"acme-corp\",\"catalog\":\"main\","
-            + "\"catalogType\":\"AUTHORED\",\"readOnly\":false,\"name\":\"Logo\",\"mediaType\":\"image/png\","
+    private static final String IMAGE = "{\"key\":\"logo\",\"tenantKey\":\"acme-corp\",\"registry\":\"exchange.epistola.app\",\"namespace\":\"acme-corp\",\"catalogKey\":\"main\","
+            + "\"readOnly\":false,\"name\":\"Logo\",\"mediaType\":\"image/png\","
             + "\"sizeBytes\":16,\"createdAt\":\"2026-09-02T10:00:00Z\"}";
 
     @Test
@@ -64,8 +64,8 @@ class WildFlyDeploymentTest {
         Path war = buildSmokeWar();
 
         try (StubServer epistola = StubServer.start(request -> request.path().endsWith("/images")
-                ? StubServer.StubResponse.of(201, "application/vnd.epistola.v1+json", IMAGE)
-                : StubServer.StubResponse.of(200, "application/vnd.epistola.v1+json", PONG))) {
+                ? StubServer.StubResponse.of(201, "application/vnd.epistola.v2+json", IMAGE)
+                : StubServer.StubResponse.of(200, "application/vnd.epistola.v2+json", PONG))) {
 
             int stubPort = epistola.baseUri().getPort();
             Testcontainers.exposeHostPorts(stubPort);
@@ -100,12 +100,12 @@ class WildFlyDeploymentTest {
                                 HttpResponse.BodyHandlers.ofString());
 
                 assertEquals(200, response.statusCode(), response.body());
-                assertEquals("UP", response.body().trim());
+                assertEquals("up", response.body().trim());
 
                 StubServer.RecordedRequest seen = epistola.onlyRequest();
                 assertEquals("/api/ping", seen.path());
                 assertEquals(
-                        "application/vnd.epistola.v1+json",
+                        "application/vnd.epistola.v2+json",
                         seen.header("Content-Type"),
                         "the deployed client must still send the versioned media type");
                 assertNotNull(seen.header("User-Agent"));
@@ -135,7 +135,10 @@ class WildFlyDeploymentTest {
                 assertEquals("logo", uploaded.body().trim(), "the deployed client should parse the ImageDto back");
 
                 StubServer.RecordedRequest upload = epistola.requests().get(1);
-                assertEquals("/api/tenants/acme-corp/catalogs/main/images", upload.path());
+                // "~" names the server's default registry; RFC 3986 makes "%7E" the same segment.
+                assertEquals(
+                        "/api/tenants/acme-corp/catalogs/~/acme-corp/main/versions/1.0.0/images",
+                        upload.path().replace("%7E", "~").replace("%7e", "~"));
                 assertTrue(
                         upload.header("Content-Type").startsWith("multipart/form-data"),
                         "an upload must be multipart, was: " + upload.header("Content-Type"));

@@ -37,7 +37,7 @@ namespace Epistola.Client.Collect;
 public sealed class ResultCollector
 {
     private readonly HttpClient _http;
-    private readonly string _tenantId;
+    private readonly string _tenantKey;
     private readonly int _batchSize;
     private readonly TimeSpan _minInterval;
     private readonly TimeSpan _maxInterval;
@@ -54,8 +54,8 @@ public sealed class ResultCollector
     private readonly IMetricsListener? _metricsListener;
     private readonly bool _registerShutdownHook;
 
-    private const string VendorJson = "application/vnd.epistola.v1+json";
-    private const string Ndjson = "application/vnd.epistola.v1+ndjson";
+    private const string VendorJson = "application/vnd.epistola.v2+json";
+    private const string Ndjson = "application/vnd.epistola.v2+ndjson";
 
     private int _running; // 0/1 flag
     private long _currentInterval;
@@ -69,7 +69,7 @@ public sealed class ResultCollector
 
     private ResultCollector(
         HttpClient http,
-        string tenantId,
+        string tenantKey,
         int batchSize,
         TimeSpan minInterval,
         TimeSpan maxInterval,
@@ -81,7 +81,7 @@ public sealed class ResultCollector
         bool registerShutdownHook)
     {
         _http = http;
-        _tenantId = tenantId;
+        _tenantKey = tenantKey;
         _batchSize = batchSize;
         _minInterval = minInterval;
         _maxInterval = maxInterval;
@@ -296,7 +296,7 @@ public sealed class ResultCollector
                 ? $"{{\"acknowledgeUpTo\":{_lastAcknowledgedSequence},\"limit\":{_batchSize}}}"
                 : $"{{\"limit\":{_batchSize}}}";
 
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"tenants/{_tenantId}/generation/collect")
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"tenants/{_tenantKey}/generation/collect")
             {
                 Content = new StringContent(body, Encoding.UTF8, VendorJson),
             };
@@ -381,14 +381,24 @@ public sealed class ResultCollector
         DocumentId: node["documentId"]?.Value<string>(),
         CorrelationId: node["correlationId"]?.Value<string>(),
         RoutingKey: node["routingKey"]?.Value<string>(),
-        TemplateId: node["templateId"]?.Value<string>(),
-        VariantId: node["variantId"]?.Value<string>(),
-        VersionId: node["versionId"]?.Value<int?>(),
+        TemplateKey: node["templateKey"]?.Value<string>(),
+        VariantKey: node["variantKey"]?.Value<string>(),
+        Registry: Required(node, "registry"),
+        Namespace: Required(node, "namespace"),
+        CatalogKey: Required(node, "catalogKey"),
+        Version: node["version"]?.Value<string>(),
+        ReleaseId: node["releaseId"]?.Value<string>(),
+        ReleaseName: node["releaseName"]?.Value<string>(),
         Filename: node["filename"]?.Value<string>(),
         ContentType: node["contentType"]?.Value<string>(),
         SizeBytes: node["sizeBytes"]?.Value<long?>(),
         Error: node["error"]?.Value<string>(),
         CompletedAt: node["completedAt"]?.Value<string>());
+
+    /// <summary>A member the contract requires on every result line; a line without it is malformed.</summary>
+    private static string Required(JObject node, string member) =>
+        node[member]?.Value<string>()
+        ?? throw new FormatException($"result line {node["sequence"]} has no {member}, which the contract requires");
 
     private static string SupportedEncodings()
     {
@@ -509,6 +519,17 @@ public sealed class ResultCollector
     }
 
     /// <summary>A completed or failed generation result.</summary>
+    /// <remarks>
+    /// <see cref="Registry"/>, <see cref="Namespace"/>, <see cref="CatalogKey"/> and
+    /// <see cref="Version"/> name the catalog release the document was rendered from; a
+    /// version means nothing without its catalog. <see cref="Registry"/> is always named in
+    /// full (<c>exchange.epistola.app</c>), never <c>~</c>. The catalog is always named;
+    /// <see cref="Version"/> is null when the document was rendered from a draft.
+    /// <see cref="ReleaseId"/> names the release rendered, the draft's when <see cref="Version"/>
+    /// is null, and <see cref="ReleaseName"/> is the release's name at render time (null for a
+    /// release that has none).
+    /// <see cref="Status"/> is the wire value, <c>completed</c> or <c>failed</c>.
+    /// </remarks>
     public sealed record GenerationResult(
         long Sequence,
         string RequestId,
@@ -517,9 +538,14 @@ public sealed class ResultCollector
         string? DocumentId,
         string? CorrelationId,
         string? RoutingKey,
-        string? TemplateId,
-        string? VariantId,
-        int? VersionId,
+        string? TemplateKey,
+        string? VariantKey,
+        string Registry,
+        string Namespace,
+        string CatalogKey,
+        string? Version,
+        string? ReleaseId,
+        string? ReleaseName,
         string? Filename,
         string? ContentType,
         long? SizeBytes,
@@ -552,7 +578,7 @@ public sealed class ResultCollector
     public sealed class ResultCollectorBuilder
     {
         private HttpClient? _http;
-        private string? _tenantId;
+        private string? _tenantKey;
         private int _batchSize = 100;
         private TimeSpan _minInterval = TimeSpan.FromSeconds(1);
         private TimeSpan _maxInterval = TimeSpan.FromSeconds(30);
@@ -567,7 +593,7 @@ public sealed class ResultCollector
         public ResultCollectorBuilder HttpClient(HttpClient client) { _http = client; return this; }
 
         /// <summary>The tenant whose results to collect.</summary>
-        public ResultCollectorBuilder TenantId(string tenantId) { _tenantId = tenantId; return this; }
+        public ResultCollectorBuilder TenantKey(string tenantKey) { _tenantKey = tenantKey; return this; }
 
         /// <summary>Maximum results per collection (default: 100).</summary>
         public ResultCollectorBuilder BatchSize(int size)
@@ -609,7 +635,7 @@ public sealed class ResultCollector
         /// <summary>Builds the <see cref="ResultCollector"/>.</summary>
         public ResultCollector Build() => new(
             _http ?? throw new InvalidOperationException("httpClient is required"),
-            _tenantId ?? throw new InvalidOperationException("tenantId is required"),
+            _tenantKey ?? throw new InvalidOperationException("tenantKey is required"),
             _batchSize,
             _minInterval,
             _maxInterval,

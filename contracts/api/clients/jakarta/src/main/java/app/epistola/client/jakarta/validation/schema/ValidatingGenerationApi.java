@@ -61,21 +61,27 @@ public class ValidatingGenerationApi {
     }
 
     /** Checks the request data where the validator asks for it, then submits. */
-    public GenerationJobResponse generateDocument(String tenantId, GenerateDocumentRequest request) {
+    public GenerationJobResponse generateDocument(String tenantKey, GenerateDocumentRequest request) {
         if (validator.preflightsGeneration()) {
             new TemplateSchemaValidator(validator)
-                    .validate(tenantId, request.getCatalogId(), request.getTemplateId(), request.getData());
+                    .validate(
+                            tenantKey,
+                            pathSegment(request.getRegistry()),
+                            request.getNamespace(),
+                            request.getCatalogKey(),
+                            request.getTemplateKey(),
+                            request.getData());
         }
-        return translatingProblem(() -> delegate.generateDocument(tenantId, request));
+        return translatingProblem(() -> delegate.generateDocument(tenantKey, request));
     }
 
     /** The same for a batch, reporting every item's failures together when it pre-flights. */
-    public GenerationJobResponse generateDocumentBatch(String tenantId, GenerateBatchRequest request) {
-        preflightBatch(tenantId, request);
-        return translatingProblem(() -> delegate.generateDocumentBatch(tenantId, request));
+    public GenerationJobResponse generateDocumentBatch(String tenantKey, GenerateBatchRequest request) {
+        preflightBatch(tenantKey, request);
+        return translatingProblem(() -> delegate.generateDocumentBatch(tenantKey, request));
     }
 
-    private void preflightBatch(String tenantId, GenerateBatchRequest request) {
+    private void preflightBatch(String tenantKey, GenerateBatchRequest request) {
         if (!validator.preflightsGeneration()) {
             return;
         }
@@ -85,13 +91,29 @@ public class ValidatingGenerationApi {
             BatchGenerationItem item = items.get(index);
             String prefix = "items[" + index + "]";
             for (TemplateDataValidationException.ValidationError error :
-                    validator.validate(tenantId, item.getCatalogId(), item.getTemplateId(), item.getData())) {
+                    validator.validate(
+                            tenantKey,
+                            pathSegment(item.getRegistry()),
+                            item.getNamespace(),
+                            item.getCatalogKey(),
+                            item.getTemplateKey(),
+                            item.getData())) {
                 allErrors.add(error.withPathPrefix(prefix));
             }
         }
         if (!allErrors.isEmpty()) {
             throw new TemplateDataValidationException(allErrors);
         }
+    }
+
+    /**
+     * A request body may leave {@code registry} unset, meaning the server's default registry; a path
+     * cannot leave the segment out, so it writes the default as {@code ~}. A validator puts the
+     * registry into a path, so it gets the path form — the client never fills in the default
+     * registry's name, which only the server knows.
+     */
+    static String pathSegment(String registry) {
+        return registry == null ? TemplateDataValidator.DEFAULT_REGISTRY : registry;
     }
 
     /**

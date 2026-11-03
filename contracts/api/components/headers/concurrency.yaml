@@ -1,0 +1,14 @@
+# Shared response headers for optimistic locking.
+#
+# Send the `ETag` back as `If-Match` (see ../parameters/concurrency.yaml) to make an update
+# conditional on the resource not having changed since it was read.
+
+ETag:
+  description: |
+    The resource's current revision, as a strong entity tag: a quoted decimal integer, e.g. `"7"`.
+    It changes whenever the resource changes. Send it as `If-Match` on an update to have the update
+    refused with 412 `resource-modified` if someone changed the resource in the meantime.
+  schema:
+    type: string
+    pattern: '^"[0-9]+"$'
+  example: '"7"'

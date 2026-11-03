@@ -1,32 +1,21 @@
 variants:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
+    - name: templateKey
       in: path
       required: true
-      description: Slug identifier of the catalog
+      description: Key of the template
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: templateId
-      in: path
-      required: true
-      description: Slug identifier of the template
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
 
   get:
     operationId: listVariants
@@ -38,13 +27,11 @@ variants:
     parameters:
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
-      - $ref: '../components/parameters/sorting.yaml#/Sort'
-      - $ref: '../components/parameters/sorting.yaml#/Direction'
     responses:
       '200':
         description: List of variants
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/variants.yaml#/VariantListResponse'
       '400':
@@ -59,21 +46,27 @@ variants:
   post:
     operationId: createVariant
     summary: Create a new variant
-    description: Create a new variant for the specified template with optional tags.
+    description: |
+      Create a variant of the template in the draft, with its `key`, `name`, and optionally a
+      `description` and the `attributes` that select it. It starts with status `new`.
     tags:
       - Variants
     x-required-permissions: [TEMPLATE_EDIT]
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/variants.yaml#/CreateVariantRequest'
     responses:
       '201':
         description: Variant created successfully
+        headers:
+          Location:
+            $ref: '../components/headers/location.yaml#/Location'
+            description: The variant's address (`getVariant`)
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/variants.yaml#/VariantDto'
       '400':
@@ -84,60 +77,53 @@ variants:
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
 
 variants-id:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
+    - name: templateKey
       in: path
       required: true
-      description: Slug identifier of the catalog
+      description: Key of the template
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: templateId
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
+    - name: variantKey
       in: path
       required: true
-      description: Slug identifier of the template
+      description: Key of the variant
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: variantId
-      in: path
-      required: true
-      description: Slug identifier of the variant
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
 
   get:
     operationId: getVariant
-    summary: Get variant by ID
-    description: Retrieve details of a specific variant including version summary.
+    summary: Get a variant by key
+    description: Retrieve a variant's details in this release, with its status against the release's base.
     tags:
       - Variants
     x-required-permissions: [TEMPLATE_VIEW]
     responses:
       '200':
         description: Variant details
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/variants.yaml#/VariantDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -148,21 +134,31 @@ variants-id:
   patch:
     operationId: updateVariant
     summary: Update a variant
-    description: Update a variant's tags.
+    description: |
+      Update a variant's metadata in the draft: its `name`, `description` and the `attributes` that
+      select it, each only when given. Its content is updated with `updateVariantContent`, and which
+      variant is the default with `setDefaultVariant`.
+      Send the `ETag` from a read as `If-Match` to have the update refused with 412
+      `resource-modified` if the resource changed since; without it, the last write wins.
     tags:
       - Variants
     x-required-permissions: [TEMPLATE_EDIT]
+    parameters:
+      - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/variants.yaml#/UpdateVariantRequest'
     responses:
       '200':
         description: Variant updated successfully
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/variants.yaml#/VariantDto'
       '400':
@@ -173,17 +169,23 @@ variants-id:
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
+      '412':
+        $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
 
   delete:
     operationId: deleteVariant
     summary: Delete a variant
-    description: Delete a variant and all its versions. Cannot delete the default variant — reassign default first.
+    description: Delete the variant from the draft. Cannot delete the default variant — reassign default first. Refused with 409 outside a draft.
     tags:
       - Variants
     x-required-permissions: [TEMPLATE_EDIT]
     responses:
       '204':
         description: Variant deleted successfully
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -191,121 +193,116 @@ variants-id:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
 
 variant-set-default:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
+    - name: templateKey
       in: path
       required: true
-      description: Slug identifier of the catalog
+      description: Key of the template
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: templateId
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
+    - name: variantKey
       in: path
       required: true
-      description: Slug identifier of the template
+      description: Key of the variant
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: variantId
-      in: path
-      required: true
-      description: Slug identifier of the variant
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
 
   post:
     operationId: setDefaultVariant
     summary: Set default variant
-    description: Set a variant as the default for its template. The previous default is cleared.
+    description: |
+      Set a variant as the default for its template. The previous default is cleared.
+      Send the `ETag` of the variant being made default as `If-Match` to have this refused with 412
+      `resource-modified` if that variant changed since; without it, the last write wins.
     tags:
       - Variants
     x-required-permissions: [TEMPLATE_EDIT]
+    parameters:
+      - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
     responses:
       '200':
         description: Default variant set successfully
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/variants.yaml#/VariantDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
+      '412':
+        $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
 
-variant-draft:
+variant-content:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
+    - name: templateKey
       in: path
       required: true
-      description: Slug identifier of the catalog
+      description: Key of the template
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: templateId
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
+    - name: variantKey
       in: path
       required: true
-      description: Slug identifier of the template
+      description: Key of the variant
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: variantId
-      in: path
-      required: true
-      description: Slug identifier of the variant
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
 
   get:
-    operationId: getVariantDraft
-    summary: Get current draft
-    description: Retrieve the current draft version for a variant.
+    operationId: getVariantContent
+    summary: Get the variant's content
+    description: |
+      The variant's content in this release, with its status against the release's base
+      (the release the draft started from). Editing a draft changes what is generated only where
+      the draft is rendered: generation renders a release, or a draft deployed to the environment
+      a request names (see "Deploying"), and preview can name a draft.
     tags:
       - Variants
     x-required-permissions: [TEMPLATE_VIEW]
     responses:
       '200':
-        description: Draft version
+        description: The variant's content
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
-              $ref: '../components/schemas/versions.yaml#/VersionDto'
+              $ref: '../components/schemas/variants.yaml#/VariantContentDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -314,31 +311,34 @@ variant-draft:
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
   put:
-    operationId: upsertVariantDraft
-    summary: Create or update draft
-    description: Create a new draft or update the existing draft for a variant.
+    operationId: updateVariantContent
+    summary: Update the variant's content in a draft
+    description: |
+      Replaces the variant's template model in the draft. An edit clears the ready mark, so
+      the variant has to be marked ready again before the catalog can be released.
+      Send the `ETag` from a read as `If-Match` to have the update refused with 412
+      `resource-modified` if the resource changed since; without it, the last write wins.
     tags:
       - Variants
     x-required-permissions: [TEMPLATE_EDIT]
+    parameters:
+      - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
-            $ref: '../components/schemas/versions.yaml#/UpdateDraftRequest'
+            $ref: '../components/schemas/variants.yaml#/UpdateVariantContentRequest'
     responses:
       '200':
-        description: Draft updated
+        description: The updated content
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
-              $ref: '../components/schemas/versions.yaml#/VersionDto'
-      '201':
-        description: Draft created
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/schemas/versions.yaml#/VersionDto'
+              $ref: '../components/schemas/variants.yaml#/VariantContentDto'
       '400':
         $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
@@ -347,21 +347,53 @@ variant-draft:
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
+      '412':
+        $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
+
+variant-mark-ready:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant (e.g., "acme-corp")
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
+    - name: templateKey
+      in: path
+      required: true
+      description: Key of the template
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
+    - name: variantKey
+      in: path
+      required: true
+      description: Key of the variant
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
 
   post:
-    operationId: createVariantDraft
-    summary: Create a variant draft
-    description: Create a new draft version from the latest published version.
+    operationId: markVariantReady
+    summary: Mark the variant ready
+    description: |
+      Records that the variant's current content is reviewed and may be released. A catalog release
+      refuses while any resource is modified and not ready. Marking content that is already ready,
+      or unchanged since the release's base, changes nothing.
     tags:
       - Variants
     x-required-permissions: [TEMPLATE_EDIT]
     responses:
-      '201':
-        description: Draft created
+      '200':
+        description: The variant's content, now ready
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
-              $ref: '../components/schemas/versions.yaml#/VersionDto'
+              $ref: '../components/schemas/variants.yaml#/VariantContentDto'
       '400':
         $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
@@ -371,313 +403,4 @@ variant-draft:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
-
-variant-draft-publish:
-  parameters:
-    - name: tenantId
-      in: path
-      required: true
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: templateId
-      in: path
-      required: true
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: variantId
-      in: path
-      required: true
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-  post:
-    operationId: publishVariantDraft
-    summary: Publish the current variant draft
-    description: Publish the variant's current draft version without activating it in an environment.
-    tags:
-      - Variants
-    x-required-permissions: [TEMPLATE_PUBLISH]
-    responses:
-      '200':
-        description: Draft published
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/schemas/versions.yaml#/VersionDto'
-      '400':
-        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
-      '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
-
-variant-draft-discard:
-  parameters:
-    - name: tenantId
-      in: path
-      required: true
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: templateId
-      in: path
-      required: true
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: variantId
-      in: path
-      required: true
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-  post:
-    operationId: discardVariantDraft
-    summary: Discard the current variant draft
-    description: Delete the current draft and return the variant to its latest published version.
-    tags:
-      - Variants
-    x-required-permissions: [TEMPLATE_EDIT]
-    responses:
-      '204':
-        description: Draft discarded
-      '400':
-        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
-      '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
-
-variant-activations:
-  parameters:
-    - name: tenantId
-      in: path
-      required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the catalog
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: templateId
-      in: path
-      required: true
-      description: Slug identifier of the template
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: variantId
-      in: path
-      required: true
-      description: Slug identifier of the variant
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-
-  get:
-    operationId: listVariantActivations
-    summary: List environment activations
-    description: List which version is active in each environment for this variant.
-    tags:
-      - Variants
-    x-required-permissions: [TEMPLATE_VIEW]
-    responses:
-      '200':
-        description: List of activations
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/schemas/variants.yaml#/ActivationListResponse'
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
-
-variant-activation-env:
-  parameters:
-    - name: tenantId
-      in: path
-      required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the catalog
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: templateId
-      in: path
-      required: true
-      description: Slug identifier of the template
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: variantId
-      in: path
-      required: true
-      description: Slug identifier of the variant
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: environmentId
-      in: path
-      required: true
-      description: Slug identifier of the environment (e.g., "production", "staging")
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 30
-
-  delete:
-    operationId: removeVariantActivation
-    summary: Remove activation for environment
-    description: Remove the active version for this variant in the specified environment.
-    tags:
-      - Variants
-    x-required-permissions: [TEMPLATE_PUBLISH]
-    responses:
-      '204':
-        description: Activation removed successfully
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
-
-variant-active:
-  parameters:
-    - name: tenantId
-      in: path
-      required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the catalog
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: templateId
-      in: path
-      required: true
-      description: Slug identifier of the template
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: variantId
-      in: path
-      required: true
-      description: Slug identifier of the variant
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-
-  get:
-    operationId: getActiveVersion
-    summary: Get active version for environment
-    description: Retrieve the active published version for this variant in the specified environment.
-    tags:
-      - Variants
-    x-required-permissions: [TEMPLATE_VIEW]
-    parameters:
-      - name: environment
-        in: query
-        required: true
-        description: Slug identifier of environment to get active version for (e.g., "production")
-        schema:
-          type: string
-          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-          minLength: 3
-          maxLength: 30
-    responses:
-      '200':
-        description: Active version
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/schemas/versions.yaml#/VersionDto'
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'

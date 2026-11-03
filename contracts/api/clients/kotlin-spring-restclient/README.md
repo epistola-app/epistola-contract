@@ -112,16 +112,19 @@ This is not cosmetic. The generated request models are plain nullable properties
 distinguish "not set" from "explicitly null", so whatever the serializer does with an unset property
 becomes the request's meaning:
 
-- On the API's `PATCH` operations a null is an instruction — `description` and `contact` are
-  documented "null to clear", `expiresAt` as "null to remove expiry". A default mapper turns
-  `UpdateConsumerRequest(name = "…")` into a rename *and* an erase of everything you left alone.
+- On the API's `PATCH` operations an omitted or null member keeps its value, and contracts before
+  2.0 documented null as "clear" on some of them (`description`, `contact`, `expiresAt` of
+  `UpdateConsumerRequest`, among others). Against a server built to one of those, a default mapper
+  turns `UpdateConsumerRequest(name = "…")` into a rename *and* an erase of everything you left
+  alone.
 - Some fields do not accept null at all. `GenerateDocumentRequest.attributes` is typed `array` with
   no null in the union, so a default mapper produces a body that a server validating against the
   contract rejects outright.
 
-The trade is that clearing a field is not expressible — but it never was, since you could not clear
-one field without clearing every other you had not set. Expressing both needs models that carry the
-distinction, which is a larger change.
+Removing a value never relies on null. An empty string removes an optional text member (such as
+`description = ""`), an empty array or object replaces a list or a map with nothing, and a member
+that has neither has an explicit flag (`clearExpiresAt = true`, `clearDefaultTheme = true`,
+`clearCodeListBinding = true`).
 
 `EpistolaJson.objectMapper` is the same mapper, exposed for anywhere you serialize these models
 yourself.
@@ -148,7 +151,9 @@ plain form field to a multipart parser expecting a file — override it:
 val archive = object : ByteArrayResource(bytes) {
     override fun getFilename() = "catalog.zip"
 }
-catalogsApi.importCatalog(tenantId, archive)
+// Installs the release the archive carries, beside the catalog's others, creating the catalog
+// when the tenant does not have it.
+catalogsApi.importCatalog(tenantKey, archive)
 ```
 
 `FileSystemResource(file)` needs no such override — a real file always has a name.
@@ -191,7 +196,6 @@ val restClient = RestClient.builder()
     .build()
 ```
 
-The legacy `X-API-Key` header remains supported for existing integrations, but is deprecated.
 Some Epistola Suite deployments may disable API-key authentication entirely. When that happens,
 the API returns a Problem Details response with `type` slug `api-key-auth-disabled`; switch on the
 slug in `ProblemDetailException` and guide the caller to JWT auth.
@@ -214,7 +218,7 @@ openssl rsa -in private.pem -pubout -out public.pem
 
 # Register with Epistola (the consumer starts in 'pending' status)
 curl -X POST https://epistola.example.com/api/tenants/acme-corp/consumers/register \
-  -H "Content-Type: application/vnd.epistola.v1+json" \
+  -H "Content-Type: application/vnd.epistola.v2+json" \
   -d '{
     "id": "invoice-service",
     "name": "Invoice Service",
@@ -303,16 +307,72 @@ try {
             e.validationErrors.forEach { (example, failures) ->
                 failures.forEach { println("$example ${it.path}: ${it.message}") }
             }
-        else                                          -> throw e   // unknown / framework error
+        KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING ->   // from deployCatalogRelease
+            e.missingDependencies.forEach {
+                println("${it.registry}/${it.namespace}/${it.catalogKey}@${it.version}: ${it.reason}")
+            }
+        KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED -> // from releaseCatalogDraft
+            e.unreleasedDependencies.forEach {
+                println("${it.registry}/${it.namespace}/${it.catalogKey}: draft ${it.releaseName} (${it.releaseId})")
+            }
+        KnownProblemSlugs.CATALOG_READ_ONLY ->           // any write to a catalog that cannot be changed
+            log.warn("catalog cannot be changed here: ${e.readOnlyReason}")
+        KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED ->  // mergeIntoCatalogDraft (alpha)
+            e.unresolvedConflicts.forEach { println("needs ours or theirs: $it") }
+        KnownProblemSlugs.MERGE_PREVIEW_OUTDATED ->      // the draft or the release changed since the preview
+            println("preview the merge again")
+        KnownProblemSlugs.MERGE_BASE_MISSING ->          // the merge base is not installed here
+            println("install ${e.missingBaseVersion} (${e.missingBaseFingerprint}) first")
+        KnownProblemSlugs.CATALOG_VERSION_BEHIND ->      // releaseCatalogDraft: name these in acknowledgedBehind
+            println("the draft is behind ${e.behind}")
+        KnownProblemSlugs.RELEASE_IN_USE ->              // deleteCatalogRelease
+            println("undeploy from ${e.environments}; pinned by ${e.pinnedBy.map { "${it.catalogKey}@${it.version}" }}")
+        KnownProblemSlugs.AMBIGUOUS_VARIANT ->           // generateDocument, previewDocument: name one by variantKey
+            println("several variants match: ${e.tiedVariants}")
+        KnownProblemSlugs.FORBIDDEN ->                   // any refused authorization
+            println(e.requiredPermission?.let { "grant a role with $it in ${e.refusedTenantKey}" } ?: e.refusalReason ?: e.detail)
+        KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW -> // importCatalog, installCatalogRelease
+            println("upgrade Epistola: the release renders with defaults ${e.extensions["renderingDefaultsVersion"]}, this has up to ${e.extensions["supportedVersion"]}")
+        KnownProblemSlugs.RELEASE_NUMBER_TAKEN ->        // publishReleaseToRegistry (alpha), importCatalog, install…Release
+            println("this version or release id names another release: release under a new version")
+        KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE ->  // installCatalogRelease, listAvailableCatalogReleases
+            // 503: the source could not be reached (Retry-After may say when to try again);
+            // 502: it answered badly. Nothing was installed.
+            log.warn("catalog source unavailable (${e.problemStatus}): ${e.detail}")
+        else                                          -> throw e   // a type this client does not know: handle it by e.problemStatus
     }
 }
 ```
 
+Each field error's `code` says why the field failed (`min-length`, `stencil-recursion`,
+`catalog-resources-not-ready`, ...), or is `null` when the server sent none. Compare it against
+`KnownValidationCodes`, generated from the contract's registry, and keep an `else` branch: new
+codes may come in a minor version.
+
 `ProblemDetailException` exposes `type`, `typeSlug`, `title`, `problemStatus`, `detail`,
-`errors` (field-level validation errors, empty unless it's a validation problem),
+`help` (the type's page with this request's context, such as `?operation=getTemplate`, or `null`;
+switch on the type, not on this, and open it for hints), `errors` (field-level validation errors, empty unless it's a validation problem),
 `validationErrors` (per-example data-model failures, empty unless it's a
-`data-model-validation-error` problem), `isValidationProblem`, `isDataModelValidationProblem`, and
-`extensions`. See [error-types.md](../../docs/error-types.md) for the full list of problem `type`
+`data-model-validation-error` problem), `missingDependencies` (the dependency releases a
+`release-dependencies-missing` problem lists, each with its `reason` kept as the string the server
+sent so a future reason is not lost; compare it against `MissingReleaseDependency.Reasons`),
+`unreleasedDependencies` (the drafts of other catalogs a `release-dependencies-unreleased` problem
+lists, which must be released first or along with the draft, `releaseDependencies`),
+`readOnlyReason` (why a `catalog-read-only` problem refused a write, `editing-disabled` or
+`supplied-by-epistola`, kept as the string the server sent), `unresolvedConflicts` (the
+conflicts of a merge a `merge-conflicts-unresolved` problem lists, as `resourceType/resourceKey`),
+`isMergeConflictsUnresolvedProblem`, `missingBaseVersion` and `missingBaseFingerprint` (the
+release a `merge-base-missing` problem asks to install first, read from that problem only),
+`isMergeBaseMissingProblem`, `behind` and `isCatalogVersionBehindProblem` (the versions a
+`catalog-version-behind` problem asks to name in `acknowledgedBehind`), `environments`, `pinnedBy`
+and `isReleaseInUseProblem` (what a `release-in-use` problem says still uses the release),
+`tiedVariants` and `isAmbiguousVariantProblem` (the variants an `ambiguous-variant` problem says
+match equally well), `requiredPermission`, `requiredPlatformRole`, `refusedTenantKey`,
+`refusalReason` and `isForbiddenProblem` (what a `forbidden` problem says was refused: a permission
+in a tenant, access to a tenant, a platform role, or a policy's reason, read from that problem
+only), `isValidationProblem`,
+`isDataModelValidationProblem`, `isReleaseDependenciesMissingProblem`,
+`isReleaseDependenciesUnreleasedProblem`, `isCatalogReadOnlyProblem`, and `extensions`. See [error-types.md](../../docs/error-types.md) for the full list of problem `type`
 slugs.
 
 Error responses that are **not** `application/problem+json` (e.g. an HTML page from a proxy or
@@ -324,7 +384,7 @@ hides information.
 
 A problem body can carry members this contract doesn't give a dedicated name — the API may add
 one to any existing or future problem type without that being a breaking change. `extensions` is a
-`Map<String, Any?>` of everything the five RFC 9457 base fields don't already cover:
+`Map<String, Any?>` of everything the base fields (RFC 9457's five and `help`) don't already cover:
 
 ```kotlin
 } catch (e: ProblemDetailException) {
@@ -348,20 +408,24 @@ val api = GenerationApi(restClient)
 
 // Single document
 val job = api.generateDocument("acme-corp", GenerateDocumentRequest(
-    catalogId = "default",
-    templateId = "invoice",
+    // the catalog: registry, namespace and key. Leave `registry` out for the server's default
+    // registry; name it in full (`registry = "acme.com"`) for a catalog from another one.
+    namespace = "acme-corp",           // the namespace within the registry…
+    catalogKey = "default",            // …and the catalog's key within that namespace
+    templateKey = "invoice",
     data = mapOf("customer" to "Jane Smith", "amount" to 99.99),
+    versionRange = "^1.4.0",           // optional: the highest release satisfying this range
     correlationId = "order-123",
     routingKey = "order-123",          // controls which node collects the result
 ))
 println("Job submitted: ${job.requestId}")
 
 // Batch generation
-val batch = api.generateBatch("acme-corp", GenerateBatchRequest(
+val batch = api.generateDocumentBatch("acme-corp", GenerateBatchRequest(
     routingKey = "order-456",          // all items route to same node
     items = listOf(
-        BatchGenerationItem(catalogId = "default", templateId = "invoice", data = invoiceData),
-        BatchGenerationItem(catalogId = "default", templateId = "packing-slip", data = packingData),
+        BatchGenerationItem(namespace = "acme-corp", catalogKey = "default", templateKey = "invoice", data = invoiceData),
+        BatchGenerationItem(registry = "acme.com", namespace = "acme", catalogKey = "shipping", templateKey = "packing-slip", data = packingData),
     ),
 ))
 ```
@@ -397,18 +461,18 @@ The `ResultCollector` polls the `/generation/collect` endpoint for completed/fai
 ```kotlin
 val collector = ResultCollector.builder()
     .restClient(restClient)
-    .tenantId("acme-corp")
+    .tenantKey("acme-corp")
     .batchSize(100)                                    // max results per poll
     .minInterval(Duration.ofSeconds(1))                // poll interval when results are flowing
     .maxInterval(Duration.ofSeconds(30))               // max backoff when idle
     .handler { result ->
         when (result.status) {
-            "COMPLETED" -> {
+            "completed" -> {
                 println("Document ready: ${result.documentId}")
                 println("Correlation: ${result.correlationId}")
                 downloadDocument(result.documentId!!)
             }
-            "FAILED" -> {
+            "failed" -> {
                 println("Generation failed: ${result.error}")
             }
         }
@@ -460,7 +524,7 @@ Implement `ResultCollector.MetricsListener` for observability:
 ```kotlin
 val collector = ResultCollector.builder()
     .restClient(restClient)
-    .tenantId("acme-corp")
+    .tenantKey("acme-corp")
     .handler { result -> process(result) }
     .metricsListener(object : ResultCollector.MetricsListener {
         override fun onPoll(count: Int, hasMore: Boolean, durationMs: Long, error: Exception?) {
@@ -512,7 +576,7 @@ val pong = systemApi.ping(PingRequest(
     name = "Invoice Service",
     contact = "billing-team@acme-corp.com",
 ))
-println("Server status: ${pong.status}")  // UP or DEGRADED
+println("Server status: ${pong.status}")  // up or degraded
 
 // Authenticated ping includes server details + partition assignment
 println("Server version: ${pong.details?.serverVersion}")
@@ -526,7 +590,7 @@ The client includes generated `.validate()` extension functions for request DTOs
 ```kotlin
 import app.epistola.client.validation.validate
 
-val request = CreateTenantRequest(id = "acme-corp", name = "Acme Corporation")
+val request = CreateTenantRequest(key = "acme-corp", name = "Acme Corporation")
 request.validate()  // throws IllegalArgumentException if constraints are violated
 ```
 
@@ -556,9 +620,9 @@ fun main() {
     // Start collecting results in a background thread
     val collector = ResultCollector.builder()
         .restClient(pollingClient)
-        .tenantId("acme-corp")
+        .tenantKey("acme-corp")
         .handler { result ->
-            if (result.status == "COMPLETED") {
+            if (result.status == "completed") {
                 println("Document ${result.documentId} ready for ${result.correlationId}")
             }
         }
@@ -569,8 +633,9 @@ fun main() {
     // Submit generation requests
     val api = GenerationApi(apiClient)
     val job = api.generateDocument("acme-corp", GenerateDocumentRequest(
-        catalogId = "default",
-        templateId = "invoice",
+        namespace = "acme-corp",
+        catalogKey = "default",
+        templateKey = "invoice",
         data = mapOf("customer" to "Jane Smith"),
         routingKey = collector.routingKeyToMe("order-001") ?: "order-001",
     ))

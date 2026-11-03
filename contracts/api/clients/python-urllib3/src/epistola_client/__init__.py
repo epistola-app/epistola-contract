@@ -37,7 +37,7 @@ from epistola_client_generated import *  # noqa: F401,F403
 from epistola_client_generated import __all__ as _generated_all
 
 # Derived sources.
-from epistola_client._generated import CONTRACT_VERSION, KnownProblemSlugs
+from epistola_client._generated import CONTRACT_VERSION, KnownProblemSlugs, KnownValidationCodes
 from epistola_client._generated import validate as validate_model
 
 # Hand-written glue.
@@ -52,7 +52,10 @@ from epistola_client.collect import (
 from epistola_client.error import (
     BLANK_TYPE,
     TYPE_BASE,
+    CatalogReleaseRef,
+    MissingDependency,
     ProblemDetailException,
+    UnreleasedDependency,
     parse_problem,
     slug_for,
 )
@@ -73,12 +76,16 @@ _epistola_exports = [
     "CONTRACT_VERSION",
     "__version__",
     "KnownProblemSlugs",
+    "KnownValidationCodes",
     "validate_model",
     "JwtSigner",
     "ClientIdentity",
     "EpistolaApiClient",
     "EpistolaClientBuilder",
     "ProblemDetailException",
+    "CatalogReleaseRef",
+    "MissingDependency",
+    "UnreleasedDependency",
     "parse_problem",
     "TYPE_BASE",
     "BLANK_TYPE",

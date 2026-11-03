@@ -2,15 +2,12 @@
 
 generation-collect:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
 
   post:
     operationId: collectGenerationResults
@@ -24,8 +21,10 @@ generation-collect:
       Results are routed to nodes using consistent hashing on the `routingKey`
       from the generation request:
 
-      1. Each result is assigned to a **partition**: `murmur3(routingKey) % totalPartitions`.
-         If no routing key was provided, the request ID is used.
+      1. Each result is assigned to a **partition**:
+         `(murmur3_x86_32(utf8(routingKey), seed=0) & 0x7FFFFFFF) % total`, as
+         `PartitionAssignment.hash` states it. If no routing key was provided, the request ID is
+         used, in its canonical lowercase form.
       2. Partitions are **assigned to nodes** via consistent hashing. The server
          tracks which nodes are active based on poll frequency.
       3. Each node receives results from its **assigned partitions** only.
@@ -76,7 +75,7 @@ generation-collect:
       ## NDJSON response format
 
       - **Result lines**: `GenerationResult` objects, one per line
-      - **Meta line**: Last line, identified by `_meta: true`, contains `hasMore` and `count`
+      - **Meta line**: Last line, identified by `_meta: true`, contains `hasMore` and `resultCount`
 
       ## Adaptive polling
 
@@ -100,7 +99,7 @@ generation-collect:
     requestBody:
       required: false
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/generation-collect.yaml#/CollectRequest'
     responses:
@@ -115,16 +114,20 @@ generation-collect:
               type: string
               enum: [lz4, zstd, gzip]
         content:
-          application/vnd.epistola.v1+ndjson:
+          application/vnd.epistola.v2+ndjson:
             schema:
               type: string
               description: |
                 Newline-delimited JSON stream. Each line is a self-contained JSON object.
                 Result lines conform to the GenerationResult schema. The last line conforms
                 to the CollectMeta schema (identified by `_meta: true`).
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '429':
         $ref: '../components/responses/problem-responses.yaml#/RateLimitedError'

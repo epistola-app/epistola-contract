@@ -1,7 +1,7 @@
 # Generated OpenAPI client sources (rebuilt from the spec by generate.sh)
 Generated/
 
-# Build-time generated derived sources (KnownProblemSlugs, ModelValidation, ContractVersion)
+# Build-time generated derived sources (KnownProblemSlugs, KnownValidationCodes, ModelValidation, ContractVersion)
 src/Epistola.Client/Generated/
 
 # .NET build output

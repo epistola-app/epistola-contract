@@ -1,0 +1,75 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: release-catalog-draft
+title: Releasing a draft lets the server choose its version, and names the drafts now behind it
+why: >
+  A draft has no version until it is released (ADR 0002), so the request goes to the draft's
+  address, `…/releases/{releaseId}/release`. Without a `version` the server chooses its version as its
+  changes need against its base, so a client must leave `version` out rather than send one it was
+  not given; it carries only the notes. The answer is the release, under its new version, no longer
+  a draft. It keeps its `releaseId`, which now addresses the release as its version does, and its name.
+
+  Nothing is merged into other drafts, so what the author needs next is in the answer: the drafts
+  this release puts behind (`draftsBehind`), by name, which will not contain its changes unless
+  someone applies them by hand. A client that drops `draftsBehind` hides that a fix may be lost
+  from that work.
+
+  The draft is not behind anything, so the client sends no `acknowledgedBehind`, and it does not
+  ask to release dependencies, so it sends no `releaseDependencies`, or `false`, its default.
+
+action:
+  name: release-catalog-draft
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: k7m2x9qa
+    notes: Finished improvements, ahead of the redesign.
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      release:
+        version: 1.5.0
+        releaseId: k7m2x9qa
+        name: Spring fixes
+        status: released
+        base: 1.4.0
+        createdFrom: null
+        behind: []
+        releasedAt: "2026-10-15T10:00:00Z"
+        notes: Finished improvements, ahead of the redesign.
+        fingerprint: v6:332102ae9816ed0d53b0657b25f4b6a96ce09bb995b159c594154b49cd0b1818
+        contentHash: v6:332102ae9816ed0d53b0657b25f4b6a96ce09bb995b159c594154b49cd0b1818
+        dependencies: []
+        deployedTo: []
+      unchangedContent: false
+      draftsBehind: [Redesign 2027, Accessibility pass]
+      releasedDependencies: []
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/release
+      body:
+        json:
+          notes: Finished improvements, ahead of the redesign.
+          # Its default is false, so a client may send `false` or leave it out, never `true`.
+          releaseDependencies: { whenPresent: { equals: false } }
+        jsonAbsent: [version, acknowledgedBehind]
+  report:
+    version: 1.5.0
+    status: released
+    releaseId: k7m2x9qa
+    # Released under V6, so its content hash is its fingerprint; the content is new to the catalog.
+    contentHash: v6:332102ae9816ed0d53b0657b25f4b6a96ce09bb995b159c594154b49cd0b1818
+    unchangedContent: 'false'
+    # Names are free text, so they are joined with `|`.
+    draftsBehind: Redesign 2027|Accessibility pass
+    releasedDependencies: ""

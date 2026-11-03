@@ -1,0 +1,37 @@
+[
+  {
+    "code": "CATALOG_RESOURCE_KEY_PADDED",
+    "path": "catalog.json.resources[0].key",
+    "message": "template key 'ab' became 'ab0'"
+  },
+  {
+    "code": "CATALOG_RESOURCE_KEY_PADDED",
+    "path": "catalog.json.resources[1].key",
+    "message": "theme key 'x' became 'x00'"
+  },
+  {
+    "code": "CATALOG_RESOURCE_KEY_PADDED",
+    "path": "catalog.json.resources[2].key",
+    "message": "image key '1' became '100'"
+  },
+  {
+    "code": "CATALOG_RESOURCE_KEY_PADDED",
+    "path": "catalog.json.resources[4].key",
+    "message": "attribute key 'la' became 'la0'"
+  },
+  {
+    "code": "CATALOG_RESOURCE_KEY_TRUNCATED",
+    "path": "catalog.json.resources[5].key",
+    "message": "codeList key 'customer-segments-for-the-quarterly-retention-report-q1' became 'customer-segments-for-the-quarterly-retention-repo'"
+  },
+  {
+    "code": "CATALOG_RESOURCE_KEY_PADDED",
+    "path": "catalog.json.resources[6].key",
+    "message": "font key 'f' became 'f00'"
+  },
+  {
+    "code": "CATALOG_RESOURCE_KEY_PADDED",
+    "path": "catalog.json.resources[7].key",
+    "message": "stencil key 'ab' became 'ab0'"
+  }
+]

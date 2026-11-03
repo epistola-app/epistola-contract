@@ -5,29 +5,112 @@
 package app.epistola.conformance;
 
 import app.epistola.client.jakarta.EpistolaRestClients;
+import app.epistola.client.jakarta.api.AttributesApi;
+import app.epistola.client.jakarta.api.CatalogsApi;
 import app.epistola.client.jakarta.api.ConsumersApi;
+import app.epistola.client.jakarta.api.EnvironmentsApi;
 import app.epistola.client.jakarta.api.GenerationApi;
 import app.epistola.client.jakarta.api.ImagesApi;
+import app.epistola.client.jakarta.api.StencilsApi;
 import app.epistola.client.jakarta.api.SystemApi;
 import app.epistola.client.jakarta.api.TemplatesApi;
+import app.epistola.client.jakarta.api.VariantsApi;
 import app.epistola.client.jakarta.auth.JwtSigner;
 import app.epistola.client.jakarta.collect.GenerationCollectApi;
 import app.epistola.client.jakarta.collect.ResultCollector;
+import app.epistola.client.jakarta.error.MissingDependency;
 import app.epistola.client.jakarta.error.ProblemDetailException;
 import app.epistola.client.jakarta.identity.ClientIdentity;
+import app.epistola.client.jakarta.api.CodeListsApi;
+import app.epistola.client.jakarta.api.TenantsApi;
+import app.epistola.client.jakarta.api.SearchApi;
+import app.epistola.client.jakarta.model.SearchHit;
+import app.epistola.client.jakarta.model.SearchResults;
+import app.epistola.client.jakarta.model.DocumentGenerationItemDto;
+import app.epistola.client.jakarta.model.GenerationItemStatus;
+import app.epistola.client.jakarta.model.GenerationJobItemListResponse;
+import app.epistola.client.jakarta.model.DocumentGenerationJobDto;
+import app.epistola.client.jakarta.model.AttributeDto;
+import app.epistola.client.jakarta.model.CodeListBindingRef;
+import app.epistola.client.jakarta.model.AvailableCatalogReleases;
+import app.epistola.client.jakarta.model.AvailableReleaseDependencyDto;
+import app.epistola.client.jakarta.model.AvailableReleaseDto;
+import app.epistola.client.jakarta.model.BehindReleaseDto;
+import app.epistola.client.jakarta.model.CatalogChangesDto;
+import app.epistola.client.jakarta.model.CatalogDependencyDto;
+import app.epistola.client.jakarta.model.CatalogDependencyListResponse;
+import app.epistola.client.jakarta.model.CatalogDependencyRequirement;
+import app.epistola.client.jakarta.model.CatalogDraftMergePreview;
+import app.epistola.client.jakarta.model.CatalogDraftMergeResource;
+import app.epistola.client.jakarta.model.CatalogDraftMergeSides;
+import app.epistola.client.jakarta.model.CatalogDraftReleasePreview;
+import app.epistola.client.jakarta.model.CatalogMergeSide;
+import app.epistola.client.jakarta.model.CatalogPresetDto;
+import app.epistola.client.jakarta.model.CatalogReleaseDto;
+import app.epistola.client.jakarta.model.CatalogReleaseStatus;
+import app.epistola.client.jakarta.model.CatalogThemeReference;
+import app.epistola.client.jakarta.model.CodeListEntryDto;
+import app.epistola.client.jakarta.model.ConsumerDto;
+import app.epistola.client.jakarta.model.CreateCatalogReleaseRequest;
+import app.epistola.client.jakarta.model.CreateEnvironmentRequest;
+import app.epistola.client.jakarta.model.CreateTemplateRequest;
+import app.epistola.client.jakarta.model.DataExampleDto;
+import app.epistola.client.jakarta.model.DeploymentDto;
+import app.epistola.client.jakarta.model.DeploymentEventDto;
+import app.epistola.client.jakarta.model.DeploymentHistoryResponse;
+import app.epistola.client.jakarta.model.DocumentDto;
+import app.epistola.client.jakarta.model.EnvironmentDto;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
+import app.epistola.client.jakarta.model.GenerationJobResponse;
 import app.epistola.client.jakarta.model.GenerationResult;
 import app.epistola.client.jakarta.model.ImageDto;
+import app.epistola.client.jakarta.model.ImportCatalogResponse;
+import app.epistola.client.jakarta.model.InstallCatalogReleaseResponse;
+import app.epistola.client.jakarta.model.MarkStencilReadyResponse;
+import app.epistola.client.jakarta.model.MergeIntoCatalogDraftRequest;
+import app.epistola.client.jakarta.model.MergeIntoCatalogDraftResponse;
+import app.epistola.client.jakarta.model.Node;
 import app.epistola.client.jakarta.model.PartitionAssignment;
 import app.epistola.client.jakarta.model.PingRequest;
+import app.epistola.client.jakarta.model.PublishReleaseToRegistryRequest;
+import app.epistola.client.jakarta.model.RegistryReleaseDto;
+import app.epistola.client.jakarta.model.RegistryReleaseListResponse;
+import app.epistola.client.jakarta.model.ReleasePublicationDto;
+import app.epistola.client.jakarta.model.ReleaseRegistryListResponse;
+import app.epistola.client.jakarta.model.ReleaseCatalogDraftRequest;
+import app.epistola.client.jakarta.model.ReleaseCatalogDraftResponse;
+import app.epistola.client.jakarta.model.ReleaseDependencyDto;
+import app.epistola.client.jakarta.model.ReleasedChangeDto;
+import app.epistola.client.jakarta.model.ReleasedDependencyDto;
+import app.epistola.client.jakarta.model.StencilContentDto;
+import app.epistola.client.jakarta.model.StencilUsageDto;
+import app.epistola.client.jakarta.model.StencilUsageListResponse;
+import app.epistola.client.jakarta.model.CatalogReleaseRefDto;
+import app.epistola.client.jakarta.model.TemplateDocument;
+import app.epistola.client.jakarta.model.TemplateDto;
 import app.epistola.client.jakarta.model.TemplateListResponse;
 import app.epistola.client.jakarta.model.TemplateSummaryDto;
+import app.epistola.client.jakarta.model.TenantDto;
+import app.epistola.client.jakarta.model.ThemeRef;
+import app.epistola.client.jakarta.model.UpdateCatalogDependenciesRequest;
+import app.epistola.client.jakarta.model.UpdateAttributeRequest;
+import app.epistola.client.jakarta.model.UpdateCatalogReleaseRequest;
+import app.epistola.client.jakarta.model.UpdateCodeListEntryHiddenRequest;
 import app.epistola.client.jakarta.model.UpdateConsumerRequest;
+import app.epistola.client.jakarta.model.UpdateEnvironmentRequest;
+import app.epistola.client.jakarta.model.UpdateStencilContentRequest;
+import app.epistola.client.jakarta.model.UpdateTemplateRequest;
+import app.epistola.client.jakarta.model.UpdateTenantRequest;
+import app.epistola.client.jakarta.model.UpdateVariantContentRequest;
+import app.epistola.client.jakarta.model.VariantContentDto;
+import app.epistola.client.jakarta.model.VariantSelectionAttribute;
 import app.epistola.client.jakarta.validation.schema.TemplateDataValidationException;
 import app.epistola.client.jakarta.validation.schema.TemplateSchemaValidator;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonValue;
+import jakarta.json.bind.JsonbBuilder;
+import jakarta.ws.rs.core.Response;
 import java.io.File;
 import java.io.StringReader;
 import java.net.URI;
@@ -38,7 +121,9 @@ import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -75,10 +160,55 @@ public final class Driver {
                 case "generate-document" -> generateDocument(baseUrl, config);
                 case "update-consumer" -> updateConsumer(baseUrl, config);
                 case "download-document" -> downloadDocument(baseUrl, config);
+                case "list-documents" -> listDocuments(baseUrl, config);
+                case "get-generation-job-status" -> getGenerationJobStatus(baseUrl, config);
+                case "list-generation-job-items" -> listGenerationJobItems(baseUrl, config);
+                case "search-tenant" -> searchTenant(baseUrl, config);
                 case "list-images" -> listImages(baseUrl, config);
                 case "upload-image" -> uploadImage(baseUrl, config);
+                case "import-catalog" -> importCatalog(baseUrl, config);
+                case "install-catalog-release" -> installCatalogRelease(baseUrl, config);
+                case "list-available-catalog-releases" -> listAvailableCatalogReleases(baseUrl, config);
                 case "download-image" -> downloadImage(baseUrl, config);
                 case "delete-image" -> deleteImage(baseUrl, config);
+                case "list-catalog-dependencies" -> listCatalogDependencies(baseUrl, config);
+                case "update-catalog-dependencies" -> updateCatalogDependencies(baseUrl, config);
+                case "create-catalog-release" -> createCatalogRelease(baseUrl, config);
+                case "list-catalog-releases" -> listCatalogReleases(baseUrl, config);
+                case "get-catalog-release" -> getCatalogRelease(baseUrl, config);
+                case "update-catalog-release" -> updateCatalogRelease(baseUrl, config);
+                case "set-catalog-release-theme-settings" -> setCatalogReleaseThemeSettings(baseUrl, config);
+                case "preview-catalog-draft-release" -> previewCatalogDraftRelease(baseUrl, config);
+                case "delete-catalog-release" -> deleteCatalogRelease(baseUrl, config);
+                case "release-catalog-draft" -> releaseCatalogDraft(baseUrl, config);
+                case "preview-catalog-draft-merge" -> previewCatalogDraftMerge(baseUrl, config);
+                case "get-catalog-draft-merge-sides" -> getCatalogDraftMergeSides(baseUrl, config);
+                case "merge-into-catalog-draft" -> mergeIntoCatalogDraft(baseUrl, config);
+                case "list-release-registries" -> listReleaseRegistries(baseUrl, config);
+                case "list-registry-releases" -> listRegistryReleases(baseUrl, config);
+                case "install-registry-release" -> installRegistryRelease(baseUrl, config);
+                case "publish-release-to-registry" -> publishReleaseToRegistry(baseUrl, config);
+                case "deploy-catalog-release" -> deployCatalogRelease(baseUrl, config);
+                case "undeploy-catalog-release" -> undeployCatalogRelease(baseUrl, config);
+                case "create-environment" -> createEnvironment(baseUrl, config);
+                case "create-template" -> createTemplate(baseUrl, config);
+                case "update-environment" -> updateEnvironment(baseUrl, config);
+                case "update-tenant" -> updateTenant(baseUrl, config);
+                case "update-template" -> updateTemplate(baseUrl, config);
+                case "update-code-list-entry-hidden" -> updateCodeListEntryHidden(baseUrl, config);
+                case "update-attribute" -> updateAttribute(baseUrl, config);
+                case "update-variant-content" -> updateVariantContent(baseUrl, config);
+                case "get-variant-content" -> getVariantContent(baseUrl, config);
+                case "mark-variant-ready" -> markVariantReady(baseUrl, config);
+                case "mark-template-ready" -> markTemplateReady(baseUrl, config);
+                case "get-stencil-content" -> getStencilContent(baseUrl, config);
+                case "update-stencil-content" -> updateStencilContent(baseUrl, config);
+                case "mark-stencil-ready" -> markStencilReady(baseUrl, config);
+                case "list-stencil-usage" -> listStencilUsage(baseUrl, config);
+                case "get-catalog-changes" -> getCatalogChanges(baseUrl, config);
+                case "mark-catalog-ready" -> markCatalogReady(baseUrl, config);
+                case "list-environment-deployments" -> listEnvironmentDeployments(baseUrl, config);
+                case "list-deployment-history" -> listDeploymentHistory(baseUrl, config);
                 default -> throw new IllegalArgumentException("unknown action " + instruction.getString("action"));
             }
             done(baseUrl, null);
@@ -105,42 +235,64 @@ public final class Driver {
         TemplatesApi api = clients(baseUrl, config).api(TemplatesApi.class);
         TemplateListResponse response = null;
         for (int i = 0; i < config.getInt("repeat", 1); i++) {
-            response = api.listTemplates(config.getString("tenantId"), config.getString("catalogId"), null, 0, 20, null, "desc");
+            response = api.listTemplates(config.getString("tenantKey"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("release"), null, 0, 20, null, "desc");
         }
         List<TemplateSummaryDto> templates = response.getItems();
 
         report(
                 baseUrl,
                 Map.of(
-                        "templateIds", templates.stream().map(TemplateSummaryDto::getId).collect(Collectors.joining(",")),
-                        "templateSlugs", templates.stream().map(template -> String.valueOf(template.getSlug())).collect(Collectors.joining(","))));
+                        "templateKeys", templates.stream().map(template -> String.valueOf(template.getKey())).collect(Collectors.joining(",")),
+                        "templateDescriptions", templates.stream().map(template -> String.valueOf(template.getDescription())).collect(Collectors.joining("|"))));
     }
 
     private static void problem(String baseUrl, JsonObject config) {
         try {
             clients(baseUrl, config)
                     .api(TemplatesApi.class)
-                    .listTemplates(config.getString("tenantId"), config.getString("catalogId"), null, 0, 20, null, "desc");
+                    .listTemplates(config.getString("tenantKey"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("release"), null, 0, 20, null, "desc");
             report(baseUrl, Map.of("problemTypeSlug", "<no exception was thrown>"));
         } catch (ProblemDetailException e) {
             report(
                     baseUrl,
-                    Map.of(
-                            "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
-                            "problemStatus", e.getStatusCode(),
-                            "problemTitle", e.getTitle() == null ? "<null>" : e.getTitle(),
-                            "problemFieldErrors",
+                    Map.ofEntries(
+                            Map.entry("problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug()),
+                            Map.entry("problemStatus", e.getStatusCode()),
+                            Map.entry("problemTitle", e.getTitle() == null ? "<null>" : e.getTitle()),
+                            Map.entry(
+                                    "problemFieldErrors",
                                     e.getErrors().stream()
                                             .map(error -> error.getField() + ":" + error.getMessage())
-                                            .collect(Collectors.joining(",")),
-                            "problemMissingFields",
+                                            .collect(Collectors.joining(","))),
+                            Map.entry(
+                                    "problemFieldCodes",
+                                    e.getErrors().stream()
+                                            .map(error -> error.getField() + ":"
+                                                    + (error.getCode() == null ? "null" : error.getCode()))
+                                            .collect(Collectors.joining(","))),
+                            Map.entry(
+                                    "problemMissingFields",
                                     e.getMissingFields().stream()
                                             .map(field -> field.getPath() + ":" + field.getRequired())
-                                            .collect(Collectors.joining(",")),
-                            "problemInvalidFields",
+                                            .collect(Collectors.joining(","))),
+                            Map.entry(
+                                    "problemInvalidFields",
                                     e.getInvalidFields().stream()
                                             .map(field -> field.getPath() + ":" + field.getKeyword())
-                                            .collect(Collectors.joining(","))));
+                                            .collect(Collectors.joining(","))),
+                            Map.entry(
+                                    "problemRequiredPermission",
+                                    e.getRequiredPermission() == null ? "null" : e.getRequiredPermission()),
+                            Map.entry(
+                                    "problemRefusedTenantKey",
+                                    e.getRefusedTenantKey() == null ? "null" : e.getRefusedTenantKey()),
+                            Map.entry(
+                                    "problemRequiredPlatformRole",
+                                    e.getRequiredPlatformRole() == null ? "null" : e.getRequiredPlatformRole()),
+                            Map.entry(
+                                    "problemRefusalReason",
+                                    e.getRefusalReason() == null ? "null" : e.getRefusalReason()),
+                            Map.entry("problemHelp", e.getHelp() == null ? "null" : e.getHelp())));
         }
     }
 
@@ -150,9 +302,9 @@ public final class Driver {
                 new TemplateSchemaValidator(clients(baseUrl, config).api(TemplatesApi.class));
         try {
             validator.validate(
-                    config.getString("tenantId"),
-                    config.getString("catalogId"),
-                    config.getString("templateId"),
+                    config.getString("tenantKey"),
+                    config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"),
+                    config.getString("templateKey"),
                     config.containsKey("data") ? config.getJsonObject("data") : JsonValue.EMPTY_JSON_OBJECT);
             report(
                     baseUrl,
@@ -180,7 +332,7 @@ public final class Driver {
 
         ResultCollector collector = ResultCollector.builder()
                 .collectApi(clients(baseUrl, config).api(GenerationCollectApi.class))
-                .tenantId(config.getString("tenantId"))
+                .tenantKey(config.getString("tenantKey"))
                 .batchSize(config.getInt("batchSize"))
                 .minInterval(Duration.ofMillis(config.getInt("minIntervalMs")))
                 .maxInterval(Duration.ofMillis(config.getInt("maxIntervalMs")))
@@ -220,6 +372,13 @@ public final class Driver {
                                 handled.stream()
                                         .map(result -> String.valueOf(result.getSequence()))
                                         .collect(Collectors.joining(",")),
+                        "releases",
+                                handled.stream()
+                                        .map(result -> result.getRegistry() + "/" + result.getNamespace() + "/"
+                                                + result.getCatalogKey() + "@"
+                                                + result.getVersion() + "#" + result.getReleaseId() + ":"
+                                                + result.getReleaseName())
+                                        .collect(Collectors.joining(",")),
                         "partitionTotal", assignment == null ? -1 : assignment.getTotal()));
     }
 
@@ -229,32 +388,100 @@ public final class Driver {
      * receives is the generator's serialization, which is the part no client hand-writes and no
      * client's own tests inspect.
      */
+    /** Reports the accepted job as parsed, and the {@code Location} of the job exactly as received. */
     private static void generateDocument(String baseUrl, JsonObject config) {
-        clients(baseUrl, config)
+        GenerateDocumentRequest request = new GenerateDocumentRequest()
+                .registry(optional(config, "registry"))
+                .namespace(config.getString("namespace"))
+                .catalogKey(config.getString("catalogKey"))
+                .templateKey(config.getString("templateKey"))
+                .variantKey(optional(config, "variantKey"))
+                .data(config.getJsonObject("data"))
+                .versionRange(optional(config, "versionRange"))
+                .environmentKey(optional(config, "environmentKey"))
+                .correlationId(optional(config, "correlationId"))
+                .routingKey(optional(config, "routingKey"));
+        // Attribute criteria, only when the scenario names them: an unset optional stays off the wire.
+        if (config.containsKey("attributes") && !config.isNull("attributes")) {
+            request.attributes(config.getJsonArray("attributes").getValuesAs(JsonObject.class).stream()
+                    .map(attribute -> new VariantSelectionAttribute()
+                            .catalogKey(optional(attribute, "catalogKey"))
+                            .key(attribute.getString("key"))
+                            .value(attribute.getString("value"))
+                            .required(attribute.containsKey("required") && !attribute.isNull("required")
+                                    ? attribute.getBoolean("required")
+                                    : null))
+                    .collect(Collectors.toList()));
+        }
+        try (Response response = clients(baseUrl, config)
                 .api(GenerationApi.class)
-                .generateDocument(
-                        config.getString("tenantId"),
-                        new GenerateDocumentRequest()
-                                .catalogId(config.getString("catalogId"))
-                                .templateId(config.getString("templateId"))
-                                .data(config.getJsonObject("data"))
-                                .correlationId(config.getString("correlationId"))
-                                .routingKey(config.getString("routingKey")));
+                .generateDocumentWithHttpInfo(config.getString("tenantKey"), request)) {
+            GenerationJobResponse job = response.readEntity(GenerationJobResponse.class);
+            Map<String, Object> values = new java.util.LinkedHashMap<>();
+            values.put("requestId", String.valueOf(job.getRequestId()));
+            values.put("status", String.valueOf(job.getStatus()));
+            values.put("jobType", String.valueOf(job.getJobType()));
+            values.put("total", job.getTotal() == null ? "null" : job.getTotal());
+            values.put("location", String.valueOf(response.getHeaderString("Location")));
+            report(baseUrl, values);
+        } catch (ProblemDetailException e) {
+            report(
+                    baseUrl,
+                    Map.of(
+                            "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
+                            "problemStatus", e.getStatusCode(),
+                            "problemTiedVariants", String.join(",", e.getTiedVariants())));
+        }
     }
 
     /**
-     * A partial update that sets exactly one field. Everything the caller did not name must stay off
-     * the wire: the contract reads a null on these as "clear this", so a serializer that writes
-     * nulls for unset properties turns "rename this consumer" into "rename it and erase its
-     * description, contact and expiry".
+     * A partial update that sets only the members the scenario names. Everything the caller did not
+     * name must stay off the wire: a server built to a contract before 2.0 reads a null on these as
+     * "clear this", so a serializer that writes nulls for unset properties turns "rename this
+     * consumer" into "rename it and erase its description, contact and expiry". An empty
+     * {@code description} is a value, and goes out as is.
      */
     private static void updateConsumer(String baseUrl, JsonObject config) {
-        clients(baseUrl, config)
-                .api(ConsumersApi.class)
-                .updateConsumer(
-                        config.getString("tenantId"),
-                        config.getString("consumerId"),
-                        new UpdateConsumerRequest().name(config.getString("name")));
+        conditionalUpdate(
+                baseUrl,
+                () -> clients(baseUrl, config)
+                        .api(ConsumersApi.class)
+                        .updateConsumerWithHttpInfo(
+                                config.getString("tenantKey"),
+                                config.getString("consumerId"),
+                                new UpdateConsumerRequest()
+                                        .name(optional(config, "name"))
+                                        .description(optional(config, "description"))
+                                        .clearExpiresAt(optionalBoolean(config, "clearExpiresAt")),
+                                optional(config, "ifMatch")),
+                response -> {
+                    ConsumerDto consumer = response.readEntity(ConsumerDto.class);
+                    return Map.of(
+                            "id", String.valueOf(consumer.getId()),
+                            "name", String.valueOf(consumer.getName()),
+                            "lastModified", instant(consumer.getLastModified()));
+                });
+    }
+
+    /**
+     * Calls an update through its header-exposing sibling and reports what {@code fields} read from
+     * the response plus its {@code ETag} exactly as received ({@code null} when absent). A problem
+     * response is reported by its slug and status instead.
+     */
+    private static void conditionalUpdate(
+            String baseUrl,
+            java.util.function.Supplier<Response> call,
+            java.util.function.Function<Response, Map<String, Object>> fields) {
+        Map<String, Object> values = new java.util.LinkedHashMap<>();
+        try (Response response = call.get()) {
+            values.putAll(fields.apply(response));
+            values.put("etag", String.valueOf(response.getHeaderString("ETag")));
+        } catch (ProblemDetailException e) {
+            values.clear();
+            values.put("problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug());
+            values.put("problemStatus", e.getStatusCode());
+        }
+        report(baseUrl, values);
     }
 
     /**
@@ -266,7 +493,7 @@ public final class Driver {
     private static void routing(String baseUrl, JsonObject config) {
         ResultCollector collector = ResultCollector.builder()
                 .collectApi(clients(baseUrl, config).api(GenerationCollectApi.class))
-                .tenantId(config.getString("tenantId"))
+                .tenantKey(config.getString("tenantKey"))
                 .registerShutdownHook(false)
                 .handler(result -> {})
                 .build();
@@ -308,8 +535,119 @@ public final class Driver {
     private static void downloadDocument(String baseUrl, JsonObject config) throws Exception {
         File file = clients(baseUrl, config)
                 .api(GenerationApi.class)
-                .downloadDocument(config.getString("tenantId"), UUID.fromString(config.getString("documentId")));
+                .downloadDocument(config.getString("tenantKey"), UUID.fromString(config.getString("documentId")));
         reportBytes(baseUrl, Files.readAllBytes(file.toPath()));
+    }
+
+    /**
+     * Lists documents with the catalog and template filters the scenario sets, each sent only when
+     * set, and reports what the client made of the page.
+     */
+    /** Reads a generation job's status and reports its counts; the job carries no items. */
+    private static void getGenerationJobStatus(String baseUrl, JsonObject config) {
+        DocumentGenerationJobDto job = clients(baseUrl, config)
+                .api(GenerationApi.class)
+                .getGenerationJobStatus(config.getString("tenantKey"), java.util.UUID.fromString(config.getString("requestId")));
+        report(
+                baseUrl,
+                Map.of(
+                        "requestId", String.valueOf(job.getRequestId()),
+                        "status", String.valueOf(job.getStatus()),
+                        "jobType", String.valueOf(job.getJobType()),
+                        "total", job.getTotal(),
+                        "completedCount", job.getCompletedCount(),
+                        "failedCount", job.getFailedCount()));
+    }
+
+    /** Lists a page of a generation job's items, {@code status}, {@code page} and {@code size} each sent only when set. */
+    private static void listGenerationJobItems(String baseUrl, JsonObject config) {
+        String status = optional(config, "status");
+        GenerationJobItemListResponse response = clients(baseUrl, config)
+                .api(GenerationApi.class)
+                .listGenerationJobItems(
+                        config.getString("tenantKey"),
+                        java.util.UUID.fromString(config.getString("requestId")),
+                        status == null ? null : GenerationItemStatus.fromValue(status),
+                        config.containsKey("page") && !config.isNull("page") ? config.getInt("page") : null,
+                        config.containsKey("size") && !config.isNull("size") ? config.getInt("size") : null);
+        List<DocumentGenerationItemDto> items = response.getItems();
+        report(
+                baseUrl,
+                Map.of(
+                        "itemIds", items.stream().map(item -> String.valueOf(item.getItemId())).collect(Collectors.joining(",")),
+                        "statuses", items.stream().map(item -> String.valueOf(item.getStatus())).collect(Collectors.joining(",")),
+                        "documentIds", items.stream().map(item -> String.valueOf(item.getDocumentId())).collect(Collectors.joining(",")),
+                        "correlationIds", items.stream().map(item -> String.valueOf(item.getCorrelationId())).collect(Collectors.joining(",")),
+                        "total", String.valueOf(response.getPage().getTotal())));
+    }
+
+    private static void listDocuments(String baseUrl, JsonObject config) {
+        List<DocumentDto> documents = clients(baseUrl, config)
+                .api(GenerationApi.class)
+                .listDocuments(
+                        config.getString("tenantKey"),
+                        optional(config, "templateKey"),
+                        null,
+                        null,
+                        null,
+                        optional(config, "registry"),
+                        optional(config, "namespace"),
+                        optional(config, "catalogKey"))
+                .getItems();
+
+        report(
+                baseUrl,
+                Map.of(
+                        "catalogs", documents.stream()
+                                .map(document -> document.getRegistry() + "/" + document.getNamespace() + "/" + document.getCatalogKey())
+                                .collect(Collectors.joining(",")),
+                        "templateKeys", documents.stream().map(DocumentDto::getTemplateKey).collect(Collectors.joining(",")),
+                        "variantKeys", documents.stream().map(DocumentDto::getVariantKey).collect(Collectors.joining(","))));
+    }
+
+    /**
+     * Searches the tenant (alpha) with the filters the scenario sets, each sent only when set, and
+     * reports the grouped hits: per hit its catalogs, their states and the variants that matched.
+     */
+    private static void searchTenant(String baseUrl, JsonObject config) {
+        SearchResults results = clients(baseUrl, config)
+                .api(SearchApi.class)
+                .searchTenant(
+                        config.getString("tenantKey"),
+                        optional(config, "q"),
+                        optional(config, "kind"),
+                        optional(config, "registry"),
+                        optional(config, "namespace"),
+                        optional(config, "catalogKey"),
+                        optionalBoolean(config, "supplied"),
+                        optionalBoolean(config, "changed"),
+                        optional(config, "sort"),
+                        config.containsKey("page") && !config.isNull("page") ? config.getInt("page") : null,
+                        config.containsKey("size") && !config.isNull("size") ? config.getInt("size") : null);
+        List<SearchHit> hits = results.getItems();
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("kinds", hits.stream().map(SearchHit::getKind).collect(Collectors.joining(",")));
+        values.put("keys", hits.stream().map(SearchHit::getKey).collect(Collectors.joining(",")));
+        values.put("names", hits.stream().map(SearchHit::getName).collect(Collectors.joining("|")));
+        values.put("catalogs", hits.stream()
+                .map(hit -> hit.getCatalogs().stream()
+                        .map(c -> c.getRegistry() + "/" + c.getNamespace() + "/" + c.getCatalogKey() + "#" + c.getReleaseId()
+                                + "@" + String.valueOf(c.getVersion()))
+                        .collect(Collectors.joining("+")))
+                .collect(Collectors.joining(";")));
+        values.put("catalogStates", hits.stream()
+                .map(hit -> hit.getCatalogs().stream()
+                        .map(c -> c.getEditable() + ":" + String.valueOf(c.getReadOnlyReason()) + ":" + String.valueOf(c.getStatus()))
+                        .collect(Collectors.joining("+")))
+                .collect(Collectors.joining(";")));
+        values.put("variants", hits.stream()
+                .map(hit -> hit.getVariants().stream().map(v -> v.getKey()).collect(Collectors.joining("+")))
+                .collect(Collectors.joining(";")));
+        values.put("counts", results.getCounts().stream()
+                .map(count -> count.getKind() + "=" + count.getTotal())
+                .collect(Collectors.joining(",")));
+        values.put("total", String.valueOf(results.getPage().getTotal()));
+        report(baseUrl, values);
     }
 
     /**
@@ -319,13 +657,13 @@ public final class Driver {
     private static void listImages(String baseUrl, JsonObject config) {
         List<ImageDto> images = clients(baseUrl, config)
                 .api(ImagesApi.class)
-                .listImages(config.getString("tenantId"), config.getString("catalogId"), config.getString("search"), null, null)
+                .listImages(config.getString("tenantKey"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("release"), config.getString("q"), null, null)
                 .getItems();
 
         report(
                 baseUrl,
                 Map.of(
-                        "imageSlugs", images.stream().map(ImageDto::getSlug).collect(Collectors.joining(",")),
+                        "imageKeys", images.stream().map(ImageDto::getKey).collect(Collectors.joining(",")),
                         "widths", images.stream().map(image -> String.valueOf(image.getWidth())).collect(Collectors.joining(",")),
                         "heights", images.stream().map(image -> String.valueOf(image.getHeight())).collect(Collectors.joining(",")),
                         "mediaTypes", images.stream().map(ImageDto::getMediaType).collect(Collectors.joining(","))));
@@ -344,25 +682,1403 @@ public final class Driver {
         try {
             ImageDto image = clients(baseUrl, config)
                     .api(ImagesApi.class)
-                    .uploadImage(config.getString("tenantId"), config.getString("catalogId"), file, config.getString("name"), null, null);
-            report(baseUrl, Map.of("imageSlug", image.getSlug(), "imageName", image.getName()));
+                    .uploadImage(config.getString("tenantKey"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("release"), file, config.getString("name"), null);
+            report(baseUrl, Map.of("imageKey", image.getKey(), "imageName", image.getName()));
         } finally {
             Files.deleteIfExists(file.toPath());
             Files.deleteIfExists(directory);
         }
     }
 
+    /**
+     * Imports a catalog archive. Like an image upload, the bytes go to a file named the way the part
+     * should be named; {@code registry} and {@code namespace} are sent only when the scenario names
+     * them (a null field is left out). A refusal is reported by its problem.
+     */
+    private static void importCatalog(String baseUrl, JsonObject config) throws Exception {
+        Path directory = Files.createTempDirectory("conformance-import");
+        File file = Files.write(
+                        directory.resolve(config.getString("filename")),
+                        Base64.getDecoder().decode(config.getString("fileBase64")))
+                .toFile();
+        try {
+            ImportCatalogResponse imported;
+            try {
+                imported = clients(baseUrl, config)
+                        .api(CatalogsApi.class)
+                        .importCatalog(
+                                config.getString("tenantKey"),
+                                file,
+                                optional(config, "registry"),
+                                optional(config, "namespace"));
+            } catch (ProblemDetailException e) {
+                report(
+                        baseUrl,
+                        Map.of(
+                                "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
+                                "problemStatus", e.getStatusCode()));
+                return;
+            }
+            report(
+                    baseUrl,
+                    Map.of(
+                            "registry", String.valueOf(imported.getRegistry()),
+                            "namespace", String.valueOf(imported.getNamespace()),
+                            "catalogKey", String.valueOf(imported.getCatalogKey()),
+                            "version", String.valueOf(imported.getVersion()),
+                            "newlyInstalled", String.valueOf(imported.getNewlyInstalled()),
+                            "total", String.valueOf(imported.getTotal())));
+        } finally {
+            Files.deleteIfExists(file.toPath());
+            Files.deleteIfExists(directory);
+        }
+    }
+
+    /**
+     * Installs a release a catalog's source offers, named in the path. A refusal or a
+     * failing source is reported by its problem, missing dependencies included.
+     */
+    private static void installCatalogRelease(String baseUrl, JsonObject config) {
+        InstallCatalogReleaseResponse installed;
+        try {
+            installed = clients(baseUrl, config)
+                    .api(CatalogsApi.class)
+                    .installCatalogRelease(
+                            config.getString("tenantKey"),
+                            config.getString("registry"),
+                            config.getString("namespace"),
+                            config.getString("catalogKey"),
+                            config.getString("version"));
+        } catch (ProblemDetailException e) {
+            report(
+                    baseUrl,
+                    Map.of(
+                            "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
+                            "problemStatus", e.getStatusCode(),
+                            "problemMissingDependencies",
+                                    joined(
+                                            e.getMissingDependencies(),
+                                            (MissingDependency dependency) -> dependency.getRegistry() + "/"
+                                                    + dependency.getNamespace() + "/" + dependency.getCatalogKey()
+                                                    + "@" + dependency.getVersion() + ":"
+                                                    + dependency.getReason())));
+            return;
+        }
+        report(
+                baseUrl,
+                Map.of(
+                        "registry", String.valueOf(installed.getRegistry()),
+                        "namespace", String.valueOf(installed.getNamespace()),
+                        "catalogKey", String.valueOf(installed.getCatalogKey()),
+                        "version", String.valueOf(installed.getVersion()),
+                        "newlyInstalled", String.valueOf(installed.getNewlyInstalled()),
+                        "total", String.valueOf(installed.getTotal()),
+                        "installedDependencies",
+                                joined(orEmpty(installed.getInstalledDependencies()), Driver::installedRelease),
+                        "presentDependencies",
+                                joined(orEmpty(installed.getPresentDependencies()), Driver::installedRelease)));
+    }
+
+    /** An installed release as {@code registry/namespace/catalogKey@version#releaseId}. */
+    private static String installedRelease(CatalogReleaseRefDto release) {
+        return release.getRegistry() + "/" + release.getNamespace() + "/" + release.getCatalogKey()
+                + "@" + release.getVersion() + "#" + release.getReleaseId();
+    }
+
+    /**
+     * Lists the releases a catalog's source offers that the tenant lacks, reporting every
+     * one in order. A failing source is reported by its problem.
+     */
+    private static void listAvailableCatalogReleases(String baseUrl, JsonObject config) {
+        AvailableCatalogReleases releases;
+        try {
+            releases = clients(baseUrl, config)
+                    .api(CatalogsApi.class)
+                    .listAvailableCatalogReleases(
+                            config.getString("tenantKey"),
+                            config.getString("registry"),
+                            config.getString("namespace"),
+                            config.getString("catalogKey"));
+        } catch (ProblemDetailException e) {
+            report(
+                    baseUrl,
+                    Map.of(
+                            "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
+                            "problemStatus", e.getStatusCode()));
+            return;
+        }
+        List<AvailableReleaseDto> available = orEmpty(releases.getAvailable());
+        report(
+                baseUrl,
+                Map.of(
+                        "registry", String.valueOf(releases.getRegistry()),
+                        "namespace", String.valueOf(releases.getNamespace()),
+                        "catalogKey", String.valueOf(releases.getCatalogKey()),
+                        "availableComparedTo",
+                                available.stream()
+                                        .map(release -> release.getVersion() + "=" + release.getComparedTo())
+                                        .collect(Collectors.joining(";")),
+                        "availableChanges",
+                                available.stream()
+                                        .map(release -> release.getVersion() + "="
+                                                + orEmpty(release.getChanges()).stream()
+                                                        .map(change -> change.getType() + "/" + change.getKey() + ":"
+                                                                + change.getChange())
+                                                        .collect(Collectors.joining("+")))
+                                        .collect(Collectors.joining(";")),
+                        "availableDependencies",
+                                available.stream()
+                                        .map(release -> release.getVersion() + "="
+                                                + orEmpty(release.getDependencies()).stream()
+                                                        .map((AvailableReleaseDependencyDto dependency) ->
+                                                                dependency.getRegistry() + "/"
+                                                                        + dependency.getNamespace() + "/"
+                                                                        + dependency.getCatalogKey() + "@"
+                                                                        + dependency.getVersion() + ":"
+                                                                        + dependency.getPresent())
+                                                        .collect(Collectors.joining("+")))
+                                        .collect(Collectors.joining(";"))));
+    }
+
+    private static <T> List<T> orEmpty(List<T> items) {
+        return items == null ? List.of() : items;
+    }
+
     private static void downloadImage(String baseUrl, JsonObject config) throws Exception {
         File file = clients(baseUrl, config)
                 .api(ImagesApi.class)
-                .downloadImageContent(config.getString("tenantId"), config.getString("catalogId"), config.getString("imageSlug"));
+                .downloadImageContent(config.getString("tenantKey"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("release"), config.getString("imageKey"));
         reportBytes(baseUrl, Files.readAllBytes(file.toPath()));
     }
 
     private static void deleteImage(String baseUrl, JsonObject config) {
         clients(baseUrl, config)
                 .api(ImagesApi.class)
-                .deleteImage(config.getString("tenantId"), config.getString("catalogId"), config.getString("imageSlug"), config.getBoolean("force"));
+                .deleteImage(config.getString("tenantKey"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("release"), config.getString("imageKey"), config.getBoolean("force"));
+    }
+
+    private static void listCatalogDependencies(String baseUrl, JsonObject config) {
+        reportDependencies(
+                baseUrl,
+                clients(baseUrl, config)
+                        .api(CatalogsApi.class)
+                        .listCatalogDependencies(
+                                config.getString("tenantKey"),
+                                config.getString("registry"),
+                                config.getString("namespace"),
+                                config.getString("catalogKey"),
+                                config.getString("release"))
+                        .getItems());
+    }
+
+    /** Replaces the declared dependencies and reports every field of the answer, a null as {@code null}. */
+    private static void updateCatalogDependencies(String baseUrl, JsonObject config) {
+        List<CatalogDependencyRequirement> dependencies = config.getJsonArray("dependencies").stream()
+                .map(JsonValue::asJsonObject)
+                .map(dependency -> new CatalogDependencyRequirement()
+                        .alias(optional(dependency, "alias"))
+                        .registry(optional(dependency, "registry"))
+                        .namespace(dependency.getString("namespace"))
+                        .catalogKey(dependency.getString("catalogKey"))
+                        .version(optional(dependency, "version"))
+                        .releaseId(optional(dependency, "releaseId")))
+                .collect(Collectors.toList());
+
+        conditionalUpdate(
+                baseUrl,
+                () -> clients(baseUrl, config)
+                        .api(CatalogsApi.class)
+                        .updateCatalogDependenciesWithHttpInfo(
+                                config.getString("tenantKey"),
+                                config.getString("registry"),
+                                config.getString("namespace"),
+                                config.getString("catalogKey"),
+                                config.getString("release"),
+                                new UpdateCatalogDependenciesRequest().dependencies(dependencies),
+                                optional(config, "ifMatch")),
+                response -> dependencyFields(
+                        response.readEntity(CatalogDependencyListResponse.class).getItems()));
+    }
+
+    /**
+     * Reports declared dependencies as parsed. A declaration that names a draft, or pins no release
+     * (migrated from wire v7), has a null {@code version}, and one that pins a release a null
+     * {@code releaseId}; each is reported as {@code null} rather than lost.
+     */
+    private static void reportDependencies(String baseUrl, List<CatalogDependencyDto> items) {
+        report(baseUrl, dependencyFields(items));
+    }
+
+    private static Map<String, Object> dependencyFields(List<CatalogDependencyDto> items) {
+        return Map.of(
+                        "aliases", joined(items, CatalogDependencyDto::getAlias),
+                        "registries", joined(items, CatalogDependencyDto::getRegistry),
+                        "namespaces", joined(items, CatalogDependencyDto::getNamespace),
+                        "catalogKeys", joined(items, CatalogDependencyDto::getCatalogKey),
+                        "versions", joined(items, CatalogDependencyDto::getVersion),
+                        "releaseIds", joined(items, dependency -> String.valueOf(dependency.getReleaseId())),
+                        "contentHashes", joined(items, CatalogDependencyDto::getContentHash));
+    }
+
+    private static void createCatalogRelease(String baseUrl, JsonObject config) {
+        try (Response response = clients(baseUrl, config)
+                .api(CatalogsApi.class)
+                .createCatalogReleaseWithHttpInfo(
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        new CreateCatalogReleaseRequest()
+                                .name(config.getString("name"))
+                                .from(optional(config, "from")))) {
+            CatalogReleaseDto release = response.readEntity(CatalogReleaseDto.class);
+            report(
+                    baseUrl,
+                    Map.of(
+                            "version", String.valueOf(release.getVersion()),
+                            "releaseId", String.valueOf(release.getReleaseId()),
+                            "name", String.valueOf(release.getName()),
+                            "status", String.valueOf(release.getStatus()),
+                            "base", String.valueOf(release.getBase()),
+                            "createdFrom", String.valueOf(release.getCreatedFrom()),
+                            "releasedAt", instant(release.getReleasedAt()),
+                            "location", String.valueOf(response.getHeaderString("Location"))));
+        }
+    }
+
+    private static void listCatalogReleases(String baseUrl, JsonObject config) {
+        String status = optional(config, "status");
+        List<CatalogReleaseDto> releases = clients(baseUrl, config)
+                .api(CatalogsApi.class)
+                .listCatalogReleases(
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        status == null ? null : CatalogReleaseStatus.fromValue(status),
+                        optional(config, "contentHash"),
+                        null,
+                        null)
+                .getItems();
+        report(
+                baseUrl,
+                Map.of(
+                        "versions", joined(releases, CatalogReleaseDto::getVersion),
+                        "releaseIds", joined(releases, release -> String.valueOf(release.getReleaseId())),
+                        "names",
+                                releases.stream()
+                                        .map(release -> String.valueOf(release.getName()))
+                                        .collect(Collectors.joining("|")),
+                        "statuses", joined(releases, release -> String.valueOf(release.getStatus())),
+                        "bases", joined(releases, CatalogReleaseDto::getBase),
+                        "createdFrom", joined(releases, release -> String.valueOf(release.getCreatedFrom())),
+                        "behindCounts", joined(releases, release -> String.valueOf(behind(release).size())),
+                        "contentHashes", joined(releases, CatalogReleaseDto::getContentHash)));
+    }
+
+    private static void getCatalogRelease(String baseUrl, JsonObject config) {
+        CatalogReleaseDto release = clients(baseUrl, config)
+                .api(CatalogsApi.class)
+                .getCatalogRelease(
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("release"));
+        List<ReleaseDependencyDto> dependencies =
+                release.getDependencies() == null ? List.of() : release.getDependencies();
+        report(
+                baseUrl,
+                Map.ofEntries(
+                        Map.entry("version", String.valueOf(release.getVersion())),
+                        Map.entry("releaseId", String.valueOf(release.getReleaseId())),
+                        Map.entry("name", String.valueOf(release.getName())),
+                        Map.entry("status", String.valueOf(release.getStatus())),
+                        Map.entry("releasedAt", instant(release.getReleasedAt())),
+                        Map.entry(
+                                "fingerprint",
+                                release.getFingerprint() == null ? "null" : release.getFingerprint()),
+                        Map.entry("contentHash", String.valueOf(release.getContentHash())),
+                        Map.entry(
+                                "dependencies",
+                                joined(
+                                        dependencies,
+                                        dependency -> dependency.getRegistry() + "/" + dependency.getNamespace() + "/"
+                                                + dependency.getCatalogKey() + "@"
+                                                + dependency.getVersion())),
+                        Map.entry("dependencyAliases", joined(dependencies, ReleaseDependencyDto::getAlias)),
+                        Map.entry("dependencyContentHashes", joined(dependencies, ReleaseDependencyDto::getContentHash)),
+                        Map.entry(
+                                "deployedTo",
+                                release.getDeployedTo() == null ? "null" : String.join(",", release.getDeployedTo())),
+                        Map.entry(
+                                "behind",
+                                behind(release).stream()
+                                        .map(Driver::behindRelease)
+                                        .collect(Collectors.joining(";")))));
+    }
+
+    /** One release a draft is behind, as {@code version=type/key:change+type/key:change}. */
+    private static String behindRelease(BehindReleaseDto release) {
+        List<ReleasedChangeDto> changes = release.getChanges() == null ? List.of() : release.getChanges();
+        return release.getVersion() + "="
+                + changes.stream()
+                        .map(change -> change.getType() + "/" + change.getKey() + ":" + change.getChange())
+                        .collect(Collectors.joining("+"));
+    }
+
+    private static List<BehindReleaseDto> behind(CatalogReleaseDto release) {
+        return release.getBehind() == null ? List.of() : release.getBehind();
+    }
+
+    /** Renames a draft; only the name is sent, to its unchanged address. */
+    private static void updateCatalogRelease(String baseUrl, JsonObject config) {
+        conditionalUpdate(
+                baseUrl,
+                () -> clients(baseUrl, config)
+                        .api(CatalogsApi.class)
+                        .updateCatalogReleaseWithHttpInfo(
+                                config.getString("tenantKey"),
+                                config.getString("registry"),
+                                config.getString("namespace"),
+                                config.getString("catalogKey"),
+                                config.getString("release"),
+                                new UpdateCatalogReleaseRequest().name(config.getString("name")),
+                                optional(config, "ifMatch")),
+                response -> {
+                    CatalogReleaseDto release = response.readEntity(CatalogReleaseDto.class);
+                    return Map.of(
+                            "version", String.valueOf(release.getVersion()),
+                            "releaseId", String.valueOf(release.getReleaseId()),
+                            "name", String.valueOf(release.getName()),
+                            "status", String.valueOf(release.getStatus()),
+                            "base", String.valueOf(release.getBase()));
+                });
+    }
+
+    /** Sets a draft's default theme and presets; no name goes out, and an unset qualifier stays off the wire. */
+    private static void setCatalogReleaseThemeSettings(String baseUrl, JsonObject config) {
+        // Present, an empty array included, goes out as given; absent stays off the wire.
+        List<CatalogPresetDto> presets = config.containsKey("presets") && !config.isNull("presets")
+                ? config.getJsonArray("presets").stream()
+                        .map(JsonValue::asJsonObject)
+                        .map(preset -> new CatalogPresetDto()
+                                .key(preset.getString("key"))
+                                .name(preset.getString("name"))
+                                .description(optional(preset, "description")))
+                        .collect(Collectors.toList())
+                : null;
+        String themeKey = optional(config, "defaultThemeKey");
+        CatalogReleaseDto release = clients(baseUrl, config)
+                .api(CatalogsApi.class)
+                .updateCatalogRelease(
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("release"),
+                        new UpdateCatalogReleaseRequest()
+                                .defaultTheme(themeKey == null
+                                        ? null
+                                        : new CatalogThemeReference()
+                                                .key(themeKey)
+                                                .catalogKey(optional(config, "defaultThemeCatalogKey")))
+                                .clearDefaultTheme(optionalBoolean(config, "clearDefaultTheme"))
+                                .presets(presets),
+                        null);
+        List<CatalogPresetDto> parsed = release.getPresets() == null ? List.of() : release.getPresets();
+        CatalogThemeReference defaultTheme = release.getDefaultTheme();
+        report(
+                baseUrl,
+                Map.of(
+                        "releaseId", String.valueOf(release.getReleaseId()),
+                        "name", String.valueOf(release.getName()),
+                        "defaultThemeKey", defaultTheme == null ? "null" : String.valueOf(defaultTheme.getKey()),
+                        "defaultThemeCatalogKey", defaultTheme == null ? "null" : String.valueOf(defaultTheme.getCatalogKey()),
+                        "presetKeys", parsed.stream().map(CatalogPresetDto::getKey).collect(Collectors.joining(",")),
+                        "presetNames", parsed.stream().map(CatalogPresetDto::getName).collect(Collectors.joining("|")),
+                        "presetDescriptions", parsed.stream().map(p -> String.valueOf(p.getDescription())).collect(Collectors.joining("|"))));
+    }
+
+    /** The version a draft would be released as, and every reason, in order. */
+    private static void previewCatalogDraftRelease(String baseUrl, JsonObject config) {
+        CatalogDraftReleasePreview preview = clients(baseUrl, config)
+                .api(CatalogsApi.class)
+                .previewCatalogDraftRelease(
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("release"));
+        List<String> reasons = preview.getReasons() == null ? List.of() : preview.getReasons();
+        report(
+                baseUrl,
+                Map.of(
+                        "base", String.valueOf(preview.getBase()),
+                        "changeKind", String.valueOf(preview.getChangeKind()),
+                        "reasons", String.join("|", reasons),
+                        "needed", String.valueOf(preview.getNeeded()),
+                        "suggested", String.valueOf(preview.getSuggested())));
+    }
+
+    private static void deleteCatalogRelease(String baseUrl, JsonObject config) {
+        try {
+            clients(baseUrl, config)
+                    .api(CatalogsApi.class)
+                    .deleteCatalogRelease(
+                            config.getString("tenantKey"),
+                            config.getString("registry"),
+                            config.getString("namespace"),
+                            config.getString("catalogKey"),
+                            config.getString("release"));
+        } catch (ProblemDetailException e) {
+            report(
+                    baseUrl,
+                    Map.of(
+                            "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
+                            "problemStatus", e.getStatusCode(),
+                            "problemEnvironments", String.join(",", e.getEnvironments()),
+                            "problemPinnedBy", e.getPinnedBy().stream()
+                                    .map(release -> release.getRegistry() + "/" + release.getNamespace() + "/"
+                                            + release.getCatalogKey() + "@" + release.getVersion() + "#"
+                                            + release.getReleaseId())
+                                    .collect(Collectors.joining(","))));
+        }
+    }
+
+    /**
+     * Releases a draft; each member is sent only when the scenario names it. A refusal is reported
+     * as the problem it carried, with every unreleased dependency draft in order.
+     */
+    private static void releaseCatalogDraft(String baseUrl, JsonObject config) {
+        ReleaseCatalogDraftResponse response;
+        try {
+            response = clients(baseUrl, config)
+                    .api(CatalogsApi.class)
+                    .releaseCatalogDraft(
+                            config.getString("tenantKey"),
+                            config.getString("registry"),
+                            config.getString("namespace"),
+                            config.getString("catalogKey"),
+                            config.getString("release"),
+                            new ReleaseCatalogDraftRequest()
+                                    .version(optional(config, "version"))
+                                    .notes(optional(config, "notes"))
+                                    // The generated model leaves the list null until set; null stays off the wire.
+                                    .acknowledgedBehind(
+                                            config.containsKey("acknowledgedBehind") && !config.isNull("acknowledgedBehind")
+                                                    ? config.getJsonArray("acknowledgedBehind")
+                                                            .getValuesAs(jakarta.json.JsonString::getString)
+                                                    : null)
+                                    .releaseDependencies(optionalBoolean(config, "releaseDependencies")));
+        } catch (ProblemDetailException e) {
+            report(
+                    baseUrl,
+                    Map.of(
+                            "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
+                            "problemStatus", e.getStatusCode(),
+                            "problemUnreleasedDependencies",
+                                    e.getUnreleasedDependencies().stream()
+                                            .map(dependency -> dependency.getRegistry() + "/"
+                                                    + dependency.getNamespace() + "/" + dependency.getCatalogKey()
+                                                    + "#" + dependency.getReleaseId() + "=" + dependency.getReleaseName())
+                                            .collect(Collectors.joining("|")),
+                            "problemBehind", String.join(",", e.getBehind())));
+            return;
+        }
+        List<String> draftsBehind = response.getDraftsBehind() == null ? List.of() : response.getDraftsBehind();
+        List<ReleasedDependencyDto> released =
+                response.getReleasedDependencies() == null ? List.of() : response.getReleasedDependencies();
+        report(
+                baseUrl,
+                Map.of(
+                        "version", String.valueOf(response.getRelease().getVersion()),
+                        "status", String.valueOf(response.getRelease().getStatus()),
+                        "releaseId", String.valueOf(response.getRelease().getReleaseId()),
+                        "contentHash", String.valueOf(response.getRelease().getContentHash()),
+                        "unchangedContent", String.valueOf(response.getUnchangedContent()),
+                        "draftsBehind", String.join("|", draftsBehind),
+                        "releasedDependencies",
+                                joined(
+                                        released,
+                                        dependency -> dependency.getRegistry() + "/" + dependency.getNamespace() + "/"
+                                                + dependency.getCatalogKey() + "@"
+                                                + dependency.getVersion())));
+    }
+
+    /** Previews merging the release {@code config.version} into the draft {@code config.release} (alpha). */
+    private static void previewCatalogDraftMerge(String baseUrl, JsonObject config) {
+        CatalogDraftMergePreview preview = clients(baseUrl, config)
+                .api(CatalogsApi.class)
+                // The generator puts the operation's own query parameter before the path's parameters.
+                .previewCatalogDraftMerge(
+                        config.getString("version"),
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("release"));
+        List<CatalogDraftMergeResource> resources =
+                preview.getResources() == null ? List.of() : preview.getResources();
+        report(
+                baseUrl,
+                Map.ofEntries(
+                        Map.entry("draft", String.valueOf(preview.getDraft())),
+                        Map.entry("base", String.valueOf(preview.getBase())),
+                        Map.entry("release", String.valueOf(preview.getRelease())),
+                        Map.entry("alreadyMerged", String.valueOf(preview.getAlreadyMerged())),
+                        Map.entry(
+                                "resources",
+                                joined(
+                                        resources,
+                                        r -> r.getResourceType() + "/" + r.getResourceKey() + ":" + r.getOutcome()
+                                                + ":" + r.getDraftChange() + ":" + r.getReleaseChange())),
+                        Map.entry(
+                                "resourceNames",
+                                resources.stream()
+                                        .map(r -> String.valueOf(r.getName()))
+                                        .collect(Collectors.joining("|"))),
+                        Map.entry(
+                                "resourceNeeds",
+                                resources.stream()
+                                        .filter(r -> r.getNeeds() != null && !r.getNeeds().isEmpty())
+                                        .map(r -> r.getResourceType() + "/" + r.getResourceKey() + "="
+                                                + String.join("+", r.getNeeds()))
+                                        .collect(Collectors.joining(";"))),
+                        Map.entry("unchanged", String.valueOf(preview.getUnchanged())),
+                        Map.entry("token", String.valueOf(preview.getToken())),
+                        Map.entry(
+                                "missingBase",
+                                preview.getMissingBase() == null
+                                        ? "null"
+                                        : preview.getMissingBase().getVersion() + "@"
+                                                + preview.getMissingBase().getFingerprint()),
+                        Map.entry(
+                                "missingBaseContentHash",
+                                preview.getMissingBase() == null
+                                        ? "null"
+                                        : String.valueOf(preview.getMissingBase().getContentHash()))));
+    }
+
+    /**
+     * Reads the three sides of {@code config.entry} in merging {@code config.version} into the draft
+     * {@code config.release} (alpha).
+     */
+    private static void getCatalogDraftMergeSides(String baseUrl, JsonObject config) {
+        CatalogDraftMergeSides sides = clients(baseUrl, config)
+                .api(CatalogsApi.class)
+                // The generator puts the operation's own query parameters before the path's parameters.
+                .getCatalogDraftMergeSides(
+                        config.getString("version"),
+                        config.getString("entry"),
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("release"));
+        report(
+                baseUrl,
+                Map.of(
+                        "entry", String.valueOf(sides.getEntry()),
+                        "mergeBase", String.valueOf(sides.getMergeBase()),
+                        "token", String.valueOf(sides.getToken()),
+                        "base", mergeSide(sides.getBase()),
+                        "draft", mergeSide(sides.getDraft()),
+                        "release", mergeSide(sides.getRelease()),
+                        "draftMembers",
+                                sides.getDraft() == null
+                                        ? "null"
+                                        : sides.getDraft().keySet().stream().sorted().collect(Collectors.joining(","))));
+    }
+
+    /** One side of a merge entry as {@code type/key:name}, or {@code null} when the side lacks it. */
+    private static String mergeSide(Map<String, Object> content) {
+        return content == null ? "null" : content.get("type") + "/" + content.get("key") + ":" + content.get("name");
+    }
+
+    /** Lists the release registries (alpha), each as {@code name:kind}. */
+    private static void listReleaseRegistries(String baseUrl, JsonObject config) {
+        ReleaseRegistryListResponse registries =
+                clients(baseUrl, config).api(CatalogsApi.class).listReleaseRegistries(config.getString("tenantKey"));
+        report(baseUrl, Map.of("registries", joined(registries.getItems(), r -> r.getName() + ":" + r.getKind())));
+    }
+
+    /**
+     * Lists the releases of a catalog in a release registry (alpha), each as
+     * {@code version:fingerprint:releaseId:base}, the base as {@code version@fingerprint}, a missing
+     * value as {@code null}.
+     */
+    private static void listRegistryReleases(String baseUrl, JsonObject config) {
+        RegistryReleaseListResponse releases;
+        try {
+            releases = clients(baseUrl, config)
+                    .api(CatalogsApi.class)
+                    .listRegistryReleases(
+                            config.getString("tenantKey"),
+                            config.getString("name"),
+                            config.getString("registry"),
+                            config.getString("namespace"),
+                            config.getString("catalogKey"));
+        } catch (ProblemDetailException e) {
+            reportProblemOnly(baseUrl, e);
+            return;
+        }
+        report(
+                baseUrl,
+                Map.of(
+                        "releaseRegistry", String.valueOf(releases.getReleaseRegistry()),
+                        "registry", String.valueOf(releases.getRegistry()),
+                        "namespace", String.valueOf(releases.getNamespace()),
+                        "catalogKey", String.valueOf(releases.getCatalogKey()),
+                        "releases",
+                                joined(
+                                        releases.getItems(),
+                                        r -> r.getVersion() + ":" + r.getFingerprint() + ":" + r.getReleaseId() + ":"
+                                                + (r.getBase() == null
+                                                        ? "null"
+                                                        : r.getBase().getVersion() + "@" + r.getBase().getFingerprint())),
+                        "contentHashes", joined(releases.getItems(), RegistryReleaseDto::getContentHash),
+                        "baseContentHashes",
+                                joined(releases.getItems(), r -> r.getBase() == null ? null : r.getBase().getContentHash())));
+    }
+
+    /** Installs a release from a release registry (alpha). A refusal is reported by its problem. */
+    private static void installRegistryRelease(String baseUrl, JsonObject config) {
+        ImportCatalogResponse installed;
+        try {
+            installed = clients(baseUrl, config)
+                    .api(CatalogsApi.class)
+                    .installRegistryRelease(
+                            config.getString("tenantKey"),
+                            config.getString("name"),
+                            config.getString("registry"),
+                            config.getString("namespace"),
+                            config.getString("catalogKey"),
+                            config.getString("version"));
+        } catch (ProblemDetailException e) {
+            reportProblemOnly(baseUrl, e);
+            return;
+        }
+        report(
+                baseUrl,
+                Map.of(
+                        "registry", String.valueOf(installed.getRegistry()),
+                        "namespace", String.valueOf(installed.getNamespace()),
+                        "catalogKey", String.valueOf(installed.getCatalogKey()),
+                        "version", String.valueOf(installed.getVersion()),
+                        "newlyInstalled", String.valueOf(installed.getNewlyInstalled()),
+                        "total", String.valueOf(installed.getTotal())));
+    }
+
+    /** Publishes a released release to the release registry {@code config.to} (alpha). */
+    private static void publishReleaseToRegistry(String baseUrl, JsonObject config) {
+        ReleasePublicationDto published;
+        try {
+            published = clients(baseUrl, config)
+                    .api(CatalogsApi.class)
+                    .publishReleaseToRegistry(
+                            config.getString("tenantKey"),
+                            config.getString("registry"),
+                            config.getString("namespace"),
+                            config.getString("catalogKey"),
+                            config.getString("release"),
+                            new PublishReleaseToRegistryRequest().to(config.getString("to")));
+        } catch (ProblemDetailException e) {
+            reportProblemOnly(baseUrl, e);
+            return;
+        }
+        report(
+                baseUrl,
+                Map.of(
+                        "status", String.valueOf(published.getStatus()),
+                        "releaseRegistry", String.valueOf(published.getReleaseRegistry()),
+                        "version", String.valueOf(published.getVersion()),
+                        "digest", String.valueOf(published.getDigest())));
+    }
+
+    private static void reportProblemOnly(String baseUrl, ProblemDetailException e) {
+        report(
+                baseUrl,
+                Map.of(
+                        "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
+                        "problemStatus", e.getStatusCode()));
+    }
+
+    /**
+     * Merges the release {@code config.version} into the draft {@code config.release} (alpha), with
+     * {@code config.resolutions} when present. A refusal is reported by its problem, with the
+     * conflicts it lists and the read-only reason it gives.
+     */
+    private static void mergeIntoCatalogDraft(String baseUrl, JsonObject config) {
+        MergeIntoCatalogDraftRequest request = new MergeIntoCatalogDraftRequest().release(config.getString("version"));
+        if (config.containsKey("resolutions") && !config.isNull("resolutions")) {
+            Map<String, CatalogMergeSide> resolutions = new java.util.LinkedHashMap<>();
+            config.getJsonObject("resolutions")
+                    .forEach((key, side) -> resolutions.put(
+                            key, CatalogMergeSide.fromValue(((jakarta.json.JsonString) side).getString())));
+            request.resolutions(resolutions);
+        }
+        if (config.containsKey("mergedContent") && !config.isNull("mergedContent")) {
+            Map<String, Map<String, Object>> mergedContent = new java.util.LinkedHashMap<>();
+            config.getJsonObject("mergedContent").forEach((key, content) -> {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> plain = (Map<String, Object>) freeForm(content);
+                mergedContent.put(key, plain);
+            });
+            request.mergedContent(mergedContent);
+        }
+        if (config.containsKey("expectedToken") && !config.isNull("expectedToken")) {
+            request.expectedToken(config.getString("expectedToken"));
+        }
+        MergeIntoCatalogDraftResponse merged;
+        try {
+            merged = clients(baseUrl, config)
+                    .api(CatalogsApi.class)
+                    .mergeIntoCatalogDraft(
+                            config.getString("tenantKey"),
+                            config.getString("registry"),
+                            config.getString("namespace"),
+                            config.getString("catalogKey"),
+                            config.getString("release"),
+                            request);
+        } catch (ProblemDetailException e) {
+            report(
+                    baseUrl,
+                    Map.of(
+                            "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
+                            "problemStatus", e.getStatusCode(),
+                            "problemUnresolvedConflicts", String.join(",", e.getUnresolvedConflicts()),
+                            "problemReadOnlyReason", String.valueOf(e.getReadOnlyReason()),
+                            "problemMissingBase",
+                                    e.getMissingBaseVersion() == null
+                                            ? "null"
+                                            : e.getMissingBaseVersion() + "@" + e.getMissingBaseFingerprint()));
+            return;
+        }
+        report(
+                baseUrl,
+                Map.of(
+                        "release", String.valueOf(merged.getRelease()),
+                        "taken", String.join(",", merged.getTaken() == null ? List.of() : merged.getTaken()),
+                        "removed", String.join(",", merged.getRemoved() == null ? List.of() : merged.getRemoved()),
+                        "kept", String.join(",", merged.getKept() == null ? List.of() : merged.getKept()),
+                        "merged", String.join(",", merged.getMerged() == null ? List.of() : merged.getMerged())));
+    }
+
+    /** A timestamp as ISO 8601 in UTC with its seconds, or {@code null}; offsets and precision vary by parser. */
+    private static String instant(OffsetDateTime value) {
+        return value == null ? "null" : value.toInstant().toString();
+    }
+
+    /**
+     * Deploys a release of a catalog, a released one by its version or a draft by its {@code releaseId},
+     * passing {@code includeDependencies} and {@code replace} only when the scenario names them. A refusal is reported as the problem it carried, with every missing
+     * dependency in order.
+     */
+    private static void deployCatalogRelease(String baseUrl, JsonObject config) {
+        Boolean includeDependencies = config.containsKey("includeDependencies") && !config.isNull("includeDependencies")
+                ? config.getBoolean("includeDependencies")
+                : null;
+        Boolean replace = config.containsKey("replace") && !config.isNull("replace")
+                ? config.getBoolean("replace")
+                : null;
+        DeploymentDto deployment;
+        try {
+            deployment = clients(baseUrl, config)
+                    .api(EnvironmentsApi.class)
+                    .deployCatalogRelease(
+                            config.getString("tenantKey"),
+                            config.getString("environmentKey"),
+                            config.getString("registry"),
+                            config.getString("namespace"),
+                            config.getString("catalogKey"),
+                            config.getString("release"),
+                            includeDependencies,
+                            replace);
+        } catch (ProblemDetailException e) {
+            report(
+                    baseUrl,
+                    Map.of(
+                            "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
+                            "problemStatus", e.getStatusCode(),
+                            "problemMissingDependencies",
+                                    joined(
+                                            e.getMissingDependencies(),
+                                            (MissingDependency dependency) -> dependency.getRegistry() + "/"
+                                                    + dependency.getNamespace() + "/" + dependency.getCatalogKey()
+                                                    + "@" + dependency.getVersion() + ":"
+                                                    + dependency.getReason())));
+            return;
+        }
+        report(
+                baseUrl,
+                Map.of(
+                        "registry", String.valueOf(deployment.getRegistry()),
+                        "namespace", String.valueOf(deployment.getNamespace()),
+                        "catalogKey", String.valueOf(deployment.getCatalogKey()),
+                        "releaseId", String.valueOf(deployment.getReleaseId()),
+                        "status", String.valueOf(deployment.getStatus()),
+                        "version", String.valueOf(deployment.getVersion()),
+                        "releaseName", String.valueOf(deployment.getReleaseName()),
+                        "lastUsedAt", instant(deployment.getLastUsedAt()),
+                        "documentsRequested", String.valueOf(deployment.getDocumentsRequested())));
+    }
+
+    private static void undeployCatalogRelease(String baseUrl, JsonObject config) {
+        clients(baseUrl, config)
+                .api(EnvironmentsApi.class)
+                .undeployCatalogRelease(
+                        config.getString("tenantKey"),
+                        config.getString("environmentKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("release"));
+    }
+
+    private static <T> String joined(List<T> items, java.util.function.Function<T, String> field) {
+        return items.stream().map(item -> String.valueOf(field.apply(item))).collect(Collectors.joining(","));
+    }
+
+    /**
+     * Replaces a variant's content with a one-node template model, sending {@code config.ifMatch}
+     * as {@code If-Match} when present and no {@code If-Match} otherwise.
+     */
+    private static void updateVariantContent(String baseUrl, JsonObject config) {
+        VariantContentDto content;
+        try {
+            content = clients(baseUrl, config)
+                    .api(VariantsApi.class)
+                    .updateVariantContent(
+                            config.getString("tenantKey"),
+                            config.getString("registry"),
+                            config.getString("namespace"),
+                            config.getString("catalogKey"),
+                            config.getString("release"),
+                            config.getString("templateKey"),
+                            config.getString("variantKey"),
+                            new UpdateVariantContentRequest()
+                                    .templateModel(new TemplateDocument()
+                                            .modelVersion(TemplateDocument.ModelVersionEnum.NUMBER_1)
+                                            .root("root")
+                                            .nodes(Map.of("root", new Node().id("root").type("root").slots(List.of())))
+                                            .slots(Map.of())
+                                            .themeRef(new ThemeRef().type(ThemeRef.TypeEnum.INHERIT))),
+                            optional(config, "ifMatch"));
+        } catch (ProblemDetailException e) {
+            report(
+                    baseUrl,
+                    Map.of(
+                            "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
+                            "problemStatus", e.getStatusCode()));
+            return;
+        }
+        report(baseUrl, Map.of("variantKey", String.valueOf(content.getVariantKey())));
+    }
+
+    // --- Content, ready marks and changes ---
+
+    private static TemplateDocument oneNodeModel() {
+        return new TemplateDocument()
+                .modelVersion(TemplateDocument.ModelVersionEnum.NUMBER_1)
+                .root("root")
+                .nodes(Map.of("root", new Node().id("root").type("root").slots(List.of())))
+                .slots(Map.of())
+                .themeRef(new ThemeRef().type(ThemeRef.TypeEnum.INHERIT));
+    }
+
+    /** The {@code type} member of a free-form JSON Schema object, which JSON-B reads as a Map. */
+    private static String schemaType(Object schema) {
+        return schema instanceof Map<?, ?> map ? String.valueOf(map.get("type")) : "null";
+    }
+
+    /** A free-form JSON object from the scenario, as the plain Map a caller would hand the client. */
+    private static Object freeForm(JsonValue value) {
+        try (var jsonb = JsonbBuilder.create()) {
+            return jsonb.fromJson(value.toString(), Map.class);
+        } catch (Exception e) {
+            throw new IllegalStateException("could not read " + value, e);
+        }
+    }
+
+    /**
+     * Reads a variant's content through {@code getVariantContentWithHttpInfo}, which is how a caller
+     * reaches the response headers: the {@code ETag} is reported exactly as received, quotes included.
+     */
+    private static void getVariantContent(String baseUrl, JsonObject config) {
+        try (Response response = clients(baseUrl, config)
+                .api(VariantsApi.class)
+                .getVariantContentWithHttpInfo(
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("release"),
+                        config.getString("templateKey"),
+                        config.getString("variantKey"))) {
+            VariantContentDto content = response.readEntity(VariantContentDto.class);
+            report(
+                    baseUrl,
+                    Map.of(
+                            "variantKey", String.valueOf(content.getVariantKey()),
+                            "templateModelRoot", String.valueOf(content.getTemplateModel().getRoot()),
+                            "status", String.valueOf(content.getStatus()),
+                            "lastModified", instant(content.getLastModified()),
+                            "readyAt", instant(content.getReadyAt()),
+                            "etag", String.valueOf(response.getHeaderString("ETag"))));
+        }
+    }
+
+    private static void markVariantReady(String baseUrl, JsonObject config) {
+        VariantContentDto content = clients(baseUrl, config)
+                .api(VariantsApi.class)
+                .markVariantReady(
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("release"),
+                        config.getString("templateKey"),
+                        config.getString("variantKey"));
+        report(
+                baseUrl,
+                Map.of(
+                        "variantKey", String.valueOf(content.getVariantKey()),
+                        "status", String.valueOf(content.getStatus()),
+                        "lastModified", instant(content.getLastModified()),
+                        "readyAt", instant(content.getReadyAt())));
+    }
+
+    private static void markTemplateReady(String baseUrl, JsonObject config) {
+        TemplateDto template = clients(baseUrl, config)
+                .api(TemplatesApi.class)
+                .markTemplateReady(
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("release"),
+                        config.getString("templateKey"));
+        report(
+                baseUrl,
+                Map.of(
+                        "key", String.valueOf(template.getKey()),
+                        "name", String.valueOf(template.getName()),
+                        "variantKeys", joined(template.getVariants(), variant -> variant.getKey()),
+                        "variantStatuses", joined(template.getVariants(), variant -> String.valueOf(variant.getStatus()))));
+    }
+
+    /** Reads a stencil's content through {@code getStencilContentWithHttpInfo}, reporting the {@code ETag} as received. */
+    private static void getStencilContent(String baseUrl, JsonObject config) {
+        try (Response response = clients(baseUrl, config)
+                .api(StencilsApi.class)
+                .getStencilContentWithHttpInfo(
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("release"),
+                        config.getString("stencilKey"))) {
+            StencilContentDto content = response.readEntity(StencilContentDto.class);
+            report(
+                    baseUrl,
+                    Map.of(
+                            "stencilKey", String.valueOf(content.getStencilKey()),
+                            "contentRoot", String.valueOf(content.getContent().getRoot()),
+                            "parameterSchemaType", schemaType(content.getParameterSchema()),
+                            "status", String.valueOf(content.getStatus()),
+                            "lastModified", instant(content.getLastModified()),
+                            "readyAt", instant(content.getReadyAt()),
+                            "etag", String.valueOf(response.getHeaderString("ETag"))));
+        }
+    }
+
+    /**
+     * Replaces a stencil's content with a one-node template model and {@code config.parameterSchema},
+     * sending {@code config.ifMatch} as {@code If-Match}, and reports the new {@code ETag} the update
+     * answered with.
+     */
+    private static void updateStencilContent(String baseUrl, JsonObject config) {
+        try (Response response = clients(baseUrl, config)
+                .api(StencilsApi.class)
+                .updateStencilContentWithHttpInfo(
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("release"),
+                        config.getString("stencilKey"),
+                        new UpdateStencilContentRequest()
+                                .content(oneNodeModel())
+                                .parameterSchema(freeForm(config.get("parameterSchema"))),
+                        optional(config, "ifMatch"))) {
+            StencilContentDto content = response.readEntity(StencilContentDto.class);
+            report(
+                    baseUrl,
+                    Map.of(
+                            "stencilKey", String.valueOf(content.getStencilKey()),
+                            "status", String.valueOf(content.getStatus()),
+                            "readyAt", instant(content.getReadyAt()),
+                            "etag", String.valueOf(response.getHeaderString("ETag"))));
+        }
+    }
+
+    private static void markStencilReady(String baseUrl, JsonObject config) {
+        MarkStencilReadyResponse response = clients(baseUrl, config)
+                .api(StencilsApi.class)
+                .markStencilReady(
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("release"),
+                        config.getString("stencilKey"));
+        List<StencilUsageDto> notFitting = response.getNotFitting();
+        report(
+                baseUrl,
+                Map.of(
+                        "stencilKey", String.valueOf(response.getStencil().getStencilKey()),
+                        "status", String.valueOf(response.getStencil().getStatus()),
+                        "readyAt", instant(response.getStencil().getReadyAt()),
+                        "parameterSchemaType", schemaType(response.getStencil().getParameterSchema()),
+                        "notFitting", joined(notFitting, usage -> usage.getTemplateKey() + "/" + usage.getVariantKey() + ":" + usage.getFits()),
+                        "notFittingProblems", notFitting.stream()
+                                .map(usage -> String.join("|", usage.getProblems()))
+                                .collect(Collectors.joining(";"))));
+    }
+
+    private static void listStencilUsage(String baseUrl, JsonObject config) {
+        StencilUsageListResponse response = clients(baseUrl, config)
+                .api(StencilsApi.class)
+                .listStencilUsage(
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("release"),
+                        config.getString("stencilKey"),
+                        config.getInt("page"),
+                        config.getInt("size"));
+        List<StencilUsageDto> items = response.getItems();
+        report(
+                baseUrl,
+                Map.of(
+                        "templateKeys", joined(items, StencilUsageDto::getTemplateKey),
+                        "templateNames", items.stream().map(StencilUsageDto::getTemplateName).collect(Collectors.joining("|")),
+                        "variantKeys", joined(items, StencilUsageDto::getVariantKey),
+                        "fits", joined(items, usage -> String.valueOf(usage.getFits())),
+                        "problems", items.stream()
+                                .map(usage -> String.join("|", usage.getProblems()))
+                                .collect(Collectors.joining(";")),
+                        "pageNumber", String.valueOf(response.getPage().getNumber()),
+                        "total", String.valueOf(response.getPage().getTotal())));
+    }
+
+    private static void getCatalogChanges(String baseUrl, JsonObject config) {
+        reportChanges(
+                baseUrl,
+                clients(baseUrl, config)
+                        .api(CatalogsApi.class)
+                        .getCatalogChanges(
+                                config.getString("tenantKey"),
+                                config.getString("registry"),
+                                config.getString("namespace"),
+                                config.getString("catalogKey"),
+                                config.getString("release")));
+    }
+
+    private static void markCatalogReady(String baseUrl, JsonObject config) {
+        reportChanges(
+                baseUrl,
+                clients(baseUrl, config)
+                        .api(CatalogsApi.class)
+                        .markCatalogReady(
+                                config.getString("tenantKey"),
+                                config.getString("registry"),
+                                config.getString("namespace"),
+                                config.getString("catalogKey"),
+                                config.getString("release")));
+    }
+
+    private static void reportChanges(String baseUrl, CatalogChangesDto changes) {
+        report(
+                baseUrl,
+                Map.of(
+                        "base", String.valueOf(changes.getBase()),
+                        "releasable", String.valueOf(changes.getReleasable()),
+                        "dependenciesChanged", String.valueOf(changes.getDependenciesChanged()),
+                        "changes", joined(changes.getChanges(), change -> change.getType() + "/" + change.getKey() + ":" + change.getChange()),
+                        "mergedForReview",
+                                joined(
+                                        changes.getChanges().stream()
+                                                .filter(change -> Boolean.TRUE.equals(change.getMergedForReview()))
+                                                .collect(Collectors.toList()),
+                                        change -> change.getType() + "/" + change.getKey()),
+                        "catalogChanges",
+                                joined(
+                                        changes.getCatalogChanges() == null ? List.of() : changes.getCatalogChanges(),
+                                        change -> change.getType() + "/" + change.getKey() + ":" + change.getChange())));
+    }
+
+    private static void listEnvironmentDeployments(String baseUrl, JsonObject config) {
+        List<DeploymentDto> items = clients(baseUrl, config)
+                .api(EnvironmentsApi.class)
+                .listEnvironmentDeployments(config.getString("tenantKey"), config.getString("environmentKey"))
+                .getItems();
+        report(
+                baseUrl,
+                Map.of(
+                        "registries", joined(items, DeploymentDto::getRegistry),
+                        "catalogKeys", joined(items, DeploymentDto::getCatalogKey),
+                        "releaseIds", joined(items, DeploymentDto::getReleaseId),
+                        "statuses", joined(items, deployment -> String.valueOf(deployment.getStatus())),
+                        "versions", joined(items, DeploymentDto::getVersion),
+                        "releaseNames", items.stream().map(deployment -> String.valueOf(deployment.getReleaseName())).collect(Collectors.joining("|")),
+                        "deployedAt", joined(items, deployment -> instant(deployment.getDeployedAt())),
+                        "lastUsedAt", joined(items, deployment -> instant(deployment.getLastUsedAt())),
+                        "documentsRequested", joined(items, deployment -> String.valueOf(deployment.getDocumentsRequested()))));
+    }
+
+    private static void listDeploymentHistory(String baseUrl, JsonObject config) {
+        DeploymentHistoryResponse response = clients(baseUrl, config)
+                .api(EnvironmentsApi.class)
+                .listDeploymentHistory(
+                        config.getString("tenantKey"),
+                        config.getString("environmentKey"),
+                        config.getInt("page"),
+                        config.getInt("size"));
+        List<DeploymentEventDto> items = response.getItems();
+        report(
+                baseUrl,
+                Map.of(
+                        "catalogKeys", joined(items, DeploymentEventDto::getCatalogKey),
+                        "actions", joined(items, event -> String.valueOf(event.getAction())),
+                        "releaseIds", joined(items, DeploymentEventDto::getReleaseId),
+                        "statuses", joined(items, event -> String.valueOf(event.getStatus())),
+                        "versions", joined(items, DeploymentEventDto::getVersion),
+                        "releaseNames", items.stream().map(event -> String.valueOf(event.getReleaseName())).collect(Collectors.joining("|")),
+                        "changedAt", joined(items, event -> instant(event.getChangedAt())),
+                        "changedBy", items.stream().map(event -> String.valueOf(event.getChangedBy())).collect(Collectors.joining("|")),
+                        "total", String.valueOf(response.getPage().getTotal())));
+    }
+
+    /** Creates an environment; {@code production} is sent only when the scenario names it. */
+    private static void createEnvironment(String baseUrl, JsonObject config) {
+        try (Response response = clients(baseUrl, config)
+                .api(EnvironmentsApi.class)
+                .createEnvironmentWithHttpInfo(
+                        config.getString("tenantKey"),
+                        new CreateEnvironmentRequest()
+                                .key(config.getString("key"))
+                                .name(config.getString("name"))
+                                .production(optionalBoolean(config, "production")))) {
+            Map<String, Object> values = new java.util.LinkedHashMap<>(
+                    environmentFields(response.readEntity(EnvironmentDto.class)));
+            values.put("location", String.valueOf(response.getHeaderString("Location")));
+            report(baseUrl, values);
+        }
+    }
+
+    /**
+     * A partial update: each member is sent only when the scenario names it. A refusal is reported
+     * by its problem.
+     */
+    private static void updateEnvironment(String baseUrl, JsonObject config) {
+        conditionalUpdate(
+                baseUrl,
+                () -> clients(baseUrl, config)
+                        .api(EnvironmentsApi.class)
+                        .updateEnvironmentWithHttpInfo(
+                                config.getString("tenantKey"),
+                                config.getString("environmentKey"),
+                                new UpdateEnvironmentRequest()
+                                        .name(optional(config, "name"))
+                                        .production(optionalBoolean(config, "production")),
+                                optional(config, "ifMatch")),
+                response -> environmentFields(response.readEntity(EnvironmentDto.class)));
+    }
+
+    private static Map<String, Object> environmentFields(EnvironmentDto environment) {
+        return Map.of(
+                "key", String.valueOf(environment.getKey()),
+                "name", String.valueOf(environment.getName()),
+                "production", String.valueOf(environment.getProduction()));
+    }
+
+    /** Renames a tenant, sending {@code config.ifMatch} as {@code If-Match} when present. */
+    private static void updateTenant(String baseUrl, JsonObject config) {
+        conditionalUpdate(
+                baseUrl,
+                () -> clients(baseUrl, config)
+                        .api(TenantsApi.class)
+                        .updateTenantWithHttpInfo(
+                                config.getString("tenantKey"),
+                                new UpdateTenantRequest().name(config.getString("name")),
+                                optional(config, "ifMatch")),
+                response -> {
+                    TenantDto tenant = response.readEntity(TenantDto.class);
+                    return Map.of(
+                            "key", String.valueOf(tenant.getKey()),
+                            "name", String.valueOf(tenant.getName()));
+                });
+    }
+
+    /**
+     * Replaces a template's data contract with {@code config.dataModel} and {@code config.dataExamples},
+     * each only when present, sending {@code config.ifMatch} as {@code If-Match} when present. The
+     * data model is free-form JSON, passed as a caller holding that JSON would.
+     */
+    private static void updateTemplate(String baseUrl, JsonObject config) {
+        UpdateTemplateRequest request = new UpdateTemplateRequest();
+        if (config.containsKey("dataModel") && !config.isNull("dataModel")) {
+            request.dataModel(freeForm(config.get("dataModel")));
+        }
+        request.dataExamples(dataExamples(config));
+        conditionalUpdate(
+                baseUrl,
+                () -> clients(baseUrl, config)
+                        .api(TemplatesApi.class)
+                        .updateTemplateWithHttpInfo(
+                                config.getString("tenantKey"),
+                                config.getString("registry"),
+                                config.getString("namespace"),
+                                config.getString("catalogKey"),
+                                config.getString("release"),
+                                config.getString("templateKey"),
+                                request,
+                                optional(config, "ifMatch")),
+                response -> templateFields(response.readEntity(TemplateDto.class)));
+    }
+
+    /**
+     * Creates a template, with {@code config.dataModel} and {@code config.dataExamples} only when
+     * present. The data model is free-form JSON, passed as a caller holding that JSON would.
+     */
+    private static void createTemplate(String baseUrl, JsonObject config) {
+        CreateTemplateRequest request = new CreateTemplateRequest()
+                .key(config.getString("key"))
+                .name(config.getString("name"))
+                .description(optional(config, "description"))
+                .dataExamples(dataExamples(config));
+        if (config.containsKey("dataModel") && !config.isNull("dataModel")) {
+            request.dataModel(freeForm(config.get("dataModel")));
+        }
+        try (Response response = clients(baseUrl, config)
+                .api(TemplatesApi.class)
+                .createTemplateWithHttpInfo(
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("release"),
+                        request)) {
+            Map<String, Object> values = new java.util.LinkedHashMap<>(
+                    templateFields(response.readEntity(TemplateDto.class)));
+            values.put("location", String.valueOf(response.getHeaderString("Location")));
+            report(baseUrl, values);
+        }
+    }
+
+    /** {@code config.dataExamples}, or null when the scenario names none. */
+    private static List<DataExampleDto> dataExamples(JsonObject config) {
+        if (!config.containsKey("dataExamples") || config.isNull("dataExamples")) return null;
+        return config.getJsonArray("dataExamples").stream()
+                .map(JsonValue::asJsonObject)
+                .map(example -> new DataExampleDto()
+                        .key(example.getString("key"))
+                        .name(example.getString("name"))
+                        .data(freeForm(example.get("data"))))
+                .toList();
+    }
+
+    /** A template's data contract as the client read it; {@code dataModelMembers} tells {@code {}} from null. */
+    private static Map<String, Object> templateFields(TemplateDto template) {
+        Map<?, ?> dataModel = template.getDataModel() instanceof Map<?, ?> map ? map : null;
+        Object required = dataModel == null ? null : dataModel.get("required");
+        List<DataExampleDto> examples = template.getDataExamples() == null ? List.of() : template.getDataExamples();
+        return Map.of(
+                "key", String.valueOf(template.getKey()),
+                "dataModelMembers", dataModel == null
+                        ? "null"
+                        : dataModel.keySet().stream().map(String::valueOf).sorted().collect(Collectors.joining(",")),
+                "dataModelType", dataModel == null ? "null" : String.valueOf(dataModel.get("type")),
+                "dataModelRequired", required instanceof List<?> list
+                        ? list.stream().map(String::valueOf).collect(Collectors.joining(","))
+                        : "null",
+                "dataExampleKeys", examples.stream().map(DataExampleDto::getKey).collect(Collectors.joining(",")));
+    }
+
+    /** Hides or shows a code-list entry, conditional on the code list's {@code ETag} when given. */
+    private static void updateCodeListEntryHidden(String baseUrl, JsonObject config) {
+        conditionalUpdate(
+                baseUrl,
+                () -> clients(baseUrl, config)
+                        .api(CodeListsApi.class)
+                        .updateCodeListEntryHiddenWithHttpInfo(
+                                config.getString("tenantKey"),
+                                config.getString("registry"),
+                                config.getString("namespace"),
+                                config.getString("catalogKey"),
+                                config.getString("release"),
+                                config.getString("codeListKey"),
+                                config.getString("code"),
+                                new UpdateCodeListEntryHiddenRequest().hidden(config.getBoolean("hidden")),
+                                optional(config, "ifMatch")),
+                response -> {
+                    CodeListEntryDto entry = response.readEntity(CodeListEntryDto.class);
+                    return Map.of(
+                            "code", String.valueOf(entry.getCode()),
+                            "hidden", String.valueOf(entry.getHidden()));
+                });
+    }
+
+    /** Changes an attribute's constraint with only the members the scenario names. */
+    private static void updateAttribute(String baseUrl, JsonObject config) {
+        List<String> allowedValues = config.containsKey("allowedValues") && !config.isNull("allowedValues")
+                ? config.getJsonArray("allowedValues").getValuesAs(jakarta.json.JsonString::getString)
+                : null;
+        // A binding names its catalog by alias, or by nothing for the attribute's own.
+        CodeListBindingRef codeListBinding =
+                config.containsKey("codeListBinding") && !config.isNull("codeListBinding")
+                        ? new CodeListBindingRef()
+                                .key(config.getJsonObject("codeListBinding").getString("key"))
+                                .catalogKey(optional(config.getJsonObject("codeListBinding"), "catalogKey"))
+                        : null;
+        conditionalUpdate(
+                baseUrl,
+                () -> clients(baseUrl, config)
+                        .api(AttributesApi.class)
+                        .updateAttributeWithHttpInfo(
+                                config.getString("tenantKey"),
+                                config.getString("registry"),
+                                config.getString("namespace"),
+                                config.getString("catalogKey"),
+                                config.getString("release"),
+                                config.getString("attributeKey"),
+                                new UpdateAttributeRequest()
+                                        .allowedValues(allowedValues)
+                                        .codeListBinding(codeListBinding)
+                                        .clearCodeListBinding(optionalBoolean(config, "clearCodeListBinding")),
+                                optional(config, "ifMatch")),
+                response -> {
+                    AttributeDto attribute = response.readEntity(AttributeDto.class);
+                    CodeListBindingRef binding = attribute.getCodeListBinding();
+                    return Map.of(
+                            "key", String.valueOf(attribute.getKey()),
+                            "allowedValues", String.join(",", attribute.getAllowedValues() == null ? List.of() : attribute.getAllowedValues()),
+                            "codeListBinding", binding == null
+                                    ? "null"
+                                    : binding.getCatalogKey() + "/" + binding.getKey());
+                });
+    }
+
+    private static Boolean optionalBoolean(JsonObject config, String key) {
+        return config.containsKey(key) && !config.isNull(key) ? config.getBoolean(key) : null;
+    }
+
+    /** A string the scenario may leave out; absent stays null, so the request leaves it off the wire. */
+    private static String optional(JsonObject config, String key) {
+        return config.containsKey(key) && !config.isNull(key) ? config.getString(key) : null;
     }
 
     private static void reportBytes(String baseUrl, byte[] bytes) throws Exception {

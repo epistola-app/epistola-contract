@@ -51,7 +51,7 @@ import java.util.function.Consumer;
  * <pre>{@code
  * ResultCollector collector = ResultCollector.builder()
  *     .collectApi(collectApi)
- *     .tenantId("acme-corp")
+ *     .tenantKey("acme-corp")
  *     .handler(result -> {
  *         switch (result.getStatus()) {
  *             case COMPLETED -> downloadAndProcess(result.getDocumentId(), result.getCorrelationId());
@@ -70,7 +70,7 @@ import java.util.function.Consumer;
 public final class ResultCollector {
 
     private final GenerationCollectApi collectApi;
-    private final String tenantId;
+    private final String tenantKey;
     private final int batchSize;
     private final Duration minInterval;
     private final Duration maxInterval;
@@ -104,7 +104,7 @@ public final class ResultCollector {
 
     private ResultCollector(Builder builder) {
         this.collectApi = builder.collectApi;
-        this.tenantId = builder.tenantId;
+        this.tenantKey = builder.tenantKey;
         this.batchSize = builder.batchSize;
         this.minInterval = builder.minInterval;
         this.maxInterval = builder.maxInterval;
@@ -306,7 +306,7 @@ public final class ResultCollector {
         }
 
         try (Response response =
-                collectApi.collectGenerationResults(tenantId, Compression.acceptEncoding(), request)) {
+                collectApi.collectGenerationResults(tenantKey, Compression.acceptEncoding(), request)) {
             InputStream body = response.readEntity(InputStream.class);
             if (body == null) {
                 return new CollectResult(0, false);
@@ -386,11 +386,11 @@ public final class ResultCollector {
         shutdownHook = null;
     }
 
-    /** Builds a {@link ResultCollector}. {@code collectApi}, {@code tenantId} and {@code handler} are required. */
+    /** Builds a {@link ResultCollector}. {@code collectApi}, {@code tenantKey} and {@code handler} are required. */
     public static final class Builder {
 
         private GenerationCollectApi collectApi;
-        private String tenantId;
+        private String tenantKey;
         private int batchSize = 100;
         private Duration minInterval = Duration.ofSeconds(1);
         private Duration maxInterval = Duration.ofSeconds(30);
@@ -407,8 +407,8 @@ public final class ResultCollector {
             return this;
         }
 
-        public Builder tenantId(String tenantId) {
-            this.tenantId = tenantId;
+        public Builder tenantKey(String tenantKey) {
+            this.tenantKey = tenantKey;
             return this;
         }
 
@@ -488,8 +488,8 @@ public final class ResultCollector {
             if (collectApi == null) {
                 throw new IllegalStateException("collectApi is required");
             }
-            if (tenantId == null) {
-                throw new IllegalStateException("tenantId is required");
+            if (tenantKey == null) {
+                throw new IllegalStateException("tenantKey is required");
             }
             if (handler == null) {
                 throw new IllegalStateException("handler is required");

@@ -17,14 +17,26 @@ namespace Epistola.Client.Tests.Validation;
 /// </summary>
 public class ModelValidationTest
 {
+    [Fact]
+    public void AnAttributeCriterionNamesItsAttributeByResourceKeyNeverDotted()
+    {
+        var qualified = new VariantSelectionAttribute(key: "locale", value: "nl-NL", catalogKey: "system");
+        Assert.Same(qualified, qualified.Validate());
+        // catalogKey is an alias, under the catalog key rule.
+        Assert.Throws<ArgumentException>(() => new VariantSelectionAttribute(key: "locale", value: "nl-NL", catalogKey: "System").Validate());
+        var ownCatalog = new VariantSelectionAttribute(key: "2026-campaign", value: "spring");
+        Assert.Same(ownCatalog, ownCatalog.Validate());
+        Assert.Throws<ArgumentException>(() => new VariantSelectionAttribute(key: "system.locale", value: "nl-NL").Validate());
+    }
+
     [Theory]
     [InlineData("abc")]
     [InlineData("a1b")]
     [InlineData("test-env")]
-    [InlineData("my-long-slug-123")]
-    public void SlugPatternAcceptsValidSlugs(string slug)
+    [InlineData("my-long-key-123")]
+    public void KeyPatternAccepts(string key)
     {
-        var request = new CreateTenantRequest(id: slug, name: "Test");
+        var request = new CreateTenantRequest(key: key, name: "Test");
         Assert.Same(request, request.Validate());
     }
 
@@ -36,40 +48,40 @@ public class ModelValidationTest
     [InlineData("ab--c")]
     [InlineData("ab c")]
     [InlineData("ab.c")]
-    public void SlugPatternRejectsInvalidSlugs(string slug)
+    public void KeyPatternRejects(string key)
     {
-        Assert.Throws<ArgumentException>(() => new CreateTenantRequest(id: slug, name: "Test").Validate());
+        Assert.Throws<ArgumentException>(() => new CreateTenantRequest(key: key, name: "Test").Validate());
     }
 
     [Fact]
-    public void IdAtExactMinimumLengthPasses()
+    public void KeyAtExactMinimumLengthPasses()
     {
-        var request = new CreateTenantRequest(id: "abc", name: "Tenant");
+        var request = new CreateTenantRequest(key: "abc", name: "Tenant");
         Assert.Same(request, request.Validate());
     }
 
     [Fact]
-    public void IdOneBelowMinimumLengthFails()
+    public void KeyOneBelowMinimumLengthFails()
     {
-        var ex = Assert.Throws<ArgumentException>(() => new CreateTenantRequest(id: "ab", name: "Tenant").Validate());
-        Assert.Contains("id: length must be between 3 and 63", ex.Message);
+        var ex = Assert.Throws<ArgumentException>(() => new CreateTenantRequest(key: "ab", name: "Tenant").Validate());
+        Assert.Contains("key: length must be between 3 and 63", ex.Message);
     }
 
     [Fact]
-    public void IdAtExactMaximumLengthPasses()
+    public void KeyAtExactMaximumLengthPasses()
     {
-        var id = "a" + new string('b', 62);
-        var request = new CreateTenantRequest(id: id, name: "Tenant");
+        var key = "a" + new string('b', 62);
+        var request = new CreateTenantRequest(key: key, name: "Tenant");
         Assert.Same(request, request.Validate());
     }
 
     [Fact]
     public void NameBoundaryValues()
     {
-        new CreateTenantRequest(id: "abc", name: "x").Validate();
-        new CreateTenantRequest(id: "abc", name: new string('x', 255)).Validate();
-        Assert.Throws<ArgumentException>(() => new CreateTenantRequest(id: "abc", name: "").Validate());
-        Assert.Throws<ArgumentException>(() => new CreateTenantRequest(id: "abc", name: new string('x', 256)).Validate());
+        new CreateTenantRequest(key: "abc", name: "x").Validate();
+        new CreateTenantRequest(key: "abc", name: new string('x', 255)).Validate();
+        Assert.Throws<ArgumentException>(() => new CreateTenantRequest(key: "abc", name: "").Validate());
+        Assert.Throws<ArgumentException>(() => new CreateTenantRequest(key: "abc", name: new string('x', 256)).Validate());
     }
 
     [Fact]
@@ -86,28 +98,40 @@ public class ModelValidationTest
     }
 
     [Fact]
-    public void CreateEnvironmentRequestEnforcesIdMaxLengthOf30()
+    public void CreateEnvironmentRequestEnforcesKeyMaxLengthOf30()
     {
-        var valid = new CreateEnvironmentRequest(id: "a" + new string('b', 29), name: "Env");
+        var valid = new CreateEnvironmentRequest(key: "a" + new string('b', 29), name: "Env");
         Assert.Same(valid, valid.Validate());
-        var ex = Assert.Throws<ArgumentException>(() => new CreateEnvironmentRequest(id: new string('a', 31), name: "Env").Validate());
-        Assert.Contains("id: length must be between 3 and 30", ex.Message);
+        var ex = Assert.Throws<ArgumentException>(() => new CreateEnvironmentRequest(key: new string('a', 31), name: "Env").Validate());
+        Assert.Contains("key: length must be between 3 and 30", ex.Message);
     }
 
     [Fact]
     public void GenerateDocumentRequestValidatesNullableFieldsIndependently()
     {
-        new GenerateDocumentRequest(catalogId: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), versionId: null).Validate();
+        new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), versionRange: null).Validate();
         Assert.Throws<ArgumentException>(() =>
-            new GenerateDocumentRequest(catalogId: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), versionId: 300).Validate());
-
-        new GenerateDocumentRequest(catalogId: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), environmentId: null).Validate();
+            new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), versionRange: "").Validate());
+        // A range holds an exact release number of any valid length, up to 256 characters.
+        new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), versionRange: "1.0." + new string('1', 124)).Validate();
+        new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), versionRange: new string('x', 256)).Validate();
         Assert.Throws<ArgumentException>(() =>
-            new GenerateDocumentRequest(catalogId: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), environmentId: "PROD").Validate());
+            new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), versionRange: new string('x', 257)).Validate());
+        // `local` is the one registry without a dot; `localhost` is none.
+        new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), registry: "local").Validate();
+        foreach (var registry in new[] { "localhost", "Local", "locals" })
+        {
+            Assert.Throws<ArgumentException>(() =>
+                new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), registry: registry).Validate());
+        }
 
-        new GenerateDocumentRequest(catalogId: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), filename: new string('x', 255)).Validate();
+        new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), environmentKey: null).Validate();
+        Assert.Throws<ArgumentException>(() =>
+            new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), environmentKey: "PROD").Validate());
+
+        new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), filename: new string('x', 255)).Validate();
         var ex = Assert.Throws<ArgumentException>(() =>
-            new GenerateDocumentRequest(catalogId: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), filename: new string('x', 256)).Validate());
+            new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), filename: new string('x', 256)).Validate());
         Assert.Contains("filename: length must be at most 255", ex.Message);
     }
 
@@ -122,16 +146,131 @@ public class ModelValidationTest
     public void GenerateBatchRequestWithItemsPasses()
     {
         var items = Enumerable.Range(1, 5).Select(i => new BatchGenerationItem(
-            catalogId: "default", templateId: "invoice", variantId: "english",
+            @namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english",
             data: new Dictionary<string, object> { ["n"] = i })).ToList();
         var request = new GenerateBatchRequest(items: items);
         Assert.Same(request, request.Validate());
     }
 
+    // A version is a plain MAJOR.MINOR.PATCH, or a patch release labelled with a namespace and a
+    // sequence number from 1; there are no other pre-release versions.
+    [Theory]
+    [InlineData("1.4.0")]
+    [InlineData("1.3.1-gemeente-x.1")]
+    [InlineData("2.0.0-redesign-2027.12")]
+    public void VersionAcceptsASemVerCoreNumberOrAPatchRelease(string version)
+    {
+        var release = new ReleaseCatalogDraftRequest(version: version);
+        Assert.Same(release, release.Validate());
+        var draft = new CreateCatalogReleaseRequest(name: "Follow-up", from: version);
+        Assert.Same(draft, draft.Validate());
+    }
+
+    [Theory]
+    [InlineData("1.4")]
+    [InlineData("v1.4.0")]
+    [InlineData("1.4.0+build")]
+    [InlineData("2.0.0-rc.1")]
+    [InlineData("1.3.1-gemeente-x.0")]
+    [InlineData("1.3.1-gemeente-x.01")]
+    [InlineData("1.3.1-Gemeente-x.1")]
+    [InlineData("1.3.1-gemeente-x")]
+    [InlineData("Next")]
+    public void VersionRejectsAnythingElse(string version)
+    {
+        Assert.Throws<ArgumentException>(() => new ReleaseCatalogDraftRequest(version: version).Validate());
+        Assert.Throws<ArgumentException>(() => new CreateCatalogReleaseRequest(name: "Follow-up", from: version).Validate());
+    }
+
+    // A draft starts from a version or from another release's releaseId.
+    [Fact]
+    public void CreateCatalogReleaseRequestStartsFromAReleaseId()
+    {
+        var draft = new CreateCatalogReleaseRequest(name: "Redesign 2027", from: "k7m2x9qa");
+        Assert.Same(draft, draft.Validate());
+    }
+
+    // A declaration may give the catalog an alias, under the catalog key rule.
+    [Fact]
+    public void DependencyDeclarationMayGiveAnAlias()
+    {
+        var aliased = new CatalogDependencyRequirement(alias: "shared-branding", @namespace: "acme-corp", catalogKey: "branding", version: "1.3.0");
+        Assert.Same(aliased, aliased.Validate());
+        Assert.Throws<ArgumentException>(() => new CatalogDependencyRequirement(alias: "x", @namespace: "acme-corp", catalogKey: "branding", version: "1.3.0").Validate());
+    }
+
+    [Fact]
+    public void DependencyDeclarationPinsAnExactRelease()
+    {
+        var pinned = new CatalogDependencyRequirement(@namespace: "epistola", catalogKey: "system", version: "1.3.0");
+        Assert.Same(pinned, pinned.Validate());
+        foreach (var release in new[] { "^1.3.0", "1.x", "*", "01.3.0", "1.3.0-rc.1" })
+        {
+            var declared = new CatalogDependencyRequirement(@namespace: "epistola", catalogKey: "system", version: release);
+            Assert.Throws<ArgumentException>(() => declared.Validate());
+        }
+    }
+
+    // In a draft a dependency declaration may name another catalog's draft instead of a release.
+    [Fact]
+    public void DependencyDeclarationMayNameADraft()
+    {
+        var onDraft = new CatalogDependencyRequirement(@namespace: "acme-corp", catalogKey: "branding",
+            releaseId: "r4t8w2nc");
+        Assert.Same(onDraft, onDraft.Validate());
+    }
+
     [Fact]
     public void ValidateReturnsSameInstanceForFluentChaining()
     {
-        var request = new CreateTenantRequest(id: "acme-corp", name: "Acme Corporation");
+        var request = new CreateTenantRequest(key: "acme-corp", name: "Acme Corporation");
         Assert.Same(request, request.Validate());
+    }
+
+    private static CatalogDto CatalogWithFingerprint(string fingerprint) => new(
+        registry: "exchange.epistola.app", @namespace: "acme-corp", catalogKey: "letters", name: "Letters",
+        editable: true, source: "exchange:acme-corp/letters", fingerprint: fingerprint);
+
+    // A fingerprint names its algorithm version: v<N>:<64 lowercase hex>.
+    [Fact]
+    public void FingerprintAcceptsAVersionedDigest()
+    {
+        var catalog = CatalogWithFingerprint("v1:" + new string('a', 64));
+        Assert.Same(catalog, catalog.Validate());
+    }
+
+    [Theory]
+    [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("v0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("v1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")]
+    [InlineData("v1:aaaa")]
+    public void FingerprintRejectsABareOrMalformedDigest(string fingerprint)
+    {
+        var ex = Assert.Throws<ArgumentException>(() => CatalogWithFingerprint(fingerprint).Validate());
+        Assert.Contains("fingerprint", ex.Message);
+    }
+
+    private static CatalogDto CatalogWithContentHash(string contentHash) => new(
+        registry: "exchange.epistola.app", @namespace: "acme-corp", catalogKey: "letters", name: "Letters",
+        editable: true, source: "exchange:acme-corp/letters", fingerprint: "v5:" + new string('a', 64), contentHash: contentHash);
+
+    // A content hash is the V6 fingerprint: v6:<64 lowercase hex>, whatever algorithm the fingerprint names.
+    [Fact]
+    public void ContentHashAcceptsAV6Digest()
+    {
+        var catalog = CatalogWithContentHash("v6:" + new string('a', 64));
+        Assert.Same(catalog, catalog.Validate());
+    }
+
+    [Theory]
+    [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("v5:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("v7:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("v6:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")]
+    [InlineData("v6:aaaa")]
+    public void ContentHashRejectsAnythingButAV6Digest(string contentHash)
+    {
+        var ex = Assert.Throws<ArgumentException>(() => CatalogWithContentHash(contentHash).Validate());
+        Assert.Contains("contentHash", ex.Message);
     }
 }

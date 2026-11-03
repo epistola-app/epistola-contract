@@ -88,7 +88,7 @@ openApiGenerate {
     typeMappings.set(mapOf("file" to "Resource"))
     importMappings.set(mapOf("Resource" to "org.springframework.core.io.Resource"))
     // ProblemDetail is hand-written (src/main/kotlin/app/epistola/client/model/ProblemDetail.kt) so
-    // it can carry a catch-all for extension members the five named fields don't model — a closed
+    // it can carry a catch-all for extension members the six named fields don't model — a closed
     // generated data class silently drops anything else Jackson doesn't recognize. Same
     // fully-qualified name, so schemaMappings substitutes it with no call-site changes.
     schemaMappings.set(mapOf("ProblemDetail" to "app.epistola.client.model.ProblemDetail"))
@@ -109,6 +109,51 @@ openApiGenerate {
             "useSpringBoot3" to "true",
         ),
     )
+}
+
+// A multipart form field typed by a shared enum schema (importCatalog's former `catalogType` was
+// one; none is left, and the patch stays for the next) reaches the part as the enum itself, and
+// Spring writes a non-String part with the first converter that takes it: Jackson, which honours
+// the enum's @JsonValue and sends the JSON string with its quotes — a value the server cannot match. A form field is text, so
+// the generated ApiClient is patched to send an enum part as its wire value (`toString()` returns
+// it on every generated enum). Fails the build if the generator's output stops matching.
+tasks.openApiGenerate {
+    doLast {
+        val apiClient = generatedDir.get().asFile.resolve("src/main/kotlin/app/epistola/client/infrastructure/ApiClient.kt")
+        val anchor = "parts.add(name, part.body)"
+        val source = apiClient.readText()
+        check(source.contains(anchor)) {
+            "ApiClient.kt no longer contains `$anchor`; the multipart enum patch in build.gradle.kts needs updating"
+        }
+        apiClient.writeText(source.replace(anchor, "parts.add(name, (part.body as? Enum<*>)?.toString() ?: part.body)"))
+    }
+}
+
+// An enum-typed query parameter is written with toString(), which returns the constant's name.
+// "original" naming above makes that the wire value only while the two are equal; a parameter whose
+// constants are renamed with x-enum-varnames (`name` is reserved on a Kotlin enum) sent its constant
+// name: `sort=byName` for listTemplates, `sort=byRelevance` for searchTenant. Each parameter enum
+// the generator nests in an API class gets a toString() returning its wire value. Fails the build if
+// the generator's output stops matching, since the conformance scenario would otherwise be the only
+// thing to notice.
+tasks.openApiGenerate {
+    doLast {
+        val apiDir = generatedDir.get().asFile.resolve("src/main/kotlin/app/epistola/client/api")
+        val parameterEnum = Regex("""(enum class \w+\(val value: kotlin\.String\) \{(?:\n\s*@JsonProperty[^\n]*)+)\n(\s*)\}""")
+        var patched = 0
+        apiDir.listFiles { file -> file.name.endsWith("Api.kt") }!!.forEach { file ->
+            val source = file.readText()
+            val result = parameterEnum.replace(source) { match ->
+                patched++
+                val indent = match.groupValues[2]
+                "${match.groupValues[1]};\n\n$indent    override fun toString(): kotlin.String = value\n$indent}"
+            }
+            if (result != source) file.writeText(result)
+        }
+        check(patched > 0) {
+            "No enum query parameter matched in the generated APIs; the toString patch in build.gradle.kts needs updating"
+        }
+    }
 }
 
 // The spec-walking these three tasks share with the Jakarta client lives in build-logic; only the
@@ -215,7 +260,7 @@ val generateValidation by tasks.registering {
 val generatedProblemSlugsDir = layout.buildDirectory.dir("generated-problem-slugs/src/main/kotlin")
 
 val generateProblemSlugs by tasks.registering {
-    description = "Generates KnownProblemSlugs from the spec's x-problem-types extension"
+    description = "Generates KnownProblemSlugs and KnownValidationCodes from the spec's x-problem-types and x-validation-codes extensions"
 
     inputs.file(bundledSpec)
     outputs.dir(generatedProblemSlugsDir)
@@ -277,6 +322,44 @@ val generateProblemSlugs by tasks.registering {
             """.trimMargin() + "\n",
         )
         logger.lifecycle("Generated KnownProblemSlugs with ${types.size} slug(s) → ${outFile.relativeTo(project.projectDir)}")
+
+        val codes = model["validationCodes"] as List<Map<String, Any?>>
+        val codeConstants = codes.joinToString("\n\n") { entry ->
+            "    /** ${entry["kind"]} — ${entry["description"]} */\n" +
+                "    const val ${entry["constantName"]}: String = \"${entry["code"]}\""
+        }
+        val codeList = codes.joinToString(",\n") { "        ${it["constantName"]}" }
+        val codesFile = generatedProblemSlugsDir.get()
+            .file("app/epistola/client/error/KnownValidationCodes.kt").asFile
+        codesFile.writeText(
+            """
+            |// Generated from the bundled OpenAPI spec's x-validation-codes extension — do not edit.
+            |package app.epistola.client.error
+            |
+            |import app.epistola.client.model.ValidationError
+            |
+            |/**
+            | * The codes that say why a field of a `validation-error` failed ([ValidationError.code]), from the
+            | * contract's validation-code registry (the spec's `x-validation-codes` extension /
+            | * `docs/error-types.md`): `constraint` codes name the JSON Schema keyword a value broke,
+            | * `template` codes a finding in template or stencil content, `domain` codes a rule the server
+            | * applies beyond the schema.
+            | *
+            | * These are convenience constants for `when (error.code)` switches. `code` is deliberately a
+            | * plain `String?` (not an enum) so the API can introduce new codes in a minor version without
+            | * forcing a client release — always keep an `else` branch.
+            | */
+            |object KnownValidationCodes {
+            |$codeConstants
+            |
+            |    /** Every code the registry lists, in registry order. */
+            |    val ALL: List<String> = listOf(
+            |$codeList,
+            |    )
+            |}
+            """.trimMargin() + "\n",
+        )
+        logger.lifecycle("Generated KnownValidationCodes with ${codes.size} code(s) → ${codesFile.relativeTo(project.projectDir)}")
     }
 }
 

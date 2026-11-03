@@ -51,54 +51,61 @@ class ValidatingGenerationApi(
     ) : this(delegate, ServerTemplateDataValidator(templatesApi))
 
     fun generateDocument(
-        tenantId: String,
+        tenantKey: String,
         generateDocumentRequest: GenerateDocumentRequest,
     ): GenerationJobResponse {
-        preflight(tenantId, generateDocumentRequest)
-        return translatingProblem { delegate.generateDocument(tenantId, generateDocumentRequest) }
+        preflight(tenantKey, generateDocumentRequest)
+        return translatingProblem { delegate.generateDocument(tenantKey, generateDocumentRequest) }
     }
 
     fun generateDocumentWithHttpInfo(
-        tenantId: String,
+        tenantKey: String,
         generateDocumentRequest: GenerateDocumentRequest,
     ): ResponseEntity<GenerationJobResponse> {
-        preflight(tenantId, generateDocumentRequest)
-        return translatingProblem { delegate.generateDocumentWithHttpInfo(tenantId, generateDocumentRequest) }
+        preflight(tenantKey, generateDocumentRequest)
+        return translatingProblem { delegate.generateDocumentWithHttpInfo(tenantKey, generateDocumentRequest) }
     }
 
     fun generateDocumentBatch(
-        tenantId: String,
+        tenantKey: String,
         generateBatchRequest: GenerateBatchRequest,
     ): GenerationJobResponse {
-        preflightBatch(tenantId, generateBatchRequest)
-        return translatingProblem { delegate.generateDocumentBatch(tenantId, generateBatchRequest) }
+        preflightBatch(tenantKey, generateBatchRequest)
+        return translatingProblem { delegate.generateDocumentBatch(tenantKey, generateBatchRequest) }
     }
 
     fun generateDocumentBatchWithHttpInfo(
-        tenantId: String,
+        tenantKey: String,
         generateBatchRequest: GenerateBatchRequest,
     ): ResponseEntity<GenerationJobResponse> {
-        preflightBatch(tenantId, generateBatchRequest)
-        return translatingProblem { delegate.generateDocumentBatchWithHttpInfo(tenantId, generateBatchRequest) }
+        preflightBatch(tenantKey, generateBatchRequest)
+        return translatingProblem { delegate.generateDocumentBatchWithHttpInfo(tenantKey, generateBatchRequest) }
     }
 
-    private fun preflight(tenantId: String, request: GenerateDocumentRequest) {
+    /**
+     * A request body leaves `registry` out (or null) for the server's default registry; the
+     * validator, which addresses the catalog in a URL path, gets the path segment that means the
+     * same thing, `~`. A registry the body names is passed on as is.
+     */
+    private fun registrySegment(registry: String?): String = registry ?: TemplateDataValidator.DEFAULT_REGISTRY
+
+    private fun preflight(tenantKey: String, request: GenerateDocumentRequest) {
         if (!validator.preflightsGeneration) {
             return
         }
-        val errors = validator.validate(tenantId, request.catalogId, request.templateId, request.data)
+        val errors = validator.validate(tenantKey, registrySegment(request.registry), request.namespace, request.catalogKey, request.templateKey, request.data)
         if (errors.isNotEmpty()) {
             throw TemplateDataValidationException(errors)
         }
     }
 
-    private fun preflightBatch(tenantId: String, request: GenerateBatchRequest) {
+    private fun preflightBatch(tenantKey: String, request: GenerateBatchRequest) {
         if (!validator.preflightsGeneration) {
             return
         }
         val allErrors = mutableListOf<TemplateDataValidationException.ValidationError>()
         for ((index, item) in request.items.withIndex()) {
-            val errors = validator.validate(tenantId, item.catalogId, item.templateId, item.data)
+            val errors = validator.validate(tenantKey, registrySegment(item.registry), item.namespace, item.catalogKey, item.templateKey, item.data)
             allErrors += errors.map { error -> error.copy(path = "items[$index]${error.path}") }
         }
         if (allErrors.isNotEmpty()) {

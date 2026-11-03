@@ -9,91 +9,150 @@ libraries.
 
 ## [Unreleased]
 
+Contract 2.0 replaces per-template versions with **catalog releases**: a catalog's content is
+edited in drafts, released as a whole under a version, and deployed to environments, which can
+serve several releases side by side. Almost every body changes, and the media type is now
+`application/vnd.epistola.v2+json`, so a 1.x client fails on its first request rather than being
+served something it did not ask for. **[`docs/migrating-to-2.0.md`](docs/migrating-to-2.0.md)
+maps every 1.x operation and member to its 2.0 counterpart.**
+
+Parts marked alpha (`x-experimental`) may still change in a minor 2.x release. Epistola Suite may
+not implement every part of 2.0 yet.
+
+### Changed (breaking)
+
+- **Catalog releases replace template versions** (ADR 0002). A release is a `draft` (editable, no
+  version) or `released` (immutable, with a `version`), addressed by `releaseId` or version under
+  `…/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}`. A catalog may have any
+  number of drafts. Each starts from a base and is versioned by what changed against it, so a fix
+  to an older line is an ordinary release (`1.4.1` after `2.0.0`). Drafts are independent; one that
+  is **behind** later releases needs `acknowledgedBehind` to be released. Resources are edited as
+  working copies in a draft and marked ready before releasing (`getCatalogChanges`,
+  `markCatalogReady`, `mark…Ready`). The template version, activation, variant draft, stencil
+  version and contract draft operations are removed.
+- **Environments deploy releases.** `deployCatalogRelease` (with `replace` and
+  `includeDependencies`), `undeployCatalogRelease`, `listEnvironmentDeployments` (with
+  `lastUsedAt` and `documentsRequested`) and `listDeploymentHistory`. An environment can serve
+  several releases of a catalog and at most one draft, never in an environment marked
+  `production`. Rollback is undeploying the newer release.
+- **Generation selects a release by `versionRange` and `environmentKey`** instead of `versionId`.
+  Jobs, documents and collected results name the release they rendered (`version`, `releaseId`,
+  `releaseName`). `getGenerationJobStatus` returns counts, and the new `listGenerationJobItems`
+  pages the items. A batch holds at most 10000 items.
+- **Catalogs are identified by `registry`, `namespace` and `catalogKey`** (ADR 0003), in paths
+  (`~` is the default registry) and in every body that named a catalog. A registry is `local` or a
+  DNS name. References into another catalog use the alias its dependency declaration gives it.
+- **Catalog dependencies pin an exact release** (`listCatalogDependencies`,
+  `updateCatalogDependencies`). A draft may depend on another catalog's draft, and releasing takes
+  it along (`releaseDependencies`) or is refused with `release-dependencies-unreleased`.
+- **Catalogs have no type.** `CatalogType` is gone. `CatalogDto` says whether a catalog can be
+  changed (`editable`, `readOnlyReason`) and where its releases come from (`source`). A write to
+  one that cannot be changed is 409 `catalog-read-only`.
+- **Nothing is upgraded in place.** `importCatalog` installs the archive's release beside the
+  others, never into a draft. `upgradeCatalog` and `previewCatalogUpgrade` become
+  `installCatalogRelease` and `listAvailableCatalogReleases`. A source that cannot be used is
+  503/502 `catalog-source-unavailable`.
+- **Keys, not ids or slugs.** `key` is a resource's address, with one rule for every catalog
+  resource (3–50 characters, a leading digit allowed). `*Id` references become `*Key`, and the
+  deprecated `id` and `slug` members are removed. Key and number rules are named once, in
+  `components/schemas/identifiers.yaml`.
+- **Consistent names.** A resource's own name is `name` (was `displayName` or `title`), a count is
+  `total`, and a last change is `lastModified`. `draftLabel` becomes `releaseName`, and document and
+  job ids become `documentId`, `requestId` and `itemId`. Every enum value is lowercase kebab-case.
+  Fingerprints name their algorithm (`v6:<hex>`). Release numbers may carry a patch label
+  (`1.3.1-gemeente-x.1`).
+- **Every problem has a registered type**, with 30 new ones, such as `catalog-version-behind`,
+  `release-in-use`, `resource-modified`, `ambiguous-variant` and `operation-not-implemented`. A
+  server answers only with registered types; anything else gets its status's generic type.
+  `forbidden` says what was refused (`requiredPermission`, `requiredPlatformRole`, `tenantKey`,
+  `reason`).
+- **The authorization vocabulary.** `CATALOG_RELEASE` and `ENVIRONMENT_DEPLOY` replace
+  `TEMPLATE_PUBLISH` and `STENCIL_PUBLISH`, and `TENANT_USERS` is now `CREDENTIALS_MANAGE`.
+  `CONTENT_VIEWER` no longer grants `DOCUMENT_VIEW`. New roles are `DOCUMENT_READER` and
+  `INSTALLATION_ADMINISTRATOR`. Consumer permissions lose `versions` and the templates `publish`
+  level, and gain `catalogs: release` and `environments: deploy`.
+- **Null never removes a value on update.** Omitted or null keeps the current value. An empty
+  string, array or object removes it, and an explicit flag covers the rest (`clearDefaultTheme`,
+  `clearCodeListBinding`, `clearExpiresAt`).
+- **Bounds and paging.** Code lists, attributes, variants and themes have length limits, a code
+  list's `sourceUrl` is HTTPS only, and `listCodeListEntries` is paged. `listTemplates` sorts by an
+  enum, and the other lists lose a `sort` that sorted by nothing. `listDocuments` filters by
+  catalog.
+- **Portable catalog wire v8**, which reads and migrates every earlier archive:
+  - Catalog identity: registry and namespace.
+  - Pinned, aliased `catalogDependencies`.
+  - A required release version and a V6 fingerprint over content only.
+  - One key rule. The migration pads or truncates keys and rewrites their references.
+  - No stencil versions.
+  - Relative archive paths.
+  - Archives may carry the releases they pin.
+  - A theme owns the default block spacing (`defaultBlockStyles`). The registry no longer adds
+    `marginBottom: 1.5sp`.
+- **The clients validate template data through the server** (`validateTemplateData`) behind a
+  pluggable `TemplateDataValidator`, rather than each bundling its own JSON Schema library. That
+  library was never published for the JVM clients, which threw `NoClassDefFoundError`. A failure's
+  `path` is a JSON Pointer in every client.
+
 ### Added
 
-- **Forgejo CI for private internal branches** (`.forgejo/workflows/ci.yml`). Epistola's internal
-  Forgejo keeps a synced copy of this repository plus private branches under `internal/`, for
-  example a security fix before its disclosure. Those branches now run the same checks as
-  `build.yml` on Forgejo's runners. GitHub ignores the file, and on Forgejo it replaces the
-  `.github/workflows` that were being started there (and failing) for every synced push.
+- **Optimistic locking.** Every update returns `ETag` and accepts `If-Match` (412
+  `resource-modified`), and every create returns `Location`. In the Jakarta client, use the
+  `…WithHttpInfo` siblings to read them.
+- **Validation codes.** Each field error may carry a `code`, from the `x-validation-codes`
+  registry, generated as `KnownValidationCodes` in every client.
+- **Problem `help`.** An optional link to the problem type's page, carrying the request's context.
+- **`x-authorization`.** The roles and permissions, machine-readable, held to every operation's
+  requirements.
+- **Content:**
+  - template and variant `description`s;
+  - a template's data contract on `createTemplate`;
+  - a catalog's `defaultTheme` and declared `presets` (ADR 0007);
+  - `tags` and producer `metadata` on every catalog resource;
+  - an optional `else` branch on a conditional;
+  - `keepWithNext` on images;
+  - table cell and column styles, `minHeight` and `verticalAlign`.
 
-### Changed
-
-- **The clients no longer bundle a JSON Schema library.** Every client validated template data
-  itself, each with a different library and under a different dependency policy — networknt 1.5.9
-  `compileOnly` in the two JVM clients, NJsonSchema 11.6.1 as a hard reference in .NET,
-  `jsonschema` as a hard dependency in Python, ajv as an optional peer in Node.js. On the JVM the
-  dependency was never published at all, so `TemplateSchemaValidator` threw
-  `NoClassDefFoundError` for any consumer who did not already happen to have a 1.x copy on the
-  classpath; it worked only in the clients' own tests. Validation now goes through a pluggable
-  `TemplateDataValidator` (`ITemplateDataValidator` in .NET, a `Protocol` in Python) whose one
-  shipped implementation asks the server's `validateTemplateData`. See each client's changelog for
-  its breaking details, and #9.
-
-  The server was always going to validate the same data on submit, so this removes a second
-  authority rather than a check: a client-side verdict could only agree, or disagree and be wrong.
-  Two reference adapters kept in test sources now disagree *on purpose and under test* — ajv with
-  `ajv-formats` rejects an `email` field holding `not-an-email`, while networknt under 2020-12
-  treats `format` as an annotation and accepts it — which is the clearest statement of why.
-
-- **One failure shape, pinned across the five clients.** Each client had reported a different one,
-  all of them contradicting their own documentation: `$.customer.email` (Kotlin, Jakarta — neither
-  set `PathType.JSON_POINTER`), `customer.name` (Node.js, Python) and `#/customer.name` with
-  NJsonSchema's `StringExpected` as the keyword (.NET). `path` is now a JSON Pointer (RFC 6901) into
-  the data and `keyword` a JSON Schema keyword, in every client, enforced by the new
-  `template-data-validation` conformance scenario rather than by five separate test suites.
-
-- **Releases are only started by hand, and can be pre-releases.** A push to a `release/*` branch no
-  longer releases: every release, from `main` or a release branch, is started with `make release`
-  (a published GitHub Release), which now works on release branches too and on macOS.
-  `make release PRERELEASE=alpha.1` publishes a pre-release such as `v2.0.0-alpha.1`, also from a
-  `feature/*` branch. A pre-release is published to every registry but never as the latest version:
-  npm uses the `next` dist-tag, the mock-server image gets no `latest` tag, and the docs keep their
-  `latest/` page. The release workflow refuses a GitHub Release whose pre-release mark does not
-  match its tag.
+  Unknown or inapplicable style keys are now warnings, not errors.
+- **Stencils by reference, with lexical scope** (ADR 0006): `readsTemplateData` and
+  `passParameters`.
+- **A release's content hash** (`contentHash`) and finding releases by it.
+- **Alpha:**
+  - tenant search (`searchTenant`);
+  - quality profiles (ADR 0010; wire v8 and the `QualityProfiles` operations);
+  - release registries for moving releases between installations through an Exchange or a
+    container registry (ADR 0008);
+  - merging a release into a draft (ADR 0005).
+- **Docs:**
+  - [`contracts/api/docs/template-model.md`](contracts/api/docs/template-model.md), on building
+    templates through the API;
+  - an API description rewritten for newcomers;
+  - ADR 0009, on shared schemas in data contracts (proposed).
 
 ### Removed
 
-- **BREAKING: the `X-API-Key` header** (`apiKeyAuth` security scheme). An API key is sent as
-  `Authorization: ApiKey <key>`, the only API-key transport the contract defines; no client sent
-  `X-API-Key`, and their READMEs no longer mention it.
-- **BREAKING: `UpdateTemplateRequest.forceUpdate`.** A template is edited in a draft, which nothing
-  renders, so a breaking data-model change needs no confirmation; it is weighed when the draft is
-  released. Data examples are still always validated (`422`).
-- **BREAKING: `upgradeCatalog`, `previewCatalogUpgrade` and the 1.x reconciliation of a subscribed
-  catalog** (see "nothing is upgraded" under Changed; `installCatalogRelease` and
-  `listAvailableCatalogReleases` replace them): `CatalogUpgradeDiff`,
-  `CatalogInstallResultDto` (with its `INSTALLED` / `UPDATED` / `SKIPPED` / `FAILED` status),
-  `RemovedCatalogResourceDto`, and `UpgradeCatalogResponse`'s `installResults`, `removedResources`
-  and `aborted`.
-- **The schemas left from the bulk template import.** `ImportTemplatesRequest`,
-  `ImportTemplateDto`, `ImportVariantDto`, `ImportTemplatesResponse` and `ImportTemplateResultDto`
-  belonged to an operation removed before 1.0 and no operation referenced them;
-  `ImportTemplateResultDto` was still registered under `components.schemas`, so clients generated a
-  model for it. Importing is `importCatalog`.
-- **BREAKING: the deprecated `id` and `slug` halves of each resource address.** `key` is now the
-  only address on every read model, and is required (#84; see "a resource's address is its `key`"
-  under Changed). `UpgradeCatalogRequest`, whose only field was the ignored `includeNewSlugs`, is
-  gone with `upgradeCatalog`, as is the empty `Assets` tag. The
-  `older-server-response` conformance scenario, which proved a 1.x client could read a server from
-  before 1.3.0, is replaced by `template-listing-by-key`.
+- `TemplateDto.schema`, which Suite never stored; `dataModel` is the data contract and is always
+  present.
+- `UpdateTemplateRequest.forceUpdate`.
+- `uploadImage`'s `sensitive` field.
+- The `X-API-Key` header; use `Authorization: ApiKey <key>`.
+- The unused bulk template import schemas.
 
 ### Fixed
 
-- **`missingFields` and `invalidFields` reach consumers.** Contract 1.4.0 added both to
-  `TemplateDataValidationProblemDetail`, but no client's hand-written problem parser read them: the
-  Jakarta, Python and .NET parsers surfaced `errors` and `validationErrors` only, and the Kotlin and
-  Node.js clients saw them solely because they expose unmodelled members generically. A
-  `template-data-invalid` response therefore arrived with the field-by-field account that is the
-  whole point of the problem type discarded. All five now expose them, with an
-  `isTemplateDataProblem` flag, and the new `template-data-problem` conformance scenario holds them
-  to it. A malformed member yields no findings rather than a guess.
-
-
-- `make publish-local` stamps every artifact with the spec version (or `VERSION=`), as the release
-  workflow does. It published the catalog as `0.1.0-SNAPSHOT`, the .NET client as `0.0.0-dev` and
-  the Node.js client with a stale `package.json` version, so the local server stubs named a catalog
-  version that was never published.
+- `ping` sends credentials, so its authenticated `details` are reachable.
+- `rotatePublicKey` declares its self-signed JWT authentication.
+- Responses that the operations' descriptions implied are now declared.
+- `missingFields` and `invalidFields` (added in 1.4.0) are surfaced by every client's problem
+  parser.
+- **Kotlin client:**
+  - A failed collect call raises its problem instead of a `NullPointerException`; so does the
+    Python client.
+  - A JSON `null` in a result line is read as null, not `"null"`.
+- **Jakarta client:** a JSON `null` enum member no longer fails the whole response.
+- **Catalog validation:**
+  - Binary bytes are checked against their `contentHash`.
+  - A data model `$ref` that resolves to nothing is reported as a finding.
+  - Data examples are validated with schema defaults filled in.
 
 ## [1.4.0] - 2026-09-30
 

@@ -10,7 +10,7 @@
 
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { GENERATED_PROBLEM_TYPE_BASE, KnownProblemSlugs, ProblemExtensionMembers, TYPE_BASE, slugFor, typeFor } from '../../src/index.js'
+import { GENERATED_PROBLEM_TYPE_BASE, KnownProblemSlugs, KnownValidationCodes, ProblemExtensionMembers, TYPE_BASE, slugFor, typeFor } from '../../src/index.js'
 
 // The canonical slugs and their documented string values (docs/error-types.md / the spec's
 // x-problem-types registry). If the registry changes, this test — and the generated
@@ -18,13 +18,33 @@ import { GENERATED_PROBLEM_TYPE_BASE, KnownProblemSlugs, ProblemExtensionMembers
 const EXPECTED_SLUGS: Record<string, string> = {
   VALIDATION_ERROR: 'validation-error',
   BAD_REQUEST: 'bad-request',
+  CATALOG_RENDERING_DEFAULTS_TOO_NEW: 'catalog-rendering-defaults-too-new',
   UNAUTHORIZED: 'unauthorized',
   API_KEY_AUTH_DISABLED: 'api-key-auth-disabled',
   FORBIDDEN: 'forbidden',
   NOT_FOUND: 'not-found',
   CONFLICT: 'conflict',
+  RELEASE_REGISTRY_NOT_FOUND: 'release-registry-not-found',
+  RELEASE_NUMBER_TAKEN: 'release-number-taken',
+  NAMESPACE_NOT_GRANTED: 'namespace-not-granted',
   DATA_MODEL_VALIDATION_ERROR: 'data-model-validation-error',
   RATE_LIMITED: 'rate-limited',
+  METHOD_NOT_ALLOWED: 'method-not-allowed',
+  NOT_ACCEPTABLE: 'not-acceptable',
+  CONTENT_TOO_LARGE: 'content-too-large',
+  UNSUPPORTED_MEDIA_TYPE: 'unsupported-media-type',
+  INTERNAL_ERROR: 'internal-error',
+  RELEASE_DEPENDENCIES_MISSING: 'release-dependencies-missing',
+  RELEASE_DEPENDENCIES_UNRELEASED: 'release-dependencies-unreleased',
+  CATALOG_READ_ONLY: 'catalog-read-only',
+  MERGE_CONFLICTS_UNRESOLVED: 'merge-conflicts-unresolved',
+  MERGE_REFUSED: 'merge-refused',
+  MERGE_PREVIEW_OUTDATED: 'merge-preview-outdated',
+  MERGE_BASE_MISSING: 'merge-base-missing',
+  MERGE_NOT_APPLICABLE: 'merge-not-applicable',
+  ENVIRONMENT_DEPLOYMENT_REFUSED: 'environment-deployment-refused',
+  RESOURCE_MODIFIED: 'resource-modified',
+  CATALOG_SOURCE_UNAVAILABLE: 'catalog-source-unavailable',
 }
 
 test('the hand-written type base matches the generated one', () => {
@@ -37,9 +57,32 @@ test('every canonical slug constant has its documented value', () => {
   }
 })
 
+test('the validation codes are generated with their documented values', () => {
+  assert.equal(KnownValidationCodes.PATTERN, 'pattern')
+  assert.equal(KnownValidationCodes.STENCIL_RECURSION, 'stencil-recursion')
+  assert.equal(KnownValidationCodes.CATALOG_RESOURCES_NOT_READY, 'catalog-resources-not-ready')
+  const all = Object.values(KnownValidationCodes)
+  assert.equal(all.length, 51)
+  assert.equal(new Set(all).size, all.length)
+})
+
 test('the extension members the client reads by name are the ones the registry declares', () => {
   assert.equal(ProblemExtensionMembers.ERRORS, 'errors')
   assert.equal(ProblemExtensionMembers.VALIDATION_ERRORS, 'validationErrors')
+  assert.equal(ProblemExtensionMembers.MISSING_FIELDS, 'missingFields')
+  assert.equal(ProblemExtensionMembers.INVALID_FIELDS, 'invalidFields')
+  assert.equal(ProblemExtensionMembers.MISSING_DEPENDENCIES, 'missingDependencies')
+  assert.equal(ProblemExtensionMembers.UNRELEASED_DEPENDENCIES, 'unreleasedDependencies')
+  assert.equal(ProblemExtensionMembers.READ_ONLY_REASON, 'readOnlyReason')
+  assert.equal(ProblemExtensionMembers.BEHIND, 'behind')
+  assert.equal(ProblemExtensionMembers.ENVIRONMENTS, 'environments')
+  assert.equal(ProblemExtensionMembers.PINNED_BY, 'pinnedBy')
+  assert.equal(ProblemExtensionMembers.TIED_VARIANTS, 'tiedVariants')
+  assert.equal(ProblemExtensionMembers.UNRESOLVED_CONFLICTS, 'unresolvedConflicts')
+  assert.equal(ProblemExtensionMembers.VERSION, 'version')
+  assert.equal(ProblemExtensionMembers.FINGERPRINT, 'fingerprint')
+  assert.equal(ProblemExtensionMembers.RENDERING_DEFAULTS_VERSION, 'renderingDefaultsVersion')
+  assert.equal(ProblemExtensionMembers.SUPPORTED_VERSION, 'supportedVersion')
 })
 
 test('slugFor and typeFor are inverses on the Epistola namespace only', () => {

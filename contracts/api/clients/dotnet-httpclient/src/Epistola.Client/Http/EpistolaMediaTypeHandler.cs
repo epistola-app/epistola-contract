@@ -12,7 +12,7 @@ namespace Epistola.Client.Http;
 /// <summary>
 /// Rewrites outgoing request bodies' <c>Content-Type</c> from the generic
 /// <c>application/json</c> the generated client emits to the versioned Epistola vendor type
-/// <c>application/vnd.epistola.v1+json</c> the API requires.
+/// <c>application/vnd.epistola.v2+json</c> the API requires.
 ///
 /// The OpenAPI C# generator hardcodes <c>application/json</c> on the serialized <c>StringContent</c>
 /// (ApiClient builds the body with a literal media type), even though it selects the vendor type for
@@ -23,7 +23,7 @@ namespace Epistola.Client.Http;
 public sealed class EpistolaMediaTypeHandler : DelegatingHandler
 {
     /// <summary>The Epistola versioned JSON media type.</summary>
-    public const string VendorJson = "application/vnd.epistola.v1+json";
+    public const string VendorJson = "application/vnd.epistola.v2+json";
 
     private const string GenericJson = "application/json";
 

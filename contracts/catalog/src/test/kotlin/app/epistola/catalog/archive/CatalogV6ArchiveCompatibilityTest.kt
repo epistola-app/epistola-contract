@@ -4,6 +4,7 @@
 
 package app.epistola.catalog.archive
 
+import app.epistola.catalog.migration.CatalogMigrationOptions
 import app.epistola.catalog.protocol.FontResource
 import app.epistola.catalog.protocol.ImageResource
 import app.epistola.catalog.protocol.TemplateResource
@@ -28,8 +29,8 @@ import kotlin.test.assertTrue
  */
 class CatalogV6ArchiveCompatibilityTest {
     @Test
-    fun `a v6 archive binds at v7 with its binaries resolvable`() {
-        val result = CatalogArchiveReader.read(ByteArrayInputStream(v6Archive()))
+    fun `a v6 archive binds at the current version with its binaries resolvable`() {
+        val result = CatalogArchiveReader.read(ByteArrayInputStream(v6Archive()), migration = MIGRATION)
         val archive = assertNotNull(result.archive, "findings: ${result.findings}")
 
         archive.use {
@@ -40,8 +41,8 @@ class CatalogV6ArchiveCompatibilityTest {
             // resource the archive listed, so anything referencing it keeps resolving. Only a
             // catalog authored at v7 has no separately addressable font binary.
             val images = archive.resourceDetails.values.map { it.resource }.filterIsInstance<ImageResource>()
-            assertEquals(listOf("inter-regular", "municipality-mark"), images.map { it.slug }.sorted())
-            val image = images.single { it.slug == "municipality-mark" }
+            assertEquals(listOf("inter-regular", "municipality-mark"), images.map { it.key }.sorted())
+            val image = images.single { it.key == "municipality-mark" }
             assertEquals(sha256(SVG), image.contentHash)
             // A migration rewrites documents and cannot move files, so the path v6 wrote stands.
             assertEquals("binaries/municipality-mark.svg", image.contentPath())
@@ -55,7 +56,7 @@ class CatalogV6ArchiveCompatibilityTest {
 
             // A variant is addressed by slug, value unchanged.
             val template = archive.resourceDetails.values.map { it.resource }.filterIsInstance<TemplateResource>().single()
-            assertEquals(listOf("default"), template.variants.map { it.slug })
+            assertEquals(listOf("default"), template.variants.map { it.key })
 
             // Every binary the bound archive names is actually in the archive at that path.
             for (path in listOf(image.contentPath(), face.contentPath())) {
@@ -65,24 +66,25 @@ class CatalogV6ArchiveCompatibilityTest {
     }
 
     /**
-     * A v6 name that wire v7's schema no longer admits still reads, and this says so.
+     * A v6 name that wire v8's key rule no longer admits is padded on the way to v8, and says so.
      *
-     * v7 bounds every slug per type -- a variant is 3 to 50 characters -- but those bounds live in
-     * the published JSON schema, and neither the reader nor `ResourceValidator` applies them:
-     * the validator checks one loose regex for every type, and `CatalogSlugs` has no consumers.
-     * So an existing v6 archive keeps installing, and a consumer that validates against the
-     * published schema is the one that refuses it. Pinning this means a later decision to enforce
-     * the bounds has to decide deliberately what it does to archives already published.
+     * Wire v8 bounds every key to 3 to 50 characters ([app.epistola.catalog.protocol.CatalogKeys]),
+     * and the v7-to-v8 migration pads a shorter one on the right with `0` rather than refusing an
+     * archive that was published under the looser rule.
      */
     @Test
-    fun `a v6 variant named too short for v7 still reads, because the bounds are schema-only`() {
-        val result = CatalogArchiveReader.read(ByteArrayInputStream(v6Archive(variantSlug = "nl")))
+    fun `a v6 variant named too short for v8 is padded on the way, with a notice`() {
+        val result = CatalogArchiveReader.read(ByteArrayInputStream(v6Archive(variantSlug = "nl")), migration = MIGRATION)
         val archive = assertNotNull(result.archive, "findings: ${result.findings}")
 
         archive.use {
             assertTrue(result.findings.isEmpty(), "unexpected findings: ${result.findings}")
             val template = archive.resourceDetails.values.map { it.resource }.filterIsInstance<TemplateResource>().single()
-            assertEquals(listOf("nl"), template.variants.map { it.slug })
+            assertEquals(listOf("nl0"), template.variants.map { it.key })
+            assertEquals(
+                listOf("CATALOG_RESOURCE_KEY_PADDED"),
+                result.migrationNotices.filter { it.path.endsWith(".variants[0].key") }.map { it.code },
+            )
         }
     }
 
@@ -151,6 +153,8 @@ class CatalogV6ArchiveCompatibilityTest {
     }
 
     private companion object {
+        /** A v6 archive names no registry or namespace; the reader's caller supplies both, as an importer would. */
+        val MIGRATION = CatalogMigrationOptions(namespace = "town-hall", registry = "exchange.epistola.app")
         val SVG = """<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"></svg>""".toByteArray()
         val TTF = byteArrayOf(0, 1, 0, 0, 0, 13, 0, -128)
     }

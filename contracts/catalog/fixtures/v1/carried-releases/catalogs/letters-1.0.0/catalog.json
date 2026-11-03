@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 8,
+  "catalog": {
+    "registry": "exchange.epistola.app",
+    "namespace": "acme",
+    "key": "letters",
+    "name": "Letters Catalog"
+  },
+  "publisher": {
+    "name": "Acme"
+  },
+  "release": {
+    "version": "1.0.0",
+    "fingerprint": "v6:f55e5a6364bcf3f3ba438a472fe163183670536d138d4addee38783dc58b5760"
+  },
+  "resources": [
+    {
+      "type": "theme",
+      "key": "letter",
+      "name": "Letter",
+      "detailUrl": "./resources/theme/letter.json"
+    }
+  ],
+  "dependencies": [],
+  "catalogDependencies": [
+    {
+      "alias": "shared",
+      "registry": "exchange.epistola.app",
+      "namespace": "acme",
+      "catalogKey": "shared",
+      "releaseVersion": "1.0.0",
+      "releaseFingerprint": "v6:b9413862e212594bf15c56cb562782c8678647af332e6648156e05bbb9685523"
+    }
+  ]
+}

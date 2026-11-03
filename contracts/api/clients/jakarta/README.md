@@ -83,15 +83,18 @@ public class InvoiceService {
     @RestClient
     GenerationApi generationApi;
 
-    public UUID submit(String tenantId, Map<String, Object> data) {
+    public UUID submit(String tenantKey, Map<String, Object> data) {
         GenerateDocumentRequest request = new GenerateDocumentRequest()
-                .catalogId("default")
-                .templateId("monthly-invoice")
-                .variantId("english")
+                .namespace("acme-corp")           // the catalog's namespace and key, in the
+                .catalogKey("invoices")           // default registry (set .registry("acme.com")
+                                                  // for a catalog in another registry)
+                .templateKey("monthly-invoice")
+                .variantKey("english")
+                .versionRange("^1.4.0")           // optional: a version range for the release
                 .correlationId("order-7890")
                 .data(data);
 
-        return generationApi.generateDocument(tenantId, request).getRequestId();
+        return generationApi.generateDocument(tenantKey, request).getRequestId();
     }
 }
 ```
@@ -155,8 +158,6 @@ X-EP-Node-Id: my-pod-123
 ## Authentication
 
 Static tenant API keys are the supported method. They are sent as `Authorization: ApiKey <key>`.
-The legacy `X-API-Key` header remains supported by the API but is deprecated and is not sent by this
-client.
 
 `JwtSigner` (**experimental**) mints short-lived self-signed JWTs (RSA-2048+ → RS256, EC P-256 →
 ES256) with `iss`, `iat`, `exp` and a fresh `jti` per request. It signs with the JDK's own
@@ -185,8 +186,57 @@ try {
         e.getErrors().forEach(err -> log.warn("{}: {}", err.getField(), err.getMessage()));
     } else if (KnownProblemSlugs.API_KEY_AUTH_DISABLED.equals(slug)) {
         log.error("this deployment requires JWT authentication");
-    } else {                                // always keep a fallback: the API can add problem
-        log.error("{} {}", e.getProblemStatus(), e.getTitle());   // types without a client release
+    } else if (KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING.equals(slug)) {
+        // from deployCatalogRelease: each release the environment would also have to serve, and why
+        e.getMissingDependencies().forEach(dep -> log.warn("{}/{}/{}@{}: {}",
+                dep.getRegistry(), dep.getNamespace(), dep.getCatalogKey(),
+                dep.getVersion(), dep.getReason()));
+    } else if (KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED.equals(slug)) {
+        // from releaseCatalogDraft: drafts of other catalogs the draft uses, which a release
+        // cannot pin; release them first, or along with it (releaseDependencies)
+        e.getUnreleasedDependencies().forEach(dep -> log.warn("{}/{}/{}: draft {} ({})",
+                dep.getRegistry(), dep.getNamespace(), dep.getCatalogKey(),
+                dep.getReleaseId(), dep.getReleaseName()));
+    } else if (KnownProblemSlugs.CATALOG_READ_ONLY.equals(slug)) {
+        // any write to a catalog that cannot be changed here: editing-disabled or supplied-by-epistola
+        log.warn("catalog cannot be changed here: {}", e.getReadOnlyReason());
+    } else if (KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED.equals(slug)) {
+        // from mergeIntoCatalogDraft (alpha): resolve each to ours or theirs and merge again
+        e.getUnresolvedConflicts().forEach(conflict -> log.warn("needs a resolution: {}", conflict));
+    } else if (KnownProblemSlugs.MERGE_PREVIEW_OUTDATED.equals(slug)) {
+        // the merge sent expectedToken, and the draft or the release changed since that preview
+        log.warn("preview the merge again");
+    } else if (KnownProblemSlugs.MERGE_BASE_MISSING.equals(slug)) {
+        // the merge base is not installed here: install that release first, then merge again
+        log.warn("install {} ({}) first", e.getMissingBaseVersion(), e.getMissingBaseFingerprint());
+    } else if (KnownProblemSlugs.CATALOG_VERSION_BEHIND.equals(slug)) {
+        // releaseCatalogDraft: name these in acknowledgedBehind to release anyway
+        log.warn("the draft is behind {}", e.getBehind());
+    } else if (KnownProblemSlugs.RELEASE_IN_USE.equals(slug)) {
+        // deleteCatalogRelease: undeploy it, and release the catalogs that pin it without it
+        log.warn("deployed to {}; pinned by {}", e.getEnvironments(), e.getPinnedBy());
+    } else if (KnownProblemSlugs.AMBIGUOUS_VARIANT.equals(slug)) {
+        // generateDocument / previewDocument: name one by variantKey
+        log.warn("several variants match: {}", e.getTiedVariants());
+    } else if (KnownProblemSlugs.FORBIDDEN.equals(slug)) {
+        // any refused authorization: a permission in a tenant, access to a tenant, a platform role,
+        // or a policy (getRefusalReason), each read from this problem only
+        log.warn("refused: missing {} in {}", e.getRequiredPermission(), e.getRefusedTenantKey());
+    } else if (KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW.equals(slug)) {
+        // importCatalog / installCatalogRelease: the release renders with rendering defaults this
+        // installation does not have (renderingDefaultsVersion, supportedVersion in the body)
+        log.warn("upgrade Epistola to receive this release");
+    } else if (KnownProblemSlugs.RELEASE_NUMBER_TAKEN.equals(slug)) {
+        // publishReleaseToRegistry (alpha): the registry has this version with other content;
+        // importCatalog / installCatalogRelease / installRegistryRelease: the tenant has this
+        // version with another fingerprint, or this release id as another release
+        log.warn("release the changes under a new version");
+    } else if (KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE.equals(slug)) {
+        // from installCatalogRelease / listAvailableCatalogReleases: 503 when the catalog's source
+        // could not be reached (Retry-After may say when to retry), 502 when it answered badly
+        log.warn("catalog source unavailable ({}): {}", e.getProblemStatus(), e.getDetail());
+    } else {                                // always keep a fallback: the API can add problem types
+        log.error("{} {}", e.getProblemStatus(), e.getTitle());   // without a client release; handle them by status
     }
 }
 ```
@@ -197,27 +247,74 @@ The slug is a plain `String`, so on Java 21 a `switch` with `case null, default 
 `ProblemDetailException` extends the generated `ApiException`, so `catch (ApiException e)` keeps
 working. Error responses that are not parseable problem+json stay a plain `ApiException`.
 
+`getHelp()` is the problem type's page with this request's context in its query, such as
+`https://epistola.app/errors/not-found?operation=getTemplate`, or `null` when the server sent none.
+Switch on the type, not on this; open it, or log it, for hints on what to do.
+
+Each field error's `getCode()` says why the field failed (`min-length`, `stencil-recursion`,
+`catalog-resources-not-ready`, ...), or is `null` when the server sent none. Compare it against
+`KnownValidationCodes`, generated from the contract's registry, and keep a `default` branch: new
+codes may come in a minor version.
+
 Some Epistola Suite deployments disable API-key authentication entirely; that arrives as
 `KnownProblemSlugs.API_KEY_AUTH_DISABLED`, which is the signal to guide the caller to JWT auth.
 
+## Optimistic locking
+
+Tenants, environments, consumers, catalog drafts and their dependencies, templates, variants,
+themes, stencils, code lists (and their entries' hidden flag) and attributes carry a revision, which
+a read (and an update) returns as the `ETag` response header. Send it back as `If-Match` and the update is
+refused with 412 `resource-modified` if someone changed the resource since you read it.
+
+A generated method returns the body alone, so each operation that answers with an `ETag` or a
+`Location` (every create, and the accepted `generateDocument` / `generateDocumentBatch` jobs) has a
+sibling, `…WithHttpInfo`, with the same parameters, that returns the whole `Response`: read the
+header from it and the body with `readEntity`, and close it when done. An error still arrives as a
+`ProblemDetailException`.
+
+```java
+String etag;
+VariantContentDto content;
+try (Response response = variantsApi.getVariantContentWithHttpInfo(
+        "acme-corp", "~", "acme-corp", "letters", releaseId, "invoice", "english")) {
+    etag = response.getHeaderString("ETag");            // e.g. "7", quotes included
+    content = response.readEntity(VariantContentDto.class);
+}
+
+try {
+    variantsApi.updateVariantContent("acme-corp", "~", "acme-corp", "letters", releaseId, "invoice", "english",
+            new UpdateVariantContentRequest().templateModel(edited(content)), etag);
+} catch (ProblemDetailException e) {
+    if (KnownProblemSlugs.RESOURCE_MODIFIED.equals(e.getTypeSlug())) {
+        // changed since the read: read it again, reapply the edit, retry with the new ETag
+    }
+}
+```
+
+Send the tag exactly as received; without `If-Match` the update is applied unconditionally, and
+the last write wins.
+
 ## Uploading files
 
-`uploadImage`, `uploadAsset` and `importCatalog` send `multipart/form-data`. Pass a `File` and the
-part gets its filename, and the media type that filename implies:
+`uploadImage` and `importCatalog` send `multipart/form-data`. Pass a `File` and the part gets its
+filename, and the media type that filename implies. An image belongs to a release of a catalog, so the
+upload names the tenant, the catalog's registry (`~` for the server's default registry), namespace and
+key, and the draft it goes into, by its `releaseId`:
 
 ```java
 @Inject
 @RestClient
 ImagesApi imagesApi;
 
-ImageDto image = imagesApi.uploadImage("acme-corp", "main", new File("logo.png"), "Logo", null, null);
+ImageDto image = imagesApi.uploadImage(
+        "acme-corp", "~", "acme-corp", "main", releaseId, new File("logo.png"), "Logo", null);
 ```
 
 For content that is not a file on disk, or a media type the filename does not imply, build the parts
 and call the overload that takes them:
 
 ```java
-ImageDto image = imagesApi.uploadImage("acme-corp", "main", MultipartForm.create()
+ImageDto image = imagesApi.uploadImage("acme-corp", "~", "acme-corp", "main", releaseId, MultipartForm.create()
         .file("file", "logo.png", "image/png", bytes)
         .field("name", "Logo")
         .build());
@@ -247,10 +344,12 @@ ManagedExecutorService executor;
 
 ResultCollector collector = ResultCollector.builder()
         .collectApi(collectApi)
-        .tenantId("acme-corp")
+        .tenantKey("acme-corp")
         .registerShutdownHook(false)          // the container owns the lifecycle
         .handler(result -> {
             switch (result.getStatus()) {
+                // result.getRegistry()/getNamespace()/getCatalogKey()/getVersion() name
+                // the release rendered; getVersion() is null for a draft rendered through an environment.
                 case COMPLETED -> download(result.getDocumentId(), result.getCorrelationId());
                 case FAILED -> logFailure(result.getCorrelationId(), result.getError());
             }
@@ -284,7 +383,7 @@ the request's `routingKey`.
 
 ```java
 String routingKey = collector.routingKeyToMe("order-7890");
-generationApi.generateDocument(tenantId, request.routingKey(routingKey));
+generationApi.generateDocument(tenantKey, request.routingKey(routingKey));
 collector.kick();                              // a result is expected shortly
 ```
 
@@ -297,22 +396,28 @@ Two independent layers, both opt-in.
 of costing a round trip. Each overload returns its argument:
 
 ```java
-tenants.createTenant(ModelValidation.validate(new CreateTenantRequest().id("acme-corp").name("Acme")));
+tenants.createTenant(ModelValidation.validate(new CreateTenantRequest().key("acme-corp").name("Acme")));
 ```
 
-**Template JSON Schema** — `ValidatingGenerationApi` fetches the template's own schema (cached with
-a TTL) and validates the generation data against it before submitting. A batch is validated in full
-and every violation is reported at once, each path prefixed with its item index:
+**Template data** — `TemplateSchemaValidator` checks data against a template's data contract and
+throws a `TemplateDataValidationException` carrying JSON Pointer paths. By default it asks the
+server (`validateTemplateData`); plug in your own `TemplateDataValidator` to check in-process. A
+template is addressed by its catalog's registry (`~` for the server's default registry), namespace
+and key:
+
+```java
+new TemplateSchemaValidator(
+        new ServerTemplateDataValidator(templatesApi, "english", "^1.4.0", "production"))
+    .validate("my-tenant", "~", "acme-corp", "invoices", "monthly-invoice", data);
+```
+
+`ValidatingGenerationApi` wraps `GenerationApi` and reports a rejected generation request as the
+same exception. With an in-process validator it checks first, and a batch is reported in full,
+each path prefixed with its item index:
 
 ```java
 ValidatingGenerationApi generation = new ValidatingGenerationApi(generationApi, templatesApi);
 generation.generateDocument("my-tenant", request);   // TemplateDataValidationException on failure
-```
-
-This layer needs an optional dependency, deliberately not shipped:
-
-```kotlin
-implementation("com.networknt:json-schema-validator:1.5.7")
 ```
 
 ## Building

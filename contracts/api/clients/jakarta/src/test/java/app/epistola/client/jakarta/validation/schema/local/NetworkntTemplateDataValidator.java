@@ -66,21 +66,29 @@ public final class NetworkntTemplateDataValidator implements TemplateDataValidat
     private static final SpecVersion.VersionFlag DEFAULT_VERSION = SpecVersion.VersionFlag.V202012;
 
     private final TemplatesApi templatesApi;
+    private final String release;
     private final Duration ttl;
     private final Map<String, Entry> cache = new ConcurrentHashMap<>();
 
-    public NetworkntTemplateDataValidator(TemplatesApi templatesApi) {
-        this(templatesApi, Duration.ofMinutes(5));
+    /**
+     * @param release the release whose template schemas the data is validated
+     *     against. A template lives in a release of a catalog, so a local validator has to choose one;
+     *     the server instead validates against the release it would render.
+     */
+    public NetworkntTemplateDataValidator(TemplatesApi templatesApi, String release) {
+        this(templatesApi, release, Duration.ofMinutes(5));
     }
 
-    public NetworkntTemplateDataValidator(TemplatesApi templatesApi, Duration ttl) {
+    public NetworkntTemplateDataValidator(TemplatesApi templatesApi, String release, Duration ttl) {
         this.templatesApi = templatesApi;
+        this.release = Objects.requireNonNull(release, "release");
         this.ttl = ttl;
     }
 
     @Override
-    public List<ValidationError> validate(String tenantId, String catalogId, String templateId, Object data) {
-        JsonSchema schema = schemaFor(tenantId, catalogId, templateId);
+    public List<ValidationError> validate(
+            String tenantKey, String registry, String namespace, String catalogKey, String templateKey, Object data) {
+        JsonSchema schema = schemaFor(tenantKey, registry, namespace, catalogKey, templateKey);
         if (schema == null) {
             // No schema on the template means nothing is claimed about the data, so nothing is
             // wrong with it. Same answer the server gives.
@@ -96,23 +104,23 @@ public final class NetworkntTemplateDataValidator implements TemplateDataValidat
         return errors;
     }
 
-    private JsonSchema schemaFor(String tenantId, String catalogId, String templateId) {
-        String key = String.join("\u0000", tenantId, catalogId, templateId);
+    private JsonSchema schemaFor(String tenantKey, String registry, String namespace, String catalogKey, String templateKey) {
+        String key = String.join("\u0000", tenantKey, registry, namespace, catalogKey, templateKey);
         Entry existing = cache.get(key);
         if (existing != null && Instant.now().isBefore(existing.storedAt.plus(ttl))) {
             return existing.schema;
         }
-        JsonSchema schema = loadSchema(tenantId, catalogId, templateId);
+        JsonSchema schema = loadSchema(tenantKey, registry, namespace, catalogKey, templateKey);
         cache.put(key, new Entry(schema, Instant.now()));
         return schema;
     }
 
-    private JsonSchema loadSchema(String tenantId, String catalogId, String templateId) {
-        TemplateDto template = templatesApi.getTemplate(tenantId, catalogId, templateId);
-        if (template.getSchema() == null) {
+    private JsonSchema loadSchema(String tenantKey, String registry, String namespace, String catalogKey, String templateKey) {
+        TemplateDto template = templatesApi.getTemplate(tenantKey, registry, namespace, catalogKey, release, templateKey);
+        if (template.getDataModel() == null) {
             return null;
         }
-        String schemaJson = EpistolaJson.jsonb().toJson(template.getSchema());
+        String schemaJson = EpistolaJson.jsonb().toJson(template.getDataModel());
         SchemaValidatorsConfig config =
                 SchemaValidatorsConfig.builder().pathType(PathType.JSON_POINTER).build();
         return JsonSchemaFactory.getInstance(dialectOf(schemaJson)).getSchema(schemaJson, InputFormat.JSON, config);

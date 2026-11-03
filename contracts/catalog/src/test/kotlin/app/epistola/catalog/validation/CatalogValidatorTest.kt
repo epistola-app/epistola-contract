@@ -11,28 +11,37 @@ import app.epistola.catalog.canonical.CatalogFingerprintVersion
 import app.epistola.catalog.migration.CatalogWireSchema.CURRENT_VERSION
 import app.epistola.catalog.protocol.AttributeAssignment
 import app.epistola.catalog.protocol.AttributeResource
+import app.epistola.catalog.protocol.CatalogDependency
 import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogKeywords
 import app.epistola.catalog.protocol.CatalogLicense
 import app.epistola.catalog.protocol.CatalogManifest
+import app.epistola.catalog.protocol.CatalogMetadata
 import app.epistola.catalog.protocol.CatalogPresentation
+import app.epistola.catalog.protocol.CatalogPresetDeclaration
+import app.epistola.catalog.protocol.CatalogPresets
+import app.epistola.catalog.protocol.CatalogThemeRef
 import app.epistola.catalog.protocol.CodeListBindingRef
 import app.epistola.catalog.protocol.CodeListEntryEntry
 import app.epistola.catalog.protocol.CodeListResource
 import app.epistola.catalog.protocol.DataExampleEntry
+import app.epistola.catalog.protocol.DependencyRef
 import app.epistola.catalog.protocol.FontResource
 import app.epistola.catalog.protocol.FontVariantEntry
 import app.epistola.catalog.protocol.ImageResource
 import app.epistola.catalog.protocol.PublisherInfo
+import app.epistola.catalog.protocol.ReleaseBase
 import app.epistola.catalog.protocol.ReleaseInfo
 import app.epistola.catalog.protocol.ResourceDetail
 import app.epistola.catalog.protocol.ResourceEntry
 import app.epistola.catalog.protocol.StencilResource
 import app.epistola.catalog.protocol.TemplateResource
+import app.epistola.catalog.protocol.ThemeResource
 import app.epistola.catalog.protocol.VariantEntry
 import app.epistola.template.model.Node
 import app.epistola.template.model.Slot
 import app.epistola.template.model.TemplateDocument
+import app.epistola.template.model.ThemeRefOverride
 import tools.jackson.databind.JsonNode
 import tools.jackson.module.kotlin.jsonMapper
 import tools.jackson.module.kotlin.kotlinModule
@@ -46,9 +55,11 @@ class CatalogValidatorTest {
 
     @Test
     fun `golden current catalog is valid`() {
-        val manifest = fixture("wire-v7/catalog.json").use { mapper.readValue(it, CatalogManifest::class.java) }
-        val detail = fixture("wire-v7/resources/theme/default.json").use { mapper.readValue(it, ResourceDetail::class.java) }
-        val archive = archive(manifest, mapOf("theme/default" to detail))
+        val manifest = fixture("wire-v8/catalog.json").use { mapper.readValue(it, CatalogManifest::class.java) }
+        val details = listOf("theme/default", "template/letter").associateWith { key ->
+            fixture("wire-v8/resources/$key.json").use { mapper.readValue(it, ResourceDetail::class.java) }
+        }
+        val archive = archive(manifest, details)
 
         assertEquals(emptyList(), CatalogValidator.validate(archive).findings)
     }
@@ -91,12 +102,21 @@ class CatalogValidatorTest {
     fun `legacy source catalogs and current catalogs use their versioned fingerprint rules`() {
         val withoutFingerprint = archive(manifest(), emptyMap())
         CatalogFingerprintVersion.entries.forEach { version ->
-            val fingerprint = CatalogCanonicalizer.fingerprint(withoutFingerprint, version).value
+            // Wire v8 names the algorithm; earlier wire versions carry bare hex.
+            val fingerprint = if (version == CatalogFingerprintVersion.V5) {
+                CatalogCanonicalizer.qualifiedFingerprint(withoutFingerprint, version).toString()
+            } else {
+                CatalogCanonicalizer.fingerprint(withoutFingerprint, version).value
+            }
             val catalog = archive(
                 manifest(release = ReleaseInfo("1.0.0", fingerprint = fingerprint)),
                 emptyMap(),
             )
-            if (version != CatalogFingerprintVersion.V4) catalog.sourceSchemaVersion = 5
+            when (version) {
+                CatalogFingerprintVersion.V5 -> Unit
+                CatalogFingerprintVersion.V4 -> catalog.sourceSchemaVersion = 7
+                else -> catalog.sourceSchemaVersion = 5
+            }
             val report = CatalogValidator.validate(catalog)
 
             assertTrue(
@@ -107,17 +127,311 @@ class CatalogValidatorTest {
     }
 
     @Test
-    fun `v6 source catalogs must still carry a v4 fingerprint after migration`() {
+    fun `v6 and v7 source catalogs must still carry a v4 fingerprint after migration`() {
         val withoutFingerprint = archive(manifest(), emptyMap())
-        CatalogFingerprintVersion.entries.forEach { version ->
-            val fingerprint = CatalogCanonicalizer.fingerprint(withoutFingerprint, version).value
-            val catalog = archive(manifest(release = ReleaseInfo("1.0.0", fingerprint = fingerprint)), emptyMap())
-                .also { it.sourceSchemaVersion = 6 }
+        listOf(6, 7).forEach { source ->
+            CatalogFingerprintVersion.entries.forEach { version ->
+                val fingerprint = CatalogCanonicalizer.fingerprint(withoutFingerprint, version).value
+                val catalog = archive(manifest(release = ReleaseInfo("1.0.0", fingerprint = fingerprint)), emptyMap())
+                    .also { it.sourceSchemaVersion = source }
 
-            val mismatch = CatalogValidationCodes.RELEASE_FINGERPRINT_MISMATCH in CatalogValidator.validate(catalog).codes()
+                val mismatch = CatalogValidationCodes.RELEASE_FINGERPRINT_MISMATCH in CatalogValidator.validate(catalog).codes()
 
-            assertEquals(version != CatalogFingerprintVersion.V4, mismatch, version.toString())
+                assertEquals(version != CatalogFingerprintVersion.V4, mismatch, "v$source $version")
+            }
         }
+    }
+
+    @Test
+    fun `current catalogs must carry a v6 fingerprint that names its algorithm`() {
+        val withoutFingerprint = archive(manifest(), emptyMap())
+        fun codes(fingerprint: String) = CatalogValidator.validate(archive(manifest(release = ReleaseInfo("1.0.0", fingerprint = fingerprint)), emptyMap()))
+            .codes()
+            .filter { it == CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID || it == CatalogValidationCodes.RELEASE_FINGERPRINT_MISMATCH }
+        CatalogFingerprintVersion.entries.forEach { version ->
+            val qualified = CatalogCanonicalizer.qualifiedFingerprint(withoutFingerprint, version)
+
+            // An older algorithm covers less, so naming one is invalid even when it matches.
+            val expected = if (version == CatalogFingerprintVersion.V6) emptyList() else listOf(CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID)
+            assertEquals(expected, codes(qualified.toString()), version.toString())
+            assertEquals(listOf(CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID), codes(qualified.fingerprint.value), "bare $version")
+        }
+        assertEquals(listOf(CatalogValidationCodes.RELEASE_FINGERPRINT_MISMATCH), codes("v6:" + "0".repeat(64)))
+        // A v8 release fingerprinted before V6 covered content only names an algorithm that is no longer current.
+        assertEquals(listOf(CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID), codes("v5:" + "0".repeat(64)))
+        assertEquals(listOf(CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID), codes("v9:" + "0".repeat(64)))
+    }
+
+    @Test
+    fun `a catalog names its registry in full and its namespace`() {
+        fun findings(
+            registry: String?,
+            namespace: String?,
+        ) = CatalogValidator.validate(
+            archive(
+                CatalogManifest(
+                    CURRENT_VERSION,
+                    CatalogInfo("fixture", "Fixture").withNamespace(registry, namespace),
+                    PublisherInfo("Epistola"),
+                    ReleaseInfo("1.0.0"),
+                    resources = emptyList(),
+                ),
+                emptyMap(),
+            ),
+        ).findings.map { it.code to it.path }
+
+        assertEquals(emptyList(), findings("acme.com", "acme"))
+        assertEquals(emptyList(), findings("exchange.epistola.app", "acme-corp"))
+        listOf(null, "acme.com", "exchange.epistola.app/acme-corp", "Acme", "ab").forEach { namespace ->
+            assertEquals(
+                listOf(CatalogValidationCodes.NAMESPACE_INVALID to "catalog.json.catalog.namespace"),
+                findings(REGISTRY, namespace),
+                namespace.toString(),
+            )
+        }
+        // An archive has no default registry: `~` and a bare name are not registries.
+        listOf(null, "~", "acme", "Acme.com", "acme.com/").forEach { registry ->
+            assertEquals(
+                listOf(CatalogValidationCodes.REGISTRY_INVALID to "catalog.json.catalog.registry"),
+                findings(registry, NAMESPACE),
+                registry.toString(),
+            )
+        }
+    }
+
+    @Test
+    fun `every alias a resource dependency names is declared, each catalog once, and never the catalog itself`() {
+        val shared = CatalogDependency(REGISTRY, NAMESPACE, "shared", "1.4.0", FINGERPRINT)
+        fun findings(
+            dependencies: List<DependencyRef>,
+            catalogDependencies: List<CatalogDependency>,
+        ) = CatalogValidator.validate(
+            archive(manifest(dependencies = dependencies, catalogDependencies = catalogDependencies), emptyMap()),
+        ).findings.map { it.code to it.path }
+
+        assertEquals(emptyList(), findings(listOf(DependencyRef.Theme("shared", "base")), listOf(shared)))
+        // Declared but unused is allowed: a catalog may pin a dependency its content reaches only indirectly.
+        assertEquals(emptyList(), findings(emptyList(), listOf(shared)))
+        // A dependency names the alias, whatever the catalog it stands for is called.
+        assertEquals(
+            emptyList(),
+            findings(listOf(DependencyRef.Theme("house", "base")), listOf(CatalogDependency("acme.com", "acme", "branding", "2.0.0", FINGERPRINT, alias = "house"))),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED to "catalog.json.dependencies[0]"),
+            findings(listOf(DependencyRef.Image("brand", "logo")), listOf(shared)),
+        )
+        // The catalog's key is not its alias when it is declared under another one.
+        assertEquals(
+            listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED to "catalog.json.dependencies[0]"),
+            findings(listOf(DependencyRef.Theme("shared", "base")), listOf(shared.copy(alias = "acme-shared"))),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.DEPENDENCY_DUPLICATE to "catalog.json.dependencies[1]"),
+            findings(listOf(DependencyRef.Theme("shared", "base"), DependencyRef.Theme("shared", "base")), listOf(shared)),
+        )
+        // One catalog is declared once, under one alias.
+        assertEquals(
+            listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_DUPLICATE to "catalog.json.catalogDependencies[1]"),
+            findings(emptyList(), listOf(shared, shared.copy(releaseVersion = "2.0.0", alias = "shared-two"))),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_SELF to "catalog.json.catalogDependencies[0]"),
+            findings(emptyList(), listOf(CatalogDependency(REGISTRY, NAMESPACE, "fixture", "1.0.0", FINGERPRINT, alias = "itself"))),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_SELF to "catalog.json.dependencies[0]"),
+            findings(listOf(DependencyRef.Theme("fixture", "base")), emptyList()),
+        )
+        // Not itself: the same namespace and key in another registry, under an alias of its own.
+        assertEquals(emptyList(), findings(emptyList(), listOf(CatalogDependency("acme.com", NAMESPACE, "fixture", "1.0.0", FINGERPRINT, alias = "acme-fixture"))))
+        assertEquals(
+            listOf(CatalogValidationCodes.NAMESPACE_INVALID to "catalog.json.catalogDependencies[0].namespace"),
+            findings(emptyList(), listOf(shared.copy(namespace = "exchange.epistola.app/epistola"))),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.REGISTRY_INVALID to "catalog.json.catalogDependencies[0].registry"),
+            findings(emptyList(), listOf(shared.copy(registry = "~"))),
+        )
+        // A declaration pins an exact release, never a range.
+        // ... and a release number, as the API reports one: no pre-release or build part.
+        listOf("latest", "^1.4.0", "1.x", "*", ">=1.0.0 <2.0.0", "1.4.0-rc.1", "1.4.0+5", "1.0.${"1".repeat(125)}").forEach { pinned ->
+            assertEquals(
+                listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_VERSION_INVALID to "catalog.json.catalogDependencies[0].releaseVersion"),
+                findings(emptyList(), listOf(shared.copy(releaseVersion = pinned))),
+                pinned,
+            )
+        }
+    }
+
+    @Test
+    fun `a catalog dependency's alias follows the catalog key rule, is unique, and is never the catalog's own key`() {
+        val shared = CatalogDependency(REGISTRY, NAMESPACE, "shared", "1.4.0", FINGERPRINT)
+        val brand = CatalogDependency("acme.com", "acme", "brand", "1.0.0", FINGERPRINT)
+        fun findings(vararg dependencies: CatalogDependency) = CatalogValidator.validate(
+            archive(manifest(catalogDependencies = dependencies.toList()), emptyMap()),
+        ).findings.map { it.code to it.path }
+
+        assertEquals(emptyList(), findings(shared, brand))
+        assertEquals(emptyList(), findings(shared.copy(alias = "acme-shared"), brand.copy(alias = "shared")), "an alias is any name, another catalog's key included")
+        listOf("Shared", "ab", "1shared", "shared_lib", "a".repeat(51), "shared.fonts").forEach { alias ->
+            assertEquals(
+                listOf(CatalogValidationCodes.DEPENDENCY_ALIAS_INVALID to "catalog.json.catalogDependencies[0].alias"),
+                findings(shared.copy(alias = alias)),
+                alias,
+            )
+        }
+        // Content that names the catalog's own key means the catalog itself, so no dependency can be called that.
+        assertEquals(
+            listOf(CatalogValidationCodes.DEPENDENCY_ALIAS_INVALID to "catalog.json.catalogDependencies[0].alias"),
+            findings(brand.copy(alias = "fixture")),
+        )
+        // Two suppliers' catalogs with one key: each needs an alias of its own.
+        assertEquals(
+            listOf(CatalogValidationCodes.DEPENDENCY_ALIAS_DUPLICATE to "catalog.json.catalogDependencies[1].alias"),
+            findings(shared, CatalogDependency("acme.com", "acme", "shared", "1.0.0", FINGERPRINT)),
+        )
+    }
+
+    @Test
+    fun `a v8 theme's spacing unit is half a point to 16 points with at most two decimals, an older one any positive number`() {
+        fun findings(
+            spacingUnit: Float,
+            sourceVersion: Int = CURRENT_VERSION,
+        ): List<Pair<String, String>> {
+            val theme = ThemeResource("house", "House", spacingUnit = spacingUnit)
+            val catalog = archive(
+                manifest(resources = listOf(ResourceEntry("theme", "house", "House", detailUrl = "./resources/theme/house.json"))),
+                mapOf("theme/house" to ResourceDetail(CURRENT_VERSION, theme)),
+                fingerprinted = sourceVersion >= CURRENT_VERSION,
+            ).also { it.sourceSchemaVersion = sourceVersion }
+            return CatalogValidator.validate(catalog).findings.map { it.code to it.path }
+        }
+        val invalid = listOf(CatalogValidationCodes.THEME_SPACING_UNIT_INVALID to "resources/theme/house.json.resource.spacingUnit")
+
+        listOf(0.5f, 0.75f, 1f, 4f, 1.2f, 1.25f, 16f).forEach { assertEquals(emptyList(), findings(it), "$it") }
+        listOf(0f, 0.25f, 0.49f, 16.01f, 500f, 1.255f, 0.35277777f, Float.NaN).forEach { assertEquals(invalid, findings(it), "$it") }
+        // An archive written before wire v8 keeps the rule it was made under.
+        listOf(0.25f, 500f, 0.35277777f).forEach { assertEquals(emptyList(), findings(it, 7), "$it at wire v7") }
+        listOf(0f, -1f).forEach { assertEquals(invalid, findings(it, 7), "$it at wire v7") }
+    }
+
+    @Test
+    fun `a v8 release carries its fingerprint, which a catalog migrated from wire v7 may lack`() {
+        val unfingerprinted = archive(manifest(), emptyMap(), fingerprinted = false)
+        assertEquals(
+            listOf(CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID to "catalog.json.release.fingerprint"),
+            CatalogValidator.validate(unfingerprinted).findings.map { it.code to it.path },
+        )
+        val migrated = archive(manifest(), emptyMap(), fingerprinted = false).also { it.sourceSchemaVersion = 7 }
+        assertEquals(emptyList(), CatalogValidator.validate(migrated).findings.map { it.code to it.path })
+    }
+
+    @Test
+    fun `a catalog dependency records its release fingerprint exactly when it records a release`() {
+        val shared = CatalogDependency(REGISTRY, NAMESPACE, "shared", "1.4.0", FINGERPRINT)
+        fun findings(dependency: CatalogDependency) = CatalogValidator.validate(
+            archive(manifest(catalogDependencies = listOf(dependency)), emptyMap()),
+        ).findings.map { it.code to it.path }
+        val invalid = listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_FINGERPRINT_INVALID to "catalog.json.catalogDependencies[0].releaseFingerprint")
+        val unpinned = CatalogValidationCodes.DEPENDENCY_CATALOG_VERSION_INVALID to "catalog.json.catalogDependencies[0].releaseVersion"
+
+        assertEquals(emptyList(), findings(shared))
+        // A release pins every catalog it declares; only one migrated from wire v7, which had no pins, may not.
+        assertEquals(listOf(unpinned), findings(shared.copy(releaseVersion = null, releaseFingerprint = null)))
+        val migrated = archive(manifest(catalogDependencies = listOf(shared.copy(releaseVersion = null, releaseFingerprint = null))), emptyMap(), fingerprinted = false)
+            .also { it.sourceSchemaVersion = 7 }
+        assertEquals(emptyList(), CatalogValidator.validate(migrated).findings.map { it.code to it.path })
+        assertEquals(invalid, findings(shared.copy(releaseFingerprint = null)))
+        assertEquals(invalid + listOf(unpinned), findings(shared.copy(releaseVersion = null)))
+        assertEquals(invalid, findings(shared.copy(releaseFingerprint = FINGERPRINT.uppercase())))
+        assertEquals(invalid, findings(shared.copy(releaseFingerprint = "sha256:${FINGERPRINT.removePrefix("v5:")}")))
+        assertEquals(invalid, findings(shared.copy(releaseFingerprint = FINGERPRINT.removePrefix("v5:"))))
+        assertEquals(invalid, findings(shared.copy(releaseFingerprint = FINGERPRINT.replace("v5:", "v9:"))))
+    }
+
+    @Test
+    fun `a reference inside content names a declared alias, and reaches the resolver as the catalog it is declared for`() {
+        val resolved = mutableListOf<CatalogResourceReference>()
+        val policy = CatalogValidationPolicy(
+            dependencyResolver = CatalogDependencyResolver { reference ->
+                resolved += reference
+                ResourceResolution.MISSING
+            },
+        )
+        val lists = CatalogDependency("acme.com", "acme", "shared-lists", "1.0.0", FINGERPRINT, alias = "shared")
+        val attribute = AttributeResource("locale", "Locale", codeListBinding = CodeListBindingRef(catalogKey = "shared", key = "countries"))
+        val sameCatalog = AttributeResource("region", "Region", codeListBinding = CodeListBindingRef(key = "regions"))
+        val ownKey = AttributeResource("district", "District", codeListBinding = CodeListBindingRef(catalogKey = "fixture", key = "regions"))
+        val undeclared = AttributeResource("country", "Country", codeListBinding = CodeListBindingRef(catalogKey = "brand", key = "countries"))
+        val regions = CodeListResource("regions", "Regions", entries = emptyList())
+        val details = listOf(attribute, sameCatalog, ownKey, undeclared, regions).associate { resource ->
+            "${resource.type}/${resource.key}" to ResourceDetail(CURRENT_VERSION, resource)
+        }
+        val entries = details.map { (key, detail) ->
+            ResourceEntry(detail.resource.type, detail.resource.key, detail.resource.name, detailUrl = "./resources/$key.json")
+        }
+
+        val report = CatalogValidator.validate(archive(manifest(resources = entries, catalogDependencies = listOf(lists)), details), policy)
+
+        assertEquals(
+            listOf(
+                CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED to "resources/attribute/country.json.resource.codeListBinding.catalogKey",
+                // In wire v8 a reference to the catalog itself names no catalog: its own key is not an alias.
+                CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED to "resources/attribute/district.json.resource.codeListBinding.catalogKey",
+                CatalogValidationCodes.RESOURCE_REFERENCE_MISSING to "resources/attribute/locale.json.resource.codeListBinding",
+            ),
+            report.findings.map { it.code to it.path },
+        )
+        assertTrue(
+            report.findings.single { it.path.startsWith("resources/attribute/district.json") }.message.contains("own key 'fixture'"),
+            report.findings.toString(),
+        )
+        // The alias is resolved to the catalog its declaration names; an undeclared one never reaches the resolver.
+        assertEquals(listOf(CatalogResourceReference("codeList", "countries", "shared-lists", "acme", "acme.com")), resolved)
+    }
+
+    @Test
+    fun `every alias content names is declared, in themes, stencil and image nodes, fonts and variant attributes`() {
+        fun document(theme: ThemeRefOverride) = TemplateDocument(
+            root = "root",
+            nodes = mapOf(
+                "root" to Node("root", "root", slots = listOf("root-children"), styles = mapOf("fontFamily" to mapOf("catalogKey" to "fonts", "key" to "inter"))),
+                "logo" to Node("logo", "image", props = mapOf("imageKey" to "logo", "catalogKey" to "media")),
+            ),
+            slots = mapOf("root-children" to Slot("root-children", "root", "children", listOf("logo"))),
+            themeRef = theme,
+        )
+        val template = TemplateResource(
+            key = "letter",
+            name = "Letter",
+            themeKey = "corporate",
+            themeCatalogKey = "brand",
+            templateModel = document(ThemeRefOverride("corporate", "shared")),
+            variants = listOf(VariantEntry("english", attributes = mapOf("system.locale" to "en", "fixture.tone" to "formal", "tone" to "formal"))),
+        )
+        val theme = ThemeResource("house", "House", documentStyles = mapOf("fontFamily" to mapOf("catalogKey" to "fonts", "key" to "inter")))
+        val details = listOf(template, theme).associate { "${it.type}/${it.key}" to ResourceDetail(CURRENT_VERSION, it) }
+        val entries = details.map { (key, detail) -> ResourceEntry(detail.resource.type, detail.resource.key, detail.resource.name, detailUrl = "./resources/$key.json") }
+        fun undeclared(vararg aliases: String) = CatalogValidator.validate(
+            archive(manifest(resources = entries, catalogDependencies = aliases.map { CatalogDependency(REGISTRY, NAMESPACE, it, "1.0.0", FINGERPRINT) }), details),
+        ).findings.filter { it.code == CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED }.map { it.path }
+
+        val letter = "resources/template/letter.json.resource"
+        assertEquals(
+            listOf(
+                "$letter.templateModel.nodes.logo.props.catalogKey",
+                "$letter.templateModel.nodes.root.styles.fontFamily.catalogKey",
+                "$letter.templateModel.themeRef.catalogKey",
+                "$letter.themeCatalogKey",
+                "$letter.variants[0].attributes.fixture.tone",
+                "$letter.variants[0].attributes.system.locale",
+                "resources/theme/house.json.resource.documentStyles.fontFamily.catalogKey",
+            ),
+            undeclared(),
+        )
+        // The catalog's own key (`fixture.tone`) is never an alias, declared or not.
+        assertEquals(listOf("$letter.variants[0].attributes.fixture.tone"), undeclared("brand", "fonts", "media", "shared", "system"))
     }
 
     @Test
@@ -136,6 +450,105 @@ class CatalogValidatorTest {
         val report = CatalogValidator.validate(archive(manifest(catalog = catalog), emptyMap()))
 
         assertTrue(report.valid, report.findings.toString())
+    }
+
+    @Test
+    fun `a catalog's declared presets have well-formed, unique keys, a name and a bounded description`() {
+        fun findings(vararg presets: CatalogPresetDeclaration) = CatalogValidator.validate(
+            archive(manifest(catalog = CatalogInfo("fixture", "Fixture").copyWithMetadata(presets = presets.toList())), emptyMap()),
+        ).findings.map { it.code to it.path }
+
+        assertEquals(
+            emptyList(),
+            findings(
+                CatalogPresetDeclaration("muted", "Muted"),
+                CatalogPresetDeclaration("h", "Heading", "A heading"),
+                CatalogPresetDeclaration("a".repeat(CatalogPresets.KEY_MAX_LENGTH), "n".repeat(CatalogPresets.NAME_MAX_LENGTH), "d".repeat(CatalogPresets.DESCRIPTION_MAX_LENGTH)),
+            ),
+        )
+        listOf("Muted", "1-col", "info_box", "-a", "a-", "a--b", "", "a".repeat(CatalogPresets.KEY_MAX_LENGTH + 1)).forEach { key ->
+            assertEquals(
+                listOf(CatalogValidationCodes.PRESET_KEY_INVALID to "catalog.json.catalog.presets[0].key"),
+                findings(CatalogPresetDeclaration(key, "Name")),
+                key,
+            )
+        }
+        assertEquals(
+            listOf(CatalogValidationCodes.PRESET_DUPLICATE to "catalog.json.catalog.presets[1].key"),
+            findings(CatalogPresetDeclaration("muted", "Muted"), CatalogPresetDeclaration("muted", "Also muted")),
+        )
+        assertEquals(
+            listOf(
+                CatalogValidationCodes.PRESET_NAME_INVALID to "catalog.json.catalog.presets[0].name",
+                CatalogValidationCodes.PRESET_NAME_INVALID to "catalog.json.catalog.presets[1].name",
+            ),
+            findings(CatalogPresetDeclaration("muted", " "), CatalogPresetDeclaration("label", "n".repeat(CatalogPresets.NAME_MAX_LENGTH + 1))),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.PRESET_DESCRIPTION_INVALID to "catalog.json.catalog.presets[0].description"),
+            findings(CatalogPresetDeclaration("muted", "Muted", "d".repeat(CatalogPresets.DESCRIPTION_MAX_LENGTH + 1))),
+        )
+    }
+
+    @Test
+    fun `a catalog's default theme resolves in the catalog itself or in a catalog it declares as a dependency`() {
+        val theme = ResourceDetail(CURRENT_VERSION, ThemeResource("corporate", "Corporate"))
+        val shared = CatalogDependency(REGISTRY, NAMESPACE, "shared", "1.4.0", "v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42")
+        fun findings(
+            defaultTheme: CatalogThemeRef,
+            catalogDependencies: List<CatalogDependency>? = null,
+        ) = CatalogValidator.validate(
+            archive(
+                manifest(
+                    resources = listOf(ResourceEntry("theme", "corporate", "Corporate", detailUrl = "./resources/theme/corporate.json")),
+                    catalog = CatalogInfo("fixture", "Fixture").copyWithMetadata(defaultTheme = defaultTheme),
+                    catalogDependencies = catalogDependencies,
+                ),
+                mapOf("theme/corporate" to theme),
+            ),
+        ).findings.map { it.code to it.path }
+
+        assertEquals(emptyList(), findings(CatalogThemeRef("corporate")))
+        assertEquals(
+            listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED to "catalog.json.catalog.defaultTheme"),
+            findings(CatalogThemeRef("corporate", "fixture")),
+            "a theme of the catalog itself names no catalog, not its own key",
+        )
+        assertEquals(emptyList(), findings(CatalogThemeRef("brand", "shared"), listOf(shared)))
+        assertEquals(
+            listOf(CatalogValidationCodes.RESOURCE_REFERENCE_MISSING to "catalog.json.catalog.defaultTheme.key"),
+            findings(CatalogThemeRef("missing")),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.RESOURCE_KEY_INVALID to "catalog.json.catalog.defaultTheme.key"),
+            findings(CatalogThemeRef("Corporate")),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED to "catalog.json.catalog.defaultTheme"),
+            findings(CatalogThemeRef("brand", "shared")),
+        )
+        assertEquals(emptyList(), findings(CatalogThemeRef("brand", "house"), listOf(shared.copy(alias = "house"))), "by the alias, not the catalog's key")
+        assertEquals(
+            listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED to "catalog.json.catalog.defaultTheme"),
+            findings(CatalogThemeRef("brand", "shared"), listOf(shared.copy(alias = "house"))),
+        )
+        assertTrue(
+            CatalogValidationCodes.RESOURCE_KEY_INVALID to "catalog.json.catalog.defaultTheme.catalogKey" in findings(CatalogThemeRef("corporate", "x")),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.RESOURCE_REFERENCE_MISSING to "catalog.json.catalog.defaultTheme.key"),
+            CatalogValidator.validate(
+                archive(
+                    manifest(
+                        catalog = CatalogInfo("fixture", "Fixture").copyWithMetadata(defaultTheme = CatalogThemeRef("brand", "shared")),
+                        catalogDependencies = listOf(shared),
+                    ),
+                    emptyMap(),
+                ),
+                CatalogValidationPolicy(dependencyResolver = { ResourceResolution.MISSING }),
+            ).findings.map { it.code to it.path },
+            "a default theme in a dependency resolves through the resolver",
+        )
     }
 
     @Test
@@ -228,12 +641,14 @@ class CatalogValidatorTest {
 
     @Test
     fun `catalog presentation resolves same-catalog image assets`() {
+        // The fixture archive serves `{}` for every file, and its hash is checked (#91).
+        val hash = sha256Hex("{}".toByteArray())
         val details = mapOf(
-            "image/icon" to ResourceDetail(CURRENT_VERSION, ImageResource("icon", "Icon", "image/svg+xml", contentUrl = "./resources/asset/icon.svg", contentHash = "0000000000000000000000000000000000000000000000000000000000000000")),
-            "image/hero" to ResourceDetail(CURRENT_VERSION, ImageResource("hero", "Hero", "IMAGE/PNG", contentUrl = "./resources/asset/hero.png", contentHash = "0000000000000000000000000000000000000000000000000000000000000000")),
+            "image/icon" to ResourceDetail(CURRENT_VERSION, ImageResource("icon", "Icon", "image/svg+xml", contentUrl = "./resources/asset/icon.svg", contentHash = hash)),
+            "image/hero" to ResourceDetail(CURRENT_VERSION, ImageResource("hero", "Hero", "IMAGE/PNG", contentUrl = "./resources/asset/hero.png", contentHash = hash)),
         )
         val entries = details.map { (key, detail) ->
-            ResourceEntry(detail.resource.type, detail.resource.slug, detail.resource.name, detailUrl = "./resources/$key.json")
+            ResourceEntry(detail.resource.type, detail.resource.key, detail.resource.name, detailUrl = "./resources/$key.json")
         }
         val catalog = CatalogInfo.create(
             "fixture",
@@ -259,7 +674,7 @@ class CatalogValidatorTest {
             "image/document" to ResourceDetail(CURRENT_VERSION, ImageResource("document", "Document", "application/pdf", contentUrl = "./document.pdf", contentHash = "0000000000000000000000000000000000000000000000000000000000000000")),
         )
         val entries = details.map { (key, detail) ->
-            ResourceEntry(detail.resource.type, detail.resource.slug, detail.resource.name, detailUrl = "./resources/$key.json")
+            ResourceEntry(detail.resource.type, detail.resource.key, detail.resource.name, detailUrl = "./resources/$key.json")
         }
         val catalog = CatalogInfo.create(
             "fixture",
@@ -276,36 +691,173 @@ class CatalogValidatorTest {
     }
 
     /**
-     * The bound is per type, and it is the publication gate that has to catch it.
+     * One rule for every type (wire v8), and it is the publication gate that has to catch it.
      *
-     * A 51-character theme slug is storable nowhere -- `THEME_KEY` is `VARCHAR(50)` -- so without
+     * A 51-character key is storable nowhere -- consumers store keys in `VARCHAR(50)` -- so without
      * this the publisher is told the catalog is fine and every consumer's install dies on a
-     * database error instead.
+     * database error instead. A key shorter than 3 is refused the same way, for every type.
      */
     @Test
-    fun `a slug longer than its type allows is refused`() {
-        val slug = "a".repeat(51)
-        val detail = ResourceDetail(CURRENT_VERSION, app.epistola.catalog.protocol.ThemeResource(slug, "Theme"))
-        val manifest = manifest(resources = listOf(ResourceEntry("theme", slug, "Theme", detailUrl = "./resources/theme/$slug.json")))
-
-        val report = CatalogValidator.validate(archive(manifest, mapOf("theme/$slug" to detail)))
-
-        assertTrue(CatalogValidationCodes.RESOURCE_SLUG_INVALID in report.codes())
+    fun `a key outside the one resource key rule is refused, whatever the type`() {
+        for (key in listOf("a".repeat(51), "ab", "a", "Upper", "a--b")) {
+            for (resource in listOf<app.epistola.catalog.protocol.CatalogResource>(
+                app.epistola.catalog.protocol.ThemeResource(key, "Theme"),
+                ImageResource(key, "Logo", "image/svg+xml", contentHash = "0".repeat(64)),
+            )) {
+                val manifest = manifest(resources = listOf(ResourceEntry(resource.type, key, "R", detailUrl = "./resources/${resource.type}/$key.json")))
+                val report = CatalogValidator.validate(archive(manifest, mapOf("${resource.type}/$key" to ResourceDetail(CURRENT_VERSION, resource))))
+                assertTrue(
+                    report.findings.any { it.code == CatalogValidationCodes.RESOURCE_KEY_INVALID && it.path == "resources/${resource.type}/$key.json.resource.key" },
+                    "$key: ${report.findings}",
+                )
+            }
+        }
     }
 
-    /** An image is the one type admitting a leading digit, because its slug may be a UUID string. */
+    /**
+     * The hash is checked, not believed (#91): validating an archive hashes each binary's bytes and
+     * refuses a `contentHash` they do not produce. Before, the archive's content never reached the
+     * resource checks, so a catalog could claim bytes it does not carry.
+     */
     @Test
-    fun `an image slug may start with a digit where other types may not`() {
-        val slug = "01966a00-0000-7000-8000-000000000001"
-        val detail = ResourceDetail(
-            CURRENT_VERSION,
-            ImageResource(slug, "Logo", "image/svg+xml", contentHash = "0".repeat(64)),
+    fun `a binary whose bytes do not hash to its declared contentHash is refused`() {
+        val actual = "the bytes in the archive".toByteArray()
+        fun reportFor(declared: String): CatalogValidationReport {
+            val image = ImageResource("logo", "Logo", "image/png", contentHash = declared)
+            val manifest = manifest(resources = listOf(ResourceEntry("image", "logo", "Logo", detailUrl = "./resources/image/logo.json")))
+            val details = mapOf("image/logo" to ResourceDetail(CURRENT_VERSION, image))
+            val binaryPath = "bin/$declared"
+            val catalog = CatalogArchive(
+                manifest,
+                details,
+                setOf("catalog.json", "resources/image/logo.json", binaryPath),
+                ArchiveContentProvider { path ->
+                    check(path == binaryPath) { "unexpected read of $path" }
+                    ByteArrayInputStream(actual)
+                },
+            )
+            return CatalogValidator.validate(catalog)
+        }
+
+        val mismatch = reportFor(sha256Hex("some other bytes".toByteArray()))
+        assertTrue(CatalogValidationCodes.ASSET_CONTENT_HASH_MISMATCH in mismatch.codes(), "findings: ${mismatch.findings}")
+
+        val match = reportFor(sha256Hex(actual))
+        assertTrue(CatalogValidationCodes.ASSET_CONTENT_HASH_MISMATCH !in match.codes(), "findings: ${match.findings}")
+    }
+
+    private fun sha256Hex(bytes: ByteArray): String = java.security.MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+
+    /** Every type admits a leading digit (wire v8), because an image's key may be a UUID string. */
+    @Test
+    fun `a key may start with a digit, whatever the type`() {
+        val key = "01966a00-0000-7000-8000-000000000001"
+        for (resource in listOf<app.epistola.catalog.protocol.CatalogResource>(
+            app.epistola.catalog.protocol.ThemeResource(key, "Theme"),
+            ImageResource(key, "Logo", "image/svg+xml", contentHash = "0".repeat(64)),
+        )) {
+            val manifest = manifest(resources = listOf(ResourceEntry(resource.type, key, "R", detailUrl = "./resources/${resource.type}/$key.json")))
+            val report = CatalogValidator.validate(archive(manifest, mapOf("${resource.type}/$key" to ResourceDetail(CURRENT_VERSION, resource))))
+            assertTrue(CatalogValidationCodes.RESOURCE_KEY_INVALID !in report.codes(), "findings: ${report.findings}")
+        }
+    }
+
+    /** The positions that name a resource key follow the same rule as the key itself. */
+    @Test
+    fun `variant keys, variant attribute keys and the theme a template names follow the resource key rule`() {
+        val report = validateTemplate(
+            letter().copy(
+                themeKey = "ab",
+                variants = listOf(app.epistola.catalog.protocol.VariantEntry("nl", attributes = mapOf("la" to "nl", "locale" to "nl"))),
+            ),
         )
-        val manifest = manifest(resources = listOf(ResourceEntry("image", slug, "Logo", detailUrl = "./resources/image/$slug.json")))
 
-        val report = CatalogValidator.validate(archive(manifest, mapOf("image/$slug" to detail)))
+        assertEquals(
+            listOf(
+                "resources/template/letter.json.resource.themeKey",
+                "resources/template/letter.json.resource.variants[0].attributes.la",
+                "resources/template/letter.json.resource.variants[0].key",
+            ),
+            report.findings.filter { it.code == CatalogValidationCodes.RESOURCE_KEY_INVALID }.map { it.path }.sorted(),
+        )
+    }
 
-        assertTrue(CatalogValidationCodes.RESOURCE_SLUG_INVALID !in report.codes(), "findings: ${report.findings}")
+    /** Another catalog's attribute is named `<catalogKey>.<key>`, each part by its own rule. */
+    @Test
+    fun `a variant attribute key may name another catalog's attribute`() {
+        val report = validateTemplate(
+            letter().copy(
+                variants = listOf(
+                    app.epistola.catalog.protocol.VariantEntry(
+                        "nl",
+                        attributes = mapOf("system.locale" to "nl-NL", "locale" to "nl", "system.la" to "nl", "9sys.locale" to "nl", "a.b.locale" to "nl"),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                "resources/template/letter.json.resource.variants[0].attributes.9sys.locale",
+                "resources/template/letter.json.resource.variants[0].attributes.a.b.locale",
+                "resources/template/letter.json.resource.variants[0].attributes.system.la",
+                "resources/template/letter.json.resource.variants[0].key",
+            ),
+            report.findings.filter { it.code == CatalogValidationCodes.RESOURCE_KEY_INVALID }.map { it.path }.sorted(),
+        )
+    }
+
+    @Test
+    fun `a release is numbered MAJOR_MINOR_PATCH, or with a namespace's patch label, and nothing else`() {
+        fun codes(version: String) = CatalogValidator.validate(archive(manifest(ReleaseInfo(version), emptyList()), emptyMap()))
+            .findings.filter { it.path == "catalog.json.release.version" }.map { it.code }
+
+        listOf("0.0.0", "1.4.0", "10.20.30", "1.3.1-gemeente-x.1", "1.3.1-acme.12", "1.0.${"1".repeat(58)}-${"a".repeat(63)}.1")
+            .forEach { assertEquals(emptyList(), codes(it), it) }
+        listOf("1.0.0-rc.1", "1.0.0-gemeente-x", "1.0.0-gemeente-x.01", "1.0.0-Gemeente.1", "1.0.0+5", "1.01.0", "v1.0.0", "1.0", "1.0.${"1".repeat(125)}").forEach {
+            assertEquals(listOf(CatalogValidationCodes.RELEASE_VERSION_INVALID), codes(it), it)
+        }
+    }
+
+    @Test
+    fun `a release id follows the API's CatalogReleaseId rule`() {
+        fun codes(releaseId: String) = CatalogValidator.validate(archive(manifest(ReleaseInfo("1.0.0", releaseId = releaseId), emptyList()), emptyMap()))
+            .findings.filter { it.path == "catalog.json.release.releaseId" }.map { it.code }
+
+        listOf("k7m2x9qa", "abcd", "f47ac10b-58cc-4372-a567-0e02b2c3d479").forEach { assertEquals(emptyList(), codes(it), it) }
+        listOf("abc", "K7M2X9QA", "k7m2-", "-k7m2", "k7--m2", "1.0.0", "a".repeat(37)).forEach {
+            assertEquals(listOf(CatalogValidationCodes.RELEASE_ID_INVALID), codes(it), it)
+        }
+    }
+
+    @Test
+    fun `release metadata follows the variant metadata rules, under codes of its own`() {
+        fun codes(metadata: Map<String, Map<String, Any?>>) = CatalogValidator.validate(archive(manifest(ReleaseInfo("1.0.0", metadata = metadata), emptyList()), emptyMap()))
+            .findings.filter { it.path.startsWith("catalog.json.release.metadata") }.map { it.code }
+
+        assertEquals(emptyList(), codes(mapOf("app.epistola.suite" to mapOf("renderingDefaultsVersion" to 6), "com.example.renderer" to mapOf("x" to listOf(1, "two")))))
+        assertEquals(listOf(CatalogValidationCodes.RELEASE_METADATA_INVALID), codes(emptyMap()))
+        assertEquals(listOf(CatalogValidationCodes.RELEASE_METADATA_INVALID), codes(mapOf("suite" to emptyMap())))
+        assertEquals(listOf(CatalogValidationCodes.RELEASE_METADATA_INVALID), codes((1..17).associate { "app.example$it" to emptyMap() }))
+        assertEquals(listOf(CatalogValidationCodes.RELEASE_METADATA_TOO_LARGE), codes(mapOf("app.epistola.suite" to mapOf("notes" to "x".repeat(9000)))))
+    }
+
+    @Test
+    fun `a release's base names a release by number and a known fingerprint`() {
+        val digest = "0".repeat(64)
+        fun codes(base: ReleaseBase) = CatalogValidator.validate(archive(manifest(ReleaseInfo("1.0.1", base = base), emptyList()), emptyMap()))
+            .findings.filter { it.path.startsWith("catalog.json.release.base") }.map { it.code to it.path.removePrefix("catalog.json.release.base") }
+        val invalid = CatalogValidationCodes.RELEASE_BASE_INVALID
+
+        assertEquals(emptyList(), codes(ReleaseBase("1.0.0", "v5:$digest")))
+        assertEquals(emptyList(), codes(ReleaseBase("1.0.0", "v4:$digest")), "any known algorithm, as a catalog dependency's pin")
+        assertEquals(listOf(invalid to ".version"), codes(ReleaseBase("1.0", "v5:$digest")))
+        assertEquals(listOf(invalid to ".version"), codes(ReleaseBase("1.0.0-rc.1", "v5:$digest")))
+        assertEquals(emptyList(), codes(ReleaseBase("1.0.0-gemeente-x.1", "v6:$digest")), "a patch release may be a base")
+        assertEquals(listOf(invalid to ".fingerprint"), codes(ReleaseBase("1.0.0", digest)))
+        assertEquals(listOf(invalid to ".fingerprint"), codes(ReleaseBase("1.0.0", "v9:$digest")))
+        assertEquals(listOf(invalid to ".fingerprint"), codes(ReleaseBase("1.0.0", "v5:${"A".repeat(64)}")))
+        assertEquals(listOf(invalid to ".fingerprint", invalid to ".version"), codes(ReleaseBase("one", "none")), "sorted by path")
     }
 
     @Test
@@ -322,7 +874,7 @@ class CatalogValidatorTest {
         assertTrue(CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID in report.codes())
         assertTrue(CatalogValidationCodes.MANIFEST_DETAIL_MISSING in report.codes())
         assertTrue(CatalogValidationCodes.MANIFEST_DETAIL_UNDECLARED in report.codes())
-        assertTrue(CatalogValidationCodes.RESOURCE_SLUG_INVALID in report.codes())
+        assertTrue(CatalogValidationCodes.RESOURCE_KEY_INVALID in report.codes())
         assertTrue(CatalogValidationCodes.ASSET_PATH_INVALID in report.codes())
         assertEquals(report.findings.sortedWith(compareBy({ it.path }, { it.code }, { it.severity }, { it.message })), report.findings)
     }
@@ -336,13 +888,13 @@ class CatalogValidatorTest {
             templateModel = invalid,
             variants = listOf(VariantEntry("print", templateModel = invalid)),
         )
-        val stencil = StencilResource("address", "Address", 1, content = invalid)
+        val stencil = StencilResource("address", "Address", content = invalid)
         val details = mapOf(
             "template/invoice" to ResourceDetail(CURRENT_VERSION, template),
             "stencil/address" to ResourceDetail(CURRENT_VERSION, stencil),
         )
         val entries = details.map { (key, detail) ->
-            ResourceEntry(detail.resource.type, detail.resource.slug, detail.resource.name, detailUrl = "./resources/$key.json")
+            ResourceEntry(detail.resource.type, detail.resource.key, detail.resource.name, detailUrl = "./resources/$key.json")
         }
         val report = CatalogValidator.validate(archive(manifest(resources = entries), details))
         val graphPaths = report.findings.filter { it.code == TemplateValidationCodes.TEMPLATE_GRAPH_INVALID }.map { it.path }
@@ -357,7 +909,6 @@ class CatalogValidatorTest {
         val stencil = StencilResource(
             "address",
             "Address",
-            1,
             content = validDocument(),
             parameterSchema = mapOf("type" to "array"),
         )
@@ -374,13 +925,12 @@ class CatalogValidatorTest {
     }
 
     @Test
-    fun `catalog accepts exact version pinned stencil composition`() {
-        val address = StencilResource("address", "Address", 2, content = validDocument())
+    fun `catalog accepts stencil composition within the catalog`() {
+        val address = StencilResource("address", "Address", content = validDocument())
         val letter = StencilResource(
             "letter",
             "Letter",
-            1,
-            content = documentWithStencil("nested-address", "address", 2),
+            content = documentWithStencil("nested-address", "address"),
         )
 
         val report = validateStencils(letter, address)
@@ -390,19 +940,18 @@ class CatalogValidatorTest {
     }
 
     @Test
-    fun `catalog rejects a nested stencil version that is not present`() {
-        val address = StencilResource("address", "Address", 2, content = validDocument())
+    fun `catalog rejects a nested stencil that is not present`() {
+        val contact = StencilResource("contact", "Contact", content = validDocument())
         val letter = StencilResource(
             "letter",
             "Letter",
-            1,
-            content = documentWithStencil("nested-address", "address", 1),
+            content = documentWithStencil("nested-address", "address"),
         )
 
-        val report = validateStencils(letter, address)
+        val report = validateStencils(letter, contact)
 
         assertEquals(
-            listOf("resources/stencil/letter.json.resource.content.nodes.nested-address.props.stencilId"),
+            listOf("resources/stencil/letter.json.resource.content.nodes.nested-address.props.stencilKey"),
             report.findings
                 .filter { it.code == TemplateValidationCodes.STENCIL_REFERENCE_NOT_FOUND }
                 .map { it.path },
@@ -414,14 +963,13 @@ class CatalogValidatorTest {
         val letter = StencilResource(
             "letter",
             "Letter",
-            1,
-            content = documentWithStencil("nested-letter", "letter", 1),
+            content = documentWithStencil("nested-letter", "letter"),
         )
 
         val report = validateStencils(letter)
 
         assertEquals(
-            listOf("resources/stencil/letter.json.resource.content.nodes.nested-letter.props.stencilId"),
+            listOf("resources/stencil/letter.json.resource.content.nodes.nested-letter.props.stencilKey"),
             report.findings.filter { it.code == TemplateValidationCodes.STENCIL_RECURSION }.map { it.path },
         )
     }
@@ -431,21 +979,19 @@ class CatalogValidatorTest {
         val letter = StencilResource(
             "letter",
             "Letter",
-            1,
-            content = documentWithStencil("nested-address", "address", 1),
+            content = documentWithStencil("nested-address", "address"),
         )
         val address = StencilResource(
             "address",
             "Address",
-            1,
-            content = documentWithStencil("nested-letter", "letter", 1),
+            content = documentWithStencil("nested-letter", "letter"),
         )
 
         val report = validateStencils(letter, address)
 
         assertEquals(
             listOf(
-                "resources/stencil/letter.json.resource.content.nodes.nested-address.props.stencilId",
+                "resources/stencil/letter.json.resource.content.nodes.nested-address.props.stencilKey",
             ),
             report.findings.filter { it.code == TemplateValidationCodes.STENCIL_RECURSION }.map { it.path },
         )
@@ -482,7 +1028,7 @@ class CatalogValidatorTest {
         val template = TemplateResource(
             "invoice",
             "Invoice",
-            themeId = "missing",
+            themeKey = "missing",
             templateModel = validDocument(),
             variants = emptyList(),
         )
@@ -512,11 +1058,11 @@ class CatalogValidatorTest {
             variants = listOf(VariantEntry("same", isDefault = true), VariantEntry("same", isDefault = true)),
             // A face no longer names a resource, so the missing-reference case is covered by a
             // reference that still is one.
-            themeId = "absent",
+            themeKey = "absent",
         )
         val resources = listOf(
             template,
-            AttributeResource("locale", "Locale", listOf("nl"), CodeListBindingRef(slug = "countries")),
+            AttributeResource("locale", "Locale", listOf("nl"), CodeListBindingRef(key = "countries")),
             CodeListResource("countries", "Countries", entries = listOf(CodeListEntryEntry("NL", "NL"), CodeListEntryEntry("NL", "Duplicate"))),
             ImageResource("face", "Face", "bad", width = -1, contentUrl = "./resources/asset/missing.woff2", contentHash = "0000000000000000000000000000000000000000000000000000000000000000"),
             FontResource(
@@ -541,15 +1087,15 @@ class CatalogValidatorTest {
                 ),
             ),
         )
-        val details = resources.associate { "${it.type}/${it.slug}" to ResourceDetail(CURRENT_VERSION, it) }
+        val details = resources.associate { "${it.type}/${it.key}" to ResourceDetail(CURRENT_VERSION, it) }
         val entries = details.map { (key, detail) ->
-            ResourceEntry(detail.resource.type, detail.resource.slug, detail.resource.name, detailUrl = "./resources/$key.json")
+            ResourceEntry(detail.resource.type, detail.resource.key, detail.resource.name, detailUrl = "./resources/$key.json")
         }
         val report = CatalogValidator.validate(archive(manifest(resources = entries), details))
 
         assertTrue(CatalogValidationCodes.TEMPLATE_DATA_EXAMPLE_INVALID in report.codes())
         assertTrue(CatalogValidationCodes.TEMPLATE_EXAMPLE_NAME_DUPLICATE in report.codes())
-        assertTrue(CatalogValidationCodes.TEMPLATE_VARIANT_ID_DUPLICATE in report.codes())
+        assertTrue(CatalogValidationCodes.TEMPLATE_VARIANT_KEY_DUPLICATE in report.codes())
         assertTrue(CatalogValidationCodes.TEMPLATE_VARIANT_DEFAULT_INVALID in report.codes())
         assertTrue(CatalogValidationCodes.ATTRIBUTE_VALUES_CONFLICT in report.codes())
         assertTrue(CatalogValidationCodes.CODE_LIST_CODE_DUPLICATE in report.codes())
@@ -606,6 +1152,205 @@ class CatalogValidatorTest {
     }
 
     @Test
+    fun `a data model reference that does not resolve is a finding, with or without examples`() {
+        val unresolvable = listOf(
+            "#/\$defs/missing",
+            "other.json",
+            "https://epistola.app/schemas/richtext-block-v9.json",
+            "https://example.invalid/address.json",
+        )
+        for (ref in unresolvable) {
+            val dataModel = mapOf(
+                "type" to "object",
+                "properties" to mapOf("address" to mapOf("\$ref" to ref)),
+            )
+            for (examples in listOf(emptyList(), listOf(DataExampleEntry("example", mapOf("address" to "x"), key = "example")))) {
+                val report = validateTemplate(
+                    TemplateResource(
+                        "invoice",
+                        "Invoice",
+                        dataModel = dataModel,
+                        dataExamples = examples,
+                        templateModel = validDocument(),
+                        variants = emptyList(),
+                    ),
+                )
+
+                val finding = report.findings.single { it.code == CatalogValidationCodes.TEMPLATE_DATA_SCHEMA_INVALID }
+                assertTrue(finding.path.endsWith(".dataModel"), finding.toString())
+                assertTrue(ref.removePrefix("#") in finding.message, finding.toString())
+                assertTrue(CatalogValidationCodes.TEMPLATE_DATA_EXAMPLE_INVALID !in report.codes(), "$ref: examples are not judged against a broken schema")
+            }
+        }
+    }
+
+    @Test
+    fun `an example may leave out a required property that has a default, as rendering fills it in`() {
+        val dataModel = mapOf(
+            "type" to "object",
+            "properties" to mapOf(
+                "invoiceNumber" to mapOf("type" to "string"),
+                "taxRate" to mapOf("type" to "number", "default" to 0.21),
+                "vendor" to mapOf(
+                    "type" to "object",
+                    "properties" to mapOf("country" to mapOf("type" to "string", "default" to "NL")),
+                    "required" to listOf("country"),
+                ),
+            ),
+            "required" to listOf("invoiceNumber", "taxRate", "vendor"),
+        )
+        fun codes(data: Map<String, Any?>) = validateTemplate(
+            TemplateResource(
+                "invoice",
+                "Invoice",
+                dataModel = dataModel,
+                dataExamples = listOf(DataExampleEntry("example", data, key = "example")),
+                templateModel = validDocument(),
+                variants = emptyList(),
+            ),
+        ).codes()
+
+        assertTrue(CatalogValidationCodes.TEMPLATE_DATA_EXAMPLE_INVALID !in codes(mapOf("invoiceNumber" to "1", "vendor" to emptyMap<String, Any?>())))
+        assertTrue(CatalogValidationCodes.TEMPLATE_DATA_EXAMPLE_INVALID in codes(mapOf("taxRate" to 0.21, "vendor" to emptyMap<String, Any?>())), "no default for invoiceNumber")
+        assertTrue(CatalogValidationCodes.TEMPLATE_DATA_EXAMPLE_INVALID in codes(mapOf("invoiceNumber" to "1", "taxRate" to null, "vendor" to emptyMap<String, Any?>())), "an explicit null is a value")
+    }
+
+    @Test
+    fun `data example keys are required, well-formed and unique within their template`() {
+        fun codes(vararg examples: DataExampleEntry) = validateTemplate(letter(dataExamples = examples.toList())).codes()
+
+        assertTrue(
+            listOf(CatalogValidationCodes.TEMPLATE_EXAMPLE_KEY_INVALID, CatalogValidationCodes.TEMPLATE_EXAMPLE_KEY_DUPLICATE)
+                .none { it in codes(DataExampleEntry("A", emptyMap(), "abc"), DataExampleEntry("B", emptyMap(), "1-b")) },
+        )
+        assertTrue(CatalogValidationCodes.TEMPLATE_EXAMPLE_KEY_INVALID in codes(DataExampleEntry("A", emptyMap())), "a key is required")
+        listOf("", "a", "ab", "Upper", "a_b", "-ab", "ab-", "a".repeat(51)).forEach { key ->
+            assertTrue(CatalogValidationCodes.TEMPLATE_EXAMPLE_KEY_INVALID in codes(DataExampleEntry("A", emptyMap(), key)), key)
+        }
+        val duplicate = validateTemplate(letter(dataExamples = listOf(DataExampleEntry("A", emptyMap(), "same"), DataExampleEntry("B", emptyMap(), "same"))))
+        assertEquals(
+            listOf(CatalogValidationCodes.TEMPLATE_EXAMPLE_KEY_DUPLICATE to "resources/template/letter.json.resource.dataExamples[1].key"),
+            duplicate.findings.map { it.code to it.path },
+        )
+        // The name rule is unchanged and separate.
+        assertTrue(CatalogValidationCodes.TEMPLATE_EXAMPLE_NAME_DUPLICATE in codes(DataExampleEntry("A", emptyMap(), "a"), DataExampleEntry("A", emptyMap(), "b")))
+    }
+
+    @Test
+    fun `a template description is at most 2000 characters and is the source of its manifest entry's`() {
+        val limit = "é".repeat(TemplateResource.MAX_DESCRIPTION_LENGTH)
+
+        assertEquals(emptyList(), validateTemplate(letter(description = limit), entryDescription = limit).findings)
+        assertEquals(emptyList(), validateTemplate(letter(description = "Mine."), entryDescription = null).findings)
+        assertEquals(emptyList(), validateTemplate(letter(description = null), entryDescription = "A listing summary.").findings)
+        assertEquals(
+            listOf(CatalogValidationCodes.TEMPLATE_DESCRIPTION_INVALID to "resources/template/letter.json.resource.description"),
+            validateTemplate(letter(description = limit + "x")).findings.map { it.code to it.path },
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.RESOURCE_DESCRIPTION_MISMATCH to "resources/template/letter.json.resource.description"),
+            validateTemplate(letter(description = "Mine."), entryDescription = "Theirs.").findings.map { it.code to it.path },
+        )
+    }
+
+    @Test
+    fun `a resource's metadata names one to sixteen reverse-DNS namespaces and stays within 8 KiB`() {
+        fun findings(metadata: Map<String, Map<String, Any?>>) = validateTemplate(letter(metadata = metadata)).findings.map { it.code to it.path }
+        val path = "resources/template/letter.json.resource.metadata"
+
+        assertEquals(emptyList(), findings(mapOf("app.epistola.suite" to mapOf("renderingDefaultsVersion" to 6))))
+        assertEquals(emptyList(), findings((1..16).associate { "com.example.n$it" to emptyMap() }))
+        assertEquals(emptyList(), findings(mapOf("a.b" to mapOf("x" to "y".repeat(CatalogMetadata.MAX_SERIALIZED_BYTES - 20)))))
+        assertEquals(listOf(CatalogValidationCodes.RESOURCE_METADATA_INVALID to path), findings(emptyMap()))
+        assertEquals(listOf(CatalogValidationCodes.RESOURCE_METADATA_INVALID to path), findings((1..17).associate { "com.example.n$it" to emptyMap() }))
+        listOf("suite", "App.epistola.suite", "app..suite", "app.epistola.", "1app.suite", "app.epistola_suite", "app." + "a".repeat(97)).forEach { namespace ->
+            assertEquals(listOf(CatalogValidationCodes.RESOURCE_METADATA_INVALID to "$path.$namespace"), findings(mapOf(namespace to emptyMap())), namespace)
+        }
+        assertEquals(
+            listOf(CatalogValidationCodes.RESOURCE_METADATA_TOO_LARGE to path),
+            findings(mapOf("a.b" to mapOf("x" to "y".repeat(CatalogMetadata.MAX_SERIALIZED_BYTES)))),
+        )
+    }
+
+    @Test
+    fun `a v8 detailUrl must be a relative path below the manifest, where earlier versions only had to name the canonical file`() {
+        fun findings(
+            detailUrl: String,
+            sourceVersion: Int,
+        ): List<Pair<String, String>> {
+            val detail = ResourceDetail(CURRENT_VERSION, letter())
+            val catalog = archive(
+                manifest(resources = listOf(ResourceEntry("template", "letter", "Letter", detailUrl = detailUrl))),
+                mapOf("template/letter" to detail),
+                fingerprinted = sourceVersion >= CURRENT_VERSION,
+            )
+            catalog.sourceSchemaVersion = sourceVersion
+            return CatalogValidator.validate(catalog).findings.map { it.code to it.path }
+        }
+        val path = "catalog.json.resources[0].detailUrl"
+
+        assertEquals(emptyList(), findings("./resources/template/letter.json", 8))
+        assertEquals(emptyList(), findings("resources/template/letter.json", 8))
+        listOf("https://x.example/resources/template/letter.json", "/resources/template/letter.json", "../resources/template/letter.json", "resources/template/%2e%2e/letter.json").forEach {
+            assertEquals(listOf(CatalogValidationCodes.MANIFEST_DETAIL_URL_INVALID to path), findings(it, 8), it)
+            assertEquals(listOf(CatalogValidationCodes.MANIFEST_DETAIL_PATH_INVALID to path), findings(it, 7), it)
+        }
+        // Well-formed, but not where the resource's detail lives.
+        assertEquals(listOf(CatalogValidationCodes.MANIFEST_DETAIL_PATH_INVALID to path), findings("./resources/template/other.json", 8))
+    }
+
+    @Test
+    fun `a v8 contentUrl must be a relative path below the manifest, where earlier versions had to start with dot slash`() {
+        val hash = "0".repeat(64)
+        fun findings(
+            contentUrl: String,
+            sourceVersion: Int,
+        ): List<String> {
+            val detail = ResourceDetail(CURRENT_VERSION, ImageResource("logo", "Logo", "image/png", contentHash = hash, contentUrl = contentUrl))
+            val catalog = archive(
+                manifest(resources = listOf(ResourceEntry("image", "logo", "Logo", detailUrl = "./resources/image/logo.json"))),
+                mapOf("image/logo" to detail),
+                additionalPaths = setOf("bin/$hash", "assets/logo.png"),
+            )
+            catalog.sourceSchemaVersion = sourceVersion
+            return CatalogValidator.validate(catalog, CatalogValidationPolicy(verifyFingerprint = false)).findings
+                .filter { it.code == CatalogValidationCodes.ASSET_PATH_INVALID }.map { it.path }
+        }
+        val invalid = listOf("resources/image/logo.json.resource.contentUrl")
+
+        assertEquals(emptyList(), findings("bin/$hash", 8))
+        assertEquals(emptyList(), findings("./assets/logo.png", 8))
+        assertEquals(invalid, findings("../assets/logo.png", 8))
+        assertEquals(invalid, findings("assets/%2E%2E/logo.png", 8))
+        assertEquals(invalid, findings("bin/$hash", 7), "before v8 a declared path starts with ./")
+        assertEquals(emptyList(), findings("./assets/logo.png", 6))
+    }
+
+    private fun letter(
+        description: String? = null,
+        dataExamples: List<DataExampleEntry>? = null,
+        metadata: Map<String, Map<String, Any?>>? = null,
+    ) = TemplateResource(
+        "letter",
+        "Letter",
+        dataExamples = dataExamples,
+        templateModel = validDocument(),
+        variants = listOf(VariantEntry("english")),
+        description = description,
+        metadata = metadata,
+    )
+
+    private fun validateTemplate(
+        template: TemplateResource,
+        entryDescription: String? = null,
+    ): CatalogValidationReport = CatalogValidator.validate(
+        archive(
+            manifest(resources = listOf(ResourceEntry("template", template.key, template.name, entryDescription, detailUrl = "./resources/template/${template.key}.json"))),
+            mapOf("template/${template.key}" to ResourceDetail(CURRENT_VERSION, template)),
+        ),
+    )
+
+    @Test
     fun `finding code registry covers every stable catalog finding code`() {
         val fixtureCodes = fixture("catalog-validation-cases.json").use(mapper::readTree).propertyNames().toSet()
         val publishedCodes = CatalogValidationCodes::class.java.declaredFields
@@ -616,30 +1361,38 @@ class CatalogValidatorTest {
         assertEquals(publishedCodes, fixtureCodes)
     }
 
+    /** A current manifest; a [catalog] naming no namespace is given [REGISTRY] and [NAMESPACE]. */
     private fun manifest(
         release: ReleaseInfo = ReleaseInfo("1.0.0"),
         resources: List<ResourceEntry> = emptyList(),
         catalog: CatalogInfo = CatalogInfo("fixture", "Fixture"),
+        dependencies: List<DependencyRef>? = null,
+        catalogDependencies: List<CatalogDependency>? = null,
     ) = CatalogManifest(
         CURRENT_VERSION,
-        catalog,
+        catalog.takeIf { it.namespace != null } ?: catalog.withNamespace(REGISTRY, NAMESPACE),
         PublisherInfo("Epistola"),
         release,
         resources = resources,
+        dependencies = dependencies,
+        catalogDependencies = catalogDependencies,
     )
 
+    /**
+     * An in-memory archive of [manifest] and [details]. A release carries its fingerprint, so one is
+     * computed, as a producer would, unless [manifest] names one (or [fingerprinted] is false).
+     */
     private fun archive(
         manifest: CatalogManifest,
         details: Map<String, ResourceDetail>,
         additionalPaths: Set<String> = emptySet(),
+        fingerprinted: Boolean = true,
     ): CatalogArchive {
         val paths = details.keys.mapTo(mutableSetOf("catalog.json")) { "resources/$it.json" } + additionalPaths
-        return CatalogArchive(
-            manifest,
-            details,
-            paths,
-            ArchiveContentProvider { ByteArrayInputStream("{}".toByteArray()) },
-        )
+        val content = ArchiveContentProvider { ByteArrayInputStream("{}".toByteArray()) }
+        if (!fingerprinted || manifest.release.fingerprint != null) return CatalogArchive(manifest, details, paths, content)
+        val fingerprint = CatalogCanonicalizer.currentQualifiedFingerprint(CatalogArchive(manifest, details, paths, content)).toString()
+        return CatalogArchive(manifest.copy(release = manifest.release.copy(fingerprint = fingerprint)), details, paths, content)
     }
 
     private fun validDocument() = TemplateDocument(
@@ -651,18 +1404,13 @@ class CatalogValidatorTest {
     private fun documentWithStencil(
         nodeId: String,
         slug: String,
-        version: Int,
-        draftVersion: Int? = null,
+        extraProps: Map<String, Any?> = emptyMap(),
     ): TemplateDocument {
         val nested = Node(
             nodeId,
             "stencil",
             slots = listOf("$nodeId-children"),
-            props = buildMap {
-                put("stencilId", slug)
-                put("version", version)
-                draftVersion?.let { put("draftVersion", it) }
-            },
+            props = mapOf("stencilKey" to slug) + extraProps,
         )
         return validDocument().copy(
             nodes = validDocument().nodes + (nested.id to nested),
@@ -674,59 +1422,54 @@ class CatalogValidatorTest {
 
     private fun validateStencils(vararg stencils: StencilResource): CatalogValidationReport {
         val details = stencils.associate { stencil ->
-            "stencil/${stencil.slug}" to ResourceDetail(CURRENT_VERSION, stencil)
+            "stencil/${stencil.key}" to ResourceDetail(CURRENT_VERSION, stencil)
         }
         val entries = stencils.map { stencil ->
             ResourceEntry(
                 "stencil",
-                stencil.slug,
+                stencil.key,
                 stencil.name,
-                detailUrl = "./resources/stencil/${stencil.slug}.json",
+                detailUrl = "./resources/stencil/${stencil.key}.json",
             )
         }
         return CatalogValidator.validate(archive(manifest(resources = entries), details))
     }
 
     private fun compositionCatalogScenario(scenario: String): CatalogValidationReport = when (scenario) {
-        "CATALOG_REFERENCE_MATCHES_EXACT_VERSION" -> validateStencils(
+        "CATALOG_REFERENCE_RESOLVES_IN_CATALOG" -> validateStencils(
             StencilResource(
                 "letter",
                 "Letter",
-                1,
-                content = documentWithStencil("nested-address", "address", 2),
+                content = documentWithStencil("nested-address", "address"),
             ),
-            StencilResource("address", "Address", 2, content = validDocument()),
+            StencilResource("address", "Address", content = validDocument()),
         )
-        "CATALOG_REFERENCE_VERSION_MISMATCH" -> validateStencils(
+        "CATALOG_REFERENCE_MISSING" -> validateStencils(
             StencilResource(
                 "letter",
                 "Letter",
-                1,
-                content = documentWithStencil("nested-address", "address", 1),
+                content = documentWithStencil("nested-address", "address"),
             ),
-            StencilResource("address", "Address", 2, content = validDocument()),
+            StencilResource("contact", "Contact", content = validDocument()),
         )
-        "CATALOG_REFERENCE_TARGETS_DRAFT" -> validateStencils(
+        "CATALOG_REFERENCE_PINS_VERSION" -> validateStencils(
             StencilResource(
                 "letter",
                 "Letter",
-                1,
-                content = documentWithStencil("nested-address", "address", 2, draftVersion = 3),
+                content = documentWithStencil("nested-address", "address", mapOf("version" to 2)),
             ),
-            StencilResource("address", "Address", 2, content = validDocument()),
+            StencilResource("address", "Address", content = validDocument()),
         )
         "CATALOG_TRANSITIVE_RESOURCE_CYCLE" -> validateStencils(
             StencilResource(
                 "letter",
                 "Letter",
-                1,
-                content = documentWithStencil("nested-address", "address", 1),
+                content = documentWithStencil("nested-address", "address"),
             ),
             StencilResource(
                 "address",
                 "Address",
-                1,
-                content = documentWithStencil("nested-letter", "letter", 1),
+                content = documentWithStencil("nested-letter", "letter"),
             ),
         )
         "CATALOG_COMPOSITION_AT_DEPTH_LIMIT" ->
@@ -739,11 +1482,10 @@ class CatalogValidatorTest {
     private fun stencilChain(depth: Int): Array<StencilResource> = Array(depth) { index ->
         val next = index + 1
         StencilResource(
-            slug = "stencil-$index",
+            key = "stencil-$index",
             name = "Stencil $index",
-            version = 1,
             content = if (next < depth) {
-                documentWithStencil("nested-stencil-$next", "stencil-$next", 1)
+                documentWithStencil("nested-stencil-$next", "stencil-$next")
             } else {
                 validDocument()
             },
@@ -755,4 +1497,10 @@ class CatalogValidatorTest {
     private fun fixture(path: String) = requireNotNull(
         javaClass.getResourceAsStream("/META-INF/epistola-catalog/fixtures/v1/$path"),
     )
+
+    private companion object {
+        const val REGISTRY = "exchange.epistola.app"
+        const val NAMESPACE = "epistola"
+        const val FINGERPRINT = "v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42"
+    }
 }

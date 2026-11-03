@@ -1,0 +1,43 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: update-environment-production-refused
+title: Marking an environment production while it serves a draft is refused, and the client surfaces why
+why: >
+  A production environment serves only releases, so an environment serving a draft cannot be
+  marked production until the draft is undeployed (ADR 0003, "Deploying"). The server refuses with
+  409 `environment-deployment-refused`, the same problem as deploying a draft to a production
+  environment, and a client must surface that slug rather than a bare conflict.
+
+  The request is a partial update: `production: true` and nothing else.
+
+action:
+  name: update-environment
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    environmentKey: acceptance
+    production: true
+
+script:
+  - status: 409
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/environment-deployment-refused
+      title: Environment Deployment Refused
+      status: 409
+      detail: "production serves only releases: acceptance serves the draft Redesign 2027 of letters"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PATCH
+      path: /api/tenants/acme-corp/environments/acceptance
+      body:
+        json:
+          production: true
+        jsonAbsent: [name]
+  report:
+    problemTypeSlug: environment-deployment-refused
+    problemStatus: 409

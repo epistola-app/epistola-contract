@@ -1,0 +1,111 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: search-tenant
+title: A tenant search sends its filters as given and reads hits grouped across catalogs
+why: >
+  A search box sends what the reader typed, a space included, and the chips they set: a kind, the
+  tenant's own catalogs only (`supplied=false`, which must go out rather than be dropped as a
+  falsy value), changed resources only, and the order. Booleans go out as `true` and `false`, not
+  as a platform's `True`. The server groups before it pages, so one hit is one resource with every
+  catalog it is in and the variants that matched under it; a client must read each catalog's
+  release, a draft's missing version as null, and the counts per kind the chips show.
+
+action:
+  name: search-tenant
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantKey: acme-corp
+    q: monthly invoice
+    kind: template
+    supplied: false
+    changed: true
+    sort: relevance
+    page: 1
+    size: 8
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      items:
+        - kind: template
+          key: invoice
+          name: Monthly invoice
+          description: The invoice sent every month
+          lastModified: "2026-10-30T14:12:00Z"
+          catalogs:
+            - registry: exchange.epistola.app
+              namespace: acme-corp
+              catalogKey: letters
+              catalogName: Letters
+              releaseId: k7m2x9qa
+              version: null
+              editable: true
+              readOnlyReason: null
+              status: modified
+            - registry: acme.com
+              namespace: billing
+              catalogKey: forms
+              catalogName: Billing forms
+              releaseId: p3n8w4rt
+              version: null
+              editable: true
+              readOnlyReason: null
+              status: ready
+          variants:
+            - key: english
+              name: Monthly invoice (English)
+            - key: dutch
+              name: Maandfactuur
+        - kind: template
+          key: monthly-statement
+          name: Monthly statement
+          lastModified: "2026-10-29T09:00:00Z"
+          catalogs:
+            - registry: exchange.epistola.app
+              namespace: acme-corp
+              catalogKey: letters
+              catalogName: Letters
+              releaseId: k7m2x9qa
+              editable: true
+              status: new
+          variants: []
+      counts:
+        - kind: template
+          total: 10
+        - kind: theme
+          total: 2
+        - kind: catalog
+          total: 1
+      page: { number: 1, size: 8, total: 10, totalPages: 2 }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/search
+      queryParams:
+        q: monthly invoice
+        kind: template
+        supplied: 'false'
+        changed: 'true'
+        sort: relevance
+        page: '1'
+        size: '8'
+        registry: { absent: true }
+        namespace: { absent: true }
+        catalogKey: { absent: true }
+  report:
+    kinds: template,template
+    keys: invoice,monthly-statement
+    names: Monthly invoice|Monthly statement
+    catalogs: >-
+      exchange.epistola.app/acme-corp/letters#k7m2x9qa@null+acme.com/billing/forms#p3n8w4rt@null;exchange.epistola.app/acme-corp/letters#k7m2x9qa@null
+    catalogStates: true:null:modified+true:null:ready;true:null:new
+    variants: english+dutch;
+    counts: template=10,theme=2,catalog=1
+    total: '10'

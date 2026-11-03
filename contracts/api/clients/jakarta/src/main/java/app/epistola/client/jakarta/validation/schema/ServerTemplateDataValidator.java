@@ -29,9 +29,9 @@ import java.util.List;
 public class ServerTemplateDataValidator implements TemplateDataValidator {
 
     private final TemplatesApi templatesApi;
-    private final String variantId;
-    private final Integer versionId;
-    private final String environmentId;
+    private final String variantKey;
+    private final String versionRange;
+    private final String environmentKey;
 
     public ServerTemplateDataValidator(TemplatesApi templatesApi) {
         this(templatesApi, null, null, null);
@@ -39,31 +39,33 @@ public class ServerTemplateDataValidator implements TemplateDataValidator {
 
     /**
      * @param templatesApi  the generated API used to reach {@code validateTemplateData}
-     * @param variantId     optional variant to check against
-     * @param versionId     optional explicit version number (mutually exclusive with
-     *                      {@code environmentId})
-     * @param environmentId optional environment whose active version to check against
+     * @param variantKey     optional variant to check against; without it, the default variant
+     * @param versionRange   optional version range for the release of the template's catalog to
+     *                       check against ({@code 1.4.0}, {@code ^1.4.0}); without it, the highest
+     *                       release, as preview and generation would render
+     * @param environmentKey optional environment whose deployed releases to choose from; combines
+     *                       with {@code versionRange}
      */
     public ServerTemplateDataValidator(
-            TemplatesApi templatesApi, String variantId, Integer versionId, String environmentId) {
+            TemplatesApi templatesApi, String variantKey, String versionRange, String environmentKey) {
         this.templatesApi = templatesApi;
-        this.variantId = variantId;
-        this.versionId = versionId;
-        this.environmentId = environmentId;
+        this.variantKey = variantKey;
+        this.versionRange = versionRange;
+        this.environmentKey = environmentKey;
     }
 
     @Override
     public List<TemplateDataValidationException.ValidationError> validate(
-            String tenantId, String catalogId, String templateId, Object data) {
+            String tenantKey, String registry, String namespace, String catalogKey, String templateKey, Object data) {
 
         ValidateTemplateDataRequest request = new ValidateTemplateDataRequest();
         request.setData(data);
-        request.setVariantId(variantId);
-        request.setVersionId(versionId);
-        request.setEnvironmentId(environmentId);
+        request.setVariantKey(variantKey);
+        request.setVersionRange(versionRange);
+        request.setEnvironmentKey(environmentKey);
 
         TemplateDataValidationResult result =
-                templatesApi.validateTemplateData(tenantId, catalogId, templateId, request);
+                templatesApi.validateTemplateData(tenantKey, registry, namespace, catalogKey, templateKey, request);
         if (result == null) {
             return Collections.emptyList();
         }

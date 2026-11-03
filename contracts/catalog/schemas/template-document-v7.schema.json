@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://epistola.app/schemas/template-document-v7.schema.json",
+  "title": "TemplateDocumentV7",
+  "description": "An Epistola template document as catalog wire v5 to v7 carry it, frozen when wire v8 renamed ThemeRef.themeId to themeKey. Wire v8 uses template-document.schema.json.",
+  "type": "object",
+
+  "properties": {
+    "modelVersion": {
+      "const": 1,
+      "description": "Schema version for forward-compatibility detection."
+    },
+    "root": {
+      "$ref": "template-shared.schema.json#/$defs/NodeId",
+      "description": "ID of the root node in the document tree."
+    },
+    "nodes": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/Node" },
+      "description": "Flat map of all nodes keyed by NodeId."
+    },
+    "slots": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/Slot" },
+      "description": "Flat map of all slots keyed by SlotId."
+    },
+    "themeRef": {
+      "$ref": "#/$defs/ThemeRef"
+    },
+    "pageSettingsOverride": {
+      "$ref": "template-shared.schema.json#/$defs/PageSettings"
+    },
+    "documentStylesOverride": {
+      "$ref": "template-shared.schema.json#/$defs/DocumentStyles"
+    }
+  },
+  "required": ["modelVersion", "root", "nodes", "slots", "themeRef"],
+  "additionalProperties": false,
+
+  "$defs": {
+    "ThemeRef": {
+      "description": "A theme reference as catalog wire v5 to v7 write it, naming the theme by themeId. Wire v8 names it by themeKey (template-shared.schema.json#/$defs/ThemeRef).",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "inherit"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "override"
+            },
+            "themeId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "catalogKey": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Catalog containing the theme. Omitted means the same catalog as the owning template."
+            },
+            "namespace": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 63,
+              "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+              "description": "Namespace of the catalog containing the theme. Omitted means the owning template's catalog namespace. Added with catalog wire v8."
+            },
+            "registry": {
+              "type": "string",
+              "maxLength": 253,
+              "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$",
+              "description": "Registry of the catalog containing the theme. Omitted means the owning template's catalog registry, never an installation default. Requires namespace. Added with catalog wire v8."
+            }
+          },
+          "required": [
+            "type",
+            "themeId"
+          ],
+          "dependentRequired": {
+            "registry": [
+              "namespace"
+            ]
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+
+    "Node": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "template-shared.schema.json#/$defs/NodeId"
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Node type identifier (e.g. 'text', 'container', 'columns')."
+        },
+        "slots": {
+          "type": "array",
+          "items": { "$ref": "template-shared.schema.json#/$defs/SlotId" },
+          "description": "Ordered slot IDs owned by this node."
+        },
+        "styles": {
+          "type": "object",
+          "description": "Inline style overrides (CSS-like key/value pairs)."
+        },
+        "stylePreset": {
+          "type": "string",
+          "description": "Reference to a named preset in the theme's block style presets."
+        },
+        "props": {
+          "type": "object",
+          "description": "Type-specific properties (content, expression, columns config, etc.)."
+        }
+      },
+      "required": ["id", "type", "slots"],
+      "additionalProperties": false
+    },
+
+    "Slot": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "template-shared.schema.json#/$defs/SlotId"
+        },
+        "nodeId": {
+          "$ref": "template-shared.schema.json#/$defs/NodeId",
+          "description": "Parent node that owns this slot."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Semantic slot name (e.g. 'children', 'column-0', 'cell-0-1', 'body')."
+        },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "template-shared.schema.json#/$defs/NodeId" },
+          "description": "Ordered child node IDs in this slot."
+        }
+      },
+      "required": ["id", "nodeId", "name", "children"],
+      "additionalProperties": false
+    }
+  }
+}

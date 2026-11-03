@@ -21,6 +21,7 @@
  *                             types of every operation, which is what the Accept header is built from
  *     knownProblemSlugs.ts    KnownProblemSlugs + GENERATED_PROBLEM_TYPE_BASE + ProblemExtensionMembers,
  *                             from x-problem-types and the problem schemas it names
+ *     knownValidationCodes.ts KnownValidationCodes, from x-validation-codes
  *     modelValidation.ts      MODEL_CONSTRAINTS + validateModel() + per-model validators, from the
  *                             schema constraints
  *     index.ts                re-exports the above
@@ -50,6 +51,7 @@ function main(argv) {
   write(outDir, 'contractMediaTypes.ts', generateContractMediaTypes(model))
   write(outDir, 'contractOperations.ts', generateContractOperations(model))
   write(outDir, 'knownProblemSlugs.ts', generateProblemSlugs(model))
+  write(outDir, 'knownValidationCodes.ts', generateValidationCodes(model))
   write(outDir, 'modelValidation.ts', generateModelValidation(model))
   write(outDir, 'index.ts', generateIndex())
 }
@@ -86,6 +88,32 @@ function specModel(root) {
       constantName: entry.slug.toUpperCase().replace(/-/g, '_'),
     }
   })
+
+  const validationRegistry = root['x-validation-codes']
+  if (!isObject(validationRegistry)) {
+    fail('bundled spec has no x-validation-codes extension — the validation-code constants cannot be generated')
+  }
+  const rawCodes = Array.isArray(validationRegistry.codes) ? validationRegistry.codes : []
+  if (rawCodes.length < 20) {
+    fail(`x-validation-codes lists only ${rawCodes.length} codes (expected at least 20) — was the registry truncated?`)
+  }
+  const validationCodes = rawCodes.map((entry) => {
+    if (typeof entry?.code !== 'string') {
+      fail(`an x-validation-codes entry has no code: ${JSON.stringify(entry)}`)
+    }
+    if (!['constraint', 'template', 'domain'].includes(entry.kind)) {
+      fail(`x-validation-codes entry '${entry.code}' has kind '${entry.kind}' (expected constraint, template or domain)`)
+    }
+    return {
+      code: entry.code,
+      kind: entry.kind,
+      description: String(entry.description ?? '').replace(/\s+/g, ' ').trim(),
+      constantName: entry.code.toUpperCase().replace(/-/g, '_'),
+    }
+  })
+  if (new Set(validationCodes.map((c) => c.code)).size !== validationCodes.length) {
+    fail('x-validation-codes registers a code twice')
+  }
 
   const identity = root['x-client-identity']
   if (!isObject(identity)) {
@@ -148,11 +176,17 @@ function specModel(root) {
     if (!isObject(schema) || schema.type !== 'object' || !isObject(schema.properties)) continue
     const required = Array.isArray(schema.required) ? schema.required : []
     const fields = []
-    for (const [propertyName, property] of Object.entries(schema.properties)) {
-      // Skip $ref properties — the referenced type carries its own constraints.
-      if (!isObject(property) || '$ref' in property) continue
+    for (const [propertyName, declared] of Object.entries(schema.properties)) {
+      if (!isObject(declared)) continue
+      // A $ref to an object or enum is a type of its own: skip it. A $ref to a plain string schema
+      // (`ReleaseVersion`) is generated as a string, so its constraints are checked here, as if
+      // written inline.
+      // `oneOf: [{$ref}, {type: 'null'}]`, a nullable use of a named rule, is the same, and nullable.
+      const nullableAlias = nullableStringAlias(schemas, declared)
+      const property = '$ref' in declared ? stringAlias(schemas, declared.$ref) : nullableAlias ?? declared
+      if (!property) continue
       const declaredType = property.type
-      const explicitlyNullable = Array.isArray(declaredType) && declaredType.includes('null')
+      const explicitlyNullable = nullableAlias !== undefined || (Array.isArray(declaredType) && declaredType.includes('null'))
       const baseType = typeof declaredType === 'string'
         ? declaredType
         : Array.isArray(declaredType) ? declaredType.find((t) => t !== 'null') : undefined
@@ -212,7 +246,7 @@ function specModel(root) {
     fail('the bundled spec has no operations')
   }
 
-  return { version, problemTypeBase, problemTypes, clientIdentity, vendorMediaTypes, problemExtensionMembers, constrainedSchemas, operations }
+  return { version, problemTypeBase, problemTypes, validationCodes, clientIdentity, vendorMediaTypes, problemExtensionMembers, constrainedSchemas, operations }
 }
 
 // --- Emitters ---
@@ -276,7 +310,7 @@ export type ContractHttpMethod = 'GET' | 'PUT' | 'POST' | 'DELETE' | 'OPTIONS' |
 export interface ContractOperation {
   readonly operationId: string
   readonly method: ContractHttpMethod
-  /** The path template, relative to the API base path, e.g. \`/tenants/{tenantId}/templates\`. */
+  /** The path template, relative to the API base path, e.g. \`/tenants/{tenantKey}/templates\`. */
   readonly path: string
   /**
    * The response media types the operation declares, in the order the contract declares them,
@@ -372,7 +406,7 @@ import { ModelValidationException, type ConstraintViolation } from '../validatio
  * counterpart of the Kotlin / .NET \`validate()\` extensions and the Python \`validate()\` helper.
  *
  * The generated models are plain interfaces with no runtime checks, so these are the only place a
- * constraint the contract declares — a slug pattern, a length bound, a range — is enforced before
+ * constraint the contract declares — a key pattern, a length bound, a range — is enforced before
  * the request leaves the process. The set of models is derived from the spec, so the build fails if
  * the contract ever silently drops all of its constraints.
  */
@@ -459,6 +493,32 @@ ${wrappers}
 `
 }
 
+function generateValidationCodes(model) {
+  const constants = model.validationCodes
+    .map((c) => `  /** ${c.kind} — ${c.description} */\n  ${c.constantName}: ${str(c.code)},`)
+    .join('\n')
+  return `${HEADER}
+/**
+ * The codes that say why a field of a \`validation-error\` failed (\`ValidationError.code\`), from
+ * the contract's validation-code registry (the spec's \`x-validation-codes\` extension /
+ * \`docs/error-types.md\`): \`constraint\` codes name the JSON Schema keyword a value broke,
+ * \`template\` codes a finding in template or stencil content, \`domain\` codes a rule the server
+ * applies beyond the schema.
+ *
+ * Convenience constants for \`switch (error.code)\`. \`code\` is deliberately a plain
+ * \`string | undefined\` (not a union of these) so the API can introduce new codes in a minor
+ * version without forcing a client release — always keep a \`default\` branch.
+ * \`Object.values(KnownValidationCodes)\` lists every code, in registry order.
+ */
+export const KnownValidationCodes = {
+${constants}
+} as const
+
+/** One of the registered validation codes. Compare \`code\` against these, but never narrow it to them. */
+export type KnownValidationCode = (typeof KnownValidationCodes)[keyof typeof KnownValidationCodes]
+`
+}
+
 function generateIndex() {
   return `${HEADER}
 export * from './contractVersion.js'
@@ -466,6 +526,7 @@ export * from './contractIdentity.js'
 export * from './contractMediaTypes.js'
 export * from './contractOperations.js'
 export * from './knownProblemSlugs.js'
+export * from './knownValidationCodes.js'
 export * from './modelValidation.js'
 `
 }
@@ -488,6 +549,29 @@ function constraintLiteral(constraint) {
     default:
       fail(`unhandled constraint kind: ${constraint.kind}`)
   }
+}
+
+/**
+ * The schema a `$ref` names when it is a plain string schema with no `enum` (`ReleaseVersion`),
+ * which the generator renders as a string rather than a type of its own; undefined otherwise.
+ */
+function stringAlias(schemas, ref) {
+  const prefix = '#/components/schemas/'
+  if (typeof ref !== 'string' || !ref.startsWith(prefix)) return undefined
+  const target = schemas[ref.slice(prefix.length)]
+  return isObject(target) && target.type === 'string' && !('enum' in target) ? target : undefined
+}
+
+/**
+ * The string schema a nullable use of a named rule references, `oneOf: [{$ref: Rule}, {type: 'null'}]`
+ * (the generators render it as a nullable string); undefined for anything else.
+ */
+function nullableStringAlias(schemas, declared) {
+  const branches = declared.oneOf ?? declared.anyOf
+  if (!Array.isArray(branches) || branches.length !== 2 || !branches.every(isObject)) return undefined
+  if (!branches.some((b) => b.type === 'null' && Object.keys(b).length === 1)) return undefined
+  const ref = branches.find((b) => '$ref' in b)?.$ref
+  return ref === undefined ? undefined : stringAlias(schemas, ref)
 }
 
 /** Follows a local `$ref` (`#/components/...`) to its target; returns other nodes unchanged. */

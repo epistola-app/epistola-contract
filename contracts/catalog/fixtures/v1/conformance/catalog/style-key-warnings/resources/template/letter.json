@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 8,
+  "resource": {
+    "type": "template",
+    "key": "letter",
+    "name": "Letter",
+    "dataExamples": [],
+    "templateModel": {
+      "modelVersion": 1,
+      "root": "root",
+      "nodes": {
+        "root": {
+          "id": "root",
+          "type": "root",
+          "slots": [
+            "children"
+          ]
+        },
+        "intro": {
+          "id": "intro",
+          "type": "text",
+          "slots": [],
+          "styles": {
+            "verticalAlign": "middle"
+          }
+        },
+        "grid": {
+          "id": "grid",
+          "type": "table",
+          "slots": [
+            "grid-0-0"
+          ],
+          "props": {
+            "rows": 1,
+            "columns": 1,
+            "cellStyles": {
+              "0-0": {
+                "backgroundColor": "#f1f5f9",
+                "verticalAlign": "middle",
+                "fontSize": "8pt"
+              }
+            }
+          }
+        }
+      },
+      "slots": {
+        "children": {
+          "id": "children",
+          "nodeId": "root",
+          "name": "children",
+          "children": [
+            "intro",
+            "grid"
+          ]
+        },
+        "grid-0-0": {
+          "id": "grid-0-0",
+          "nodeId": "grid",
+          "name": "cell-0-0",
+          "children": []
+        }
+      },
+      "themeRef": {
+        "type": "inherit"
+      },
+      "documentStylesOverride": {
+        "colour": "#111111"
+      }
+    },
+    "variants": []
+  }
+}

@@ -4,87 +4,88 @@ CodeListDto:
     A reusable `{code, label}` collection that an attribute can bind to.
 
     Code lists are tenant + catalog scoped — the same shape attributes follow.
-    A code list from a SUBSCRIBED catalog (e.g. the bundled `system` catalog's
-    `bcp-47`, `iso-639-1`, `iso-3166-1-alpha2`) is flagged `readOnly: true`;
-    PATCH, DELETE, and entry hide-toggles on it return 409.
+    A code list of a catalog that cannot be changed in this installation (e.g. the bundled `system`
+    catalog's `bcp-47`, `iso-639-1`, `iso-3166-1-alpha2`) is flagged `readOnly: true`; PATCH,
+    DELETE, and entry hide-toggles on it return 409 `catalog-read-only`.
 
-    Sources: `INLINE` (entries baked into this row) or `URL` (entries fetched
-    over HTTPS via the manual "refresh" action). Catalog-imported code lists
-    always land as `INLINE` because the entries ship in the catalog manifest.
+    Sources: `inline` (entries baked into this row) or `url` (entries fetched
+    from `sourceUrl` via the manual "refresh" action). Catalog-imported code lists
+    always land as `inline` because the entries ship in the catalog manifest.
   required:
-    - slug
-    - tenantId
-    - catalog
-    - displayName
+    - key
+    - tenantKey
+    - registry
+    - namespace
+    - catalogKey
+    - name
     - sourceType
     - authType
-    - catalogType
     - readOnly
     - createdAt
     - lastModified
   properties:
-    slug:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 1
-      maxLength: 50
-      description: Slug identifier (unique within `tenant + catalog`).
+    key:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: Key (unique within `tenant + catalog`).
       example: bcp-47
-    tenantId:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+    tenantKey:
+      $ref: './identifiers.yaml#/TenantKey'
       example: acme-corp
-    catalog:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      description: Slug of the catalog this code list lives in.
+    registry:
+      $ref: './identifiers.yaml#/Registry'
+      description: |
+        Registry of the catalog: the exchange or domain its namespace lives in. Always written in
+        full, the default registry by its name, never `~`.
+      example: exchange.epistola.app
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the catalog, within its registry
+      example: epistola
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the catalog this resource lives in, unique within its registry and namespace
       example: system
-    displayName:
+    name:
       type: string
+      minLength: 1
+      maxLength: 100
       example: BCP-47 Language Tags
     description:
       type:
         - string
         - 'null'
+      maxLength: 2000
       example: Curated subset of common BCP-47 language + region tags.
     sourceType:
-      type: string
-      enum:
-        - INLINE
-        - URL
+      $ref: '#/CodeListSourceType'
       description: Origin of entries — inline (this row) or fetched from a URL.
-      example: INLINE
+      example: inline
     sourceUrl:
       type:
         - string
         - 'null'
-      description: Set only when `sourceType=URL`. HTTPS, file, or classpath.
+      pattern: '^https://'
+      maxLength: 2048
+      description: The HTTPS URL the entries are fetched from; set only when `sourceType` is `url`.
       example: null
     authType:
-      type: string
-      enum:
-        - NONE
-        - API_KEY
-        - BEARER
-      description: Auth scheme for the URL source. Ignored for INLINE.
-      default: NONE
-      example: NONE
-    catalogType:
-      type: string
-      enum:
-        - AUTHORED
-        - SUBSCRIBED
-      example: SUBSCRIBED
+      $ref: '#/CodeListAuthType'
+      description: Auth scheme for the URL source. Ignored for inline.
+      default: none
+      example: none
     readOnly:
       type: boolean
-      description: True when `catalogType == SUBSCRIBED`.
+      description: |
+        True when the code list's catalog cannot be changed in this installation (its `CatalogDto.editable`
+        is false; `readOnlyReason` there says why). Clients disable editing affordances; writes to
+        it are refused with 409 `catalog-read-only`.
       example: true
     lastRefreshedAt:
       type:
         - string
         - 'null'
       format: date-time
-      description: Timestamp of the last successful URL refresh. Null for INLINE.
+      description: Timestamp of the last successful URL refresh. Null for inline.
       example: null
     lastRefreshError:
       type:
@@ -101,15 +102,16 @@ CodeListDto:
       format: date-time
       example: "2026-05-11T00:00:00Z"
   example:
-    slug: bcp-47
-    tenantId: acme-corp
-    catalog: system
-    displayName: BCP-47 Language Tags
+    key: bcp-47
+    tenantKey: acme-corp
+    registry: exchange.epistola.app
+    namespace: epistola
+    catalogKey: system
+    name: BCP-47 Language Tags
     description: Curated subset of common BCP-47 language + region tags.
-    sourceType: INLINE
+    sourceType: inline
     sourceUrl: null
-    authType: NONE
-    catalogType: SUBSCRIBED
+    authType: none
     readOnly: true
     lastRefreshedAt: null
     lastRefreshError: null
@@ -131,10 +133,14 @@ CodeListEntryDto:
   properties:
     code:
       type: string
+      minLength: 1
+      maxLength: 64
       description: Persistable value. What lands on a variant's attribute map.
       example: en-US
     label:
       type: string
+      minLength: 1
+      maxLength: 200
       description: Human-readable label shown in pickers.
       example: English (United States)
     sortOrder:
@@ -164,14 +170,17 @@ CodeListListResponse:
 
 CodeListEntriesResponse:
   type: object
-  description: List of code list entries.
+  description: One page of a code list's entries.
   required:
     - items
+    - page
   properties:
     items:
       type: array
       items:
         $ref: '#/CodeListEntryDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
 
 UpdateCodeListEntryHiddenRequest:
   type: object
@@ -189,59 +198,55 @@ CreateCodeListRequest:
   description: |
     Request body for creating a new code list.
 
-    `entries` is required when `sourceType == INLINE` and must contain at least
-    one entry with a unique `code`. For `sourceType == URL`, omit `entries` —
+    `entries` is required when `sourceType == inline` and must contain at least
+    one entry with a unique `code`. For `sourceType == url`, omit `entries` —
     they'll be populated by the first manual refresh.
 
-    Writing to a SUBSCRIBED catalog (e.g. `system`) returns 409.
+    Writing to a catalog that cannot be changed (e.g. `system`) returns 409 `catalog-read-only`.
   required:
-    - slug
-    - displayName
+    - key
+    - name
     - sourceType
   properties:
-    slug:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 1
-      maxLength: 50
+    key:
+      $ref: './identifiers.yaml#/ResourceKey'
       example: priorities
-    displayName:
+    name:
       type: string
+      minLength: 1
+      maxLength: 100
       example: Priorities
     description:
       type:
         - string
         - 'null'
+      maxLength: 2000
       example: Customer-facing priority levels for outbound documents.
     sourceType:
-      type: string
-      enum:
-        - INLINE
-        - URL
-      example: INLINE
+      $ref: '#/CodeListSourceType'
+      example: inline
     sourceUrl:
       type:
         - string
         - 'null'
+      pattern: '^https://'
+      maxLength: 2048
       example: null
     authType:
-      type: string
-      enum:
-        - NONE
-        - API_KEY
-        - BEARER
-      default: NONE
+      $ref: '#/CodeListAuthType'
+      default: none
     credential:
       type:
         - string
         - 'null'
+      maxLength: 4096
       description: |
-        Plaintext credential for the URL source (API key or bearer token).
-        Stored at rest unencrypted in this iteration — encryption is a
-        separate work item.
+        The credential for the URL source (an API key or a bearer token), as `authType` says.
+        Write-only: no response carries it.
       example: null
     entries:
       type: array
+      maxItems: 10000
       items:
         $ref: '#/CodeListEntryDto'
       default: []
@@ -255,29 +260,48 @@ UpdateCodeListRequest:
   description: |
     Request body for updating a code list. All fields optional (PATCH semantics).
     Omitting `entries` leaves them untouched; providing `entries` replaces them
-    atomically. Updates to SUBSCRIBED-catalog code lists return 409.
+    atomically. Updates to a code list of a catalog that cannot be changed return 409
+    `catalog-read-only`.
   properties:
-    displayName:
+    name:
       type: string
+      minLength: 1
+      maxLength: 100
     description:
       type:
         - string
         - 'null'
+      maxLength: 2000
     sourceUrl:
       type:
         - string
         - 'null'
+      pattern: '^https://'
+      maxLength: 2048
     authType:
-      type: string
-      enum:
-        - NONE
-        - API_KEY
-        - BEARER
+      $ref: '#/CodeListAuthType'
     credential:
       type:
         - string
         - 'null'
+      maxLength: 4096
     entries:
       type: array
+      maxItems: 10000
       items:
         $ref: '#/CodeListEntryDto'
+
+CodeListSourceType:
+  type: string
+  description: Where a code list's entries come from, `inline` (stored with it) or a `url` they are fetched from.
+  enum:
+    - inline
+    - url
+
+CodeListAuthType:
+  type: string
+  description: How a code list authenticates to its URL source; `none` for an inline one.
+  enum:
+    - none
+    - api-key
+    - bearer

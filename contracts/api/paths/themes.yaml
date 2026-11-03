@@ -1,28 +1,20 @@
 themes:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the catalog
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
 
   get:
     operationId: listThemes
-    summary: List themes for a tenant
-    description: Retrieve all themes configured for a specific tenant.
+    summary: List the themes in a release of a catalog
+    description: Retrieve the themes of this release.
     tags:
       - Themes
     x-required-permissions: [THEME_VIEW]
@@ -34,13 +26,11 @@ themes:
           type: string
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
-      - $ref: '../components/parameters/sorting.yaml#/Sort'
-      - $ref: '../components/parameters/sorting.yaml#/Direction'
     responses:
       '200':
         description: List of themes
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/themes.yaml#/ThemeListResponse'
       '400':
@@ -55,21 +45,25 @@ themes:
   post:
     operationId: createTheme
     summary: Create a new theme
-    description: Create a new theme for the specified tenant.
+    description: Create a theme in the draft.
     tags:
       - Themes
     x-required-permissions: [THEME_EDIT]
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/themes.yaml#/CreateThemeRequest'
     responses:
       '201':
         description: Theme created successfully
+        headers:
+          Location:
+            $ref: '../components/headers/location.yaml#/Location'
+            description: The theme's address (`getTheme`)
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/themes.yaml#/ThemeDto'
       '400':
@@ -81,41 +75,30 @@ themes:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
 
 themes-id:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
+    - name: themeKey
       in: path
       required: true
-      description: Slug identifier of the catalog
+      description: Key of the theme
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: themeId
-      in: path
-      required: true
-      description: Slug identifier of the theme
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 20
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
 
   get:
     operationId: getTheme
-    summary: Get theme by ID
+    summary: Get a theme by key
     description: Retrieve details of a specific theme.
     tags:
       - Themes
@@ -123,10 +106,15 @@ themes-id:
     responses:
       '200':
         description: Theme details
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/themes.yaml#/ThemeDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -137,21 +125,29 @@ themes-id:
   patch:
     operationId: updateTheme
     summary: Update a theme
-    description: Update an existing theme. Only provided fields will be updated.
+    description: |
+      Update an existing theme. Only provided fields will be updated.
+      Send the `ETag` from a read as `If-Match` to have the update refused with 412
+      `resource-modified` if the resource changed since; without it, the last write wins.
     tags:
       - Themes
     x-required-permissions: [THEME_EDIT]
+    parameters:
+      - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/themes.yaml#/UpdateThemeRequest'
     responses:
       '200':
         description: Theme updated successfully
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/themes.yaml#/ThemeDto'
       '400':
@@ -163,21 +159,31 @@ themes-id:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
+      '412':
+        $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
 
   delete:
     operationId: deleteTheme
     summary: Delete a theme
-    description: Delete a theme. Templates referencing this theme will fall back to their own styles.
+    description: |
+      Delete the theme from the draft. Refused with 409 outside a draft, and while anything
+      in the draft still uses it: a template or variant that names it, or the draft's default
+      theme (`defaultTheme`). A render never falls back to other styles because a theme
+      it names is missing; change those references first.
     tags:
       - Themes
     x-required-permissions: [THEME_EDIT]
     responses:
       '204':
         description: Theme deleted successfully
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'

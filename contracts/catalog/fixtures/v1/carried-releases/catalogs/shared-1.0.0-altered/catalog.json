@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 8,
+  "catalog": {
+    "registry": "exchange.epistola.app",
+    "namespace": "acme",
+    "key": "shared",
+    "name": "Shared Catalog"
+  },
+  "publisher": {
+    "name": "Acme"
+  },
+  "release": {
+    "version": "1.0.0",
+    "fingerprint": "v6:a7d520071e52bd22733a5e31305e5ac390dcf022f02483c3afe4a238b6f28417"
+  },
+  "resources": [
+    {
+      "type": "theme",
+      "key": "shared",
+      "name": "Shared",
+      "detailUrl": "./resources/theme/shared.json"
+    }
+  ],
+  "dependencies": [],
+  "catalogDependencies": [
+    {
+      "alias": "base",
+      "registry": "exchange.epistola.app",
+      "namespace": "acme",
+      "catalogKey": "base",
+      "releaseVersion": "1.0.0",
+      "releaseFingerprint": "v6:28138c6fbc445189ea0bfd6434ce17d260d993d87abf719a3b175b59eac02ddd"
+    }
+  ]
+}

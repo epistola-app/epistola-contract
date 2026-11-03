@@ -1,30 +1,23 @@
 fonts:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant.
+      description: Unique key of the tenant.
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the catalog.
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
   get:
     operationId: listFonts
     summary: List font families in a catalog
     description: |
       Retrieve all font families in the given tenant + catalog, each with the
-      weight/italic faces it ships. Families from a SUBSCRIBED catalog (e.g.
-      the bundled `system` catalog) are flagged `readOnly: true`.
+      weight/italic faces it ships. Families of a catalog that cannot be
+      changed in this installation (e.g. the bundled `system` catalog) are
+      flagged `readOnly: true`.
 
       Read-only: font families and their binaries are managed through the UI
       and catalog exchange only — there is no create/update/delete over REST.
@@ -34,13 +27,11 @@ fonts:
     parameters:
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
-      - $ref: '../components/parameters/sorting.yaml#/Sort'
-      - $ref: '../components/parameters/sorting.yaml#/Direction'
     responses:
       '200':
         description: List of font families.
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/fonts.yaml#/FontListResponse'
       '400':
@@ -52,33 +43,23 @@ fonts:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
-fonts-slug:
+fonts-key:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
+    - name: fontKey
       in: path
       required: true
+      description: Key of the font family.
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: fontSlug
-      in: path
-      required: true
-      description: Slug of the font family.
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 2
-        maxLength: 64
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
   get:
     operationId: getFont
     summary: Get a font family
@@ -89,9 +70,11 @@ fonts-slug:
       '200':
         description: Font family.
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/fonts.yaml#/FontDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

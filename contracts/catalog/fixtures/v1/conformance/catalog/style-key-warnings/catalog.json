@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 8,
+  "catalog": {
+    "registry": "exchange.epistola.app",
+    "namespace": "epistola",
+    "key": "fixture",
+    "name": "Fixture Catalog",
+    "description": "Style keys that have no effect are warnings: the catalog stays valid"
+  },
+  "publisher": {
+    "name": "Epistola"
+  },
+  "release": {
+    "version": "1.0.0",
+    "fingerprint": "v6:ee1c281c6a5118d1a78e741d7ab976e00acb9ce573e71f38e788cc302dbc3684"
+  },
+  "resources": [
+    {
+      "type": "template",
+      "key": "letter",
+      "name": "Letter",
+      "detailUrl": "./resources/template/letter.json"
+    },
+    {
+      "type": "theme",
+      "key": "house",
+      "name": "House",
+      "detailUrl": "./resources/theme/house.json"
+    }
+  ],
+  "dependencies": [],
+  "catalogDependencies": []
+}

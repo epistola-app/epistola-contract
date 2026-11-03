@@ -41,7 +41,7 @@ class EpistolaClientTest {
     @Test
     fun `identity headers, the JSON configuration, and the problem handler are all wired at once`() {
         var captured: com.sun.net.httpserver.HttpExchange? = null
-        val server = jsonServer(200, """{"id":"acme","tenantId":"t","name":"n","authMethod":"api-key","status":"active","createdAt":"2026-01-01T00:00:00Z","requestedPermissions":{},"grantedPermissions":{},"nodes":[]}""") {
+        val server = jsonServer(200, """{"id":"acme","tenantKey":"t","name":"n","authMethod":"api-key","status":"active","createdAt":"2026-01-01T00:00:00Z","lastModified":"2026-01-01T00:00:00Z","requestedPermissions":{},"grantedPermissions":{},"nodes":[]}""") {
             captured = it
         }
         try {
@@ -66,7 +66,7 @@ class EpistolaClientTest {
     @Test
     fun `the request body omits properties the caller never set`() {
         var body: String? = null
-        val server = jsonServer(200, """{"id":"acme","tenantId":"t","name":"n","authMethod":"api-key","status":"active","createdAt":"2026-01-01T00:00:00Z","requestedPermissions":{},"grantedPermissions":{},"nodes":[]}""") {
+        val server = jsonServer(200, """{"id":"acme","tenantKey":"t","name":"n","authMethod":"api-key","status":"active","createdAt":"2026-01-01T00:00:00Z","lastModified":"2026-01-01T00:00:00Z","requestedPermissions":{},"grantedPermissions":{},"nodes":[]}""") {
             body = String(it.requestBody.readAllBytes())
         }
         try {
@@ -108,7 +108,7 @@ class EpistolaClientTest {
     @Test
     fun `apiKey and jwtSigner are mutually exclusive, whichever was set last wins`() {
         var headers: com.sun.net.httpserver.Headers? = null
-        val server = jsonServer(200, """{"status":"UP","timestamp":"2026-01-01T00:00:00Z"}""") { headers = it.requestHeaders }
+        val server = jsonServer(200, """{"status":"up","timestamp":"2026-01-01T00:00:00Z"}""") { headers = it.requestHeaders }
         try {
             val signer = JwtSigner.builder().consumerId("svc").privateKey(rsaKey()).build()
 
@@ -127,7 +127,7 @@ class EpistolaClientTest {
     @Test
     fun `no auth configured means no Authorization header`() {
         var headers: com.sun.net.httpserver.Headers? = null
-        val server = jsonServer(200, """{"status":"UP","timestamp":"2026-01-01T00:00:00Z"}""") { headers = it.requestHeaders }
+        val server = jsonServer(200, """{"status":"up","timestamp":"2026-01-01T00:00:00Z"}""") { headers = it.requestHeaders }
         try {
             val restClient = EpistolaClient.builder(baseUrl(server)).build()
             SystemApi(restClient).ping(null)
@@ -146,8 +146,8 @@ class EpistolaClientTest {
         val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0).apply {
             createContext("/") { exchange ->
                 Thread.sleep(delay.toMillis())
-                val body = """{"status":"UP","timestamp":"2026-01-01T00:00:00Z"}""".toByteArray()
-                exchange.responseHeaders.add("Content-Type", "application/vnd.epistola.v1+json")
+                val body = """{"status":"up","timestamp":"2026-01-01T00:00:00Z"}""".toByteArray()
+                exchange.responseHeaders.add("Content-Type", "application/vnd.epistola.v2+json")
                 exchange.sendResponseHeaders(200, body.size.toLong())
                 exchange.responseBody.use { it.write(body) }
             }
@@ -163,7 +163,7 @@ class EpistolaClientTest {
 
             val unbounded = builder.readTimeout(null).build()
             val pong = SystemApi(unbounded).ping(null)
-            assertEquals("UP", pong.status.toString())
+            assertEquals("up", pong.status.toString())
         } finally {
             server.stop(0)
         }
@@ -178,7 +178,7 @@ class EpistolaClientTest {
     private fun jsonServer(
         status: Int,
         body: String,
-        contentType: String = "application/vnd.epistola.v1+json",
+        contentType: String = "application/vnd.epistola.v2+json",
         capture: (com.sun.net.httpserver.HttpExchange) -> Unit,
     ): HttpServer = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0).apply {
         createContext("/") { exchange ->

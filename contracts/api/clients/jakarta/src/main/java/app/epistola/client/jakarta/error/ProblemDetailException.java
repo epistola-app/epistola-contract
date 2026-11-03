@@ -45,6 +45,20 @@ public class ProblemDetailException extends ApiException {
     private final Map<String, List<DataModelValidationError>> validationErrors;
     private final List<MissingDataField> missingFields;
     private final List<InvalidDataField> invalidFields;
+    private final List<MissingDependency> missingDependencies;
+    private final List<UnreleasedDependency> unreleasedDependencies;
+    private final String readOnlyReason;
+    private final List<String> unresolvedConflicts;
+    private final String missingBaseVersion;
+    private final String missingBaseFingerprint;
+    private final List<String> behind;
+    private final List<String> environments;
+    private final List<CatalogReleaseRef> pinnedBy;
+    private final List<String> tiedVariants;
+    private final String requiredPermission;
+    private final String refusedTenantKey;
+    private final String requiredPlatformRole;
+    private final String refusalReason;
     private final int statusCode;
     private final String responseBody;
     private final String message;
@@ -70,7 +84,183 @@ public class ProblemDetailException extends ApiException {
             List<MissingDataField> missingFields,
             List<InvalidDataField> invalidFields,
             String responseBody) {
+        this(response, problem, errors, validationErrors, missingFields, invalidFields, null, responseBody);
+    }
+
+    /**
+     * The same, for a problem that may also list missing release dependencies
+     * ({@code release-dependencies-missing}).
+     */
+    public ProblemDetailException(
+            Response response,
+            ProblemDetail problem,
+            List<ValidationError> errors,
+            Map<String, List<DataModelValidationError>> validationErrors,
+            List<MissingDataField> missingFields,
+            List<InvalidDataField> invalidFields,
+            List<MissingDependency> missingDependencies,
+            String responseBody) {
+        this(response, problem, errors, validationErrors, missingFields, invalidFields, missingDependencies, null,
+                responseBody);
+    }
+
+    /**
+     * The same, for a problem that may also list unreleased dependency drafts
+     * ({@code release-dependencies-unreleased}).
+     */
+    public ProblemDetailException(
+            Response response,
+            ProblemDetail problem,
+            List<ValidationError> errors,
+            Map<String, List<DataModelValidationError>> validationErrors,
+            List<MissingDataField> missingFields,
+            List<InvalidDataField> invalidFields,
+            List<MissingDependency> missingDependencies,
+            List<UnreleasedDependency> unreleasedDependencies,
+            String responseBody) {
+        this(response, problem, errors, validationErrors, missingFields, invalidFields, missingDependencies,
+                unreleasedDependencies, null, responseBody);
+    }
+
+    /**
+     * The same, for a problem that may also say why a catalog cannot be changed
+     * ({@code catalog-read-only}).
+     */
+    public ProblemDetailException(
+            Response response,
+            ProblemDetail problem,
+            List<ValidationError> errors,
+            Map<String, List<DataModelValidationError>> validationErrors,
+            List<MissingDataField> missingFields,
+            List<InvalidDataField> invalidFields,
+            List<MissingDependency> missingDependencies,
+            List<UnreleasedDependency> unreleasedDependencies,
+            String readOnlyReason,
+            String responseBody) {
+        this(response, problem, errors, validationErrors, missingFields, invalidFields, missingDependencies,
+                unreleasedDependencies, readOnlyReason, null, responseBody);
+    }
+
+    /**
+     * The same, for a problem that may also list the unresolved conflicts of a merge
+     * ({@code merge-conflicts-unresolved}).
+     */
+    public ProblemDetailException(
+            Response response,
+            ProblemDetail problem,
+            List<ValidationError> errors,
+            Map<String, List<DataModelValidationError>> validationErrors,
+            List<MissingDataField> missingFields,
+            List<InvalidDataField> invalidFields,
+            List<MissingDependency> missingDependencies,
+            List<UnreleasedDependency> unreleasedDependencies,
+            String readOnlyReason,
+            List<String> unresolvedConflicts,
+            String responseBody) {
+        this(response, problem, errors, validationErrors, missingFields, invalidFields, missingDependencies,
+                unreleasedDependencies, readOnlyReason, unresolvedConflicts, null, null, responseBody);
+    }
+
+    /**
+     * The same, for a problem that may also name a merge base this installation does not have
+     * ({@code merge-base-missing}), by its version and catalog fingerprint.
+     */
+    public ProblemDetailException(
+            Response response,
+            ProblemDetail problem,
+            List<ValidationError> errors,
+            Map<String, List<DataModelValidationError>> validationErrors,
+            List<MissingDataField> missingFields,
+            List<InvalidDataField> invalidFields,
+            List<MissingDependency> missingDependencies,
+            List<UnreleasedDependency> unreleasedDependencies,
+            String readOnlyReason,
+            List<String> unresolvedConflicts,
+            String missingBaseVersion,
+            String missingBaseFingerprint,
+            String responseBody) {
+        this(response, problem, errors, validationErrors, missingFields, invalidFields, missingDependencies,
+                unreleasedDependencies, readOnlyReason, unresolvedConflicts, missingBaseVersion,
+                missingBaseFingerprint, null, null, null, null, responseBody);
+    }
+
+    /**
+     * The same, for a problem that may also list the releases a draft is behind
+     * ({@code catalog-version-behind}), what uses a release ({@code release-in-use}), or the
+     * variants that match equally well ({@code ambiguous-variant}).
+     */
+    public ProblemDetailException(
+            Response response,
+            ProblemDetail problem,
+            List<ValidationError> errors,
+            Map<String, List<DataModelValidationError>> validationErrors,
+            List<MissingDataField> missingFields,
+            List<InvalidDataField> invalidFields,
+            List<MissingDependency> missingDependencies,
+            List<UnreleasedDependency> unreleasedDependencies,
+            String readOnlyReason,
+            List<String> unresolvedConflicts,
+            String missingBaseVersion,
+            String missingBaseFingerprint,
+            List<String> behind,
+            List<String> environments,
+            List<CatalogReleaseRef> pinnedBy,
+            List<String> tiedVariants,
+            String responseBody) {
+        this(response, problem, errors, validationErrors, missingFields, invalidFields, missingDependencies,
+                unreleasedDependencies, readOnlyReason, unresolvedConflicts, missingBaseVersion,
+                missingBaseFingerprint, behind, environments, pinnedBy, tiedVariants, null, null, null, null,
+                responseBody);
+    }
+
+    /**
+     * The same, for a problem that may also say what a refused authorization ({@code forbidden})
+     * refused: the permission the caller lacks, the tenant, the platform role, or a policy's reason.
+     * The parser reads these from a {@code forbidden} problem only.
+     */
+    public ProblemDetailException(
+            Response response,
+            ProblemDetail problem,
+            List<ValidationError> errors,
+            Map<String, List<DataModelValidationError>> validationErrors,
+            List<MissingDataField> missingFields,
+            List<InvalidDataField> invalidFields,
+            List<MissingDependency> missingDependencies,
+            List<UnreleasedDependency> unreleasedDependencies,
+            String readOnlyReason,
+            List<String> unresolvedConflicts,
+            String missingBaseVersion,
+            String missingBaseFingerprint,
+            List<String> behind,
+            List<String> environments,
+            List<CatalogReleaseRef> pinnedBy,
+            List<String> tiedVariants,
+            String requiredPermission,
+            String refusedTenantKey,
+            String requiredPlatformRole,
+            String refusalReason,
+            String responseBody) {
         super(response);
+        this.requiredPermission = requiredPermission;
+        this.refusedTenantKey = refusedTenantKey;
+        this.requiredPlatformRole = requiredPlatformRole;
+        this.refusalReason = refusalReason;
+        this.behind = unmodifiable(behind);
+        this.environments = unmodifiable(environments);
+        this.pinnedBy = unmodifiable(pinnedBy);
+        this.tiedVariants = unmodifiable(tiedVariants);
+        this.readOnlyReason = readOnlyReason;
+        this.missingBaseVersion = missingBaseVersion;
+        this.missingBaseFingerprint = missingBaseFingerprint;
+        this.unresolvedConflicts = unresolvedConflicts == null
+                ? Collections.emptyList()
+                : Collections.unmodifiableList(unresolvedConflicts);
+        this.unreleasedDependencies = unreleasedDependencies == null
+                ? Collections.emptyList()
+                : Collections.unmodifiableList(unreleasedDependencies);
+        this.missingDependencies = missingDependencies == null
+                ? Collections.emptyList()
+                : Collections.unmodifiableList(missingDependencies);
         this.missingFields = missingFields == null
                 ? Collections.emptyList()
                 : Collections.unmodifiableList(missingFields);
@@ -148,6 +338,16 @@ public class ProblemDetailException extends ApiException {
         return problem.getDetail();
     }
 
+    /**
+     * The problem type's page with this request's context in its query, such as
+     * {@code https://epistola.app/errors/not-found?operation=getTemplate}, or {@code null} when the
+     * server sent none. Switch on the type ({@link #getTypeSlug()}), not on this; open it for hints
+     * on what to do. It names contract terms only, never a value, so it can be logged or shared.
+     */
+    public String getHelp() {
+        return problem.getHelp() == null ? null : problem.getHelp().toString();
+    }
+
     /** Field-level validation errors when the body was a {@code ValidationProblemDetail}, else empty. */
     public List<ValidationError> getErrors() {
         return errors;
@@ -166,7 +366,6 @@ public class ProblemDetailException extends ApiException {
         return !errors.isEmpty();
     }
 
-    /** True when this problem carried per-example data-model validation failures. */
     /**
      * Absent fields reported by a {@code template-data-invalid} problem; empty for any other.
      *
@@ -187,8 +386,185 @@ public class ProblemDetailException extends ApiException {
         return !missingFields.isEmpty() || !invalidFields.isEmpty();
     }
 
+    /** True when this problem carried per-example data-model validation failures. */
     public boolean isDataModelValidationProblem() {
         return !validationErrors.isEmpty();
+    }
+
+    /**
+     * The releases of other catalogs a {@code release-dependencies-missing} problem (409, from
+     * {@code deployCatalogRelease}) lists, in the order sent: each one the deployed release pins that
+     * cannot be had, and why. Empty for any other problem.
+     */
+    public List<MissingDependency> getMissingDependencies() {
+        return missingDependencies;
+    }
+
+    /** True when this problem listed missing release dependencies. */
+    public boolean isReleaseDependenciesMissingProblem() {
+        return !missingDependencies.isEmpty();
+    }
+
+    /**
+     * The drafts of other catalogs a {@code release-dependencies-unreleased} problem (409, from
+     * {@code releaseCatalogDraft}) lists, in the order sent: each one the draft's dependency
+     * declarations name, which a release cannot pin. Release them first, or along with it
+     * ({@code releaseDependencies}). Empty for any other problem.
+     */
+    public List<UnreleasedDependency> getUnreleasedDependencies() {
+        return unreleasedDependencies;
+    }
+
+    /** True when this problem listed unreleased dependency drafts. */
+    public boolean isReleaseDependenciesUnreleasedProblem() {
+        return !unreleasedDependencies.isEmpty();
+    }
+
+    /**
+     * Why the catalog cannot be changed, from a {@code catalog-read-only} problem (409, from any
+     * write to a catalog whose {@code CatalogDto.editable} is false): {@code editing-disabled} (the
+     * installation only receives and runs releases) or {@code supplied-by-epistola} (the server
+     * supplies the catalog). Kept as the string the server sent, so a reason a later contract adds
+     * is surfaced; {@code null} for any other problem, and when the member is not a string.
+     */
+    public String getReadOnlyReason() {
+        return readOnlyReason;
+    }
+
+    /** True when this problem said the catalog cannot be changed, and why. */
+    public boolean isCatalogReadOnlyProblem() {
+        return readOnlyReason != null;
+    }
+
+    /**
+     * The conflicts a {@code merge-conflicts-unresolved} problem (409, from
+     * {@code mergeIntoCatalogDraft}, alpha) lists without a resolution, each as
+     * {@code resourceType/resourceKey}, in the order sent. Empty for any other problem.
+     */
+    public List<String> getUnresolvedConflicts() {
+        return unresolvedConflicts;
+    }
+
+    /** True when this problem listed merge conflicts that need a resolution. */
+    public boolean isMergeConflictsUnresolvedProblem() {
+        return !unresolvedConflicts.isEmpty();
+    }
+
+    /**
+     * The version of the release a {@code merge-base-missing} problem (409, from
+     * {@code mergeIntoCatalogDraft}, alpha) asks to get first: the merge base, which this
+     * installation does not have. Read from the {@code version} member of that problem only, since
+     * other problems use the name for other things; {@code null} for any other problem, and when the
+     * member is not a string.
+     */
+    public String getMissingBaseVersion() {
+        return missingBaseVersion;
+    }
+
+    /**
+     * That release's catalog fingerprint ({@code v5:<hex>}), from the {@code fingerprint} member of
+     * a {@code merge-base-missing} problem; {@code null} for any other problem.
+     */
+    public String getMissingBaseFingerprint() {
+        return missingBaseFingerprint;
+    }
+
+    /** True when this problem named a merge base this installation does not have. */
+    public boolean isMergeBaseMissingProblem() {
+        return missingBaseVersion != null;
+    }
+
+    /**
+     * The versions of the releases a {@code catalog-version-behind} problem (409, from
+     * {@code releaseCatalogDraft}) says the draft is behind and the request did not acknowledge:
+     * name each in {@code acknowledgedBehind} to release it anyway. Empty for any other problem.
+     */
+    public List<String> getBehind() {
+        return behind;
+    }
+
+    /** True when this problem said the draft is behind releases the request did not acknowledge. */
+    public boolean isCatalogVersionBehindProblem() {
+        return KnownProblemSlugs.CATALOG_VERSION_BEHIND.equals(getTypeSlug());
+    }
+
+    /**
+     * The environments a {@code release-in-use} problem (409, from {@code deleteCatalogRelease})
+     * says deploy the release; empty for any other problem, and when none does.
+     */
+    public List<String> getEnvironments() {
+        return environments;
+    }
+
+    /**
+     * The releases of other catalogs a {@code release-in-use} problem says pin the release, and
+     * render with it; empty for any other problem.
+     */
+    public List<CatalogReleaseRef> getPinnedBy() {
+        return pinnedBy;
+    }
+
+    /** True when this problem said the release cannot be deleted while something uses it. */
+    public boolean isReleaseInUseProblem() {
+        return KnownProblemSlugs.RELEASE_IN_USE.equals(getTypeSlug());
+    }
+
+    /**
+     * The keys of the variants an {@code ambiguous-variant} problem (409, from generating or
+     * previewing a document) says match the request's attributes equally well: name one by
+     * {@code variantKey}, or send attributes that tell them apart. Empty for any other problem.
+     */
+    public List<String> getTiedVariants() {
+        return tiedVariants;
+    }
+
+    /** True when this problem said several variants match equally well. */
+    public boolean isAmbiguousVariantProblem() {
+        return KnownProblemSlugs.AMBIGUOUS_VARIANT.equals(getTypeSlug());
+    }
+
+    /** True when this problem is a refused authorization ({@code forbidden}, 403). */
+    public boolean isForbiddenProblem() {
+        return KnownProblemSlugs.FORBIDDEN.equals(getTypeSlug());
+    }
+
+    /**
+     * The permission a {@code forbidden} problem says the caller lacks, as the operation's
+     * {@code x-required-permissions} names it ({@code TEMPLATE_EDIT}): grant the caller, or the API
+     * key, a role that carries it. {@code null} for any other problem, and when absent.
+     */
+    public String getRequiredPermission() {
+        return requiredPermission;
+    }
+
+    /**
+     * The tenant a {@code forbidden} problem is about, from its {@code tenantKey} member. Without a
+     * required permission, the caller has no access to that tenant at all. {@code null} for any
+     * other problem.
+     */
+    public String getRefusedTenantKey() {
+        return refusedTenantKey;
+    }
+
+    /**
+     * The platform role a {@code forbidden} problem says the caller lacks ({@code TENANT_MANAGER});
+     * {@code null} for any other problem, and when absent.
+     */
+    public String getRequiredPlatformRole() {
+        return requiredPlatformRole;
+    }
+
+    /**
+     * Why a policy refused the request, from the {@code reason} member of a {@code forbidden}
+     * problem: text for a person, sent when there is no single permission to grant. {@code null}
+     * for any other problem.
+     */
+    public String getRefusalReason() {
+        return refusalReason;
+    }
+
+    private static <T> List<T> unmodifiable(List<T> list) {
+        return list == null ? Collections.emptyList() : Collections.unmodifiableList(list);
     }
 
     private static String buildMessage(int statusCode, ProblemDetail problem) {

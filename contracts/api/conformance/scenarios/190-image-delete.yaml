@@ -14,15 +14,21 @@ why: >
   The response is a 204 with no body and no content type. A client must treat that as success
   rather than fail to deserialize an empty body.
 
+  A write goes to a draft, addressed by its `releaseId` (ADR 0002); a released release's version would
+  be refused with 409.
+
 action:
   name: delete-image
   config:
     nodeId: conformance-node-1
     auth: api-key
     apiKey: epk_conformance_0123456789
-    tenantId: acme-corp
-    catalogId: main
-    imageSlug: municipality-mark
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: main
+    release: k7m2x9qa
+    imageKey: municipality-mark
     force: true
 
 script:
@@ -32,5 +38,5 @@ expect:
   requestCount: 1
   requests:
     - method: DELETE
-      path: /api/tenants/acme-corp/catalogs/main/images/municipality-mark
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/main/releases/k7m2x9qa/images/municipality-mark
       query: force=true

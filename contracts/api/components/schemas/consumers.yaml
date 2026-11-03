@@ -3,22 +3,21 @@ ConsumerDto:
   description: |
     Represents a consumer application registered within a tenant.
 
-    **Experimental** — part of the Consumers API, which Epistola Suite may not
-    implement yet.
+    **Experimental**, as the whole Consumers API is (see the Consumers tag).
 
     Consumers are tenant-scoped — each tenant independently manages which
     applications can access their resources. The same application can register
     in multiple tenants with separate approvals.
 
     Two registration paths are supported:
-    - **Self-signed JWT**: Application calls `POST /tenants/{tenantId}/consumers/register`
+    - **Self-signed JWT**: Application calls `POST /tenants/{tenantKey}/consumers/register`
       with a public key and requested permissions. Created as `pending` until
       a tenant manager approves.
     - **OAuth**: First authenticated request to a tenant auto-registers the consumer
       as `pending`. Requested permissions are derived from JWT scopes.
   required:
     - id
-    - tenantId
+    - tenantKey
     - name
     - status
     - authMethod
@@ -26,21 +25,19 @@ ConsumerDto:
     - grantedPermissions
     - nodes
     - createdAt
+    - lastModified
   properties:
     id:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/ConsumerId'
       description: |
         Unique slug identifier of the consumer within this tenant.
         For self-signed JWT consumers, this is self-chosen at registration
         and used as the `iss` claim. For OAuth consumers, this is derived
         from the JWT `client_id` claim.
       example: invoice-service
-    tenantId:
-      type: string
-      description: Tenant this consumer is registered in
+    tenantKey:
+      $ref: './identifiers.yaml#/TenantKey'
+      description: Key of the tenant this consumer is registered in
       example: acme-corp
     name:
       type: string
@@ -74,9 +71,8 @@ ConsumerDto:
         - `self-signed-jwt` (**experimental**): Short-lived JWTs signed with the
           consumer's private key.
         - `api-key`: Long-lived static key provisioned by a tenant manager, sent as
-          `Authorization: ApiKey <key>` (or the deprecated `X-API-Key` header). This
-          is the supported method. The consumer cannot self-rotate an api key —
-          `PUT /consumers/{cid}/public-key` does not apply; rotation requires
+          `Authorization: ApiKey <key>`. This is the supported method. The consumer cannot self-rotate an api key —
+          `PUT /tenants/{tenantKey}/consumers/{consumerId}/public-key` does not apply; rotation requires
           a tenant manager to issue a new key and revoke the old one out of
           band.
       example: self-signed-jwt
@@ -122,11 +118,14 @@ ConsumerDto:
       format: date-time
       description: When the server last received a request from this consumer
       example: "2026-04-22T14:30:00Z"
-    updatedAt:
-      type: ['string', 'null']
+    lastModified:
+      type: string
       format: date-time
-      description: When the consumer record was last modified
-      example: null
+      description: |
+        When the consumer record was last changed. At registration it equals `createdAt`; every
+        change to the consumer (an update, approval, rejection, key rotation, or a status change
+        such as expiry) moves it forward.
+      example: "2026-04-22T11:15:00Z"
 
 ConsumerPermissions:
   type: object
@@ -141,26 +140,20 @@ ConsumerPermissions:
 
     For OAuth consumers, requested permissions are derived from JWT scopes
     using the pattern `epistola:{resource}:{level}` (e.g., `epistola:generation:write`,
-    `epistola:templates:publish`).
+    `epistola:catalogs:release`, `epistola:environments:deploy`).
   properties:
     templates:
       type: string
-      enum: [none, read, write, publish]
+      enum: [none, read, write]
       default: none
       description: |
-        read = list/get templates.
-        write = create/update/delete templates + read.
-        publish = publish versions to environments + write.
+        read = list/get templates, their variants' content and data contracts.
+        write = create/update/delete templates, edit their content in drafts, mark ready + read.
     variants:
       type: string
       enum: [none, read, write]
       default: none
       description: "read = list/get variants, write = create/update/delete + read"
-    versions:
-      type: string
-      enum: [none, read, write]
-      default: none
-      description: "read = list/get versions, write = create/update drafts + read"
     themes:
       type: string
       enum: [none, read, write]
@@ -168,19 +161,25 @@ ConsumerPermissions:
       description: "read = list/get themes, write = create/update/delete + read"
     environments:
       type: string
-      enum: [none, read, write]
+      enum: [none, read, write, deploy]
       default: none
-      description: "read = list/get environments, write = create/update/delete + read"
+      description: |
+        read = list/get environments, what they serve and their deployment history.
+        write = create/update/delete environments + read.
+        deploy = deploy and undeploy releases of catalogs (drafts and released ones) + write.
     stencils:
       type: string
       enum: [none, read, write]
       default: none
-      description: "read = list/get stencils, write = create/update/publish + read"
+      description: "read = list/get stencils and their usage, write = create/update, edit their content in drafts, mark ready + read"
     catalogs:
       type: string
-      enum: [none, read, write]
+      enum: [none, read, write, release]
       default: none
-      description: "read = list catalogs, write = import catalogs + read"
+      description: |
+        read = list catalogs, their releases and a draft's changes.
+        write = import catalogs + read.
+        release = cut catalog releases + write.
     generation:
       type: string
       enum: [none, read, write]
@@ -241,10 +240,7 @@ RegisterConsumerRequest:
     - requestedPermissions
   properties:
     id:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/ConsumerId'
       description: |
         Self-chosen unique slug identifier for the consumer within this tenant.
         Used as the `iss` claim in self-signed JWTs.
@@ -306,7 +302,10 @@ UpdateConsumerRequest:
   type: object
   description: |
     Update consumer metadata or permissions within this tenant.
-    All fields are optional.
+    All fields are optional, and an omitted or null member keeps its current value: generated
+    servers and clients cannot tell an omitted member from a null one, so null never means
+    "remove". An empty string removes `description` or `contact`; `clearExpiresAt` removes the
+    expiry.
   properties:
     name:
       type: string
@@ -316,11 +315,15 @@ UpdateConsumerRequest:
     description:
       type: ['string', 'null']
       maxLength: 1000
-      description: Updated description (null to clear)
+      description: |
+        Updated description. Omitted or null keeps it; an empty string (or one of only whitespace)
+        removes it.
     contact:
       type: ['string', 'null']
       maxLength: 255
-      description: Updated contact (null to clear)
+      description: |
+        Updated contact. Omitted or null keeps it; an empty string (or one of only whitespace)
+        removes it.
     status:
       type: string
       enum: [active, inactive]
@@ -332,7 +335,14 @@ UpdateConsumerRequest:
     expiresAt:
       type: ['string', 'null']
       format: date-time
-      description: Updated expiry (null to remove expiry)
+      description: |
+        Updated expiry. Omitted or null keeps it; `clearExpiresAt` removes it.
+    clearExpiresAt:
+      type: [boolean, 'null']
+      description: |
+        True removes the consumer's expiry, so that it never expires. Omitted, null or false keeps
+        it. True together with an `expiresAt` is refused with 400.
+      example: true
 
 RotatePublicKeyRequest:
   type: object

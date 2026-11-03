@@ -1,8 +1,12 @@
 tenants:
   get:
     operationId: listTenants
-    summary: List all tenants
-    description: Retrieve a paginated list of all tenants with optional search filtering.
+    summary: List the tenants the caller can access
+    description: |
+      A page of the tenants the authenticated caller may access, optionally filtered by `q`. A
+      caller whose credential is bound to one tenant, such as a tenant's API key, sees that tenant
+      only; a tenant it cannot access is never listed, so the list does not reveal which tenants
+      exist.
     tags:
       - Tenants
     x-required-authentication: true
@@ -14,13 +18,11 @@ tenants:
           type: string
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
-      - $ref: '../components/parameters/sorting.yaml#/Sort'
-      - $ref: '../components/parameters/sorting.yaml#/Direction'
     responses:
       '200':
         description: List of tenants
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/tenants.yaml#/TenantListResponse'
       '400':
@@ -33,21 +35,25 @@ tenants:
   post:
     operationId: createTenant
     summary: Create a new tenant
-    description: Create a new tenant with the given name.
+    description: Create a new tenant with the given key and name. A key another tenant already has is refused with 409.
     tags:
       - Tenants
     x-required-platform-roles: [TENANT_MANAGER]
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/tenants.yaml#/CreateTenantRequest'
     responses:
       '201':
         description: Tenant created successfully
+        headers:
+          Location:
+            $ref: '../components/headers/location.yaml#/Location'
+            description: The tenant's address (`getTenant`)
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/tenants.yaml#/TenantDto'
       '400':
@@ -56,22 +62,21 @@ tenants:
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
 tenants-id:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
 
   get:
     operationId: getTenant
-    summary: Get tenant by ID
+    summary: Get a tenant by key
     description: Retrieve details of a specific tenant.
     tags:
       - Tenants
@@ -79,10 +84,15 @@ tenants-id:
     responses:
       '200':
         description: Tenant details
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/tenants.yaml#/TenantDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -93,21 +103,29 @@ tenants-id:
   patch:
     operationId: updateTenant
     summary: Update a tenant
-    description: Update the name of an existing tenant.
+    description: |
+      Update the name of an existing tenant.
+      Send the `ETag` from a read as `If-Match` to have the update refused with 412
+      `resource-modified` if the resource changed since; without it, the last write wins.
     tags:
       - Tenants
     x-required-permissions: [TENANT_SETTINGS]
+    parameters:
+      - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/tenants.yaml#/UpdateTenantRequest'
     responses:
       '200':
         description: Tenant updated successfully
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/tenants.yaml#/TenantDto'
       '400':
@@ -118,6 +136,8 @@ tenants-id:
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '412':
+        $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
   delete:
     operationId: deleteTenant
     summary: Delete a tenant
@@ -128,6 +148,8 @@ tenants-id:
     responses:
       '204':
         description: Tenant deleted successfully
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

@@ -1,0 +1,69 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: update-catalog-release
+title: Renaming a draft sends only the new name, to its unchanged address, conditional on the ETag it read
+why: >
+  A draft is named, and addressed by its `releaseId`, not by its name (ADR 0002).
+  Renaming it is a PATCH (`updateCatalogRelease`) to that address carrying the new `name`, and the
+  address does not change: the response is the same draft under its new name. A client that still
+  sends a `version` or an `acknowledgeWarnings` flag, which the renumber this replaced took, sends
+  members the request does not have.
+
+  The update is conditional: the client sends the `ETag` it read as `If-Match`, byte for byte,
+  quotes included, and reads the new `ETag` back from the response, which it needs for the next
+  update. A client that drops either turns the next edit back into last-write-wins.
+
+  This catalog was never released, so the draft has no base: it was copied from another draft
+  (`createdFrom`), which had none either. A client that cannot read a null `base` cannot rename a
+  draft of a new catalog.
+
+action:
+  name: update-catalog-release
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: onboarding
+    release: h3v9p6db
+    name: Redesign 2028
+    ifMatch: '"3"'
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    headers:
+      ETag: '"4"'
+    body:
+      version: null
+      releaseId: h3v9p6db
+      name: Redesign 2028
+      status: draft
+      base: null
+      createdFrom: k7m2x9qa
+      behind: []
+      dependencies: []
+      deployedTo: []
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PATCH
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/onboarding/releases/h3v9p6db
+      headers:
+        Content-Type:
+          matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
+        if-match: '"3"'
+      body:
+        json:
+          name: Redesign 2028
+        jsonAbsent: [version, acknowledgeWarnings, defaultTheme, presets]
+  report:
+    version: 'null'
+    releaseId: h3v9p6db
+    name: Redesign 2028
+    status: draft
+    base: 'null'
+    etag: '"4"'

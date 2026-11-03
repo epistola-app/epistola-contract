@@ -69,8 +69,13 @@ export interface ThemeRefInherit {
 
 export interface ThemeRefOverride {
   type: 'override'
-  themeId: string
-  /** Catalog containing the theme. Omitted means the owning template's catalog. */
+  /** Key of the theme: its public address within its catalog. Called `themeId` until catalog wire v8. */
+  themeKey: string
+  /**
+   * The alias of the catalog containing the theme, as the owning catalog's `catalogDependencies`
+   * declares it (wire v8, contract ADR 0003). Omitted means the owning template's catalog, which a
+   * reference never names by its own key. A reference never names a registry or namespace: those are the declaration's.
+   */
   catalogKey?: string
 }
 

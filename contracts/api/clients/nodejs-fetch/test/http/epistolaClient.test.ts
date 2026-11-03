@@ -19,10 +19,10 @@ import {
 } from '../../src/index.js'
 import { json, startServer, type TestServer } from '../helpers/server.js'
 
-const VENDOR_JSON = 'application/vnd.epistola.v1+json'
+const VENDOR_JSON = 'application/vnd.epistola.v2+json'
 const PROBLEM_JSON = 'application/problem+json'
-const EMPTY_PAGE = { items: [], page: { number: 0, size: 20, totalElements: 0, totalPages: 0 } }
-const PONG = { status: 'UP', timestamp: '2026-04-21T10:30:00Z' }
+const EMPTY_PAGE = { items: [], page: { number: 0, size: 20, total: 0, totalPages: 0 } }
+const PONG = { status: 'up', timestamp: '2026-04-21T10:30:00Z' }
 
 function client(server: TestServer): EpistolaClient {
   return EpistolaClient.builder(`${server.url}/api`)
@@ -35,16 +35,16 @@ test('a generated call carries identity, the declared Accept, the vendor Content
   const server = await startServer((_, res) => json(res, 200, VENDOR_JSON, PONG))
   try {
     const pong = await new SystemApi(client(server)).ping({ pingRequest: { name: 'Test' } })
-    assert.equal(pong.status, 'UP')
+    assert.equal(pong.status, 'up')
     const [request] = server.requests
     assert.equal(request.method, 'POST')
     assert.equal(request.path, '/api/ping')
     assert.equal(request.headers['x-ep-node-id'], 'test-node')
     assert.match(request.headers['user-agent'], /^epistola-contract\/[^ ]+ acme-billing\/9\.9\.9$/)
-    assert.match(request.headers['content-type'], /^application\/vnd\.epistola\.v1\+json(;.*)?$/)
-    assert.equal(request.headers.accept, VENDOR_JSON)
+    assert.match(request.headers['content-type'], /^application\/vnd\.epistola\.v2\+json(;.*)?$/)
+    // ping declares a 400 too, so the problem document is asked for alongside the success body.
+    assert.equal(request.headers.accept, `${VENDOR_JSON}, application/problem+json`)
     assert.equal(request.headers.authorization, 'ApiKey epk_test')
-    assert.equal(request.headers['x-api-key'], undefined)
     assert.deepEqual(JSON.parse(request.body.toString('utf8')), { name: 'Test' })
   } finally {
     await server.close()
@@ -54,10 +54,10 @@ test('a generated call carries identity, the declared Accept, the vendor Content
 test('an operation with error responses asks for the problem document as well', async () => {
   const server = await startServer((_, res) => json(res, 200, VENDOR_JSON, EMPTY_PAGE))
   try {
-    await new TemplatesApi(client(server)).listTemplates({ tenantId: 'acme-corp', catalogId: 'main' })
+    await new TemplatesApi(client(server)).listTemplates({ tenantKey: 'acme-corp', registry: '~', namespace: 'acme-corp', catalogKey: 'main', release: '1.0.0' })
     const [request] = server.requests
-    assert.equal(request.path, '/api/tenants/acme-corp/catalogs/main/templates')
-    assert.match(request.headers.accept, /application\/vnd\.epistola\.v1\+json,\s*application\/problem\+json/)
+    assert.equal(request.path, '/api/tenants/acme-corp/catalogs/~/acme-corp/main/releases/1.0.0/templates')
+    assert.match(request.headers.accept, /application\/vnd\.epistola\.v2\+json,\s*application\/problem\+json/)
   } finally {
     await server.close()
   }
@@ -75,7 +75,7 @@ test('a problem+json error is thrown as a typed ProblemDetailException', async (
   )
   try {
     await assert.rejects(
-      new TemplatesApi(client(server)).listTemplates({ tenantId: 'acme-corp', catalogId: 'main' }),
+      new TemplatesApi(client(server)).listTemplates({ tenantKey: 'acme-corp', registry: '~', namespace: 'acme-corp', catalogKey: 'main', release: '1.0.0' }),
       (error: unknown) => {
         assert.ok(error instanceof ProblemDetailException)
         assert.equal(error.typeSlug, 'validation-error')
@@ -93,7 +93,7 @@ test('a problem+json error is thrown as a typed ProblemDetailException', async (
 test('an error without a problem document falls through to the generic ResponseError', async () => {
   const server = await startServer((_, res) => json(res, 404, 'application/json', { message: 'nope' }))
   try {
-    await assert.rejects(new TemplatesApi(client(server)).listTemplates({ tenantId: 'acme-corp', catalogId: 'main' }), (error: unknown) => {
+    await assert.rejects(new TemplatesApi(client(server)).listTemplates({ tenantKey: 'acme-corp', registry: '~', namespace: 'acme-corp', catalogKey: 'main', release: '1.0.0' }), (error: unknown) => {
       assert.ok(error instanceof ResponseError)
       assert.ok(!(error instanceof ProblemDetailException))
       return true
@@ -110,8 +110,8 @@ test('a self-signed JWT is minted fresh for every request', async () => {
   try {
     const jwtClient = EpistolaClient.builder(`${server.url}/api`).jwtSigner(signer).build()
     const templates = new TemplatesApi(jwtClient)
-    await templates.listTemplates({ tenantId: 'acme-corp', catalogId: 'main' })
-    await templates.listTemplates({ tenantId: 'acme-corp', catalogId: 'main' })
+    await templates.listTemplates({ tenantKey: 'acme-corp', registry: '~', namespace: 'acme-corp', catalogKey: 'main', release: '1.0.0' })
+    await templates.listTemplates({ tenantKey: 'acme-corp', registry: '~', namespace: 'acme-corp', catalogKey: 'main', release: '1.0.0' })
     const tokens = server.requests.map((request) => request.headers.authorization)
     assert.match(tokens[0], /^Bearer [A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/)
     assert.notEqual(tokens[0], tokens[1])
@@ -125,7 +125,7 @@ test('a partial update sends only the fields the caller set', async () => {
   const server = await startServer((_, res) =>
     json(res, 200, VENDOR_JSON, {
       id: 'billing-service',
-      tenantId: 'acme-corp',
+      tenantKey: 'acme-corp',
       name: 'Billing Service',
       authMethod: 'api-key',
       status: 'active',
@@ -133,10 +133,11 @@ test('a partial update sends only the fields the caller set', async () => {
       grantedPermissions: {},
       nodes: [],
       createdAt: '2026-01-20T09:00:00Z',
+      lastModified: '2026-01-20T09:00:00Z',
     }),
   )
   try {
-    await new ConsumersApi(client(server)).updateConsumer({ tenantId: 'acme-corp', consumerId: 'billing-service', updateConsumerRequest: { name: 'Billing Service' } })
+    await new ConsumersApi(client(server)).updateConsumer({ tenantKey: 'acme-corp', consumerId: 'billing-service', updateConsumerRequest: { name: 'Billing Service' } })
     const [request] = server.requests
     assert.equal(request.method, 'PATCH')
     assert.deepEqual(JSON.parse(request.body.toString('utf8')), { name: 'Billing Service' })
@@ -152,7 +153,7 @@ test('a binary download arrives byte for byte', async () => {
     res.end(bytes)
   })
   try {
-    const blob = await new GenerationApi(client(server)).downloadDocument({ tenantId: 'acme-corp', documentId: '99999999-9999-4999-8999-000000000001' })
+    const blob = await new GenerationApi(client(server)).downloadDocument({ tenantKey: 'acme-corp', documentId: '99999999-9999-4999-8999-000000000001' })
     assert.deepEqual(Buffer.from(await blob.arrayBuffer()), bytes)
     assert.equal(server.requests[0].headers.accept, 'application/pdf, application/problem+json')
   } finally {

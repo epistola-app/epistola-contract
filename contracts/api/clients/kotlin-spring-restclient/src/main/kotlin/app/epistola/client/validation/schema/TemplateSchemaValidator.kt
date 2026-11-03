@@ -15,7 +15,7 @@ import app.epistola.client.api.TemplatesApi
  *
  * ```kotlin
  * val validator = TemplateSchemaValidator(templatesApi)
- * validator.validate("my-tenant", "default", "my-template", myDataMap)
+ * validator.validate("my-tenant", TemplateDataValidator.DEFAULT_REGISTRY, "acme-corp", "default", "my-template", myDataMap)
  * ```
  *
  * To have the check run in-process instead, pass an implementation of [TemplateDataValidator] built
@@ -39,17 +39,20 @@ class TemplateSchemaValidator(private val validator: TemplateDataValidator) {
     /**
      * Validates [data] against the data contract of the specified template.
      *
-     * @param tenantId Tenant identifier.
-     * @param catalogId Catalog identifier.
-     * @param templateId Template identifier.
+     * @param tenantKey Key of the tenant.
+     * @param registry Registry of the template's catalog, as its path segment: `~` for the server's
+     *   default registry, or the registry in full (`acme.com`).
+     * @param namespace Namespace of the template's catalog within [registry].
+     * @param catalogKey Key of the template's catalog within [namespace].
+     * @param templateKey Key of the template within the catalog.
      * @param data The data object (typically a `Map<String, Any?>`) to validate.
      * @throws TemplateDataValidationException if the data does not fit the contract.
      * @throws org.springframework.web.client.RestClientResponseException if the validator reaches
      *   the server and the call fails — including against a server older than contract 1.4.0,
      *   which does not offer `validateTemplateData`.
      */
-    fun validate(tenantId: String, catalogId: String, templateId: String, data: Any) {
-        val errors = validator.validate(tenantId, catalogId, templateId, data)
+    fun validate(tenantKey: String, registry: String, namespace: String, catalogKey: String, templateKey: String, data: Any) {
+        val errors = validator.validate(tenantKey, registry, namespace, catalogKey, templateKey, data)
         if (errors.isNotEmpty()) {
             throw TemplateDataValidationException(errors)
         }

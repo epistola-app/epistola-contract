@@ -7,8 +7,10 @@ package app.epistola.catalog.protocol
 import app.epistola.template.model.BlockStylePreset
 import app.epistola.template.model.PageSettings
 import app.epistola.template.model.TemplateDocument
+import com.fasterxml.jackson.annotation.JsonAlias
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.annotation.JsonPropertyOrder
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 
@@ -29,6 +31,7 @@ data class ResourceDetail(
         JsonSubTypes.Type(value = ImageResource::class, name = "image"),
         JsonSubTypes.Type(value = CodeListResource::class, name = "codeList"),
         JsonSubTypes.Type(value = FontResource::class, name = "font"),
+        JsonSubTypes.Type(value = QualityProfileResource::class, name = "qualityProfile"),
     )
     val resource: CatalogResource,
 )
@@ -37,12 +40,33 @@ data class ResourceDetail(
  * Base type for all portable catalog resources.
  *
  * Jackson discriminates concrete payloads using the existing `type` property.
- * Every resource has a catalog-local [slug] and human-readable [name].
+ * Every resource has a catalog-local [key] and human-readable [name].
+ *
+ * [key] is the resource's public address within its catalog. Until wire v8 the member was called
+ * `slug`; every resource binds either name, so that details stored under earlier versions still
+ * bind.
  */
 sealed interface CatalogResource {
     val type: String
-    val slug: String
+    val key: String
     val name: String
+
+    /**
+     * Labels for finding the resource (wire v8). Every type carries them; a type that did not before
+     * leaves them out of its JSON when there are none, so its fingerprints stay put. A stencil,
+     * which always had them, writes them even when empty, as it always did.
+     */
+    val tags: List<String>
+
+    /**
+     * Producer-specific facts about the resource (wire v8), by the reverse-DNS namespace of the
+     * producer that owns them, each value a JSON object ([CatalogMetadata]). The contract carries them
+     * and does not define them: every reader keeps them member for member, one it does not recognise
+     * included. They are what a producer says about the resource, not its content, so no fingerprint
+     * covers them. Every type carries them and leaves them out of its JSON when there are none. They
+     * bind the way the other free-form JSON in the model does ([TemplateResource.dataModel]).
+     */
+    val metadata: Map<String, Map<String, Any?>>?
 }
 
 /**
@@ -58,19 +82,51 @@ sealed interface CatalogResource {
  * field. A consumer that does not understand it ignores it. Adding it
  * therefore needs no `schemaVersion` bump (see "Future wire evolution" in
  * `contracts/catalog/docs/catalog-compatibility.md`).
+ *
+ * [themeKey] names the template's default theme; until wire v8 the member was called `themeId`, and
+ * binding reads either name. [themeCatalogKey] names the alias of the catalog holding it when that is
+ * another catalog the template's catalog depends on ([CatalogAliases], contract ADR 0003); null means
+ * the template's own catalog, which content never names by its own key. An earlier draft of wire v8 also named the
+ * theme's catalog by `themeNamespace` and `themeRegistry`; they are ignored when binding, so that
+ * details stored with them still bind, and the migrator's wire check refuses them in a v8 archive.
+ *
+ * [description] (wire v8) is plain text for the template's authors and readers -- what it is for,
+ * design decisions, known gaps -- at most [MAX_DESCRIPTION_LENGTH] characters, and is not rendered.
+ * It is the source of the manifest resource entry's `description`: when both are present they must
+ * be equal. Omitted when null, so a template without one canonicalizes as before.
+ *
+ * [quality] (wire v8, contract ADR 0010) names the quality profiles the template adds to its
+ * catalog's ([CatalogInfo.quality]) and the template's overrides of their rules. Omitted when null,
+ * so a template without one canonicalizes as before.
  */
+@JsonIgnoreProperties("themeNamespace", "themeRegistry")
 data class TemplateResource(
-    override val slug: String,
+    @JsonAlias("slug")
+    override val key: String,
     override val name: String,
-    val themeId: String? = null,
+    @JsonAlias("themeId")
+    val themeKey: String? = null,
     val themeCatalogKey: String? = null,
     val pdfaEnabled: Boolean = true,
     val dataModel: Map<String, Any?>? = null,
     val dataExamples: List<DataExampleEntry>? = null,
     val templateModel: TemplateDocument,
     val variants: List<VariantEntry>,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val description: String? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    override val tags: List<String> = emptyList(),
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    override val metadata: Map<String, Map<String, Any?>>? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val quality: QualityBinding? = null,
 ) : CatalogResource {
     override val type: String get() = "template"
+
+    companion object {
+        /** Longest template description, in characters (Unicode code points). */
+        const val MAX_DESCRIPTION_LENGTH: Int = 2000
+    }
 }
 
 /**
@@ -78,57 +134,70 @@ data class TemplateResource(
  *
  * Style keys and preset usage are checked against the registries shipped in
  * this artifact.
+ *
+ * `defaultBlockStyles` is the theme's baseline block spacing (#59): the margin a flow block gets
+ * when nothing more specific sets one. Only margin keys take effect. It sits in the cascade below
+ * the document styles, a block style preset and a node's own styles, and above a component's
+ * structural defaults; margins are never inherited, so it is not a document style. Absent, the
+ * renderer supplies its own fallback, which the contract does not fix.
  */
 data class ThemeResource(
-    override val slug: String,
+    @JsonAlias("slug")
+    override val key: String,
     override val name: String,
     val description: String? = null,
     val documentStyles: Map<String, Any?>? = null,
     val pageSettings: PageSettings? = null,
     val blockStylePresets: Map<String, BlockStylePreset>? = null,
     val spacingUnit: Float? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    override val tags: List<String> = emptyList(),
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    override val metadata: Map<String, Map<String, Any?>>? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    val defaultBlockStyles: Map<String, Any?>? = null,
 ) : CatalogResource {
     override val type: String get() = "theme"
 }
 
 /**
- * Wire format for a stencil resource. [version] is the published version
- * number of the stencil whose [content] is carried here — preserved across
- * export/import so that templates pinning a specific version still resolve
- * after a round-trip. No default value: a ZIP without `version` is from a
- * pre-`0.6.0` exporter and must be re-exported before it can be imported.
+ * Wire format for a stencil resource.
  *
- * Only published stencil versions are exported; draft and archived versions
- * are filtered out at export time. The wire format therefore carries no
- * status field — every `StencilResource` in a catalog ZIP is published by
- * construction.
+ * A stencil carries no version of its own from wire v8: a catalog is versioned as a whole, so the
+ * stencil a template embeds is the one in the release its catalog dependency pins (or the
+ * stencil in the same catalog). Until wire v7 a `version` here recorded the published stencil
+ * version, and stencil nodes pinned it; the v7-to-v8 migration removes both. The property is
+ * ignored when binding, so a manifest a consumer stored under v7 still loads.
  *
- * `version` is annotated `required = true` so that consumers reject pre-0.6.0
- * ZIPs at deserialisation time regardless of their `ObjectMapper` config,
- * rather than silently coercing a missing field to `0`.
+ * `parameterSchema` carries the stencil's typed input parameters as a JSON Schema object
+ * (`{type:"object", properties, required}`). It is optional and additive: a ZIP from a stencil
+ * without declared parameters (or from an exporter predating this field) simply omits it, and a
+ * consumer that does not understand it ignores it. When present it round-trips so that templates
+ * binding to those parameters stay bound after an import.
  *
- * `parameterSchema` carries the stencil version's typed input parameters as a
- * JSON Schema object (`{type:"object", properties, required}`) — the same value
- * stored on `StencilVersion.parameter_schema`. It is optional and additive: a ZIP
- * from a stencil without declared parameters (or from an exporter predating this
- * field) simply omits it, and a consumer that does not understand it ignores it.
- * Adding it therefore needs no `schemaVersion` bump (see
- * `docs/adr/0007-catalog-wire-format-migrations.md`). When present it round-trips
- * so that templates binding to those parameters stay bound after an import.
- *
- * [content] may embed nodes that reference exact published versions of other
- * stencils. These references form a portable composition graph: validation
- * requires their version to resolve, rejects direct and transitive recursion,
- * and limits the complete chain to five stencil levels.
+ * [content] may embed nodes that reference other stencils by `stencilKey` (`stencilId` until wire
+ * v8), optionally with the `catalogKey` alias of another catalog ([CatalogAliases]). These references form a portable composition graph: validation
+ * requires them to resolve, rejects direct and transitive recursion, and limits the complete chain
+ * to five stencil levels.
  */
+@JsonIgnoreProperties("version")
 data class StencilResource(
-    override val slug: String,
+    @JsonAlias("slug")
+    override val key: String,
     override val name: String,
-    @JsonProperty(required = true) val version: Int,
     val description: String? = null,
-    val tags: List<String> = emptyList(),
+    override val tags: List<String> = emptyList(),
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    override val metadata: Map<String, Map<String, Any?>>? = null,
     val content: TemplateDocument,
     val parameterSchema: Map<String, Any?>? = null,
+    /**
+     * The stencil's content also sees the using template's data and loop variables, not only its
+     * parameters (ADR 0006, part 5). Wire v8; left out of the JSON when false, so V5 fingerprints of
+     * stencils that do not use it stay put.
+     */
+    @get:JsonInclude(JsonInclude.Include.NON_DEFAULT)
+    val readsTemplateData: Boolean = false,
 ) : CatalogResource {
     override val type: String get() = "stencil"
 }
@@ -140,10 +209,15 @@ data class StencilResource(
  * [CodeListResource] through [codeListBinding]; using both is invalid.
  */
 data class AttributeResource(
-    override val slug: String,
+    @JsonAlias("slug")
+    override val key: String,
     override val name: String,
     val allowedValues: List<String> = emptyList(),
     val codeListBinding: CodeListBindingRef? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    override val tags: List<String> = emptyList(),
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    override val metadata: Map<String, Map<String, Any?>>? = null,
 ) : CatalogResource {
     override val type: String get() = "attribute"
 }
@@ -152,29 +226,44 @@ data class AttributeResource(
  * Points a variant-attribute definition at a code list that constrains its
  * allowed values. `catalogKey = null` means "the same catalog as the
  * attribute" (the typical case for catalogs that author both an attribute
- * and the list it binds to).
+ * and the list it binds to); otherwise it is the alias of another catalog the
+ * attribute's catalog depends on ([CatalogAliases], contract ADR 0003), so content means
+ * the same thing wherever it is installed and whatever the catalog it names
+ * is called there. An earlier draft of wire v8 also named that catalog's
+ * `namespace` and `registry`; they are ignored when binding.
+ *
+ * [key] names the code list; until wire v8 the member was called `slug`, and binding reads either
+ * name.
  *
  * Mutually exclusive with `AttributeResource.allowedValues` on the
  * consumer side. The wire format doesn't enforce that — it relies on the
  * importer (`CreateAttributeDefinition`) to reject mixed input, where the
  * error message is friendlier than a `oneOf` schema rejection.
  */
+@JsonIgnoreProperties("namespace", "registry")
 data class CodeListBindingRef(
     val catalogKey: String? = null,
-    val slug: String,
+    @JsonAlias("slug")
+    val key: String,
 )
 
 /**
  * Points a style's `fontFamily` value at a font family. `catalogKey = null`
  * means "the same catalog as the referencing theme/template" (the typical
- * case); a non-null `catalogKey` references another catalog in the same
- * tenant — most notably the bundled `system` catalog. Mirrors
- * [CodeListBindingRef]; this is the shape stored in `documentStyles`,
- * block-style presets, and inline node styles under the `fontFamily` key.
+ * case); a non-null `catalogKey` is the alias of another catalog the
+ * referencing catalog depends on ([CatalogAliases], contract ADR 0003) — most notably
+ * the bundled `system` catalog. Mirrors [CodeListBindingRef]; this is the
+ * shape stored in `documentStyles`, block-style presets, and inline node
+ * styles under the `fontFamily` key. An earlier draft of wire v8 also named
+ * that catalog's `namespace` and `registry`; they are ignored when binding.
+ * [key] names the font family; until wire v8 the member was called `slug`,
+ * and binding reads either name.
  */
+@JsonIgnoreProperties("namespace", "registry")
 data class FontRef(
     val catalogKey: String? = null,
-    val slug: String,
+    @JsonAlias("slug")
+    val key: String,
 )
 
 /**
@@ -185,10 +274,15 @@ data class FontRef(
  * catalog's become `URL`-sourced via the refresh path).
  */
 data class CodeListResource(
-    override val slug: String,
+    @JsonAlias("slug")
+    override val key: String,
     override val name: String,
     val description: String? = null,
     val entries: List<CodeListEntryEntry>,
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    override val tags: List<String> = emptyList(),
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    override val metadata: Map<String, Map<String, Any?>>? = null,
 ) : CatalogResource {
     override val type: String get() = "codeList"
 }
@@ -247,7 +341,8 @@ interface BinaryRef {
 }
 
 data class ImageResource(
-    override val slug: String,
+    @JsonAlias("slug")
+    override val key: String,
     override val name: String,
     val mediaType: String,
     val width: Int? = null,
@@ -255,6 +350,10 @@ data class ImageResource(
     override val contentHash: String,
     @get:JsonInclude(JsonInclude.Include.NON_NULL)
     override val contentUrl: String? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    override val tags: List<String> = emptyList(),
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    override val metadata: Map<String, Map<String, Any?>>? = null,
 ) : CatalogResource,
     BinaryRef {
     override val type: String get() = "image"
@@ -263,15 +362,25 @@ data class ImageResource(
 /**
  * Inline catalog representation of a font family. A font family is a thin
  * grouping over its face binaries, each carried by a [FontVariantEntry]. The
- * `FontResource` itself carries no binary. Bundled system fonts are
- * classpath-backed locally and are never exported, so the wire format only
- * ever describes catalog-authored fonts.
+ * `FontResource` itself carries no binary.
+ *
+ * A catalog carries its font faces as resources of its release, like any other resource: the
+ * family here, each face's bytes in the archive at its `contentUrl`, and both inside the release's
+ * fingerprint, which covers each face's bytes as it does an image's. That holds for every catalog,
+ * a catalog an installation supplies itself (such as Epistola Suite's bundled `system` catalog)
+ * included, so a release that pins it renders with exactly the faces it was cut with, wherever it
+ * is installed. How an installation stores the bytes (on its classpath, say) is its own business.
  */
 data class FontResource(
-    override val slug: String,
+    @JsonAlias("slug")
+    override val key: String,
     override val name: String,
     val kind: String,
     val variants: List<FontVariantEntry>,
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    override val tags: List<String> = emptyList(),
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    override val metadata: Map<String, Map<String, Any?>>? = null,
 ) : CatalogResource {
     override val type: String get() = "font"
 }
@@ -299,10 +408,21 @@ data class FontVariantEntry(
     override val contentUrl: String? = null,
 ) : BinaryRef
 
-/** Named example payload checked against [TemplateResource.dataModel]. */
+/**
+ * Named example payload checked against [TemplateResource.dataModel].
+ *
+ * [key] (wire v8) is the example's address within its template, unique there
+ * ([CatalogKeys.RESOURCE]); [name] is its display name, also unique there. A catalog-v7 example
+ * had no key, and the v7-to-v8 migration derives one from its name
+ * ([CatalogKeys.deriveDataExampleKey]). The key is nullable, and omitted when null, so that examples
+ * a consumer stored before wire v8 still bind; the catalog validator reports a missing one.
+ */
+@JsonPropertyOrder("key", "name", "data")
 data class DataExampleEntry(
     val name: String,
     val data: Map<String, Any?>,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val key: String? = null,
 )
 
 /**
@@ -310,11 +430,28 @@ data class DataExampleEntry(
  *
  * A null [templateModel] inherits the template's base model. At most one
  * variant may set [isDefault].
+ *
+ * [key] is the variant's public address within its template. Until wire v8 the member was called
+ * `slug` (and `id` until wire v7); binding reads `slug` too.
+ *
+ * [attributes] maps an attribute's key to the variant's value for it. An attribute another catalog
+ * defines is keyed `<alias>.<key>` (`system.locale`), by the alias the dependency list declares for
+ * that catalog ([CatalogAliases], contract ADR 0003), like every other reference into another catalog.
+ *
+ * [name] is the variant's human-readable name ("US English"), which tells it from the template's
+ * other variants. Until wire v8 it was called `title`.
+ *
+ * [description] (wire v8) is plain text for the variant's authors: what it is for. Not rendered.
+ * Omitted when null or empty, so a variant without one serializes, and fingerprints, as before.
  */
 data class VariantEntry(
-    val slug: String,
-    val title: String? = null,
+    @JsonAlias("slug")
+    val key: String,
+    @JsonAlias("title")
+    val name: String? = null,
     val attributes: Map<String, String>? = null,
     val templateModel: TemplateDocument? = null,
     val isDefault: Boolean = false,
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    val description: String? = null,
 )

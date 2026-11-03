@@ -11,7 +11,9 @@ will do.
 Example::
 
     validator = TemplateSchemaValidator(templates_api)
-    validator.validate("my-tenant", "my-catalog", "my-template", my_data)
+    validator.validate("my-tenant", "~", "acme-corp", "my-catalog", "my-template", my_data)
+
+``"~"`` is the server's default registry; a registry can also be named in full (``acme.com``).
 
 To validate in-process instead, implement :class:`TemplateDataValidator` and pass it in place of
 the API — see its docstring for the failure shape an implementation owes its callers.
@@ -113,23 +115,24 @@ class ServerTemplateDataValidator:
     because silently reporting unvalidated data as acceptable is worse than failing.
 
     :param templates_api: the generated API used to reach ``validateTemplateData``
-    :param variant_id: optional variant to check against
-    :param version_id: optional explicit version number (mutually exclusive with
-        ``environment_id``)
-    :param environment_id: optional environment whose active version to check against
+    :param variant_key: optional variant to check against; without it, the default variant
+    :param version_range: optional version range for the template's catalog release to check against
+        (an exact version such as ``1.4.0`` or a range such as ``^1.4.0``); it may be combined with
+        ``environment_key``. Without either, the catalog's latest release is used
+    :param environment_key: optional environment whose deployed releases to check against
     """
 
     def __init__(
         self,
         templates_api: TemplatesApi,
-        variant_id: Optional[str] = None,
-        version_id: Optional[int] = None,
-        environment_id: Optional[str] = None,
+        variant_key: Optional[str] = None,
+        version_range: Optional[str] = None,
+        environment_key: Optional[str] = None,
     ) -> None:
         self._templates_api = templates_api
-        self._variant_id = variant_id
-        self._version_id = version_id
-        self._environment_id = environment_id
+        self._variant_key = variant_key
+        self._version_range = version_range
+        self._environment_key = environment_key
 
     @property
     def preflights_generation(self) -> bool:
@@ -140,20 +143,24 @@ class ServerTemplateDataValidator:
 
     def validate(
         self,
-        tenant_id: str,
-        catalog_id: str,
-        template_id: str,
+        tenant_key: str,
+        registry: str,
+        namespace: str,
+        catalog_key: str,
+        template_key: str,
         data: Any,
     ) -> List[ValidationFailure]:
         result = self._templates_api.validate_template_data(
-            tenant_id,
-            catalog_id,
-            template_id,
+            tenant_key,
+            registry,
+            namespace,
+            catalog_key,
+            template_key,
             ValidateTemplateDataRequest(
                 data=data if data is not None else {},
-                variantId=self._variant_id,
-                versionId=self._version_id,
-                environmentId=self._environment_id,
+                variantKey=self._variant_key,
+                versionRange=self._version_range,
+                environmentKey=self._environment_key,
             ),
         )
         if result is None or result.valid:
@@ -176,14 +183,24 @@ class TemplateSchemaValidator:
             else ServerTemplateDataValidator(validator_or_api)  # type: ignore[arg-type]
         )
 
-    def validate(self, tenant_id: str, catalog_id: str, template_id: str, data: Any) -> None:
+    def validate(
+        self,
+        tenant_key: str,
+        registry: str,
+        namespace: str,
+        catalog_key: str,
+        template_key: str,
+        data: Any,
+    ) -> None:
         """Validate ``data`` against the template's data contract.
 
         Raises :class:`TemplateDataValidationError` when it does not fit. Against a server older
         than contract 1.4.0 the default validator raises the generated ``ApiException`` instead,
         because ``validateTemplateData`` does not exist there.
         """
-        failures = list(self._validator.validate(tenant_id, catalog_id, template_id, data))
+        failures = list(
+            self._validator.validate(tenant_key, registry, namespace, catalog_key, template_key, data)
+        )
         if failures:
             raise TemplateDataValidationError(failures)
 
@@ -218,21 +235,33 @@ class ValidatingGenerationApi:
             else ServerTemplateDataValidator(validator_or_api)  # type: ignore[arg-type]
         )
 
-    def generate_document(self, tenant_id: str, request: GenerateDocumentRequest) -> GenerationJobResponse:
+    def generate_document(self, tenant_key: str, request: GenerateDocumentRequest) -> GenerationJobResponse:
         if self._validator.preflights_generation:
             failures = list(
-                self._validator.validate(tenant_id, request.catalog_id, request.template_id, request.data)
+                self._validator.validate(
+                    tenant_key,
+                    to_path_registry(request.registry),
+                    request.namespace,
+                    request.catalog_key,
+                    request.template_key,
+                    request.data,
+                )
             )
             if failures:
                 raise TemplateDataValidationError(failures)
-        return self._translating_problem(lambda: self._delegate.generate_document(tenant_id, request))
+        return self._translating_problem(lambda: self._delegate.generate_document(tenant_key, request))
 
-    def generate_document_batch(self, tenant_id: str, request: GenerateBatchRequest) -> GenerationJobResponse:
+    def generate_document_batch(self, tenant_key: str, request: GenerateBatchRequest) -> GenerationJobResponse:
         if self._validator.preflights_generation:
             all_failures: List[ValidationFailure] = []
             for index, item in enumerate(request.items):
                 for failure in self._validator.validate(
-                    tenant_id, item.catalog_id, item.template_id, item.data
+                    tenant_key,
+                    to_path_registry(item.registry),
+                    item.namespace,
+                    item.catalog_key,
+                    item.template_key,
+                    item.data,
                 ):
                     all_failures.append(
                         ValidationFailure(
@@ -244,7 +273,7 @@ class ValidatingGenerationApi:
             if all_failures:
                 raise TemplateDataValidationError(all_failures)
         return self._translating_problem(
-            lambda: self._delegate.generate_document_batch(tenant_id, request)
+            lambda: self._delegate.generate_document_batch(tenant_key, request)
         )
 
     @staticmethod
@@ -261,6 +290,20 @@ class ValidatingGenerationApi:
             raise TemplateDataValidationError(
                 to_validation_failures(None, exc.missing_fields, exc.invalid_fields)
             ) from exc
+
+
+#: The path segment for the server's default registry.
+DEFAULT_REGISTRY = "~"
+
+
+def to_path_registry(registry: Optional[str]) -> str:
+    """A request body's ``registry`` in the form a catalog-scoped URL path takes.
+
+    A body may leave ``registry`` out, which means the server's default registry. A path cannot
+    leave its registry segment out, and writes the default registry as ``~``. Which registry is the
+    default is server configuration, so the client cannot name it, and must not guess.
+    """
+    return registry if registry else DEFAULT_REGISTRY
 
 
 def _is_validator(candidate: Any) -> bool:

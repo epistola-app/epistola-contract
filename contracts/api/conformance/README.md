@@ -49,8 +49,9 @@ one scenario). `run.sh` gets only a base URL, and asks the server for the rest:
 | `POST /__conformance/done` | `{}`, or `{"error": "…"}` if the driver could not complete |
 
 Control-plane traffic is not journalled, so it cannot be mistaken for API traffic. Report values are
-strings and numbers only — a list is joined with commas — so that no driver needs a serializer for
-its own types.
+strings and numbers only — a list is joined with commas, or with `|` where its items are free text —
+so that no driver needs a serializer for its own types. A boolean is reported as `true` or `false`,
+and a missing value as `null`, whatever the driver's language prints for them.
 
 The base URL addresses the server's root; a driver appends `/api` itself, because that base path is
 part of the contract's `servers` entry and a client that drops it is a client with a bug. Exactly
@@ -60,19 +61,75 @@ These actions cover the scenarios. A driver implements these, and nothing else:
 
 | Action | What the driver does |
 | --- | --- |
-| `ping` | `POST /ping` with client metadata, through the generated API |
-| `list-templates` | `GET …/templates`, `config.repeat` times, reporting the ids and slugs it parsed from the last response |
-| `collect` | build a `ResultCollector` from `config`, run it for `config.runForMs`, stop it, report what it handled |
-| `problem` | make a request the server answers with a problem, report the parsed slug and members |
+| `ping` | `POST /ping` with client metadata, through the generated API, with the credentials `config.auth` configures (none when absent) |
+| `list-templates` | `GET …/templates`, `config.repeat` times, reporting the keys it parsed from the last response (`templateKeys`, comma-joined) and their descriptions (`templateDescriptions`, joined with `\|`, a missing one as `null`) |
+| `collect` | build a `ResultCollector` from `config`, run it for `config.runForMs`, stop it, report what it handled, including each result's catalog and release as `releases` (`registry/namespace/catalogKey@version#releaseId:releaseName`, a missing value as `null`) |
+| `problem` | make a request the server answers with a problem, report the parsed slug and members: `problemTypeSlug`, `problemStatus`, `problemTitle`, `problemHelp` (the RFC 9457 base member `help`, exactly as received, `null` when absent), `problemFieldErrors` (`field:message` per entry of `errors[]`, comma-joined, in order), `problemFieldCodes` (`field:code` per entry, comma-joined, in order, a missing code as `null`), `problemMissingFields`, `problemInvalidFields`, and what a `forbidden` problem says was refused, `problemRequiredPermission`, `problemRefusedTenantKey`, `problemRequiredPlatformRole` and `problemRefusalReason` (`null` when absent) |
 | `validate-template-data` | validate `config.data` for a template through `TemplateSchemaValidator`, reporting the paths and keywords of the failures it surfaced |
-| `generate-document` | `POST …/documents/generate` with a real body, through the generated API |
+| `generate-document` | `POST …/documents/generate` with a real body, through the operation that exposes the response headers; `config.registry`, `config.variantKey`, `config.versionRange` and `config.environmentKey` are sent when present, and left unset otherwise; `config.attributes`, when present, is sent as the attribute criteria, each with its `key` and `value` and whichever of `catalogKey` (an alias) and `required` it sets. Reports the `requestId`, `status`, `jobType` and `total` it parsed, and the `location` response header exactly as received (`null` when absent). When the server answers with a problem, report `problemTypeSlug`, `problemStatus` and `problemTiedVariants` (comma-joined, in order) instead |
 | `routing` | poll once for a partition assignment, then report what the routing helpers compute |
-| `update-consumer` | `PATCH …/consumers/{id}` setting exactly one field |
+| `update-consumer` | `PATCH …/consumers/{id}` with `config.name`, `config.description` and `config.clearExpiresAt` each only when present (an empty `description` sent as is), sending `config.ifMatch` as `If-Match` when present and no `If-Match` otherwise, through the operation that exposes the response headers, reporting the `id`, `name` and `lastModified` it parsed and the `etag` response header exactly as received (`null` when absent). When the server answers with a problem, report `problemTypeSlug` and `problemStatus` instead |
+| `list-documents` | `GET …/documents` with `config.templateKey`, `config.registry`, `config.namespace` and `config.catalogKey` each sent only when present, reporting the `catalogs` (`registry/namespace/catalogKey`, a null value as `null`), `templateKeys` and `variantKeys` it parsed, comma-joined, in order |
+| `get-generation-job-status` | `GET …/documents/jobs/{requestId}`, reporting the `requestId`, `status`, `jobType`, `total`, `completedCount` and `failedCount` it parsed |
+| `list-generation-job-items` | `GET …/documents/jobs/{requestId}/items` with `config.status`, `config.page` and `config.size` each only when present, reporting the `itemIds`, `statuses`, `documentIds` and `correlationIds` it parsed (comma-joined, in order, a missing value as `null`) and the page's `total` |
+| `search-tenant` | `GET …/search` (alpha) with `config.q`, `config.kind`, `config.registry`, `config.namespace`, `config.catalogKey`, `config.supplied`, `config.changed`, `config.sort`, `config.page` and `config.size` each only when present (`supplied` and `changed` may go out as `false`), reporting the hits' `kinds` and `keys` (comma-joined) and `names` (joined with `\|`), in order; per hit, joined with `;`, its `catalogs` as `registry/namespace/catalogKey#releaseId@version`, its `catalogStates` as `editable:readOnlyReason:status` and its `variants` as variant keys, each hit's entries joined with `+` (empty when none, a null value as `null`); `counts` as `kind=total` (comma-joined, in order) and the page's `total` |
 | `download-document` | `GET …/documents/{id}`, reporting the SHA-256 and length of the bytes |
-| `list-images` | `GET …/images?search=…`, reporting the keys, widths, heights and media types it parsed |
+| `list-images` | `GET …/images?q=…`, reporting the keys, widths, heights and media types it parsed |
 | `upload-image` | `POST …/images` with the file from `config` (bytes, filename, content type) and a name, reporting the returned key and name |
-| `download-image` | `GET …/images/{imageSlug}/content`, reporting the SHA-256 and length of the bytes |
-| `delete-image` | `DELETE …/images/{imageSlug}` with `force` from `config` |
+| `import-catalog` | `POST …/catalogs/import` with the file from `config` (bytes, filename, content type), and `config.registry` and `config.namespace` each only when present, reporting the `registry`, `namespace`, `catalogKey`, `version`, `newlyInstalled` and `total` it parsed. When the server answers with a problem, report `problemTypeSlug` and `problemStatus` instead |
+| `install-catalog-release` | `POST …/catalogs/{registry}/{namespace}/{catalogKey}/available-releases/{version}/install` with `config.version` in the path, no query and no body, reporting the `registry`, `namespace`, `catalogKey`, `version`, `newlyInstalled` and `total` it parsed, and `installedDependencies` and `presentDependencies` (each release as `registry/namespace/catalogKey@version#releaseId`, comma-joined, in order, empty when absent or empty). When the server answers with a problem, 4xx or 5xx, report `problemTypeSlug`, `problemStatus` and `problemMissingDependencies` as `deploy-catalog-release` does instead |
+| `list-available-catalog-releases` | `GET …/catalogs/{registry}/{namespace}/{catalogKey}/available-releases`, reporting the `registry`, `namespace` and `catalogKey` it parsed, `availableComparedTo` as `version=comparedTo` per available release (a null `comparedTo` as `null`), `availableChanges` as `version=type/key:change+…` per available release and `availableDependencies` as `version=registry/namespace/catalogKey@version:present+…` per available release (`present` as `true` or `false`), releases joined with `;` in order (empty when none). When the server answers with a problem, 4xx or 5xx, report `problemTypeSlug` and `problemStatus` instead |
+| `list-release-registries` | `GET …/release-registries` (alpha), reporting `registries` as `name:kind` per registry, comma-joined, in order |
+| `list-registry-releases` | `GET …/release-registries/{name}/catalogs/{registry}/{namespace}/{catalogKey}/releases` (alpha) with `config.name` and the catalog's `config.registry`, reporting the `releaseRegistry`, `registry`, `namespace` and `catalogKey` it parsed and `releases` as `version:fingerprint:releaseId:base` per release (the base as `version@fingerprint`, a missing value as `null`), comma-joined, in order, with `contentHashes` and `baseContentHashes` (each release's and its base's content hash, `null` when missing), comma-joined, in order. When the server answers with a problem, report `problemTypeSlug` and `problemStatus` instead |
+| `install-registry-release` | `POST …/release-registries/{name}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{version}/install` (alpha), no query and no body, reporting the `registry`, `namespace`, `catalogKey`, `version`, `newlyInstalled` and `total` it parsed. When the server answers with a problem, report `problemTypeSlug` and `problemStatus` instead |
+| `publish-release-to-registry` | `POST …/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/publish` (alpha) with `{"to": config.to}`, reporting the `status`, `releaseRegistry`, `version` and `digest` (`null` when absent) it parsed. When the server answers with a problem, report `problemTypeSlug` and `problemStatus` instead |
+| `download-image` | `GET …/images/{imageKey}/content`, reporting the SHA-256 and length of the bytes |
+| `delete-image` | `DELETE …/images/{imageKey}` with `force` from `config` |
+| `list-catalog-dependencies` | `GET …/releases/{release}/dependencies`, reporting the `aliases`, `registries`, `namespaces`, `catalogKeys`, `versions`, `releaseIds` and `contentHashes` it parsed, in order (a null value as `null`) |
+| `update-catalog-dependencies` | `PUT …/releases/{release}/dependencies` with `config.dependencies` (each entry's `namespace` and `catalogKey`, and its `alias`, `registry`, `version` and `releaseId` each only when the entry has one), sending `config.ifMatch` as `If-Match` when present and no `If-Match` otherwise, through the operation that exposes the response headers, reporting the `aliases`, `registries`, `namespaces`, `catalogKeys`, `versions`, `releaseIds` and `contentHashes`, in order (a null value as `null`), it parsed and the `etag` response header exactly as received (`null` when absent). When the server answers with a problem, report `problemTypeSlug` and `problemStatus` instead |
+| `create-catalog-release` | `POST …/catalogs/{registry}/{namespace}/{catalogKey}/releases` with `config.name`, and `config.from` (a version or a `releaseId`) when present, reporting the `version`, `releaseId`, `name`, `status`, `base`, `createdFrom` and `releasedAt` it parsed, through the operation that exposes the response headers, and the `location` response header exactly as received (`null` when absent) |
+| `list-catalog-releases` | `GET …/releases`, with `config.status` as the `status` filter and `config.contentHash` as the `contentHash` filter, each only when present, reporting the `versions`, `releaseIds`, `names` (joined with `\|`), `statuses`, `bases`, `createdFrom`, `behindCounts` (how many releases each is behind) and `contentHashes` (a null one as `null`) it parsed, in order |
+| `get-catalog-release` | `GET …/releases/{release}`, reporting the `version`, `releaseId`, `name`, `status`, `releasedAt`, `fingerprint` and `contentHash` it parsed, its `dependencies` as `registry/namespace/catalogKey@version` and their `dependencyAliases` and `dependencyContentHashes` (each comma-joined, in order, a null value as `null`), `deployedTo`, and `behind` as `version=type/key:change+…` per release, releases joined with `;` (empty when none) |
+| `update-catalog-release` | `PATCH …/releases/{release}` (`updateCatalogRelease`) with `config.name`, sending `config.ifMatch` as `If-Match` when present and no `If-Match` otherwise, through the operation that exposes the response headers, reporting the `version`, `releaseId`, `name`, `status` and `base` it parsed and the `etag` response header exactly as received (`null` when absent). When the server answers with a problem, report `problemTypeSlug` and `problemStatus` instead |
+| `set-catalog-release-theme-settings` | `PATCH …/releases/{release}` (`updateCatalogRelease`) with no `name`, a `defaultTheme` of `config.defaultThemeKey` and `config.defaultThemeCatalogKey` (the theme left out when `config.defaultThemeKey` is absent, its catalog key when `config.defaultThemeCatalogKey` is), `config.clearDefaultTheme` only when present, and `config.presets` only when present, an empty array included (each entry's `key` and `name`, and its `description` only when it has one), reporting the `releaseId` and `name` it parsed, the `defaultThemeKey` and `defaultThemeCatalogKey`, and the `presetKeys` (comma-joined), `presetNames` and `presetDescriptions` (each joined with `\|`, a missing description as `null`), in order |
+| `preview-catalog-draft-release` | `GET …/releases/{release}/release-preview`, with no query, reporting the `base`, `changeKind`, `reasons` (joined with `\|`, in order), `needed` and `suggested` it parsed |
+| `delete-catalog-release` | `DELETE …/releases/{release}`. When the server answers with a problem, report `problemTypeSlug`, `problemStatus`, `problemEnvironments` (comma-joined) and `problemPinnedBy` (each `registry/namespace/catalogKey@version#releaseId`, comma-joined, in order) |
+| `release-catalog-draft` | `POST …/releases/{release}/release` with `config.version`, `config.notes`, `config.acknowledgedBehind` (an array) and `config.releaseDependencies` (a boolean) when present, each left out otherwise (`releaseDependencies` may go out as `false`, its default), reporting the released `version`, `status`, `releaseId` and `contentHash`, `unchangedContent`, `draftsBehind` joined with `\|` (empty when none), and `releasedDependencies` as `registry/namespace/catalogKey@version` (comma-joined, in order, empty when none). When the server answers with a problem, report `problemTypeSlug`, `problemStatus`, `problemUnreleasedDependencies` (`registry/namespace/catalogKey#releaseId=releaseName`, joined with `\|`, in order) and `problemBehind` (comma-joined, in order) instead |
+| `preview-catalog-draft-merge` | `GET …/releases/{release}/merge-preview?version=` (alpha) with `config.version` as the query, reporting the `draft`, `base`, `release` and `alreadyMerged` it parsed, `resources` as `resourceType/resourceKey:outcome:draftChange:releaseChange` (comma-joined, in order, a null change as `null`), `resourceNames` (joined with `\|`, a null name as `null`), `resourceNeeds` as `resourceType/resourceKey=need+…` for each entry whose `needs` is not empty (joined with `;`, in order, empty when none; an empty or absent `needs` alike), `unchanged`, `token`, `missingBase` (`version@fingerprint`, `null` when absent) and `missingBaseContentHash` (`null` when absent or null) |
+| `get-catalog-draft-merge-sides` | `GET …/releases/{release}/merge-sides?version=&entry=` (alpha) with `config.version` and `config.entry` as the query, reporting the `entry`, `mergeBase` (`null` when null) and `token` it parsed, each side (`base`, `draft`, `release`) as `type/key:name` from its members `type`, `key` and `name` (a missing member as `null`, a null or absent side as `null`), and `draftMembers`, the draft side's member names sorted and comma-joined (`null` when the side is null) |
+| `merge-into-catalog-draft` | `POST …/releases/{release}/merge` (alpha) with `release` set to `config.version`, and `config.resolutions` (an object of `resourceType/resourceKey` to `ours` or `theirs`), `config.mergedContent` (an object of `resourceType/resourceKey` to a free-form JSON object, passed to the client as a caller holding that JSON would) and `config.expectedToken` each when present, left out otherwise, reporting the `release` it parsed and `taken`, `removed`, `kept` and `merged` (comma-joined, in order, `merged` empty when absent). When the server answers with a problem, report `problemTypeSlug`, `problemStatus`, `problemUnresolvedConflicts` (comma-joined, in order, empty when none), `problemReadOnlyReason` (`null` when absent) and `problemMissingBase` (`version@fingerprint` of a `merge-base-missing` problem, `null` otherwise) instead |
+| `deploy-catalog-release` | `PUT …/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{release}`, with `config.release` (a version or a `releaseId`) in the path and `includeDependencies` and `replace` from `config` each when present and unset otherwise, reporting the `registry`, `namespace`, `catalogKey`, `releaseId`, `status`, `version`, `releaseName`, `lastUsedAt` and `documentsRequested` it parsed (a null value as `null`). When the server answers with a problem, report `problemTypeSlug`, `problemStatus` and `problemMissingDependencies` (`registry/namespace/catalogKey@version:reason`, comma-joined, in order, empty when none) instead |
+| `undeploy-catalog-release` | `DELETE …/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{release}` with `config.release` in the path |
+| `create-environment` | `POST …/environments` with `config.key`, `config.name`, and `config.production` when present, through the operation that exposes the response headers, reporting the `key`, `name` and `production` it parsed and the `location` response header exactly as received (`null` when absent) |
+| `create-template` | `POST …/releases/{release}/templates` with `config.key`, `config.name`, and `config.description`, `config.dataModel` (a free-form JSON object, passed to the client as a caller holding that JSON would) and `config.dataExamples` (each entry's `key`, `name` and `data`) each only when present, through the operation that exposes the response headers, reporting what `update-template` reports from the template it parsed and the `location` response header exactly as received (`null` when absent), in place of `etag` |
+| `update-environment` | `PATCH …/environments/{environmentKey}` with `config.name` and `config.production` each only when present, sending `config.ifMatch` as `If-Match` when present and no `If-Match` otherwise, through the operation that exposes the response headers, reporting the `key`, `name` and `production` it parsed and the `etag` response header exactly as received (`null` when absent). When the server answers with a problem, report `problemTypeSlug` and `problemStatus` instead |
+| `update-template` | `PATCH …/releases/{release}/templates/{templateKey}` with `config.dataModel` (a free-form JSON object, passed to the client as a caller holding that JSON would) and `config.dataExamples` (each entry's `key`, `name` and `data`) each only when present, and no other member, sending `config.ifMatch` as `If-Match` when present and no `If-Match` otherwise, through the operation that exposes the response headers, reporting the `key` it parsed, `dataModelMembers` (the data model's member names, sorted and comma-joined, empty for `{}`, `null` when there is no data model), `dataModelType` (the data model's `type`, `null` when there is no data model), `dataModelRequired` (its `required`, comma-joined, in order, `null` when absent), `dataExampleKeys` (comma-joined, in order, empty when none) and the `etag` response header exactly as received (`null` when absent). When the server answers with a problem, report `problemTypeSlug` and `problemStatus` instead |
+| `update-tenant` | `PATCH /tenants/{tenantKey}` with `config.name`, sending `config.ifMatch` as `If-Match` when present and no `If-Match` otherwise, through the operation that exposes the response headers, reporting the `key` and `name` it parsed and the `etag` response header exactly as received (`null` when absent). When the server answers with a problem, report `problemTypeSlug` and `problemStatus` instead |
+| `update-attribute` | `PATCH …/attributes/{attributeKey}` with `config.allowedValues`, `config.codeListBinding` (its `key`, and its `catalogKey`, an alias, only when it has one) and `config.clearCodeListBinding` each only when present, and no other member, sending `config.ifMatch` as `If-Match` when present and no `If-Match` otherwise, through the operation that exposes the response headers, reporting the `key` it parsed, `allowedValues` (comma-joined, in order), `codeListBinding` (`catalogKey/key`, a null `catalogKey` as `null`, `null` when absent) and the `etag` response header exactly as received (`null` when absent). When the server answers with a problem, report `problemTypeSlug` and `problemStatus` instead |
+| `update-code-list-entry-hidden` | `PATCH …/code-lists/{codeListKey}/entries/{code}/hidden` with `config.hidden`, sending `config.ifMatch` as `If-Match` when present and no `If-Match` otherwise, through the operation that exposes the response headers, reporting the entry's `code` and `hidden` it parsed and the `etag` response header exactly as received (`null` when absent). When the server answers with a problem, report `problemTypeSlug` and `problemStatus` instead |
+| `update-variant-content` | `PUT …/templates/{templateKey}/variants/{variantKey}/content` with a one-node template model, sending `config.ifMatch` as `If-Match` when present and no `If-Match` otherwise, reporting the `variantKey` it parsed. When the server answers with a problem, report `problemTypeSlug` and `problemStatus` instead |
+| `get-variant-content` | `GET …/templates/{templateKey}/variants/{variantKey}/content` through the operation that exposes the response headers, reporting the `variantKey`, `templateModelRoot`, `status`, `lastModified` and `readyAt` it parsed, and the `etag` response header exactly as received |
+| `mark-variant-ready` | `POST …/templates/{templateKey}/variants/{variantKey}/mark-ready`, reporting the `variantKey`, `status`, `lastModified` and `readyAt` it parsed |
+| `mark-template-ready` | `POST …/templates/{templateKey}/mark-ready`, reporting the `key` and `name` it parsed, and its variants' `variantKeys` and `variantStatuses`, in order |
+| `get-stencil-content` | `GET …/stencils/{stencilKey}/content` through the operation that exposes the response headers, reporting the `stencilKey`, `contentRoot`, `parameterSchemaType` (the schema's `type` member), `status`, `lastModified` and `readyAt` it parsed, and the `etag` response header exactly as received |
+| `update-stencil-content` | `PUT …/stencils/{stencilKey}/content` with a one-node template model as `content` and `config.parameterSchema`, sending `config.ifMatch` as `If-Match`, through the operation that exposes the response headers, reporting the `stencilKey`, `status` and `readyAt` it parsed and the `etag` response header exactly as received |
+| `mark-stencil-ready` | `POST …/stencils/{stencilKey}/mark-ready`, reporting the stencil's `stencilKey`, `status`, `readyAt` and `parameterSchemaType`, `notFitting` as `templateKey/variantKey:fits` (comma-joined) and `notFittingProblems` (each instance's problems joined with `\|`, the instances with `;`) |
+| `list-stencil-usage` | `GET …/stencils/{stencilKey}/usage` with `config.page` and `config.size`, reporting the `templateKeys`, `templateNames` (joined with `\|`), `variantKeys` and `fits` it parsed, `problems` (each entry's joined with `\|`, the entries with `;`), and the page's `pageNumber` and `total` |
+| `get-catalog-changes` | `GET …/releases/{release}/changes`, reporting the `base`, `releasable` and `dependenciesChanged` it parsed, `changes` as `type/key:change` (comma-joined, in order), `mergedForReview` as `type/key` of each change whose `mergedForReview` is true (comma-joined, in order, empty when none; absent means false) and `catalogChanges` as `type/key:change` (comma-joined, in order) |
+| `mark-catalog-ready` | `POST …/releases/{release}/mark-ready`, reporting what `get-catalog-changes` does |
+| `list-environment-deployments` | `GET …/environments/{environmentKey}/deployments`, reporting the `registries`, `catalogKeys`, `releaseIds`, `statuses`, `versions`, `deployedAt`, `lastUsedAt` and `documentsRequested` it parsed (comma-joined, in order, a null value as `null`) and `releaseNames` (joined with `\|`) |
+| `list-deployment-history` | `GET …/environments/{environmentKey}/deployment-history` with `config.page` and `config.size`, reporting the `catalogKeys`, `actions`, `releaseIds`, `statuses`, `versions` and `changedAt` it parsed (comma-joined), `releaseNames` and `changedBy` (joined with `\|`), in order, and the page's `total` |
+
+Catalog-scoped actions take the catalog as `config.registry`, `config.namespace` and
+`config.catalogKey`, and actions on a release of a catalog (templates, images, dependencies, and the
+release operations) take the release as `config.release`: a `releaseId`, or a released
+release's version. They pass each to the client exactly as given. In a path the registry is `~` (the server's default registry) or a name in full
+(`acme.com`); a client may send `~` as is or percent-encoded as `%7E`, which RFC 3986 makes
+equivalent, and the harness records both as `~`. In a body, a `registry` the config does not give
+is left unset, never filled in: omitted means the default registry, which only the server knows.
+
+A report that names a catalog writes `registry/namespace/catalogKey`, and a value the response
+gave as null (a version, for a result rendered from a draft) as `null` in its place.
 
 A new action also needs an entry in `ACTION_OPERATIONS` in `src/fixtures.mjs`, which names the
 operation whose response schema its fixtures are checked against.
@@ -116,11 +173,11 @@ why: >
 
 action:
   name: collect
-  config: { tenantId: acme-corp, minIntervalMs: 150, runForMs: 1200, ... }
+  config: { tenantKey: acme-corp, minIntervalMs: 150, runForMs: 1200, ... }
 
 script:              # responses, in order; the last entry repeats
   - status: 200
-    contentType: application/vnd.epistola.v1+ndjson
+    contentType: application/vnd.epistola.v2+ndjson
     ndjson: [ { sequence: 1, ... }, { _meta: true, hasMore: true } ]
 
 expect:
@@ -136,8 +193,10 @@ the thing under test.
 **Expectations** are `requestCount` / `requestCountAtMost` / `requestCountAtLeast`, a positional
 `requests` list, an `everyRequest` matcher, `gaps`, `jwt`, and `report`. Header and body values match
 literally, or as `{matches: regex}`, `{contains}`, `{oneOf}`, `{absent: true}`; bodies also take
-`{json: {...}}` for a deep subset, `{jsonAbsent: [keys]}` and `{jsonNullOrAbsent: [keys]}`. Query
-strings match whole via `query` or per parameter via `queryParams`.
+`{json: {...}}` for a deep subset, `{jsonAbsent: [keys]}` and `{jsonNullOrAbsent: [keys]}`. An array
+in `json` matches element by element, at the same length, each element a deep subset. Query
+strings match whole via `query` or per parameter via `queryParams`. A request's `path` is matched
+with percent-encoded unreserved characters decoded (`%7E` is recorded as `~`).
 
 A `multipart/form-data` body is matched part by part with `{multipart: {<field>: {...}}}`. Each field
 takes `filename`, `contentType` and `value` (the part as text) as value matchers, and `byteLength` and
@@ -176,6 +235,10 @@ meta line, which the clients parse leniently enough to have never noticed.
 `script` entries whose response is `format: binary` are checked for status and content type only —
 there is no schema to hold bytes to. Everything else, including each NDJSON line, is validated
 against the schema the clients generate from.
+
+A status the operation does not list is refused, unless the registry marks a problem type of that
+status `anyOperation` (405, 406, 413, 415, 500, 501): any operation may answer it, so it is checked
+as a plain `ProblemDetail`.
 
 ## What it has caught
 
@@ -225,4 +288,12 @@ test suites — which is the argument for the suite existing:
   Python generate a required property as one the response must carry, so each rejected a whole
   template listing from any released Suite; Jakarta and Node.js read it. Their tests only ever saw
   responses shaped by the current spec, which is the one shape an older server never sends. The
-  `older-server-response` scenario plays one.
+  `older-server-response` scenario played one until 2.0.0 removed `id` and required `slug`; its
+  successor, `template-listing-by-key`, holds every client to reading the address from `key`
+  alone, the name 2.0.0 gives it (#84).
+- **The Jakarta client could not read an `ETag`.** Contract 2.0.0 made updates conditional on the
+  `ETag` a read answers with, sent back as `If-Match`. A MicroProfile Rest Client method returns its
+  body alone, and the generator offers no way to return the response as well, so a caller could send
+  `If-Match` but had no tag to send: optimistic locking was unusable from this client. Every scenario
+  so far had only checked that `If-Match` goes out; `get-variant-content` was the first to ask for
+  the tag back. The other four expose response headers on every operation (`…WithHttpInfo`, `…Raw`).

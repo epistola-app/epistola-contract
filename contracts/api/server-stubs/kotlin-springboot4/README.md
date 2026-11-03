@@ -20,10 +20,10 @@ The module generates Spring `@RestController` interfaces for all API endpoint gr
 class MyGenerationApi(private val mediator: Mediator) : GenerationApi {
 
     override fun generateDocument(
-        tenantId: String,
+        tenantKey: String,
         generateDocumentRequest: GenerateDocumentRequest,
     ): ResponseEntity<GenerationJobResponse> {
-        val result = mediator.send(GenerateDocument(tenantId, generateDocumentRequest))
+        val result = mediator.send(GenerateDocument(tenantKey, generateDocumentRequest))
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(result)
     }
 
@@ -35,10 +35,11 @@ Available interfaces:
 - `SystemApi` — ping/pong
 - `TenantsApi` — tenant CRUD
 - `ConsumersApi` — consumer registration, approval, lifecycle
-- `TemplatesApi`, `VariantsApi`, `VersionsApi` — template management
+- `TemplatesApi`, `VariantsApi` — templates, their variants' working copies and mark ready
 - `ThemesApi`, `EnvironmentsApi`, `StencilsApi`, `CatalogsApi` — supporting resources
 - `GenerationApi` — document generation + result collection
 - `AttributesApi` — variant selection criteria
+- `SearchApi` — searching a tenant's catalogs and resources by name (alpha)
 
 ## Error Responses
 
@@ -75,15 +76,94 @@ ProblemDetails.dataModelValidation(
         "Example 1" to listOf(DataModelValidationError(path = "/name", message = "required property 'name' not found")),
     ),
 )
+
+// 409 release-dependencies-missing: deployCatalogRelease, when a release the deployed release pins cannot be
+// had (the tenant does not have it, and it could not be fetched or verified)
+ProblemDetails.releaseDependenciesMissing(
+    missingDependencies = listOf(
+        MissingReleaseDependency(
+            registry = "exchange.epistola.app",
+            namespace = "epistola",
+            catalogKey = "system",
+            version = "3.2.0",
+            reason = MissingReleaseDependencyReason.UNAVAILABLE,
+        ),
+    ),
+    detail = "letters 1.4.0 renders with releases that cannot be had",
+)
+
+// 409 release-dependencies-unreleased: releaseCatalogDraft, when the draft's dependency
+// declarations name drafts of other catalogs and the request does not release them along
+ProblemDetails.releaseDependenciesUnreleased(
+    unreleasedDependencies = listOf(
+        UnreleasedCatalogDependency(
+            registry = "exchange.epistola.app",
+            namespace = "acme-corp",
+            catalogKey = "branding",
+            releaseId = "r4t8w2nc",
+            releaseName = "House style 2027",
+        ),
+    ),
+    detail = "letters uses drafts of other catalogs",
+)
+
+// 409 catalog-read-only: every write to a catalog that cannot be changed in this installation
+// (CatalogDto.editable is false), with the reason, as CatalogDto.readOnlyReason reports it
+ProblemDetails.catalogReadOnly(
+    readOnlyReason = CatalogReadOnlyReason.EDITING_DISABLED,
+    detail = "this installation only receives and runs releases",
+)
+
+// 409 merge-conflicts-unresolved: mergeIntoCatalogDraft (alpha), when conflicts have no resolution;
+// 409 merge-refused, 409 merge-preview-outdated and 422 merge-not-applicable are plain problems,
+// built with `of`
+ProblemDetails.mergeConflictsUnresolved(
+    unresolvedConflicts = listOf("template/invoice"),
+    detail = "Merging 1.5.0 into Redesign 2027 needs a choice for: template/invoice",
+)
+
+// 409 merge-base-missing: mergeIntoCatalogDraft (alpha), when this installation does not have
+// the merge base; version and fingerprint name the release to get first
+ProblemDetails.mergeBaseMissing(
+    version = "1.0.0",
+    fingerprint = "v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70",
+    detail = "Merging 1.0.1 into Redesign 2027 needs 1.0.0 of letters, which this installation does not have",
+)
+
+// 400 catalog-rendering-defaults-too-new: importCatalog and installCatalogRelease, when the
+// release's metadata names rendering defaults this installation does not have; refuse before
+// writing anything
+ProblemDetails.catalogRenderingDefaultsTooNew(
+    renderingDefaultsVersion = "9",
+    supportedVersion = 6,
+    detail = "letters 1.1.0 renders with rendering defaults version 9, which this Epistola does not have (it has up to 6)",
+)
+
+// 403 forbidden: any refused authorization. Name what was refused: a permission in a tenant
+// (requiredPermission and tenantKey), access to the tenant (tenantKey alone), a platform role
+// (requiredPlatformRole), or a policy (reason). Each member is written only when given.
+ProblemDetails.forbidden(
+    requiredPermission = "TEMPLATE_EDIT",
+    tenantKey = "acme-corp",
+    detail = "Missing required permission: TEMPLATE_EDIT",
+)
+
+// 503 or 502 catalog-source-unavailable: listAvailableCatalogReleases and installCatalogRelease,
+// when the catalog's source cannot be used. 503 when it could not be reached or timed
+// out (set Retry-After on the response when you can tell), 502 when it answered badly.
+ProblemDetails.catalogSourceUnavailable(
+    status = HttpStatus.SERVICE_UNAVAILABLE,
+    detail = "registry.gemeente-x.nl could not be reached",
+)
 ```
 
 ### Reference `@RestControllerAdvice`
 
 The advice that turns exceptions into responses is **application code** — it lives in your
 server, not in this library (which ships no auto-registered error handling). Map your domain
-exceptions to a problem with a specific `type`; Spring's framework-generated 4xx (malformed
-JSON, unsupported media type, 405, …) already carry a `type` (`about:blank` by default), so
-there is nothing extra to stamp on them:
+exceptions to a problem with a specific `type`. The contract allows registered types only, so
+give the problems Spring generates itself (malformed JSON, an unsupported media type, a 405, …,
+`about:blank` by default) the generic type of their status, `ProblemDetails.genericSlugFor(status)`:
 
 ```kotlin
 @RestControllerAdvice
@@ -110,9 +190,9 @@ class ApiExceptionHandler : ResponseEntityExceptionHandler() {
 The `ClientInfo` utility parses client identity from incoming request headers (`User-Agent` and `X-EP-Node-Id`).
 
 ```kotlin
-@GetMapping("/tenants/{tenantId}/templates")
+@GetMapping("/tenants/{tenantKey}/templates")
 fun listTemplates(
-    @PathVariable tenantId: String,
+    @PathVariable tenantKey: String,
     request: HttpServletRequest,
 ): ResponseEntity<TemplateListResponse> {
     val client = ClientInfo.from(request)

@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: EUPL-1.2
 
-"""Build-time generator: reads the bundled OpenAPI spec and emits three derived
+"""Build-time generator: reads the bundled OpenAPI spec and emits four derived
 source modules into the hand-written package. Mirrors the Kotlin build's
 generateProblemSlugs / generateValidation / generateContractVersionResource tasks
 and the .NET Epistola.Client.Gen program.
@@ -11,9 +11,10 @@ and the .NET Epistola.Client.Gen program.
     python gen/generate_derived.py <openapi.yaml> <output-dir>
 
 Emits, into <output-dir>:
-    __init__.py            re-exports the three modules
-    contract_version.py    CONTRACT_VERSION, from info.version
-    known_problem_slugs.py KnownProblemSlugs + GENERATED_PROBLEM_TYPE_BASE, from x-problem-types
+    __init__.py               re-exports the four modules
+    contract_version.py       CONTRACT_VERSION, from info.version
+    known_problem_slugs.py    KnownProblemSlugs + GENERATED_PROBLEM_TYPE_BASE, from x-problem-types
+    known_validation_codes.py KnownValidationCodes, from x-validation-codes
     model_validation.py    validate() dispatch + per-model validators, from schema constraints
 """
 
@@ -106,6 +107,63 @@ def _generate_problem_slugs(root: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def _generate_validation_codes(root: dict[str, Any]) -> str:
+    registry = root.get("x-validation-codes")
+    if not isinstance(registry, dict):
+        raise SystemExit(
+            "bundled spec has no x-validation-codes extension — KnownValidationCodes cannot be generated"
+        )
+
+    codes = registry.get("codes")
+    if not isinstance(codes, list):
+        codes = []
+    if len(codes) < 20:
+        raise SystemExit(
+            f"x-validation-codes lists only {len(codes)} codes (expected at least 20) — "
+            "was the registry truncated?"
+        )
+
+    lines: list[str] = []
+    lines.append(
+        '"""Auto-generated from the OpenAPI spec\'s x-validation-codes extension — do not edit."""\n'
+    )
+    lines.append("")
+    lines.append("class KnownValidationCodes:")
+    lines.append('    """The codes that say why a field of a ``validation-error`` failed')
+    lines.append("    (``ValidationError.code``), from the contract's validation-code registry (the")
+    lines.append("    spec's ``x-validation-codes`` extension / ``docs/error-types.md``): ``constraint``")
+    lines.append("    codes name the JSON Schema keyword a value broke, ``template`` codes a finding in")
+    lines.append("    template or stencil content, ``domain`` codes a rule the server applies beyond the")
+    lines.append("    schema.")
+    lines.append("")
+    lines.append("    Convenience constants for ``match error.code``. ``code`` is a plain ``str | None``")
+    lines.append("    (not an enum) so the API can introduce new codes in a minor version without")
+    lines.append("    forcing a client release — always keep a fallback branch.")
+    lines.append('    """')
+    lines.append("")
+    names: list[str] = []
+    for entry in codes:
+        code = entry["code"]
+        kind = entry.get("kind")
+        if kind not in ("constraint", "template", "domain"):
+            raise SystemExit(
+                f"x-validation-codes entry '{code}' has kind '{kind}' "
+                "(expected constraint, template or domain)"
+            )
+        description = re.sub(r"\s+", " ", str(entry.get("description", ""))).strip()
+        const_name = code.upper().replace("-", "_")
+        names.append(const_name)
+        lines.append(f"    #: {kind} — {description}")
+        lines.append(f'    {const_name} = "{code}"')
+        lines.append("")
+    lines.append("    #: Every code the registry lists, in registry order.")
+    lines.append("    ALL: tuple[str, ...] = (")
+    for name in names:
+        lines.append(f"        {name},")
+    lines.append("    )")
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def _resolve_type(prop: dict[str, Any]) -> tuple[str | None, bool]:
     type_val = prop.get("type")
     if isinstance(type_val, str):
@@ -116,15 +174,48 @@ def _resolve_type(prop: dict[str, Any]) -> tuple[str | None, bool]:
     return None, False
 
 
-def _model_has_constraints(schema: dict[str, Any]) -> bool:
+def _string_alias(schemas: dict[str, Any], ref: Any) -> dict[str, Any] | None:
+    """The schema a ``$ref`` names when it is a plain string schema with no ``enum``
+    (``ReleaseVersion``), which the generator renders as a ``str``; ``None`` otherwise."""
+    prefix = "#/components/schemas/"
+    if not isinstance(ref, str) or not ref.startswith(prefix):
+        return None
+    target = schemas.get(ref[len(prefix):])
+    if isinstance(target, dict) and target.get("type") == "string" and "enum" not in target:
+        return target
+    return None
+
+
+def _nullable_string_alias(schemas: dict[str, Any], declared: dict[str, Any]) -> dict[str, Any] | None:
+    """The string schema a nullable use of a named rule references,
+    ``oneOf: [{$ref: Rule}, {type: 'null'}]`` (the generator renders it as ``Optional[str]``);
+    ``None`` for anything else."""
+    branches = declared.get("oneOf", declared.get("anyOf"))
+    if not isinstance(branches, list) or len(branches) != 2 or not all(isinstance(b, dict) for b in branches):
+        return None
+    if not any(b.get("type") == "null" and len(b) == 1 for b in branches):
+        return None
+    ref = next((b["$ref"] for b in branches if "$ref" in b), None)
+    return _string_alias(schemas, ref)
+
+
+def _model_has_constraints(schema: dict[str, Any], schemas: dict[str, Any]) -> bool:
     if schema.get("type") != "object":
         return False
     properties = schema.get("properties")
     if not isinstance(properties, dict):
         return False
     for prop in properties.values():
-        if not isinstance(prop, dict) or "$ref" in prop:
+        if not isinstance(prop, dict):
             continue
+        # A $ref to an object or enum is a model of its own; a $ref to a plain string schema is a
+        # constrained ``str`` of this model.
+        if "$ref" in prop:
+            prop = _string_alias(schemas, prop["$ref"])
+            if prop is None:
+                continue
+        elif (alias := _nullable_string_alias(schemas, prop)) is not None:
+            prop = alias
         base_type, _ = _resolve_type(prop)
         if base_type == "string" and any(k in prop for k in ("pattern", "minLength", "maxLength")):
             return True
@@ -141,7 +232,7 @@ def _generate_model_validation(root: dict[str, Any]) -> str:
         schemas = {}
 
     constrained = [name for name, schema in schemas.items()
-                   if isinstance(schema, dict) and _model_has_constraints(schema)]
+                   if isinstance(schema, dict) and _model_has_constraints(schema, schemas)]
     constrained.sort()
 
     if not constrained:
@@ -219,6 +310,7 @@ def main(argv: list[str]) -> int:
 
     _write(out_dir, "contract_version.py", _generate_contract_version(root))
     _write(out_dir, "known_problem_slugs.py", _generate_problem_slugs(root))
+    _write(out_dir, "known_validation_codes.py", _generate_validation_codes(root))
     _write(out_dir, "model_validation.py", _generate_model_validation(root))
     _write(
         out_dir,
@@ -230,6 +322,7 @@ def main(argv: list[str]) -> int:
             "    GENERATED_PROBLEM_TYPE_BASE,\n"
             "    KnownProblemSlugs,\n"
             ")\n"
+            "from epistola_client._generated.known_validation_codes import KnownValidationCodes\n"
             "from epistola_client._generated.model_validation import (\n"
             "    CONSTRAINED_MODELS,\n"
             "    validate,\n"
@@ -238,6 +331,7 @@ def main(argv: list[str]) -> int:
             '    "CONTRACT_VERSION",\n'
             '    "GENERATED_PROBLEM_TYPE_BASE",\n'
             '    "KnownProblemSlugs",\n'
+            '    "KnownValidationCodes",\n'
             '    "CONSTRAINED_MODELS",\n'
             '    "validate",\n'
             "]\n"

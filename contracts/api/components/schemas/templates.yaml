@@ -2,50 +2,39 @@ TemplateDto:
   type: object
   description: Full document template with all details including variant summaries
   required:
-    - id
-    - tenantId
+    - key
+    - tenantKey
     - name
+    - dataModel
     - variants
     - createdAt
     - lastModified
   properties:
-    slug:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+    key:
+      $ref: './identifiers.yaml#/ResourceKey'
       description: |
-        Slug identifier of the template (e.g., "monthly-invoice")
-
-        Sent by every server on contract 1.3.0 or later. Not required, because a server on an
-        older 1.x contract omits it and a client must still read its responses: when it is
-        absent, read `id`, which carries the same value. Required from 2.0.0, which removes
-        `id` (epistola-app/epistola-contract#84).
+        Key of the template (e.g., "monthly-invoice")
       example: invoice
-    id:
-      type: string
-      deprecated: true
-      description: |
-        **Deprecated — use `slug`.** The same value, under the name the portable catalog
-        format already uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
-      example: invoice
-    tenantId:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
-      description: Slug identifier of the tenant this template belongs to
+    tenantKey:
+      $ref: './identifiers.yaml#/TenantKey'
+      description: Key of the tenant this template belongs to
       example: acme-corp
     name:
       type: string
       description: Name of the template
       example: Monthly Invoice
-    schema:
+    description:
+      type: [string, "null"]
+      maxLength: 2000
+      description: |
+        Plain-text notes on the template for its authors: design decisions, known gaps. Not rendered.
+        Null when the template has none.
+      example: Monthly invoice; the payment block follows the 2026 house style.
+    dataModel:
       type: object
-      description: JSON Schema defining the input parameters for this template
+      description: |
+        The template's data contract, a JSON Schema the template data must satisfy. Always present:
+        a template without constraints has the empty schema `{}`, which any data satisfies.
       example:
         type: object
         required:
@@ -121,70 +110,18 @@ TemplateDto:
             type: string
             enum: [USD, EUR, GBP]
             default: USD
-    dataModel:
-      type: object
-      description: JSON Schema defining the expected data structure for template rendering
-      example:
-        type: object
-        properties:
-          header:
-            type: object
-            properties:
-              logo:
-                type: string
-                format: uri
-              companyName:
-                type: string
-              companyAddress:
-                type: object
-                properties:
-                  street:
-                    type: string
-                  city:
-                    type: string
-                  postalCode:
-                    type: string
-                  country:
-                    type: string
-          summary:
-            type: object
-            properties:
-              subtotal:
-                type: number
-              taxTotal:
-                type: number
-              total:
-                type: number
-          lineItems:
-            type: array
-            items:
-              type: object
-              properties:
-                description:
-                  type: string
-                quantity:
-                  type: integer
-                unitPrice:
-                  type: number
-                lineTotal:
-                  type: number
-          footer:
-            type: object
-            properties:
-              paymentTerms:
-                type: string
-              bankDetails:
-                type: object
-                properties:
-                  iban:
-                    type: string
-                  bic:
-                    type: string
     dataExamples:
       type: array
       description: Example data sets for testing template rendering
       items:
         $ref: '#/DataExampleDto'
+    quality:
+      $ref: './quality-profiles.yaml#/QualityBinding'
+      x-experimental: true
+      description: |
+        The quality profiles this template adds to its release's (`CatalogReleaseDto.quality`), and
+        its overrides of their rules (alpha, `x-experimental`, contract ADR 0010). Absent when the
+        template binds none. A server that does not support quality profiles yet leaves it out.
     variants:
       type: array
       description: Summary of all variants for this template
@@ -201,11 +138,10 @@ TemplateDto:
       description: Timestamp when the template was last modified
       example: "2026-01-22T16:45:00Z"
   example:
-    slug: invoice
-    id: invoice
-    tenantId: acme-corp
+    key: invoice
+    tenantKey: acme-corp
     name: Monthly Invoice
-    schema:
+    dataModel:
       type: object
       required:
         - customer
@@ -280,50 +216,8 @@ TemplateDto:
           type: string
           enum: [USD, EUR, GBP]
           default: USD
-    dataModel:
-      type: object
-      properties:
-        header:
-          type: object
-          properties:
-            logo:
-              type: string
-              format: uri
-            companyName:
-              type: string
-            companyAddress:
-              type: object
-        summary:
-          type: object
-          properties:
-            subtotal:
-              type: number
-            taxTotal:
-              type: number
-            total:
-              type: number
-        lineItems:
-          type: array
-          items:
-            type: object
-            properties:
-              description:
-                type: string
-              quantity:
-                type: integer
-              unitPrice:
-                type: number
-              lineTotal:
-                type: number
-        footer:
-          type: object
-          properties:
-            paymentTerms:
-              type: string
-            bankDetails:
-              type: object
     dataExamples:
-      - id: standard-invoice
+      - key: standard-invoice
         name: Standard Invoice
         data:
           customer:
@@ -353,7 +247,7 @@ TemplateDto:
               taxRate: 0
           notes: "Payment due within 30 days. Please reference invoice number on transfer."
           currency: EUR
-      - id: minimal-invoice
+      - key: minimal-invoice
         name: Minimal Invoice (required fields only)
         data:
           customer:
@@ -366,15 +260,13 @@ TemplateDto:
               quantity: 1
               unitPrice: 500.00
     variants:
-      - slug: english
-        id: english
-        title: English Invoice
+      - key: english
+        name: English Invoice
         attributes:
           locale: en-US
           brand: acme
         isDefault: false
-        hasDraft: true
-        publishedVersions: [1, 2]
+        status: ready
     createdAt: "2026-01-20T09:00:00Z"
     lastModified: "2026-01-22T16:45:00Z"
 
@@ -382,46 +274,32 @@ TemplateSummaryDto:
   type: object
   description: Summary view of a template for list displays
   required:
-    - id
-    - tenantId
+    - key
+    - tenantKey
     - name
     - createdAt
     - lastModified
   properties:
-    slug:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+    key:
+      $ref: './identifiers.yaml#/ResourceKey'
       description: |
-        Slug identifier of the template (e.g., "monthly-invoice")
-
-        Sent by every server on contract 1.3.0 or later. Not required, because a server on an
-        older 1.x contract omits it and a client must still read its responses: when it is
-        absent, read `id`, which carries the same value. Required from 2.0.0, which removes
-        `id` (epistola-app/epistola-contract#84).
+        Key of the template (e.g., "monthly-invoice")
       example: invoice
-    id:
-      type: string
-      deprecated: true
-      description: |
-        **Deprecated — use `slug`.** The same value, under the name the portable catalog
-        format already uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
-      example: invoice
-    tenantId:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
-      description: Slug identifier of the tenant this template belongs to
+    tenantKey:
+      $ref: './identifiers.yaml#/TenantKey'
+      description: Key of the tenant this template belongs to
       example: acme-corp
     name:
       type: string
       description: Name of the template
       example: Monthly Invoice
+    description:
+      type: [string, "null"]
+      maxLength: 2000
+      description: |
+        Plain-text notes on the template for its authors: design decisions, known gaps. Not rendered.
+        Null when the template has none.
+      example: Monthly invoice; the payment block follows the 2026 house style.
     createdAt:
       type: string
       format: date-time
@@ -433,9 +311,8 @@ TemplateSummaryDto:
       description: Timestamp when the template was last modified
       example: "2026-01-22T16:45:00Z"
   example:
-    slug: invoice
-    id: invoice
-    tenantId: acme-corp
+    key: invoice
+    tenantKey: acme-corp
     name: Monthly Invoice
     createdAt: "2026-01-20T09:00:00Z"
     lastModified: "2026-01-22T16:45:00Z"
@@ -444,13 +321,15 @@ DataExampleDto:
   type: object
   description: Named example data set for template testing
   required:
-    - id
+    - key
     - name
     - data
   properties:
-    id:
-      type: string
-      description: Unique identifier of the data example
+    key:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: |
+        Key of the data example, unique within its template. The catalog archive carries it as
+        `dataExamples[].key`.
       example: standard-invoice
     name:
       type: string
@@ -488,7 +367,7 @@ DataExampleDto:
         notes: "Payment due within 30 days. Please reference invoice number on transfer."
         currency: EUR
   example:
-    id: standard-invoice
+    key: standard-invoice
     name: Standard Invoice
     data:
       customer:
@@ -523,15 +402,12 @@ CreateTemplateRequest:
   type: object
   description: Request body for creating a new template
   required:
-    - id
+    - key
     - name
   properties:
-    id:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
-      description: Client-provided slug identifier for the template
+    key:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: Client-chosen key for the template
       example: invoice
     name:
       type: string
@@ -539,84 +415,56 @@ CreateTemplateRequest:
       maxLength: 255
       description: Name of the template to create
       example: Monthly Invoice
-    schema:
+    description:
+      type: [string, "null"]
+      maxLength: 2000
+      description: |
+        Plain-text notes on the template for its authors (design decisions, known gaps). Not rendered.
+        Omitted, null or an empty string (or one of only whitespace): the template has none.
+      example: Monthly invoice; the payment block follows the 2026 house style.
+    dataModel:
       type: object
-      description: JSON Schema defining the input parameters for this template
+      description: |
+        The template's data contract, a JSON Schema the template data must satisfy. Omitted: the
+        empty schema `{}`, which any data satisfies.
       example:
         type: object
         required:
           - customer
           - invoiceNumber
-          - issueDate
-          - lineItems
         properties:
           customer:
             type: object
             required:
               - name
-              - email
             properties:
               name:
                 type: string
                 minLength: 1
-                maxLength: 200
-              email:
-                type: string
-                format: email
-              taxId:
-                type: string
-                pattern: "^[A-Z]{2}\\d{9}$"
-              address:
-                type: object
-                properties:
-                  street:
-                    type: string
-                  city:
-                    type: string
-                  postalCode:
-                    type: string
-                    pattern: "^\\d{5}(-\\d{4})?$"
-                  country:
-                    type: string
-                    enum: [US, GB, NL, DE, FR]
           invoiceNumber:
             type: string
             pattern: "^INV-\\d{4}-\\d{3}$"
-          issueDate:
-            type: string
-            format: date
-          dueDate:
-            type: string
-            format: date
-          lineItems:
-            type: array
-            minItems: 1
-            items:
-              type: object
-              required:
-                - description
-                - quantity
-                - unitPrice
-              properties:
-                description:
-                  type: string
-                quantity:
-                  type: integer
-                  minimum: 1
-                unitPrice:
-                  type: number
-                  minimum: 0
-                taxRate:
-                  type: number
-                  minimum: 0
-                  maximum: 100
-          notes:
-            type: string
-            maxLength: 1000
-          currency:
-            type: string
-            enum: [USD, EUR, GBP]
-            default: USD
+    dataExamples:
+      type: array
+      description: |
+        The template's data examples, each satisfying `dataModel` (422 otherwise). Omitted: none.
+      items:
+        $ref: '#/DataExampleDto'
+      example:
+        - key: standard-invoice
+          name: Standard Invoice
+          data:
+            customer:
+              name: Jane Smith
+            invoiceNumber: INV-2026-001
+    quality:
+      $ref: './quality-profiles.yaml#/QualityBinding'
+      x-experimental: true
+      description: |
+        The quality profiles the template adds to its release's, and its overrides of their rules
+        (alpha, `x-experimental`, contract ADR 0010). Omitted: none. Setting one additionally needs
+        `QUALITY_EDIT` (403 without it). Refused with 400 as `QualityBinding` describes, and with 501
+        `operation-not-implemented` by a server that does not support quality profiles yet.
 
 UpdateTemplateRequest:
   type: object
@@ -628,10 +476,18 @@ UpdateTemplateRequest:
       maxLength: 255
       description: New name for the template
       example: Monthly Invoice (Updated)
-    schema:
+    description:
+      type: [string, "null"]
+      maxLength: 2000
+      description: |
+        Plain-text notes on the template for its authors (design decisions, known gaps). Not rendered.
+        Omitted or null keeps the current description; an empty string (or one of only whitespace)
+        removes it. Null cannot mean "remove": generated servers and clients cannot tell an omitted
+        member from a null one.
+      example: Monthly invoice; the payment block follows the 2026 house style.
+    dataModel:
       type: object
-      additionalProperties: true
-      description: Updated JSON Schema for input parameters
+      description: The template's new data contract, a JSON Schema the template data must satisfy. Omitted keeps the current one.
       example:
         type: object
         required:
@@ -711,65 +567,23 @@ UpdateTemplateRequest:
             type: string
             enum: [USD, EUR, GBP]
             default: USD
-    dataModel:
-      type: object
-      description: Updated data model schema
-      example:
-        type: object
-        properties:
-          header:
-            type: object
-            properties:
-              logo:
-                type: string
-                format: uri
-              companyName:
-                type: string
-              companyAddress:
-                type: object
-          summary:
-            type: object
-            properties:
-              subtotal:
-                type: number
-              taxTotal:
-                type: number
-              total:
-                type: number
-          lineItems:
-            type: array
-            items:
-              type: object
-              properties:
-                description:
-                  type: string
-                quantity:
-                  type: integer
-                unitPrice:
-                  type: number
-                lineTotal:
-                  type: number
-          footer:
-            type: object
-            properties:
-              paymentTerms:
-                type: string
-              bankDetails:
-                type: object
     dataExamples:
       type: array
       description: Updated data examples
       items:
         $ref: '#/DataExampleDto'
-    forceUpdate:
-      type: boolean
-      default: false
-      description: >-
-        When true, confirms publishing a backwards-incompatible (breaking) data-model
-        change; dependent template versions are auto-upgraded. Data examples are always
-        validated against the schema regardless of this flag — an incompatible example
-        is rejected (422) even when forceUpdate is true.
-      example: false
+    quality:
+      oneOf:
+        - $ref: './quality-profiles.yaml#/QualityBinding'
+        - type: 'null'
+      x-experimental: true
+      description: |
+        The template's quality binding, replacing the current one as a whole (alpha,
+        `x-experimental`, contract ADR 0010). Omitted or null keeps it; an empty binding (no
+        `profiles` and no `overrides`) removes it. Changing it additionally needs `QUALITY_EDIT` (403 without it); a `quality` equal to the
+        current binding needs nothing more. Refused with 400 as
+        `QualityBinding` describes, and with 501 `operation-not-implemented` by a server that does
+        not support quality profiles yet.
 
 TemplateListResponse:
   description: List of templates
@@ -787,14 +601,13 @@ TemplateListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - slug: invoice
-        id: invoice
-        tenantId: acme-corp
+      - key: invoice
+        tenantKey: acme-corp
         name: Monthly Invoice
         createdAt: "2026-01-20T09:00:00Z"
         lastModified: "2026-01-22T16:45:00Z"
     page:
       number: 0
       size: 20
-      totalElements: 1
+      total: 1
       totalPages: 1

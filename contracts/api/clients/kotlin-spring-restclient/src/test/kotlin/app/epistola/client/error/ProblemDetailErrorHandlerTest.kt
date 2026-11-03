@@ -46,6 +46,40 @@ class ProblemDetailErrorHandlerTest {
         assertEquals("not-found", ex.typeSlug)
         assertEquals("Tenant 'acme' was not found", ex.detail)
         assertEquals(HttpStatus.NOT_FOUND, ex.statusCode)
+        assertNull(ex.help)
+    }
+
+    @Test
+    fun `surfaces help as a base member, not an extension`() {
+        val body = """
+            {"type":"https://epistola.app/errors/not-found","title":"Not Found","status":404,
+             "help":"https://epistola.app/errors/not-found?operation=getTemplate"}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(response(HttpStatus.NOT_FOUND, body))
+        }
+        assertEquals("https://epistola.app/errors/not-found?operation=getTemplate", ex.help)
+        assertEquals("not-found", ex.typeSlug)
+        assertFalse(ex.extensions.containsKey("help"), "${ex.extensions}")
+    }
+
+    @Test
+    fun `parses catalog-source-unavailable as a 503 and as a 502`() {
+        for (status in listOf(HttpStatus.SERVICE_UNAVAILABLE, HttpStatus.BAD_GATEWAY)) {
+            val body = """
+                {"type":"https://epistola.app/errors/catalog-source-unavailable",
+                 "title":"Catalog Source Unavailable","status":${status.value()},
+                 "detail":"registry.gemeente-x.nl could not be used"}
+            """.trimIndent()
+
+            val ex = assertFailsWith<ProblemDetailException> {
+                handleErrorResponse(response(status, body))
+            }
+            assertEquals(KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE, ex.typeSlug)
+            assertEquals(status.value(), ex.problemStatus)
+            assertEquals(status, ex.statusCode)
+        }
     }
 
     @Test
@@ -65,12 +99,27 @@ class ProblemDetailErrorHandlerTest {
     }
 
     @Test
+    fun `a field error carries the code that says why it failed, or null without one`() {
+        val body = """
+            {"type":"https://epistola.app/errors/validation-error","title":"Bad Request","status":400,
+             "errors":[{"field":"name","message":"too short","code":"min-length"},
+                       {"field":"key","message":"must match a pattern"}]}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(response(HttpStatus.BAD_REQUEST, body))
+        }
+        assertEquals(KnownValidationCodes.MIN_LENGTH, ex.errors[0].code)
+        assertNull(ex.errors[1].code)
+    }
+
+    @Test
     fun `populates per-example validation errors for a data-model validation problem`() {
         val body = """
             {"type":"https://epistola.app/errors/data-model-validation-error",
              "title":"Data Model Validation Error","status":422,
              "detail":"Data examples failed validation against schema",
-             "validationErrors":{"Example 1":[{"path":"/name","message":"required property 'name' not found"}]}}
+             "validationErrors":{"standard-invoice":[{"path":"/name","message":"required property 'name' not found"}]}}
         """.trimIndent()
 
         val ex = assertFailsWith<ProblemDetailException> {
@@ -79,8 +128,260 @@ class ProblemDetailErrorHandlerTest {
         assertTrue(ex.isDataModelValidationProblem)
         assertFalse(ex.isValidationProblem)
         assertEquals(KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR, ex.typeSlug)
-        assertEquals(1, ex.validationErrors["Example 1"]?.size)
-        assertEquals("/name", ex.validationErrors.getValue("Example 1")[0].path)
+        assertEquals(1, ex.validationErrors["standard-invoice"]?.size)
+        assertEquals("/name", ex.validationErrors.getValue("standard-invoice")[0].path)
+    }
+
+    @Test
+    fun `surfaces the missing dependencies of a release-dependencies-missing problem in order`() {
+        val body = """
+            {"type":"https://epistola.app/errors/release-dependencies-missing",
+             "title":"Release dependencies missing","status":409,
+             "missingDependencies":[
+               {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system",
+                "version":"3.2.0","reason":"unavailable"},
+               {"registry":"registry.gemeente-x.nl","namespace":"huisstijl","catalogKey":"branding",
+                "version":"1.4.2","reason":"SOME_FUTURE_REASON"}]}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(response(HttpStatus.CONFLICT, body))
+        }
+        assertEquals(KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING, ex.typeSlug)
+        assertTrue(ex.isReleaseDependenciesMissingProblem)
+        assertEquals(
+            listOf(
+                MissingReleaseDependency("exchange.epistola.app", "epistola", "system", "3.2.0", MissingReleaseDependency.Reasons.UNAVAILABLE),
+                // A reason this client does not know yet is kept, not dropped.
+                MissingReleaseDependency("registry.gemeente-x.nl", "huisstijl", "branding", "1.4.2", "SOME_FUTURE_REASON"),
+            ),
+            ex.missingDependencies,
+        )
+    }
+
+    @Test
+    fun `a problem without missingDependencies reports none`() {
+        val body = """{"type":"https://epistola.app/errors/conflict","title":"Conflict","status":409}"""
+
+        val ex = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(response(HttpStatus.CONFLICT, body))
+        }
+        assertTrue(ex.missingDependencies.isEmpty())
+        assertFalse(ex.isReleaseDependenciesMissingProblem)
+    }
+
+    @Test
+    fun `malformed missingDependencies entries are skipped, not guessed at`() {
+        val body = """
+            {"type":"https://epistola.app/errors/release-dependencies-missing",
+             "title":"Release dependencies missing","status":409,
+             "missingDependencies":[
+               "not an object",
+               {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system","version":"3.2.0"},
+               {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system","version":3,"reason":"unavailable"},
+               {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system",
+                "version":"3.2.0","reason":"unavailable"}]}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(response(HttpStatus.CONFLICT, body))
+        }
+        assertEquals(listOf("unavailable"), ex.missingDependencies.map { it.reason })
+
+        val notAnArray = """
+            {"type":"https://epistola.app/errors/release-dependencies-missing",
+             "title":"Release dependencies missing","status":409,"missingDependencies":{"registry":"x"}}
+        """.trimIndent()
+        val ex2 = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(response(HttpStatus.CONFLICT, notAnArray))
+        }
+        assertTrue(ex2.missingDependencies.isEmpty())
+        assertFalse(ex2.isReleaseDependenciesMissingProblem)
+    }
+
+    @Test
+    fun `surfaces the unreleased dependency drafts of a release-dependencies-unreleased problem in order`() {
+        val body = """
+            {"type":"https://epistola.app/errors/release-dependencies-unreleased",
+             "title":"Release dependencies unreleased","status":409,
+             "unreleasedDependencies":[
+               {"registry":"exchange.epistola.app","namespace":"acme-corp","catalogKey":"branding",
+                "releaseId":"r4t8w2nc","releaseName":"House style 2027"},
+               "not an object",
+               {"registry":"exchange.epistola.app","namespace":"acme-corp","catalogKey":"fonts","releaseId":"x"},
+               {"registry":"registry.gemeente-x.nl","namespace":"huisstijl","catalogKey":"fonts",
+                "releaseId":"h3v9p6db","releaseName":"New typefaces, round 2"}]}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(response(HttpStatus.CONFLICT, body))
+        }
+        assertEquals(KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED, ex.typeSlug)
+        assertTrue(ex.isReleaseDependenciesUnreleasedProblem)
+        assertFalse(ex.isReleaseDependenciesMissingProblem)
+        assertEquals(
+            listOf(
+                UnreleasedCatalogDependency("exchange.epistola.app", "acme-corp", "branding", "r4t8w2nc", "House style 2027"),
+                UnreleasedCatalogDependency("registry.gemeente-x.nl", "huisstijl", "fonts", "h3v9p6db", "New typefaces, round 2"),
+            ),
+            ex.unreleasedDependencies,
+        )
+    }
+
+    @Test
+    fun `a problem without unreleasedDependencies reports none`() {
+        val body = """{"type":"https://epistola.app/errors/conflict","title":"Conflict","status":409}"""
+
+        val ex = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(response(HttpStatus.CONFLICT, body))
+        }
+        assertTrue(ex.unreleasedDependencies.isEmpty())
+        assertFalse(ex.isReleaseDependenciesUnreleasedProblem)
+    }
+
+    @Test
+    fun `surfaces why a catalog-read-only problem refused the write`() {
+        val body = """
+            {"type":"https://epistola.app/errors/catalog-read-only","title":"Catalog Read Only","status":409,
+             "readOnlyReason":"editing-disabled"}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(response(HttpStatus.CONFLICT, body))
+        }
+        assertEquals(KnownProblemSlugs.CATALOG_READ_ONLY, ex.typeSlug)
+        assertEquals("editing-disabled", ex.readOnlyReason)
+        assertTrue(ex.isCatalogReadOnlyProblem)
+    }
+
+    @Test
+    fun `a problem without a string readOnlyReason reports none`() {
+        val plain = """{"type":"https://epistola.app/errors/conflict","title":"Conflict","status":409}"""
+        val notAString = """{"type":"https://epistola.app/errors/catalog-read-only","title":"Catalog Read Only","status":409,"readOnlyReason":7}"""
+
+        for (body in listOf(plain, notAString)) {
+            val ex = assertFailsWith<ProblemDetailException> { handleErrorResponse(response(HttpStatus.CONFLICT, body)) }
+            assertNull(ex.readOnlyReason)
+            assertFalse(ex.isCatalogReadOnlyProblem)
+        }
+    }
+
+    @Test
+    fun `surfaces the versions a catalog-version-behind problem asks to acknowledge`() {
+        val body = """
+            {"type":"https://epistola.app/errors/catalog-version-behind","title":"Catalog Version Behind","status":409,
+             "behind":["1.5.0","1.6.0"]}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> { handleErrorResponse(response(HttpStatus.CONFLICT, body)) }
+        assertEquals(listOf("1.5.0", "1.6.0"), ex.behind)
+        assertTrue(ex.isCatalogVersionBehindProblem)
+    }
+
+    @Test
+    fun `surfaces what a release-in-use problem says uses the release`() {
+        val body = """
+            {"type":"https://epistola.app/errors/release-in-use","title":"Release In Use","status":409,
+             "environments":["production"],
+             "pinnedBy":[{"registry":"exchange.epistola.app","namespace":"acme-corp","catalogKey":"invoices","version":"2.1.0","releaseId":"q8w2e4rt"}]}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> { handleErrorResponse(response(HttpStatus.CONFLICT, body)) }
+        assertEquals(listOf("production"), ex.environments)
+        assertEquals("invoices", ex.pinnedBy.single().catalogKey)
+        assertEquals("q8w2e4rt", ex.pinnedBy.single().releaseId)
+        assertTrue(ex.isReleaseInUseProblem)
+    }
+
+    @Test
+    fun `surfaces the tied variants of an ambiguous-variant problem`() {
+        val body = """
+            {"type":"https://epistola.app/errors/ambiguous-variant","title":"Ambiguous Variant","status":409,
+             "tiedVariants":["english","english-legal"]}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> { handleErrorResponse(response(HttpStatus.CONFLICT, body)) }
+        assertEquals(listOf("english", "english-legal"), ex.tiedVariants)
+        assertTrue(ex.isAmbiguousVariantProblem)
+        assertFalse(ex.isReleaseInUseProblem)
+    }
+
+    @Test
+    fun `surfaces what a forbidden problem says was refused`() {
+        val body = """
+            {"type":"https://epistola.app/errors/forbidden","title":"Forbidden","status":403,
+             "requiredPermission":"TEMPLATE_EDIT","tenantKey":"acme-corp"}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> { handleErrorResponse(response(HttpStatus.FORBIDDEN, body)) }
+        assertTrue(ex.isForbiddenProblem)
+        assertEquals("TEMPLATE_EDIT", ex.requiredPermission)
+        assertEquals("acme-corp", ex.refusedTenantKey)
+        assertNull(ex.requiredPlatformRole)
+        assertNull(ex.refusalReason)
+
+        val byPolicy = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(
+                response(
+                    HttpStatus.FORBIDDEN,
+                    """{"type":"https://epistola.app/errors/forbidden","title":"Forbidden","status":403,"reason":"Only the release board deploys to production environments."}""",
+                ),
+            )
+        }
+        assertEquals("Only the release board deploys to production environments.", byPolicy.refusalReason)
+        assertNull(byPolicy.requiredPermission)
+    }
+
+    @Test
+    fun `reads the forbidden members from a forbidden problem only`() {
+        val body = """{"type":"https://epistola.app/errors/conflict","title":"Conflict","status":409,"tenantKey":"acme-corp","reason":"x"}"""
+
+        val ex = assertFailsWith<ProblemDetailException> { handleErrorResponse(response(HttpStatus.CONFLICT, body)) }
+        assertFalse(ex.isForbiddenProblem)
+        assertNull(ex.refusedTenantKey)
+        assertNull(ex.refusalReason)
+    }
+
+    @Test
+    fun `surfaces the unresolved conflicts of a merge-conflicts-unresolved problem in order`() {
+        val body = """
+            {"type":"https://epistola.app/errors/merge-conflicts-unresolved","title":"Merge Conflicts Unresolved",
+             "status":409,"unresolvedConflicts":["stencil/footer",7,"template/invoice"]}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> { handleErrorResponse(response(HttpStatus.CONFLICT, body)) }
+        assertEquals(KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED, ex.typeSlug)
+        assertEquals(listOf("stencil/footer", "template/invoice"), ex.unresolvedConflicts)
+        assertTrue(ex.isMergeConflictsUnresolvedProblem)
+
+        val plain = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(response(HttpStatus.CONFLICT, """{"type":"https://epistola.app/errors/conflict","title":"Conflict","status":409}"""))
+        }
+        assertTrue(plain.unresolvedConflicts.isEmpty())
+        assertFalse(plain.isMergeConflictsUnresolvedProblem)
+    }
+
+    @Test
+    fun `surfaces the release a merge-base-missing problem asks for, and no other problem's version`() {
+        val body = """
+            {"type":"https://epistola.app/errors/merge-base-missing","title":"Merge Base Missing",
+             "status":409,"version":"1.0.0","fingerprint":"v5:9999999999999999999999999999999999999999999999999999999999999999"}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> { handleErrorResponse(response(HttpStatus.CONFLICT, body)) }
+        assertEquals(KnownProblemSlugs.MERGE_BASE_MISSING, ex.typeSlug)
+        assertEquals("1.0.0", ex.missingBaseVersion)
+        assertEquals("v5:9999999999999999999999999999999999999999999999999999999999999999", ex.missingBaseFingerprint)
+        assertTrue(ex.isMergeBaseMissingProblem)
+
+        val other = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(
+                response(HttpStatus.CONFLICT, """{"type":"https://epistola.app/errors/catalog-schema-too-old","title":"Too old","status":409,"version":"4"}"""),
+            )
+        }
+        assertEquals(null, other.missingBaseVersion)
+        assertEquals(null, other.missingBaseFingerprint)
+        assertFalse(other.isMergeBaseMissingProblem)
     }
 
     @Test
@@ -112,10 +413,10 @@ class ProblemDetailErrorHandlerTest {
     fun `parseProblem carries an unmodelled extension member through treeToValue, not just readValue`() {
         // treeToValue is a separate Jackson code path from readValue; the creator-based any-setter
         // has to work through it too, since that is what parseProblem actually calls.
-        val body = """{"type":"about:blank","title":"X","status":409,"themeId":"classic"}"""
+        val body = """{"type":"about:blank","title":"X","status":409,"themeKey":"classic"}"""
         val parsed = parseProblem(body.toByteArray())
         assertEquals(409, parsed?.problem?.status)
-        assertEquals("classic", parsed?.problem?.extensions?.get("themeId"))
+        assertEquals("classic", parsed?.problem?.extensions?.get("themeKey"))
         assertTrue(parsed?.errors?.isEmpty() == true)
         assertTrue(parsed?.validationErrors?.isEmpty() == true)
     }

@@ -3,12 +3,13 @@
 # Pagination metadata carried under the `page` property of every list response
 # (Spring PagedModel shape). The request-side page index is the `page` query
 # parameter; the response-side index is `number` here, matching Spring.
+
 PageMeta:
   type: object
   required:
     - number
     - size
-    - totalElements
+    - total
     - totalPages
   properties:
     number:
@@ -19,7 +20,7 @@ PageMeta:
       type: integer
       description: Number of items per page
       example: 20
-    totalElements:
+    total:
       type: integer
       format: int64
       description: Total number of elements across all pages
@@ -28,3 +29,23 @@ PageMeta:
       type: integer
       description: Total number of pages
       example: 1
+
+ResourceStatus:
+  type: string
+  enum:
+    - new
+    - modified
+    - ready
+    - released
+  description: |
+    How a resource in a release of a catalog stands against the release's **base**: the released
+    release it started from (see `CatalogReleaseDto.base`).
+
+    - `new`: not in the base, and not marked ready.
+    - `modified`: changed since the base, and not marked ready since.
+    - `ready`: changed since the base (or new), and marked ready since its last edit.
+    - `released`: the same as in the base. Every resource of a released one has this status.
+
+    Releasing a draft is refused while any resource is `new` or `modified`; a release contains the
+    whole draft, so marking ready is a review checkpoint, not a filter.
+  example: ready

@@ -1,0 +1,62 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: list-environment-deployments-with-draft
+title: Listing what an environment serves reads a draft beside releases, in order
+why: >
+  An environment serves releases and at most one draft per catalog (ADR 0003, "Deploying"). The
+  list mixes both, so a client must read a null `version` beside set ones, and a null
+  `releaseName` beside a set one, without refusing the response or inventing values. `status` says
+  which each is; every entry has a `releaseId`, a release's as much as a draft's.
+
+action:
+  name: list-environment-deployments
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    environmentKey: acceptance
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      items:
+        - registry: exchange.epistola.app
+          namespace: acme-corp
+          catalogKey: letters
+          releaseId: r4t8w2nc
+          status: draft
+          version: null
+          releaseName: Redesign 2027
+          deployedAt: "2026-10-18T09:00:00Z"
+          lastUsedAt: "2026-10-18T10:15:00Z"
+          documentsRequested: 12
+        - registry: exchange.epistola.app
+          namespace: acme-corp
+          catalogKey: letters
+          releaseId: m3q8v5tw
+          status: released
+          version: 1.4.0
+          releaseName: null
+          deployedAt: "2026-10-02T07:30:00Z"
+          lastUsedAt: null
+          documentsRequested: 0
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/environments/acceptance/deployments
+      query: ""
+  report:
+    registries: exchange.epistola.app,exchange.epistola.app
+    catalogKeys: letters,letters
+    releaseIds: r4t8w2nc,m3q8v5tw
+    statuses: draft,released
+    versions: null,1.4.0
+    # Names are free text, so they are joined with `|`.
+    releaseNames: Redesign 2027|null
+    deployedAt: 2026-10-18T09:00:00Z,2026-10-02T07:30:00Z
+    lastUsedAt: 2026-10-18T10:15:00Z,null
+    documentsRequested: 12,0

@@ -22,10 +22,10 @@ class PortableModelGenerationTest {
     @Test
     fun `generated template request uses catalog document directly`() {
         val document = document()
-        val request = UpdateDraftRequest(templateModel = document)
+        val request = UpdateVariantContentRequest(templateModel = document)
 
         assertSame(document, request.templateModel)
-        assertEquals(1, request.templateModel?.modelVersion)
+        assertEquals(1, request.templateModel.modelVersion)
     }
 
     @Test
@@ -33,7 +33,7 @@ class PortableModelGenerationTest {
         val pageSettings = PageSettings(backgroundColor = "#ffffff")
         val preset = BlockStylePreset(label = "Body", styles = mapOf("fontSize" to 12))
         val request = CreateThemeRequest(
-            id = "default",
+            key = "default",
             name = "Default",
             documentStyles = mapOf("fontFamily" to "Inter"),
             pageSettings = pageSettings,
@@ -49,13 +49,13 @@ class PortableModelGenerationTest {
         val mapper = jsonMapper {
             addModule(kotlinModule())
         }
-        val request = UpdateDraftRequest(templateModel = document())
+        val request = UpdateVariantContentRequest(templateModel = document())
 
         val json = mapper.writeValueAsString(request)
-        val decoded = mapper.readValue(json, UpdateDraftRequest::class.java)
+        val decoded = mapper.readValue(json, UpdateVariantContentRequest::class.java)
 
         assertEquals(request, decoded)
-        assertEquals(ThemeRef.Inherit, decoded.templateModel?.themeRef)
+        assertEquals(ThemeRef.Inherit, decoded.templateModel.themeRef)
     }
 
     @Test

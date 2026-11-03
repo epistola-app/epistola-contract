@@ -239,6 +239,41 @@
           "label": "Width",
           "type": "unit",
           "units": ["%", "sp", "pt"]
+        },
+        {
+          "key": "minHeight",
+          "label": "Min Height",
+          "description": "The least height of the box. It grows with its content when that is taller; it never clips.",
+          "type": "unit",
+          "units": ["sp", "pt"],
+          "includedInAll": false
+        }
+      ]
+    },
+    {
+      "name": "alignment",
+      "label": "Alignment",
+      "properties": [
+        {
+          "key": "verticalAlign",
+          "label": "Vertical Align",
+          "description": "Where the content sits in a box that is taller than it, such as a table cell or a column in a row of equal-height columns.",
+          "type": "select",
+          "includedInAll": false,
+          "options": [
+            {
+              "label": "Top",
+              "value": "top"
+            },
+            {
+              "label": "Middle",
+              "value": "middle"
+            },
+            {
+              "label": "Bottom",
+              "value": "bottom"
+            }
+          ]
         }
       ]
     },

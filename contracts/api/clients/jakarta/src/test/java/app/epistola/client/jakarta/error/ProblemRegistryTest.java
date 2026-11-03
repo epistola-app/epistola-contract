@@ -26,13 +26,45 @@ class ProblemRegistryTest {
     void the_canonical_slugs_are_present_with_their_documented_values() {
         assertEquals("validation-error", KnownProblemSlugs.VALIDATION_ERROR);
         assertEquals("bad-request", KnownProblemSlugs.BAD_REQUEST);
+        assertEquals("catalog-rendering-defaults-too-new", KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW);
         assertEquals("unauthorized", KnownProblemSlugs.UNAUTHORIZED);
         assertEquals("api-key-auth-disabled", KnownProblemSlugs.API_KEY_AUTH_DISABLED);
         assertEquals("forbidden", KnownProblemSlugs.FORBIDDEN);
         assertEquals("not-found", KnownProblemSlugs.NOT_FOUND);
         assertEquals("conflict", KnownProblemSlugs.CONFLICT);
+        assertEquals("release-registry-not-found", KnownProblemSlugs.RELEASE_REGISTRY_NOT_FOUND);
+        assertEquals("release-number-taken", KnownProblemSlugs.RELEASE_NUMBER_TAKEN);
+        assertEquals("namespace-not-granted", KnownProblemSlugs.NAMESPACE_NOT_GRANTED);
         assertEquals("data-model-validation-error", KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR);
         assertEquals("rate-limited", KnownProblemSlugs.RATE_LIMITED);
+        assertEquals("method-not-allowed", KnownProblemSlugs.METHOD_NOT_ALLOWED);
+        assertEquals("not-acceptable", KnownProblemSlugs.NOT_ACCEPTABLE);
+        assertEquals("content-too-large", KnownProblemSlugs.CONTENT_TOO_LARGE);
+        assertEquals("unsupported-media-type", KnownProblemSlugs.UNSUPPORTED_MEDIA_TYPE);
+        assertEquals("internal-error", KnownProblemSlugs.INTERNAL_ERROR);
+        assertEquals("release-dependencies-missing", KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING);
+        assertEquals("release-dependencies-unreleased", KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED);
+        assertEquals("catalog-read-only", KnownProblemSlugs.CATALOG_READ_ONLY);
+        assertEquals("merge-conflicts-unresolved", KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED);
+        assertEquals("merge-refused", KnownProblemSlugs.MERGE_REFUSED);
+        assertEquals("merge-preview-outdated", KnownProblemSlugs.MERGE_PREVIEW_OUTDATED);
+        assertEquals("merge-base-missing", KnownProblemSlugs.MERGE_BASE_MISSING);
+        assertEquals("merge-not-applicable", KnownProblemSlugs.MERGE_NOT_APPLICABLE);
+        assertEquals("environment-deployment-refused", KnownProblemSlugs.ENVIRONMENT_DEPLOYMENT_REFUSED);
+        assertEquals("resource-modified", KnownProblemSlugs.RESOURCE_MODIFIED);
+        assertEquals("catalog-source-unavailable", KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE);
+    }
+
+    @Test
+    void the_validation_codes_are_generated_from_the_contract_with_their_documented_values() {
+        assertEquals("pattern", KnownValidationCodes.PATTERN);
+        assertEquals("stencil-recursion", KnownValidationCodes.STENCIL_RECURSION);
+        assertEquals("catalog-resources-not-ready", KnownValidationCodes.CATALOG_RESOURCES_NOT_READY);
+        assertEquals(51, KnownValidationCodes.ALL.size());
+        assertEquals(
+                KnownValidationCodes.ALL.size(),
+                new java.util.LinkedHashSet<>(KnownValidationCodes.ALL).size(),
+                "x-validation-codes should not register a code twice");
     }
 
     @Test

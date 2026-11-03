@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 8,
+  "catalog": {
+    "registry": "exchange.epistola.app",
+    "namespace": "epistola",
+    "key": "fixture",
+    "name": "Fixture Catalog",
+    "description": "Portable golden fixture",
+    "attributes": [
+      {
+        "catalogKey": "system",
+        "key": "locale",
+        "value": "nl-NL"
+      }
+    ],
+    "keywords": ["documents", "government"],
+    "presentation": null,
+    "license": {
+      "name": "Creative Commons Attribution 4.0 International",
+      "spdxExpression": "CC-BY-4.0",
+      "url": "https://creativecommons.org/licenses/by/4.0/",
+      "copyrightText": "Copyright 2026 Example Publisher"
+    }
+  },
+  "publisher": {
+    "name": "Epistola"
+  },
+  "release": {
+    "version": "1.0.0",
+    "fingerprint": "v6:9b0178630514aef88d0b0c94d15e31557971fb7c0602208a7ad26d9261ba6350",
+    "releaseId": "k7m2x9qa",
+    "metadata": {
+      "app.epistola.suite": {
+        "renderingDefaultsVersion": 6
+      },
+      "com.example.renderer": {
+        "nested": {
+          "list": [1, "two", null]
+        }
+      }
+    },
+    "base": {
+      "version": "0.9.0",
+      "fingerprint": "v5:3f1c9a7e5b2d4c6a8e0f1b3d5c7a9e1f2b4d6c8a0e2f4b6d8c0a2e4f6b8d0c2a"
+    }
+  },
+  "resources": [
+    {
+      "type": "theme",
+      "key": "default",
+      "name": "Default",
+      "detailUrl": "./resources/theme/default.json"
+    },
+    {
+      "type": "template",
+      "key": "letter",
+      "name": "Letter",
+      "description": "A one-page letter in the house style. The footer does not yet wrap long addresses.",
+      "detailUrl": "./resources/template/letter.json"
+    }
+  ],
+  "dependencies": [
+    {
+      "type": "font",
+      "catalogKey": "shared",
+      "key": "inter"
+    }
+  ],
+  "catalogDependencies": [
+    {
+      "alias": "shared",
+      "registry": "exchange.epistola.app",
+      "namespace": "epistola",
+      "catalogKey": "shared",
+      "releaseVersion": "1.4.0",
+      "releaseFingerprint": "v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42"
+    }
+  ]
+}

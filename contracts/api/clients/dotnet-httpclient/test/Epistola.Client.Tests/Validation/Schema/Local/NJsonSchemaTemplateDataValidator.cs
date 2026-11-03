@@ -39,6 +39,12 @@ namespace Epistola.Client.Tests.Validation.Schema.Local;
 ///     keyword.
 ///   </description></item>
 ///   <item><description>
+///     <b>The schema is read from one release, so the validator is given it.</b> A template
+///     is addressed by release, and <see cref="ITemplateDataValidator"/> names no release:
+///     the server checks against the release that would be rendered, which a local copy cannot
+///     know. Pass the release whose data contract you mean to hold the data to.
+///   </description></item>
+///   <item><description>
 ///     <b>The schema is fetched, so it is cached.</b> A validator is only "local" after a round
 ///     trip for the template; without a cache this is slower than asking the server outright.
 ///   </description></item>
@@ -54,12 +60,17 @@ namespace Epistola.Client.Tests.Validation.Schema.Local;
 public sealed class NJsonSchemaTemplateDataValidator : ITemplateDataValidator
 {
     private readonly ITemplatesApi _templatesApi;
+    private readonly string _release;
     private readonly TimeSpan _ttl;
     private readonly ConcurrentDictionary<string, (JsonSchema? Schema, DateTimeOffset StoredAt)> _cache = new();
 
-    public NJsonSchemaTemplateDataValidator(ITemplatesApi templatesApi, TimeSpan? ttl = null)
+    /// <param name="templatesApi">Where the template, and its schema, is read from.</param>
+    /// <param name="release">The release, by its version or its releaseId, whose template schema the data is held to.</param>
+    /// <param name="ttl">How long a fetched schema is reused.</param>
+    public NJsonSchemaTemplateDataValidator(ITemplatesApi templatesApi, string release, TimeSpan? ttl = null)
     {
         _templatesApi = templatesApi;
+        _release = release;
         _ttl = ttl ?? TimeSpan.FromMinutes(5);
     }
 
@@ -70,9 +81,9 @@ public sealed class NJsonSchemaTemplateDataValidator : ITemplateDataValidator
     public bool PreflightsGeneration => true;
 
     public IReadOnlyList<TemplateDataValidationException.ValidationError> Validate(
-        string tenantId, string catalogId, string templateId, object data)
+        string tenantKey, string registry, string @namespace, string catalogKey, string templateKey, object data)
     {
-        var schema = SchemaFor(tenantId, catalogId, templateId);
+        var schema = SchemaFor(tenantKey, registry, @namespace, catalogKey, templateKey);
         // No schema on the template means nothing is claimed about the data, so nothing is wrong
         // with it. Same answer the server gives.
         if (schema == null)
@@ -116,17 +127,17 @@ public sealed class NJsonSchemaTemplateDataValidator : ITemplateDataValidator
         }
     }
 
-    private JsonSchema? SchemaFor(string tenantId, string catalogId, string templateId)
+    private JsonSchema? SchemaFor(string tenantKey, string registry, string @namespace, string catalogKey, string templateKey)
     {
-        var key = string.Join('\u0000', tenantId, catalogId, templateId);
+        var key = string.Join('\u0000', tenantKey, registry, @namespace, catalogKey, templateKey);
         if (_cache.TryGetValue(key, out var entry) && DateTimeOffset.UtcNow < entry.StoredAt + _ttl)
         {
             return entry.Schema;
         }
-        var template = _templatesApi.GetTemplate(tenantId, catalogId, templateId);
-        var schema = template.Schema == null
+        var template = _templatesApi.GetTemplate(tenantKey, registry, @namespace, catalogKey, _release, templateKey);
+        var schema = template.DataModel == null
             ? null
-            : JsonSchema.FromJsonAsync(JsonConvert.SerializeObject(template.Schema)).GetAwaiter().GetResult();
+            : JsonSchema.FromJsonAsync(JsonConvert.SerializeObject(template.DataModel)).GetAwaiter().GetResult();
         _cache[key] = (schema, DateTimeOffset.UtcNow);
         return schema;
     }

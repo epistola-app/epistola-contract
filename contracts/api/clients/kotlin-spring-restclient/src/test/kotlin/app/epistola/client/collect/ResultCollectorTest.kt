@@ -4,11 +4,15 @@
 
 package app.epistola.client.collect
 
+import app.epistola.client.error.ProblemDetailException
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import io.mockk.every
 import io.mockk.mockk
 import org.springframework.http.HttpHeaders
+import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
+import org.springframework.web.client.HttpServerErrorException
 import org.springframework.web.client.RestClient
 import java.io.ByteArrayInputStream
 import java.time.Duration
@@ -35,7 +39,7 @@ class ResultCollectorTest {
     private fun resultLine(
         sequence: Long = 100,
         requestId: String = "req-1",
-        status: String = "COMPLETED",
+        status: String = "completed",
         documentId: String? = "doc-1",
         correlationId: String? = "corr-1",
     ): String = objectMapper.writeValueAsString(
@@ -45,14 +49,18 @@ class ResultCollectorTest {
             "status" to status,
             "documentId" to documentId,
             "correlationId" to correlationId,
-            "templateId" to "invoice",
+            "templateKey" to "invoice",
+            "registry" to "exchange.example.org",
+            "namespace" to "team-a",
+            "catalogKey" to "letters",
+            "version" to "1.4.0",
             "completedAt" to "2026-04-24T10:00:00Z",
         ),
     )
 
     @Suppress("ktlint:standard:function-signature")
     private fun metaLine(hasMore: Boolean, count: Int, lastSequence: Long = 0) =
-        """{"_meta":true,"hasMore":$hasMore,"count":$count,"lastSequence":$lastSequence,"partitions":{"total":12,"mine":[0,1,2,3],"hash":"murmur3"}}"""
+        """{"_meta":true,"hasMore":$hasMore,"resultCount":$count,"lastSequence":$lastSequence,"partitions":{"total":12,"mine":[0,1,2,3],"hash":"murmur3"}}"""
 
     @Test
     fun `parses NDJSON results correctly`() {
@@ -60,8 +68,8 @@ class ResultCollectorTest {
 
         val restClient = mockRestClient(
             ndjsonResponse(
-                resultLine(sequence = 100, requestId = "r1", status = "COMPLETED", documentId = "d1"),
-                resultLine(sequence = 101, requestId = "r2", status = "FAILED", documentId = null),
+                resultLine(sequence = 100, requestId = "r1", status = "completed", documentId = "d1"),
+                resultLine(sequence = 101, requestId = "r2", status = "failed", documentId = null),
                 metaLine(hasMore = false, count = 2, lastSequence = 101),
             ),
         )
@@ -73,10 +81,94 @@ class ResultCollectorTest {
         assertFalse(result.hasMore)
         assertEquals(100, results[0].sequence)
         assertEquals("r1", results[0].requestId)
-        assertEquals("COMPLETED", results[0].status)
+        assertEquals("completed", results[0].status)
         assertEquals(101, results[1].sequence)
         assertEquals("r2", results[1].requestId)
-        assertEquals("FAILED", results[1].status)
+        assertEquals("failed", results[1].status)
+        assertNull(results[1].documentId, "an explicit JSON null is missing, not the string \"null\"")
+    }
+
+    @Test
+    fun `parses the catalog a result rendered, and a null release for a result rendered from a draft`() {
+        val results = mutableListOf<ResultCollector.GenerationResult>()
+        val current = objectMapper.writeValueAsString(
+            mapOf(
+                "sequence" to 100,
+                "requestId" to "r1",
+                "status" to "completed",
+                "registry" to "exchange.example.org",
+                "namespace" to "team-a",
+                "catalogKey" to "letters",
+                "version" to "1.4.0",
+                "releaseId" to "k7m2x9qa",
+                "releaseName" to null,
+            ),
+        )
+        val fromDraft = objectMapper.writeValueAsString(
+            mapOf(
+                "sequence" to 101,
+                "requestId" to "r2",
+                "status" to "completed",
+                "registry" to "exchange.example.org",
+                "namespace" to "team-a",
+                "catalogKey" to "letters",
+                "version" to null,
+                "releaseId" to "h3v9p6db",
+                "releaseName" to "Redesign 2027",
+            ),
+        )
+        val restClient = mockRestClient(ndjsonResponse(current, fromDraft, metaLine(hasMore = false, count = 2, lastSequence = 101)))
+
+        buildCollector(restClient) { results.add(it) }.collectOnce()
+
+        assertEquals("exchange.example.org", results[0].registry)
+        assertEquals("team-a", results[0].namespace)
+        assertEquals("letters", results[0].catalogKey)
+        assertEquals("1.4.0", results[0].version)
+        assertEquals("k7m2x9qa", results[0].releaseId)
+        assertNull(results[0].releaseName)
+        assertEquals("exchange.example.org", results[1].registry)
+        assertEquals("team-a", results[1].namespace)
+        assertEquals("letters", results[1].catalogKey)
+        assertNull(results[1].version)
+        assertEquals("h3v9p6db", results[1].releaseId)
+        assertEquals("Redesign 2027", results[1].releaseName)
+    }
+
+    @Test
+    fun `a problem response is raised as a ProblemDetailException carrying its status, not parsed as results`() {
+        val problem = """{"type":"https://epistola.app/errors/permission-denied","title":"Permission Denied","status":403,"detail":"Insufficient permissions","instance":"/api/tenants/demo/generation/collect"}"""
+        val headers = HttpHeaders().apply { contentType = MediaType.APPLICATION_PROBLEM_JSON }
+        val handled = AtomicInteger()
+        val restClient = mockRestClient(ByteArrayInputStream(problem.toByteArray()), HttpStatus.FORBIDDEN, headers)
+
+        val collector = buildCollector(restClient) { handled.incrementAndGet() }
+        val error = assertFailsWith<ProblemDetailException> { collector.collectOnce() }
+
+        assertEquals(403, error.statusCode.value())
+        assertEquals("Permission Denied", error.title)
+        assertEquals("Insufficient permissions", error.detail)
+        assertEquals(0, handled.get())
+    }
+
+    @Test
+    fun `an error response that is not a problem is raised as Spring's HTTP error, not parsed as results`() {
+        val restClient = mockRestClient(ByteArrayInputStream("<html>maintenance</html>".toByteArray()), HttpStatus.SERVICE_UNAVAILABLE)
+
+        val collector = buildCollector(restClient) { }
+        val error = assertFailsWith<HttpServerErrorException> { collector.collectOnce() }
+
+        assertEquals(503, error.statusCode.value())
+    }
+
+    @Test
+    fun `a result line without a sequence is refused with a message naming the line`() {
+        val restClient = mockRestClient(ndjsonResponse("""{"requestId":"r1","status":"completed"}"""))
+
+        val collector = buildCollector(restClient) { }
+        val error = assertFailsWith<IllegalStateException> { collector.collectOnce() }
+
+        assertTrue(error.message!!.contains("sequence"), error.message)
     }
 
     @Test
@@ -224,7 +316,7 @@ class ResultCollectorTest {
 
         val collector = ResultCollector.builder()
             .restClient(restClient)
-            .tenantId("acme-corp")
+            .tenantKey("acme-corp")
             .minInterval(Duration.ofMillis(50))
             .maxInterval(Duration.ofSeconds(10))
             .kickInterval(Duration.ofMillis(200))
@@ -299,7 +391,7 @@ class ResultCollectorTest {
         val pollCount = AtomicInteger(0)
         val collector = ResultCollector.builder()
             .restClient(restClient)
-            .tenantId("acme-corp")
+            .tenantKey("acme-corp")
             .minInterval(Duration.ofMillis(50))
             .maxInterval(Duration.ofSeconds(10))
             .kickInterval(Duration.ofMillis(200))
@@ -361,12 +453,12 @@ class ResultCollectorTest {
     @Test
     fun `builder requires restClient`() {
         assertFailsWith<IllegalArgumentException> {
-            ResultCollector.builder().tenantId("t").handler { }.build()
+            ResultCollector.builder().tenantKey("t").handler { }.build()
         }
     }
 
     @Test
-    fun `builder requires tenantId`() {
+    fun `builder requires tenantKey`() {
         assertFailsWith<IllegalArgumentException> {
             ResultCollector.builder().restClient(mockk()).handler { }.build()
         }
@@ -375,7 +467,7 @@ class ResultCollectorTest {
     @Test
     fun `builder requires handler`() {
         assertFailsWith<IllegalArgumentException> {
-            ResultCollector.builder().restClient(mockk()).tenantId("t").build()
+            ResultCollector.builder().restClient(mockk()).tenantKey("t").build()
         }
     }
 
@@ -419,7 +511,7 @@ class ResultCollectorTest {
 
         val collector = ResultCollector.builder()
             .restClient(restClient)
-            .tenantId("acme-corp")
+            .tenantKey("acme-corp")
             .minInterval(Duration.ofMillis(200))
             .maxInterval(Duration.ofSeconds(5))
             .handler { }
@@ -451,7 +543,7 @@ class ResultCollectorTest {
         handler: (ResultCollector.GenerationResult) -> Unit,
     ) = ResultCollector.builder()
         .restClient(restClient)
-        .tenantId("acme-corp")
+        .tenantKey("acme-corp")
         .minInterval(Duration.ofMillis(50))
         .handler(handler)
         .objectMapper(objectMapper)
@@ -468,6 +560,8 @@ class ResultCollectorTest {
         val convertibleResponse = mockk<RestClient.RequestHeadersSpec.ConvertibleClientHttpResponse> {
             every { body } answers { nextBody() }
             every { headers } returns HttpHeaders()
+            every { statusCode } returns HttpStatus.OK
+            every { statusText } returns HttpStatus.OK.reasonPhrase
         }
 
         val requestBodyUriSpec = mockk<RestClient.RequestBodyUriSpec>()
@@ -490,10 +584,16 @@ class ResultCollectorTest {
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun mockRestClient(responseBody: ByteArrayInputStream): RestClient {
+    private fun mockRestClient(
+        responseBody: ByteArrayInputStream,
+        status: HttpStatus = HttpStatus.OK,
+        responseHeaders: HttpHeaders = HttpHeaders(),
+    ): RestClient {
         val convertibleResponse = mockk<RestClient.RequestHeadersSpec.ConvertibleClientHttpResponse> {
             every { body } returns responseBody
-            every { headers } returns HttpHeaders()
+            every { headers } returns responseHeaders
+            every { statusCode } returns status
+            every { statusText } returns status.reasonPhrase
         }
 
         val requestBodyUriSpec = mockk<RestClient.RequestBodyUriSpec>()

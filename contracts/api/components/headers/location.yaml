@@ -1,0 +1,13 @@
+# Shared response header for operations that create something.
+#
+# Every 201 carries the address of the resource it created, and every 202 the address of the job
+# that tracks the accepted work, so a client never has to assemble a URL from the response body.
+
+Location:
+  description: |
+    The address of what the request created, which a GET reads: a URI reference, usually an
+    absolute path below the server's base path, such as
+    `/api/tenants/acme-corp/environments/staging`. Resolve it against the request URL.
+  schema:
+    type: string
+  example: /api/tenants/acme-corp/environments/staging

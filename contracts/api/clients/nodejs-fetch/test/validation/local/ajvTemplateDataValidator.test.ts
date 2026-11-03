@@ -47,24 +47,26 @@ const VALID_DATA = {
 
 class StubTemplatesApi implements TemplateSchemaSource {
   fetches = 0
+  requested: Parameters<TemplateSchemaSource['getTemplate']>[0][] = []
   constructor(private readonly schema: object | undefined) {}
-  async getTemplate(): Promise<{ schema?: object }> {
+  async getTemplate(requestParameters: Parameters<TemplateSchemaSource['getTemplate']>[0]): Promise<{ dataModel?: object }> {
     this.fetches += 1
-    return this.schema === undefined ? {} : { schema: this.schema }
+    this.requested.push(requestParameters)
+    return this.schema === undefined ? {} : { dataModel: this.schema }
   }
 }
 
 test('valid data yields no findings', async () => {
-  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA))
+  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA), '1.4.0')
 
-  assert.deepEqual(await validator.validate('acme-corp', 'default', 'invoice', VALID_DATA), [])
+  assert.deepEqual(await validator.validate('acme-corp', '~', 'acme-corp', 'default', 'invoice', VALID_DATA), [])
 })
 
 test('paths are JSON Pointers', async () => {
-  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA))
+  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA), '1.4.0')
   const data = { ...VALID_DATA, customer: { name: '', email: 'jane@example.com' } }
 
-  const findings = await validator.validate('acme-corp', 'default', 'invoice', data)
+  const findings = await validator.validate('acme-corp', '~', 'acme-corp', 'default', 'invoice', data)
 
   // The old implementation reported a dotted key here, `customer.name`.
   assert.equal(findings.length, 1)
@@ -73,19 +75,19 @@ test('paths are JSON Pointers', async () => {
 })
 
 test('a pointer into an array uses the index as a segment', async () => {
-  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA))
+  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA), '1.4.0')
   const data = { ...VALID_DATA, lineItems: [{ quantity: 0 }] }
 
-  const findings = await validator.validate('acme-corp', 'default', 'invoice', data)
+  const findings = await validator.validate('acme-corp', '~', 'acme-corp', 'default', 'invoice', data)
 
   assert.equal(findings[0]?.path, '/lineItems/0/quantity')
   assert.equal(findings[0]?.keyword, 'minimum')
 })
 
 test('a missing required field is reported at its own pointer, as the server reports it', async () => {
-  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA))
+  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA), '1.4.0')
 
-  const findings = await validator.validate('acme-corp', 'default', 'invoice', { invoiceNumber: 'INV-2026-001' })
+  const findings = await validator.validate('acme-corp', '~', 'acme-corp', 'default', 'invoice', { invoiceNumber: 'INV-2026-001' })
 
   // Ajv points at the parent and names the absent property separately; joining them is what gives
   // the pointer the interface asks for, and matches `missingFields[].path` from the server.
@@ -97,10 +99,10 @@ test('a missing required field is reported at its own pointer, as the server rep
 })
 
 test('format is asserted here, which is exactly why a local verdict is its own', async () => {
-  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA))
+  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA), '1.4.0')
   const data = { ...VALID_DATA, customer: { name: 'Jane Smith', email: 'not-an-email' } }
 
-  const findings = await validator.validate('acme-corp', 'default', 'invoice', data)
+  const findings = await validator.validate('acme-corp', '~', 'acme-corp', 'default', 'invoice', data)
 
   // Recorded as a divergence, not a guarantee: this adapter registers ajv-formats, so `format`
   // asserts — while the JVM reference adapter, on networknt under 2020-12, treats it as an
@@ -111,24 +113,32 @@ test('format is asserted here, which is exactly why a local verdict is its own',
   assert.equal(findings[0]?.keyword, 'format')
 })
 
-test('a template without a schema claims nothing about the data', async () => {
-  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(undefined))
+test('a template with the empty schema claims nothing about the data', async () => {
+  const validator = new AjvTemplateDataValidator(new StubTemplatesApi({}), '1.4.0')
 
-  assert.deepEqual(await validator.validate('acme-corp', 'default', 'invoice', { anything: 1 }), [])
+  assert.deepEqual(await validator.validate('acme-corp', '~', 'acme-corp', 'default', 'invoice', { anything: 1 }), [])
 })
 
 test('the schema is fetched once and reused', async () => {
   const templates = new StubTemplatesApi(INVOICE_SCHEMA)
-  const validator = new AjvTemplateDataValidator(templates)
+  const validator = new AjvTemplateDataValidator(templates, '1.4.0')
 
-  await validator.validate('acme-corp', 'default', 'invoice', VALID_DATA)
-  await validator.validate('acme-corp', 'default', 'invoice', VALID_DATA)
+  await validator.validate('acme-corp', '~', 'acme-corp', 'default', 'invoice', VALID_DATA)
+  await validator.validate('acme-corp', '~', 'acme-corp', 'default', 'invoice', VALID_DATA)
 
   // Without the cache a "local" validator costs a round trip per call, which is worse than asking
   // the server to validate outright.
   assert.equal(templates.fetches, 1)
 })
 
+test('the schema is read from the release the adapter was given', async () => {
+  const templates = new StubTemplatesApi(INVOICE_SCHEMA)
+
+  await new AjvTemplateDataValidator(templates, '1.4.0').validate('acme-corp', '~', 'acme-corp', 'default', 'invoice', VALID_DATA)
+
+  assert.deepEqual(templates.requested, [{ tenantKey: 'acme-corp', registry: '~', namespace: 'acme-corp', catalogKey: 'default', release: '1.4.0', templateKey: 'invoice' }])
+})
+
 test('it takes the generation pre-flight, unlike the server-backed default', async () => {
-  assert.equal(new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA)).preflightsGeneration, true)
+  assert.equal(new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA), '1.4.0').preflightsGeneration, true)
 })

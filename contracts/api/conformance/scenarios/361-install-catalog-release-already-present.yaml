@@ -1,0 +1,49 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: install-catalog-release-already-present
+title: Installing a release the tenant already has changes nothing, and says so
+why: >
+  The catalog is in a registry of its own, written in the path as it is. The tenant already has
+  release `1.4.2`, with the same fingerprint, so nothing changes and the response says so with
+  `newlyInstalled: false`. A client that drops a false boolean tells its caller a release was
+  installed when nothing happened. The response carries no dependency lists; a client must surface
+  them as empty, not fail on them.
+
+action:
+  name: install-catalog-release
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: registry.gemeente-x.nl
+    namespace: huisstijl
+    catalogKey: branding
+    version: 1.4.2
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      registry: registry.gemeente-x.nl
+      namespace: huisstijl
+      catalogKey: branding
+      version: 1.4.2
+      newlyInstalled: false
+      total: 3
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/registry.gemeente-x.nl/huisstijl/branding/available-releases/1.4.2/install
+      query: ""
+  report:
+    registry: registry.gemeente-x.nl
+    namespace: huisstijl
+    catalogKey: branding
+    version: 1.4.2
+    newlyInstalled: 'false'
+    total: '3'
+    installedDependencies: ''
+    presentDependencies: ''

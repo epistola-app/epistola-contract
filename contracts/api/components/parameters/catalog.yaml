@@ -1,0 +1,55 @@
+# Shared path parameters that address one catalog.
+#
+# A catalog's identity is its registry, its namespace and its key together, never the key alone:
+# two publishers can each publish a catalog called `letters`. See "Catalog identity" in the API
+# description.
+
+Registry:
+  name: registry
+  in: path
+  required: true
+  description: |
+    Registry of the catalog: the exchange (`exchange.epistola.app`) or the domain that publishes
+    it (`acme.com`), in normal domain order, or `local` for a name that never leaves the
+    organisation.
+
+    `~` means the installation's **default registry**, which the server configures; it is not part
+    of this contract. The default registry may also be named in full, and both address the same
+    catalog. A client may send `~` as it is or percent-encoded as `%7E`; the server accepts both.
+  schema:
+    $ref: '../schemas/identifiers.yaml#/RegistryOrDefault'
+  example: '~'
+
+Namespace:
+  name: namespace
+  in: path
+  required: true
+  description: |
+    Namespace of the catalog, within its registry. The same namespace in two registries is two
+    different namespaces.
+  schema:
+    $ref: '../schemas/identifiers.yaml#/Namespace'
+  example: acme-corp
+
+CatalogKey:
+  name: catalogKey
+  in: path
+  required: true
+  description: Key of the catalog, unique within its registry and namespace
+  schema:
+    $ref: '../schemas/identifiers.yaml#/CatalogKey'
+  example: letters
+
+Release:
+  name: release
+  in: path
+  required: true
+  description: |
+    A release of the catalog, by its `releaseId` (`CatalogReleaseId`) or, once it is released, by
+    its exact version: both address the same release. A draft has no version until it is released,
+    so it is addressed by its `releaseId` alone; releasing it keeps the id. Once it is released,
+    every write to it is refused with 409, whichever way it is addressed. A `releaseId` never
+    contains a dot, so the two cannot be confused. A discarded draft's id addresses nothing (404).
+  schema:
+    $ref: '../schemas/identifiers.yaml#/CatalogReleaseRef'
+  example: k7m2x9qa

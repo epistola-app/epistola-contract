@@ -22,30 +22,29 @@ FontDto:
     weight/italic faces it ships. Faces are backed by uploaded assets or
     bundled classpath files; this view exposes metadata only (no binaries).
 
-    A family from a SUBSCRIBED catalog (e.g. the bundled `system` catalog's
-    `inter`, `roboto`, …) is flagged `readOnly: true`.
+    A family of a catalog that cannot be changed in this installation (e.g. the bundled `system`
+    catalog's `inter`, `roboto`, …) is flagged `readOnly: true`. A catalog carries its faces as
+    resources of its releases, the `system` catalog included.
 
-    **Read-only over REST.** Like image assets, font families and their
-    binaries are managed through the UI and catalog exchange only — there is
-    no create/update/delete via this API. (Write access may be revisited
-    later.)
+    **Read-only over REST.** Font families and their binaries are managed
+    through the UI and catalog exchange only — there is no create/update/delete
+    via this API, unlike images, which can be uploaded (`uploadImage`) and
+    deleted (`deleteImage`). (Write access may be revisited later.)
   required:
-    - slug
+    - key
     - name
     - kind
-    - catalog
-    - catalogType
+    - registry
+    - namespace
+    - catalogKey
     - readOnly
     - variants
     - createdAt
     - lastModified
   properties:
-    slug:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 2
-      maxLength: 64
-      description: Slug identifier (unique within `tenant + catalog`).
+    key:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: Key (unique within `tenant + catalog`).
       example: inter
     name:
       type: string
@@ -56,18 +55,26 @@ FontDto:
       enum: [sans, serif, mono, condensed, display]
       description: Broad typeface classification, used by the editor picker.
       example: sans
-    catalog:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      description: Slug of the catalog this font family lives in.
+    registry:
+      $ref: './identifiers.yaml#/Registry'
+      description: |
+        Registry of the catalog: the exchange or domain its namespace lives in. Always written in
+        full, the default registry by its name, never `~`.
+      example: exchange.epistola.app
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the catalog, within its registry
+      example: epistola
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the catalog this resource lives in, unique within its registry and namespace
       example: system
-    catalogType:
-      type: string
-      enum: [AUTHORED, SUBSCRIBED]
-      description: Catalog ownership; SUBSCRIBED catalogs are read-only.
     readOnly:
       type: boolean
-      description: True when the owning catalog is SUBSCRIBED.
+      description: |
+        True when the family's catalog cannot be changed in this installation (its `CatalogDto.editable`
+        is false; `readOnlyReason` there says why). Clients disable editing affordances; writes to
+        it are refused with 409 `catalog-read-only`.
     variants:
       type: array
       description: The weight/italic faces this family ships.

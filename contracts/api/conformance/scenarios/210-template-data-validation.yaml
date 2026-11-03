@@ -18,16 +18,18 @@ why: >
 
   Note what is asserted about the request. `data` must arrive as the server will read it, and the
   path must carry the catalog — the same template id in two catalogs is two different templates
-  with two different contracts, and a client that dropped `catalogId` would validate against the
-  wrong one and still look fine.
+  with two different contracts, and a client that dropped the namespace or the catalog key would
+  validate against the wrong one and still look fine.
 
 action:
   name: validate-template-data
   config:
     nodeId: conformance-node-1
-    tenantId: acme-corp
-    catalogId: main
-    templateId: invoice
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: main
+    templateKey: invoice
     data:
       customer:
         name: Jane Smith
@@ -37,7 +39,7 @@ action:
 
 script:
   - status: 200
-    contentType: application/vnd.epistola.v1+json
+    contentType: application/vnd.epistola.v2+json
     body:
       valid: false
       errors: []
@@ -46,7 +48,7 @@ script:
         - path: /invoiceNumber
           required: true
           schema: { type: string }
-        # Optional: the resolved version's template reads it, but leaving it out is not a failure.
+        # Optional: the resolved release's template reads it, but leaving it out is not a failure.
         # A client that reported this one would ask an employee for something nobody requires.
         - path: /customer/phone
           required: false
@@ -65,7 +67,7 @@ expect:
   requestCount: 1
   requests:
     - method: POST
-      path: /api/tenants/acme-corp/catalogs/main/templates/invoice/validate
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/main/templates/invoice/validate
       body:
         data:
           customer:

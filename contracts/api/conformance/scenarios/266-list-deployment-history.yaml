@@ -1,0 +1,97 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: list-deployment-history
+title: An environment's history reads every event kind, a draft released into a release included
+why: >
+  The history lists every change to what an environment serves, newest first (ADR 0003,
+  "Deploying"). `action` is an enum read as the wire value, not a constant name; `released`
+  records a deployed draft that was released, which the environment then serves as that release.
+
+  Every entry names the release by `releaseId`, and `status` says what it was after the change. A
+  draft deployed or undeployed has no version: `version` is null, and `releaseName` names the
+  draft as it was called at the time. A `released` entry carries both, the name the release kept
+  and the version it was released as, under the same `releaseId`. A release installed from
+  elsewhere has no name. A system change has no `changedBy`: it is sent as
+  null on some entries and left out on others, and a client must read both as missing.
+
+  The page is the caller's: `page` and `size` go out as given.
+
+action:
+  name: list-deployment-history
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    environmentKey: acceptance
+    page: 0
+    size: 50
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      items:
+        - registry: exchange.epistola.app
+          namespace: acme-corp
+          catalogKey: letters
+          action: released
+          releaseId: k7m2x9qa
+          status: released
+          version: 1.5.0
+          releaseName: Spring fixes
+          changedAt: "2026-10-18T09:00:00Z"
+          changedBy: Jane Smith
+        - registry: exchange.epistola.app
+          namespace: acme-corp
+          catalogKey: letters
+          action: undeployed
+          releaseId: r4t8w2nc
+          status: draft
+          version: null
+          releaseName: Redesign 2027
+          changedAt: "2026-10-17T16:00:00Z"
+        - registry: exchange.epistola.app
+          namespace: acme-corp
+          catalogKey: letters
+          action: deployed
+          releaseId: k7m2x9qa
+          status: draft
+          version: null
+          releaseName: Spring fixes
+          changedAt: "2026-10-17T16:00:00Z"
+          changedBy: Jane Smith
+        - registry: exchange.epistola.app
+          namespace: acme-corp
+          catalogKey: letters
+          action: deployed
+          releaseId: m3q8v5tw
+          status: released
+          version: 1.4.0
+          releaseName: null
+          changedAt: "2026-10-02T07:30:00Z"
+          changedBy: null
+      page: { number: 0, size: 50, total: 4, totalPages: 1 }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/environments/acceptance/deployment-history
+      queryParams:
+        page: "0"
+        size: "50"
+      headers:
+        Accept:
+          contains: application/vnd.epistola.v2+json
+  report:
+    catalogKeys: letters,letters,letters,letters
+    actions: released,undeployed,deployed,deployed
+    releaseIds: k7m2x9qa,r4t8w2nc,k7m2x9qa,m3q8v5tw
+    statuses: released,draft,draft,released
+    versions: 1.5.0,null,null,1.4.0
+    # Names are free text, so they are joined with `|`.
+    releaseNames: Spring fixes|Redesign 2027|Spring fixes|null
+    changedAt: 2026-10-18T09:00:00Z,2026-10-17T16:00:00Z,2026-10-17T16:00:00Z,2026-10-02T07:30:00Z
+    changedBy: Jane Smith|null|Jane Smith|null
+    total: "4"

@@ -9,11 +9,11 @@
     },
     {
       "scope": "template",
-      "scenario": "STENCIL_DEFINITION_REFERENCES_DRAFT"
+      "scenario": "STENCIL_DEFINITION_REFERENCES_SAME_KEY_IN_ANOTHER_CATALOG"
     },
     {
       "scope": "catalog",
-      "scenario": "CATALOG_REFERENCE_MATCHES_EXACT_VERSION"
+      "scenario": "CATALOG_REFERENCE_RESOLVES_IN_CATALOG"
     },
     {
       "scope": "catalog",
@@ -27,7 +27,7 @@
       "expectedFindings": [
         {
           "code": "STENCIL_RECURSION",
-          "path": "nodes.stencil-0.props.stencilId"
+          "path": "nodes.stencil-0.props.stencilKey"
         }
       ]
     },
@@ -37,7 +37,7 @@
       "expectedFindings": [
         {
           "code": "STENCIL_RECURSION",
-          "path": "nodes.stencil-1.props.stencilId"
+          "path": "nodes.stencil-1.props.stencilKey"
         }
       ]
     },
@@ -47,27 +47,27 @@
       "expectedFindings": [
         {
           "code": "STENCIL_NESTING_DEPTH_EXCEEDED",
-          "path": "nodes.stencil-4.props.stencilId"
+          "path": "nodes.stencil-4.props.stencilKey"
         }
       ]
     },
     {
       "scope": "catalog",
-      "scenario": "CATALOG_REFERENCE_VERSION_MISMATCH",
+      "scenario": "CATALOG_REFERENCE_MISSING",
       "expectedFindings": [
         {
           "code": "STENCIL_REFERENCE_NOT_FOUND",
-          "path": "resources/stencil/letter.json.resource.content.nodes.nested-address.props.stencilId"
+          "path": "resources/stencil/letter.json.resource.content.nodes.nested-address.props.stencilKey"
         }
       ]
     },
     {
       "scope": "catalog",
-      "scenario": "CATALOG_REFERENCE_TARGETS_DRAFT",
+      "scenario": "CATALOG_REFERENCE_PINS_VERSION",
       "expectedFindings": [
         {
-          "code": "STENCIL_REFERENCE_INVALID",
-          "path": "resources/stencil/letter.json.resource.content.nodes.nested-address.props.draftVersion"
+          "code": "TEMPLATE_NODE_PROPERTY_INVALID",
+          "path": "resources/stencil/letter.json.resource.content.nodes.nested-address.props.version"
         }
       ]
     },
@@ -77,7 +77,7 @@
       "expectedFindings": [
         {
           "code": "STENCIL_RECURSION",
-          "path": "resources/stencil/letter.json.resource.content.nodes.nested-address.props.stencilId"
+          "path": "resources/stencil/letter.json.resource.content.nodes.nested-address.props.stencilKey"
         }
       ]
     },
@@ -87,7 +87,7 @@
       "expectedFindings": [
         {
           "code": "STENCIL_NESTING_DEPTH_EXCEEDED",
-          "path": "resources/stencil/stencil-4.json.resource.content.nodes.nested-stencil-5.props.stencilId"
+          "path": "resources/stencil/stencil-4.json.resource.content.nodes.nested-stencil-5.props.stencilKey"
         }
       ]
     }

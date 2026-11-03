@@ -40,16 +40,16 @@ class ValidatingGenerationApiTest {
     private final AtomicInteger submissions = new AtomicInteger();
 
     private final GenerateDocumentRequest request =
-            new GenerateDocumentRequest().catalogId("default").templateId("invoice").data(Map.of());
+            new GenerateDocumentRequest().namespace("acme-corp").catalogKey("default").templateKey("invoice").data(Map.of());
 
     private final GenerateBatchRequest batch = new GenerateBatchRequest()
             .items(List.of(
-                    new BatchGenerationItem().catalogId("default").templateId("invoice").data(Map.of()),
-                    new BatchGenerationItem().catalogId("default").templateId("reminder").data(Map.of())));
+                    new BatchGenerationItem().namespace("acme-corp").catalogKey("default").templateKey("invoice").data(Map.of()),
+                    new BatchGenerationItem().namespace("acme-corp").catalogKey("default").templateKey("reminder").data(Map.of())));
 
     /** A validator that answers in-process, so it takes the pre-flight. */
     private TemplateDataValidator local(String... paths) {
-        return (tenantId, catalogId, templateId, data) -> {
+        return (tenantKey, registry, namespace, catalogKey, templateKey, data) -> {
             validations.incrementAndGet();
             List<ValidationError> findings = new ArrayList<>();
             for (String path : paths) {
@@ -179,6 +179,60 @@ class ValidatingGenerationApiTest {
 
         assertEquals(1, submissions.get());
         assertTrue(validations.get() >= 2, "every item is checked");
+    }
+
+    /**
+     * A body may leave {@code registry} unset, meaning the server's default registry; the validator
+     * puts it in a URL path, which cannot leave the segment out and writes the default as
+     * {@code ~}. A registry the body names is handed through as it is, and never filled in.
+     */
+    @Test
+    void the_preflight_hands_the_validator_the_path_form_of_the_registry() {
+        List<String> catalogs = new ArrayList<>();
+        TemplateDataValidator recording = (tenantKey, registry, namespace, catalogKey, templateKey, data) -> {
+            catalogs.add(registry + "|" + namespace + "|" + catalogKey);
+            return List.of();
+        };
+        ValidatingGenerationApi api = new ValidatingGenerationApi(generationApi(null), recording);
+
+        api.generateDocument(
+                "acme-corp",
+                new GenerateDocumentRequest()
+                        .registry("exchange.example.org")
+                        .namespace("team-a")
+                        .catalogKey("letters")
+                        .templateKey("invoice")
+                        .data(Map.of()));
+        api.generateDocumentBatch(
+                "acme-corp",
+                new GenerateBatchRequest()
+                        .items(List.of(
+                                new BatchGenerationItem()
+                                        .registry("exchange.example.org")
+                                        .namespace("team-a")
+                                        .catalogKey("letters")
+                                        .templateKey("invoice")
+                                        .data(Map.of()),
+                                new BatchGenerationItem()
+                                        .namespace("acme")
+                                        .catalogKey("house-style")
+                                        .templateKey("invoice")
+                                        .data(Map.of()))));
+
+        assertEquals(
+                List.of(
+                        "exchange.example.org|team-a|letters",
+                        "exchange.example.org|team-a|letters",
+                        "~|acme|house-style"),
+                catalogs);
+    }
+
+    @Test
+    void the_path_form_writes_only_an_unset_registry_as_the_default() {
+        assertEquals("~", ValidatingGenerationApi.pathSegment(null));
+        assertEquals("acme.com", ValidatingGenerationApi.pathSegment("acme.com"));
+        assertEquals("exchange.epistola.app", ValidatingGenerationApi.pathSegment("exchange.epistola.app"));
+        assertEquals("~", ValidatingGenerationApi.pathSegment("~"));
     }
 
     @Test

@@ -16,22 +16,23 @@ why: >
   Nothing caught it, because the conformance server and most real ones return the problem body
   regardless of what was asked for.
 
-  This is asserted on listTemplates rather than ping because ping declares no error responses at
-  all, so asking only for the success type is correct there.
 
 action:
   name: list-templates
   config:
     nodeId: conformance-node-1
-    tenantId: acme-corp
-    catalogId: main
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: main
+    release: 2.0.0
 
 script:
   - status: 200
-    contentType: application/vnd.epistola.v1+json
+    contentType: application/vnd.epistola.v2+json
     body:
       items: []
-      page: { number: 0, size: 20, totalElements: 0, totalPages: 0 }
+      page: { number: 0, size: 20, total: 0, totalPages: 0 }
 
 expect:
   requestCount: 1
@@ -39,4 +40,4 @@ expect:
     headers:
       # Both, in the order the contract declares them.
       Accept:
-        matches: 'application/vnd\.epistola\.v1\+json,\s*application/problem\+json'
+        matches: 'application/vnd\.epistola\.v2\+json,\s*application/problem\+json'

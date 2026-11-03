@@ -1,26 +1,34 @@
 CatalogDto:
   type: object
-  required:
-    - id
-    - name
-    - type
-  properties:
-    slug:
-      type: string
-      description: |
-        Catalog slug identifier
+  description: |
+    A catalog: its identity, whether it can be changed here, where its releases come from, and its
+    highest release. It does not list the catalog's releases or drafts; `listCatalogReleases` does,
+    each with its `status` (`?status=draft` for the drafts only).
 
-        Sent by every server on contract 1.3.0 or later. Not required, because a server on an
-        older 1.x contract omits it and a client must still read its responses: when it is
-        absent, read `id`, which carries the same value. Required from 2.0.0, which removes
-        `id` (epistola-app/epistola-contract#84).
-      example: municipality-demo
-    id:
-      type: string
-      deprecated: true
+    Every catalog has releases and drafts; there are no catalog types. Whether a catalog can be
+    changed depends on the installation and on whether the server itself supplies it
+    (`editable`, `readOnlyReason`), not on where its releases come from (`source`).
+  required:
+    - registry
+    - namespace
+    - catalogKey
+    - name
+    - editable
+    - source
+  properties:
+    registry:
+      $ref: './identifiers.yaml#/Registry'
       description: |
-        **Deprecated — use `slug`.** The same value, under the name the portable catalog
-        format already uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
+        Registry of the catalog: the exchange or domain its namespace lives in. Always written in
+        full, the default registry by its name, never `~`.
+      example: exchange.epistola.app
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the catalog, within its registry
+      example: acme-corp
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the catalog, unique within its registry and namespace
       example: municipality-demo
     name:
       type: string
@@ -29,26 +37,68 @@ CatalogDto:
     description:
       type: [string, "null"]
       description: Optional description
-    type:
-      type: string
-      enum: [AUTHORED, SUBSCRIBED]
-      description: Catalog type
-      example: AUTHORED
-    releasedVersion:
+    editable:
+      type: boolean
+      description: |
+        Whether the catalog can be changed in this installation: drafts started, edited, discarded,
+        merged into and released. When false, every such write is refused with 409
+        `catalog-read-only`, `readOnlyReason` says why, and a client offers none of them. Receiving
+        releases (`importCatalog`, `installCatalogRelease`), deploying and undeploying them work
+        either way.
+      example: true
+    readOnlyReason:
+      # Inline and not required: the .NET generator types a required enum, or a nullable reference to
+      # one, as non-nullable, so null could not be read. The values are CatalogReadOnlyReason's.
       type: [string, "null"]
+      enum: [editing-disabled, supplied-by-epistola, null]
+      description: |
+        Why the catalog cannot be changed, one of `CatalogReadOnlyReason`: `editing-disabled` (the
+        installation only receives and runs releases) or `supplied-by-epistola` (the server
+        supplies the catalog and replaces it on upgrade). Null or absent exactly when `editable` is
+        true.
+      example: null
+    source:
+      type: [string, "null"]
+      maxLength: 2048
+      description: |
+        Where the catalog's releases come from, as a URI: `exchange:acme-corp/letters` (an exchange,
+        the catalog's registry), `oci:registry.example.org/epistola/exchange.epistola.app/acme-corp/letters` (a container
+        registry), `https://catalogs.example.org/letters/catalog.json` (a manifest URL), or
+        `classpath:…` (supplied by the server itself). The scheme names the route; a client treats
+        an unknown one as opaque. Null when releases only arrive by import (`importCatalog`) or are
+        made in this installation. Listing and installing the releases a source offers
+        (`listAvailableCatalogReleases`, `installCatalogRelease`) need one. It is this tenant's:
+        another tenant may receive the same catalog from elsewhere, such as a mirror, and changing
+        it changes where new releases come from, never the releases installed, which are their
+        content hashes wherever they came from (ADR 0008, amendment of 2026-10-22).
+      example: exchange:acme-corp/letters
+    highestVersion:
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
       description: >-
-        The catalog's current version label. For AUTHORED catalogs this is the
-        latest released SemVer (null until first released). For SUBSCRIBED
-        catalogs this is the installed release version.
+        The version of the catalog's highest release, wherever it was made or received from. Null
+        while the catalog has no release.
       example: "1.4.0"
     fingerprint:
-      type: [string, "null"]
-      description: >-
-        Lowercase hex SHA-256 of the catalog's canonical content
-        (deterministic, excludes volatile fields). Identifies content
-        independently of the version label. Null when never released / produced
-        before fingerprinting.
-      example: 9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
+      oneOf:
+        - $ref: './identifiers.yaml#/Fingerprint'
+        - type: 'null'
+      description: |
+        The canonical fingerprint of the content of the highest release (`highestVersion`;
+        deterministic, excludes volatile fields), which identifies content independently of the
+        version. It names the algorithm that computed it, as the catalog archive does:
+        `v6:` and lowercase SHA-256 hex for a release made under V6, which covers content only.
+        Null when the catalog has no release.
+      example: v6:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
+    contentHash:
+      oneOf:
+        - $ref: './identifiers.yaml#/ContentHash'
+        - type: 'null'
+      description: |
+        The content hash of the highest release (`ContentHash`, as `CatalogReleaseDto.contentHash`).
+        Null when the catalog has no release, or the server has none for it (see there).
+      example: v6:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
 
 CatalogListResponse:
   type: object
@@ -63,212 +113,1494 @@ CatalogListResponse:
     page:
       $ref: './common.yaml#/PageMeta'
 
-CatalogUpgradeDiff:
+AvailableCatalogReleases:
   type: object
-  description: >-
-    Source-vs-source preview of upgrading a SUBSCRIBED catalog to its source's
-    latest release. Each bucket entry is `"type/slug"` (e.g. `theme/corporate`).
+  description: |
+    The releases a catalog's source offers that the tenant has not installed, older
+    lines included, each with what it changed against the closest installed release below it and
+    whether the releases it pins are present. Nothing is installed by reading it.
   required:
-    - catalogId
-    - newVersion
-    - upgradeAvailable
-    - added
-    - removed
-    - changed
-    - unchanged
-    - conflicts
-    - blockedByConflicts
+    - registry
+    - namespace
+    - catalogKey
+    - available
   properties:
-    catalogId:
-      type: string
-      description: Catalog slug.
-      example: municipality-demo
-    previousVersion:
-      type: [string, "null"]
-      description: Currently installed release version (null if unknown).
-      example: "1.3.0"
-    newVersion:
-      type: string
-      description: The source manifest's release version.
+    registry:
+      $ref: './identifiers.yaml#/Registry'
+      description: |
+        Registry of the catalog: the exchange or domain its namespace lives in. Always written in
+        full, the default registry by its name, never `~`.
+      example: exchange.epistola.app
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the catalog, within its registry
+      example: acme-corp
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the catalog, unique within its registry and namespace
+      example: letters
+    available:
+      type: array
+      description: |
+        Every release the source offers that the tenant has not installed, lowest first: not only
+        those above the highest installed release, so a fix to an older line (`1.4.1`) is listed
+        while the tenant has `2.0.0`. Empty when the tenant has every release the source offers.
+      items:
+        $ref: '#/AvailableReleaseDto'
+
+AvailableReleaseDto:
+  type: object
+  description: A release a catalog's source offers, which the tenant does not have
+  required:
+    - version
+    - comparedTo
+    - changes
+    - dependencies
+  properties:
+    version:
+      $ref: './identifiers.yaml#/ReleaseVersion'
+      description: The release's version
+    comparedTo:
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
+      description: |
+        The release `changes` is measured against: the closest release the tenant has installed
+        numbered below this one. Null when the tenant has no release numbered below it.
       example: "1.4.0"
-    upgradeAvailable:
+    changes:
+      type: array
+      description: |
+        The resources the release added, modified or removed against `comparedTo`, not against the
+        release before it; every resource it has, as added, when `comparedTo` is null
+      items:
+        $ref: '#/ReleasedChangeDto'
+    dependencies:
+      type: array
+      description: |
+        The releases of other catalogs the release pins (`catalogDependencies`), each with whether
+        the tenant has it. Installing the release (`installCatalogRelease`) installs those it does
+        not have first, fetched from their registries. Empty when the release pins none.
+      items:
+        $ref: '#/AvailableReleaseDependencyDto'
+
+AvailableReleaseDependencyDto:
+  type: object
+  description: A release of another catalog that an available release pins
+  required:
+    - registry
+    - namespace
+    - catalogKey
+    - version
+    - present
+  properties:
+    registry:
+      $ref: './identifiers.yaml#/Registry'
+      description: |
+        Registry of the catalog depended on. Always written in full, the default registry by its
+        name, never `~`.
+      example: exchange.epistola.app
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the catalog depended on, within its registry
+      example: epistola
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the catalog depended on, unique within its registry and namespace
+      example: system
+    version:
+      $ref: './identifiers.yaml#/ReleaseVersion'
+      description: The version of the release of the catalog depended on that the pin names
+    present:
       type: boolean
-      description: True when there is anything to apply (added/removed/changed).
+      description: |
+        True when the tenant has the release; false when installing the available release would have
+        to fetch it, and is refused with `release-dependencies-missing` when it cannot
       example: true
-    added:
-      type: array
-      description: >-
-        Newly published resources. Not installed on upgrade unless explicitly
-        opted in (UI only — there is no upgrade action over REST).
-      items:
-        type: string
-      example: ["template/cover-letter"]
-    removed:
-      type: array
-      description: Resources the new release removed (deleted on upgrade).
-      items:
-        type: string
-      example: ["theme/legacy"]
-    changed:
-      type: array
-      description: Installed resources whose published content changed.
-      items:
-        type: string
-      example: ["theme/corporate"]
-    unchanged:
-      type: array
-      items:
-        type: string
-      example: ["attribute/language"]
-    conflicts:
-      type: array
-      description: >-
-        Human-readable cross-catalog references that would block the removal
-        set. Non-empty ⇒ an upgrade would be rejected.
-      items:
-        type: string
-      example: ["Theme 'legacy' is used by template 'Invoice' (catalog: billing)"]
-    blockedByConflicts:
+
+InstallCatalogReleaseResponse:
+  type: object
+  description: |
+    Result of installing a release of a catalog from its source: the release it
+    installed, or found already present, reported as `ImportCatalogResponse` reports an import.
+    Nothing was updated in place or removed. A schema of its own rather than
+    `ImportCatalogResponse`: it carries no `catalogName` (the catalog exists already), and its
+    dependency lists name the releases fetched from their sources rather than those an archive
+    carries.
+  required:
+    - registry
+    - namespace
+    - catalogKey
+    - version
+    - newlyInstalled
+    - total
+  properties:
+    registry:
+      $ref: './identifiers.yaml#/Registry'
+      description: |
+        Registry of the catalog: the exchange or domain its namespace lives in. Always written in
+        full, the default registry by its name, never `~`.
+      example: exchange.epistola.app
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the catalog, within its registry
+      example: acme-corp
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the catalog, unique within its registry and namespace
+      example: letters
+    version:
+      $ref: './identifiers.yaml#/ReleaseVersion'
+      description: The version of the release installed, which the tenant now has
+    newlyInstalled:
       type: boolean
-      description: True when `conflicts` is non-empty.
+      description: |
+        `true` when this request installed the release; `false` when the tenant already had it, with
+        the same fingerprint, and nothing changed.
+      example: true
+    total:
+      type: integer
+      description: Number of resources in the release
+      example: 7
+    installedDependencies:
+      type: array
+      description: |
+        The releases the release pins, directly or through other pins, that were fetched and
+        installed, in the order it installed them. Empty when it installed none.
+      items:
+        $ref: '#/CatalogReleaseRefDto'
+    presentDependencies:
+      type: array
+      description: |
+        The releases the release pins, directly or through other pins, that this tenant had already,
+        with the same fingerprint. Empty when there are none.
+      items:
+        $ref: '#/CatalogReleaseRefDto'
+
+CatalogReleaseRefDto:
+  type: object
+  description: |
+    A release of a catalog, named in full, because a catalog's key alone is not unique: one an
+    install or import installed or found present, or one that pins another release.
+  required:
+    - registry
+    - namespace
+    - catalogKey
+    - version
+    - releaseId
+  properties:
+    registry:
+      $ref: './identifiers.yaml#/Registry'
+      description: |
+        Registry of the catalog: the exchange or domain its namespace lives in. Always written in
+        full, the default registry by its name, never `~`.
+      example: exchange.epistola.app
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the catalog, within its registry
+      example: epistola
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the catalog, unique within its registry and namespace
+      example: shared
+    version:
+      $ref: './identifiers.yaml#/ReleaseVersion'
+      description: The version of the release
+    releaseId:
+      $ref: './identifiers.yaml#/CatalogReleaseId'
+      description: The release's id, which addresses it as its version does
+
+ReleaseDependencyDto:
+  type: object
+  description: |
+    A release of another catalog a released release renders with: one its declarations pin, or one
+    those pin in turn
+  required:
+    - alias
+    - registry
+    - namespace
+    - catalogKey
+    - version
+    - direct
+  properties:
+    alias:
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogAlias'
+        - type: 'null'
+      description: |
+        The alias the release's own declaration gives the catalog, by which its content names it.
+        Null for a catalog the release does not declare itself, which it renders with only through
+        another dependency, whose own declarations name it.
+      example: system
+    registry:
+      $ref: './identifiers.yaml#/Registry'
+      description: |
+        Registry of the catalog depended on: the exchange or domain its namespace lives in. Always
+        written in full, the default registry by its name, never `~`.
+      example: exchange.epistola.app
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the catalog depended on, within its registry
+      example: epistola
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the catalog, unique within its registry and namespace
+      example: letters
+    version:
+      $ref: './identifiers.yaml#/ReleaseVersion'
+      description: The version of the release of the catalog the release renders with
+    contentHash:
+      oneOf:
+        - $ref: './identifiers.yaml#/ContentHash'
+        - type: 'null'
+      description: |
+        The content hash of that release, which the pin names it by (`releaseFingerprint` in the
+        release's catalog archive): the release renders with exactly this content, whatever the
+        number is called elsewhere. Null when the server has no content hash for it (see
+        `CatalogReleaseDto.contentHash`).
+      example: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
+    direct:
+      type: boolean
+      description: True when the release's own resources reference the catalog; false when only reached through another dependency
+      example: true
+
+CatalogChangesDto:
+  type: object
+  description: |
+    How a release differs from its base: its resources (`changes`), and its catalog-level content
+    outside them (`catalogChanges`), together what its content hash covers. The catalog's
+    presentation (its name, description and the like) is not content and is never a change here.
+  required:
+    - releasable
+    - dependenciesChanged
+    - changes
+    - catalogChanges
+  properties:
+    base:
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
+      description: |
+        The release the draft started from (once released, the base it had as a draft);
+        null when there is none
+      example: "1.4.0"
+    releasable:
+      type: boolean
+      description: |
+        True when releasing the release now would be accepted, as far as its content tells: it is a
+        draft; something changed (`changes` or `catalogChanges` lists an entry; without a base, the
+        draft has a resource or catalog-level content), since releasing it unchanged would only give
+        its base's content another number; no resource is `new` or `modified`, merged content
+        included (`mergedForReview`); every stencil instance fits its stencil; and every catalog a
+        resource references is a declared dependency that pins a release the tenant has or names a
+        draft (released along with it, `releaseDependencies`). Releasing can still be refused for
+        what this does not cover, such as a draft that is behind releases not acknowledged.
+      example: false
+    dependenciesChanged:
+      type: boolean
+      description: |
+        True when the declared dependencies differ from the base's: exactly when `catalogChanges`
+        lists a `catalogDependency` entry
+      example: false
+    changes:
+      type: array
+      description: |
+        The resources that differ from the base: each of the release's that is `new`, `modified`
+        or `ready`, and each of the base's that is `removed`, by type and key
+      items:
+        $ref: '#/ResourceChangeDto'
+    catalogChanges:
+      type: array
+      description: |
+        The release's catalog-level content that differs from the base, beside its resources: each
+        dependency declaration added, removed or changed (re-pinned, or naming a draft or another
+        catalog under its alias), and its default theme, presets and license when they changed.
+        Named as the entries of a merge are (`catalog/defaultTheme`, `catalogDependency/shared`).
+        Empty when none changed, and once the release is released.
+      items:
+        $ref: '#/CatalogLevelChangeDto'
+
+ResourceChangeDto:
+  type: object
+  required:
+    - type
+    - key
+    - change
+  properties:
+    type:
+      type: string
+      description: The resource type, as the portable catalog format names it
+      example: template
+    key:
+      $ref: './identifiers.yaml#/ResourceKey'
+      example: monthly-invoice
+    change:
+      type: string
+      enum:
+        - new
+        - modified
+        - ready
+        - removed
+      description: |
+        `new`, `modified` and `ready` as in ResourceStatus; `removed` for a resource in the base
+        that is no longer in this release.
+      example: modified
+    mergedForReview:
+      type: boolean
+      default: false
+      description: |
+        True when the resource holds content combined from both sides of a merge conflict
+        (`mergedContent` of `mergeIntoCatalogDraft`, alpha) that no one has marked ready since: it
+        was written as given, so review it before the draft is released. Its `change` is then
+        `new` or `modified`, which keeps the draft from being releasable until it is marked ready.
+        False or absent otherwise.
       example: false
 
-ReleaseCatalogRequest:
+CatalogLevelChangeDto:
+  type: object
+  description: |
+    One part of a release's catalog-level content, outside its resources, that differs from its
+    base: what its content hash covers beside the resources (contract ADR 0003), never the
+    catalog's presentation. Named by `type` and `key` as the entries of a merge are.
+  required:
+    - type
+    - key
+    - change
+  properties:
+    type:
+      type: string
+      minLength: 1
+      maxLength: 64
+      description: |
+        `catalog` for a setting of the release, `catalogDependency` for a catalog it declares it
+        uses. A string, not an enum: a client keeps a type it does not know.
+      example: catalogDependency
+    key:
+      type: string
+      minLength: 1
+      maxLength: 50
+      description: |
+        For `catalog`, the setting: `defaultTheme`, `presets` or `license`. For
+        `catalogDependency`, the declaration's alias (`CatalogAlias`).
+      example: shared
+    change:
+      type: string
+      enum:
+        - added
+        - modified
+        - removed
+      description: |
+        - `added`: the base has none (no default theme, presets or license, or no declaration
+          under this alias) and the release has one;
+        - `modified`: both have one, and it differs: another default theme, other presets, another
+          license; for a declaration, another release pinned (re-pinned), a draft named instead,
+          or another catalog under the same alias;
+        - `removed`: the base has one and the release does not.
+      example: modified
+
+CatalogDependencyRequirement:
+  type: object
+  description: |
+    Another catalog this catalog's resources may reference, and the exact release of it they render
+    with, or, in a draft, a draft of it. A catalog declares each catalog it depends on once: every
+    reference into that catalog resolves through this one declaration, so a release renders with
+    exactly the release it pins. Exactly one of `version` and `releaseId` is given (omitted
+    and null are not given); neither, or both, is refused with 400.
+
+    The declaration gives the catalog an alias, by which the draft's content names it (`alias`).
+  required:
+    - namespace
+    - catalogKey
+  properties:
+    alias:
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogAlias'
+        - type: 'null'
+      description: |
+        The alias the draft's content names the catalog by (`CatalogAlias`). Omitted or null: the
+        catalog's key. Unique among the draft's declarations and never the draft's own catalog key,
+        or the request is refused with 400; give another one only when two catalogs it depends on
+        share a key.
+      example: null
+    registry:
+      oneOf:
+        - $ref: './identifiers.yaml#/Registry'
+        - type: 'null'
+      description: |
+        Registry of the catalog depended on: the exchange or domain its namespace lives in. Omitted
+        or null: the default registry, which the server configures. A response always names it in
+        full.
+      example: null
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the catalog depended on, within its registry
+      example: epistola
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the catalog depended on, unique within its registry and namespace
+      example: system
+    version:
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
+      description: |
+        The version of the exact release of the catalog depended on that this catalog renders with,
+        never a range.
+      example: "1.3.0"
+    releaseId:
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogReleaseId'
+        - type: 'null'
+      description: |
+        A draft of the catalog depended on, by its `releaseId` (a `CatalogReleaseId`), in this
+        tenant, that this draft renders with live, unreleased changes included. A
+        released release never pins a draft: releasing this draft is refused
+        (`release-dependencies-unreleased`) unless the request releases the named draft along with
+        it (`releaseDependencies`). Once the named draft is released on its own, the declaration
+        pins it at its version.
+      example: null
+
+CatalogDependencyDto:
+  type: object
+  description: |
+    A declared dependency: the alias the release's content names the catalog by, the catalog's
+    name, and the exact release it pins, or, in a draft, the draft of it the draft uses
+  required:
+    - alias
+    - registry
+    - namespace
+    - catalogKey
+    - version
+    - releaseId
+  properties:
+    alias:
+      $ref: './identifiers.yaml#/CatalogAlias'
+      description: |
+        The alias the release's content names the catalog by: what a reference's `catalogKey`
+        holds (a theme reference, a code-list binding, an attribute criterion), resolved through
+        this declaration. The catalog's key unless the declaration gave another.
+      example: system
+    registry:
+      $ref: './identifiers.yaml#/Registry'
+      description: |
+        Registry of the catalog depended on: the exchange or domain its namespace lives in. Always
+        written in full, the default registry by its name, never `~`.
+      example: exchange.epistola.app
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the catalog depended on, within its registry
+      example: epistola
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the catalog depended on, unique within its registry and namespace
+      example: system
+    version:
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
+      description: |
+        The version of the exact release of the catalog depended on that this release renders
+        with, as declared. Null when the declaration names a draft (`releaseId`), and for a declaration that
+        came from a catalog archive migrated from wire v7 or earlier, which pins no release:
+        releasing the draft is refused until one is declared.
+      example: "1.3.0"
+    releaseId:
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogReleaseId'
+        - type: 'null'
+      description: |
+        The draft of the catalog depended on that this draft renders with, by its `releaseId` (a
+        `CatalogReleaseId`), as declared. Null when the declaration pins a released release, and
+        always once this release is released: a released release never pins a draft.
+      example: null
+    contentHash:
+      oneOf:
+        - $ref: './identifiers.yaml#/ContentHash'
+        - type: 'null'
+      description: |
+        The content hash of the release the declaration pins, the pin itself
+        (`releaseFingerprint` in the release's catalog archive): `version` is its number for
+        people. Null when the declaration names a draft or pins no release, and when the server
+        has no content hash for the pinned release (see `CatalogReleaseDto.contentHash`).
+      example: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
+
+CatalogDependencyListResponse:
   type: object
   required:
-    - releaseVersion
+    - items
   properties:
-    releaseVersion:
-      type: string
-      pattern: '^\d+\.\d+\.\d+$'
-      description: Strictly increasing SemVer release label.
+    items:
+      type: array
+      items:
+        $ref: '#/CatalogDependencyDto'
+
+UpdateCatalogDependenciesRequest:
+  type: object
+  description: The complete set of dependencies of the draft
+  required:
+    - dependencies
+  properties:
+    dependencies:
+      type: array
+      description: |
+        Each catalog depended on, at most once. The catalog cannot depend on itself, and a draft
+        named must be a draft of the catalog the entry names.
+      items:
+        $ref: '#/CatalogDependencyRequirement'
+
+CatalogReadOnlyReason:
+  type: string
+  enum:
+    - editing-disabled
+    - supplied-by-epistola
+  description: |
+    Why a catalog cannot be changed in this installation:
+
+    - `editing-disabled`: the installation only receives and runs releases (it is run-only); no
+      catalog can be changed in it.
+    - `supplied-by-epistola`: the server itself supplies the catalog (such as the bundled `system`
+      catalog) and replaces it on every upgrade, so changes would be lost.
+  example: editing-disabled
+
+CatalogReleaseStatus:
+  type: string
+  enum:
+    - draft
+    - released
+  description: |
+    - `draft`: editable, with no version. Never exported, never published to a registry, and never
+      matched by a version range; rendered only by preview and by an environment it is deployed to.
+    - `released`: immutable, with a version. A draft gets its version when it is released, and
+      keeps its `releaseId` and its name.
+  example: draft
+
+CatalogReleaseDto:
+  type: object
+  description: |
+    One release of a catalog, in status `draft` (a draft release, or draft: editable, with no
+    version) or `released` (immutable, with a version). A catalog has any number of drafts, each
+    named, each on a fixed base, and each released on its own; a draft gets its version when it is
+    released, and keeps its `releaseId` and its name. Each draft is an independent copy: nothing is
+    merged into it unless an author merges a release in (`mergeIntoCatalogDraft`, alpha).
+  required:
+    - releaseId
+    - version
+    - status
+    - dependencies
+    - deployedTo
+    - behind
+  properties:
+    version:
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
+      description: The release's version, unique in its catalog. Null for a draft.
+      example: "2.0.0"
+    releaseId:
+      $ref: './identifiers.yaml#/CatalogReleaseId'
+      description: |
+        The release's id, which addresses it (`…/releases/{releaseId}`), as a draft and, once
+        released, alongside its `version`.
+    name:
+      type: [string, "null"]
+      maxLength: 100
+      description: |
+        The release's name, given when it was started as a draft and unique among the catalog's
+        drafts. A release keeps its name when it is released. Null only for a release that has none:
+        one installed by import or from its source, which a catalog archive carries no name for.
+      example: Redesign 2027
+    status:
+      $ref: '#/CatalogReleaseStatus'
+    base:
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
+      description: |
+        The release a draft started from, which its changes are measured against and its version
+        follows from; once released, the base it had as a draft. It is fixed: it does not move when
+        other releases are released. Null when the catalog had no release when the
+        draft was started.
       example: "1.4.0"
+    createdFrom:
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogReleaseId'
+        - type: 'null'
+      description: |
+        The `releaseId` of the draft this draft was copied from, unreleased changes included, when it was
+        started from another draft (it then has that draft's base); null when it was started from a
+        release, its base, or from nothing
+      example: null
+    createdAt:
+      type: [string, "null"]
+      format: date-time
+      description: When the draft was started; null for a release installed from elsewhere
+      example: "2026-10-01T09:00:00Z"
+    behind:
+      type: array
+      description: |
+        For a draft, the releases it is behind, lowest first: relative to the version releasing it
+        now would give it (`previewCatalogDraftRelease`), each release whose version is above its
+        base and below that version, and each release released after the draft was started whose
+        version is below that version (other than its base), leaving out each release the draft has
+        merged (`mergeIntoCatalogDraft`, alpha). The draft does not contain their changes unless an
+        author applied them by hand, which the server cannot tell, or merges them in. Releasing a draft that
+        is behind must acknowledge them (`acknowledgedBehind`); releasing it as another version
+        recomputes them for that version. Empty when there are none, and once it is released.
+      items:
+        $ref: '#/BehindReleaseDto'
+      example: []
+    releasedAt:
+      type: [string, "null"]
+      format: date-time
+      description: When the release was released; null for a draft
+      example: null
     notes:
-      type:
-        - string
-        - 'null'
+      type: [string, "null"]
+      maxLength: 4000
+      description: The release notes; null for a draft
+      example: null
+    fingerprint:
+      oneOf:
+        - $ref: './identifiers.yaml#/Fingerprint'
+        - type: 'null'
+      description: |
+        The canonical fingerprint of the released content, naming the algorithm that computed it
+        (`v6:` and lowercase SHA-256 hex for a release made under V6, which covers content only, not
+        the catalog's name or presentation), the same value as `release.fingerprint` in the
+        release's catalog archive. Null for a draft.
+      example: null
+    contentHash:
+      oneOf:
+        - $ref: './identifiers.yaml#/ContentHash'
+        - type: 'null'
+      description: |
+        The release's content hash (`ContentHash`), which identifies it whatever its number: the
+        same as `fingerprint` for a release made under V6, and computed from the release's content
+        for one recorded with an earlier algorithm. `listCatalogReleases?contentHash=` finds the
+        releases with it. Once set it never changes. Null:
+
+        - for a draft, whose content is still changing; it gets one when it is released;
+        - for a release recorded before the server computed content hashes, until the server has
+          computed it from the content it retained (a server may do so in the background, or when
+          the release is first used);
+        - for such a release whose retained content no longer reproduces its recorded
+          `fingerprint`, which the server cannot vouch for a content hash of.
+      example: null
+    dependencies:
+      type: array
+      description: |
+        Once released, the release of every other catalog it renders with, as its declared
+        dependencies pinned them when it was released: the catalogs it declares directly, and the
+        releases those pin in turn. Each catalog appears once. Empty for a draft, whose declared
+        dependencies are listed by `listCatalogDependencies`.
+      items:
+        $ref: '#/ReleaseDependencyDto'
+    deployedTo:
+      type: array
+      description: |
+        Keys of the environments that serve this release (`deployCatalogRelease`), a draft or a
+        released one
+      items:
+        type: string
+      example: []
+    defaultTheme:
+      $ref: '#/CatalogThemeReference'
+      description: |
+        The release's default theme. A render uses the variant's own theme when its
+        template model overrides it (`themeRef`), else the theme its template names (part of the
+        template's catalog content, `themeKey` in the archive; this API does not expose it), else
+        this one. It is part of the release's content, as
+        `catalog.defaultTheme` in its catalog archive, so once released it renders with exactly
+        this theme. Absent when the release has none: such a template renders with the rendering
+        defaults alone. No render reads a tenant-wide default theme.
+    presets:
+      type: array
+      description: |
+        The block style presets the release declares, as `catalog.presets` in its
+        catalog archive: what a block's `stylePreset` may name, together with the presets of the
+        catalogs it depends on. A theme's `blockStylePresets` supplies their styles. Empty when the
+        release declares none; an editor then offers the presets its themes style.
+      items:
+        $ref: '#/CatalogPresetDto'
+      example: []
+    quality:
+      $ref: './quality-profiles.yaml#/QualityBinding'
+      x-experimental: true
+      description: |
+        The quality profiles every template of the release is checked against, and the release's
+        overrides of their rules (alpha, `x-experimental`, contract ADR 0010), as `catalog.quality`
+        in its catalog archive. A template adds its own (`TemplateDto.quality`). Absent when the
+        release binds none. A server that does not support quality profiles yet leaves it out.
+
+BehindReleaseDto:
+  type: object
+  description: A released release a draft is behind, and what it changed
+  required:
+    - version
+    - changes
+  properties:
+    version:
+      $ref: './identifiers.yaml#/ReleaseVersion'
+      description: The release's version
+    changes:
+      type: array
+      description: |
+        The resources the release changed against its own base, which an author may need to apply
+        to the draft by hand
+      items:
+        $ref: '#/ReleasedChangeDto'
+
+ReleasedChangeDto:
+  type: object
+  description: |
+    A resource a release added, modified or removed against another release: its base, for a release
+    a draft is behind; `comparedTo`, for a release a catalog's source offers
+  required:
+    - type
+    - key
+    - change
+  properties:
+    type:
+      type: string
+      description: The resource type, as the portable catalog format names it
+      example: template
+    key:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: The resource's key within its type
+      example: invoice
+    change:
+      type: string
+      enum:
+        - added
+        - modified
+        - removed
+      example: modified
+
+CatalogReleaseListResponse:
+  type: object
+  required:
+    - items
+    - page
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/CatalogReleaseDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
+
+CreateCatalogReleaseRequest:
+  type: object
+  required:
+    - name
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 100
+      description: |
+        What people call the draft, e.g. "Redesign 2027" or "Fixes 1.4": unique among the catalog's
+        drafts, ignoring case.
+      example: Redesign 2027
+    from:
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogReleaseRef'
+        - type: 'null'
+      description: |
+        What the draft starts as a copy of, by its `releaseId` or, once released, its version: a
+        released release, which becomes its base; or another draft, unreleased changes included, on
+        that draft's base.
+        Omitted: the catalog's highest release, or nothing (an empty draft with no base) when the
+        catalog has no release.
+      example: "1.4.0"
+
+UpdateCatalogReleaseRequest:
+  type: object
+  description: |
+    A partial update of a draft's own settings: its name, its default theme, its declared
+    presets and its quality binding. A member that is omitted or null keeps its current value: generated servers and
+    clients cannot tell an omitted member from a null one, so null never means "remove".
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 100
+      description: The draft's new name, under the same rules as when it was started. Omitted keeps it.
+      example: Redesign 2028
+    defaultTheme:
+      oneOf:
+        - $ref: '#/CatalogThemeReference'
+        - type: 'null'
+      description: |
+        The draft's new default theme: a theme in the catalog itself or in a catalog the draft
+        declares as a dependency, named by the declaration's alias. Omitted or null keeps the
+        current one; `clearDefaultTheme` removes it. A theme that cannot be found, or an alias the
+        draft does not declare, is refused with 400.
+    clearDefaultTheme:
+      type: [boolean, 'null']
+      description: |
+        True removes the draft's default theme, so that a template that names no theme renders with
+        the rendering defaults alone. Omitted, null or false keeps it. True together with a
+        `defaultTheme` is refused with 400.
+      example: true
+    presets:
+      type: [array, 'null']
+      description: |
+        The draft's declared presets, replacing the current list as a whole. Omitted or null keeps
+        the current list; an empty array removes every preset. Keys are unique within the list,
+        which is refused with 400 otherwise.
+      items:
+        $ref: '#/CatalogPresetDto'
+    quality:
+      oneOf:
+        - $ref: './quality-profiles.yaml#/QualityBinding'
+        - type: 'null'
+      x-experimental: true
+      description: |
+        The draft's quality binding, replacing the current one as a whole (alpha, `x-experimental`,
+        contract ADR 0010). Omitted or null keeps it; an empty binding (no `profiles` and no
+        `overrides`) removes it. Changing it additionally needs `QUALITY_EDIT` (403 without it); a `quality` equal to the
+        current binding needs nothing more. Refused with 400 as `QualityBinding` describes,
+        and with 501 `operation-not-implemented` by a server that does not support quality profiles
+        yet.
+
+CatalogThemeReference:
+  type: object
+  description: |
+    A reference to a theme from a release, as the release's content names it (catalog wire v8,
+    `catalog.defaultTheme`): the theme's key, and the alias of the catalog holding it when that is
+    another catalog. The alias is one the release's dependency declarations give
+    (`listCatalogDependencies`), which name that catalog in full and the release it pins; a
+    reference never names a registry or namespace itself.
+  required:
+    - key
+  properties:
+    key:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: Key of the theme
+      example: corporate
+    catalogKey:
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogAlias'
+        - type: 'null'
+      description: |
+        The alias of the catalog holding the theme, as the release's dependency declarations give
+        it (`CatalogAlias`). Omitted or null, or the release's own catalog key: the release's own
+        catalog. An alias the release does not declare is refused with 400.
+      example: brand
+
+CatalogPresetDto:
+  type: object
+  description: |
+    A block style preset a release declares: what a block's `stylePreset` names,
+    and the key a theme's `blockStylePresets` styles it under.
+  required:
+    - key
+    - name
+  properties:
+    key:
+      $ref: './identifiers.yaml#/PresetKey'
+      description: The preset's key, unique within the release's presets
+      example: muted
+    name:
+      type: string
+      minLength: 1
+      maxLength: 100
+      description: Display name shown to authors
+      example: Muted
+    description:
+      type: [string, 'null']
+      maxLength: 500
+      description: Optional description shown to authors
+      example: Grey, smaller text for asides
+
+CatalogDraftReleasePreview:
+  type: object
+  description: |
+    The version a draft would be released as, from the kind of change it holds against its base. A
+    change is breaking when something a caller of the base relies on is removed or narrowed: a
+    resource, a variant, a value, or what a data contract or a stencil's interface accepts. A
+    draft may be released as a higher version, never a lower one.
+  required:
+    - reasons
+    - needed
+    - suggested
+  properties:
+    base:
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
+      description: The draft's base, which it is measured against; null when it has none
+      example: "1.4.0"
+    changeKind:
+      type: [string, "null"]
+      enum: [none, additive, breaking, null]
+      description: |
+        - `none`: fixes only, a patch.
+        - `additive`: something added (a resource, a variant, a value, a widened data contract), a minor.
+        - `breaking`: something removed or narrowed, a major.
+        Null when there is nothing to compare with: no base, or the base kept no content.
+      example: additive
+    reasons:
+      type: array
+      description: Each change that makes it more than a fix, naming the resource, breaking first. Empty for a fix.
+      items:
+        type: string
+      example: ["template 'reminder': added"]
+    needed:
+      $ref: './identifiers.yaml#/ReleaseVersion'
+      description: |
+        The version the changes need: the base raised by the kind of change (its patch, minor or
+        major), or `1.0.0` without a base. Equal to `suggested` unless another release already has it.
+    suggested:
+      $ref: './identifiers.yaml#/ReleaseVersion'
+      description: |
+        The version releasing without a `version` gives: `needed`, or, when another release already
+        has it, the next free version of the same kind (from `1.4.0`, a fix is `1.4.1`, or `1.4.2`
+        when `1.4.1` exists; a breaking change is `2.0.0`, or `3.0.0` when `2.0.0` exists). The
+        draft's `behind` is computed against it.
+
+ReleaseCatalogDraftRequest:
+  type: object
+  properties:
+    version:
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
+      description: |
+        The version to release it as: one no release of the catalog has, above its base, and no
+        lower than its changes need (`needed` in `previewCatalogDraftRelease`), or the request is
+        refused with 400. Omitted: `suggested`.
+      example: null
+    notes:
+      type: [string, "null"]
       maxLength: 4000
       example: Compatibility updates for the municipality catalog.
+    acknowledgedBehind:
+      type: array
+      description: |
+        The versions of the releases the author confirms this draft may be behind: their changes
+        were applied by hand, or left out on purpose. Releasing a draft that is behind is refused
+        with 409 unless this names every release it is behind for the version it is released as;
+        naming others changes nothing.
+      items:
+        $ref: './identifiers.yaml#/ReleaseVersion'
+      example: ["1.5.0"]
+    releaseDependencies:
+      type: boolean
+      default: false
+      description: |
+        Release the drafts of other catalogs that this draft's dependency declarations name
+        (`releaseId`), along with it. Each is released first, recursively (a draft it names in turn
+        before it), as the version its changes need, with no notes, in the same transaction: all or
+        nothing. Each is refused as releasing it alone would be (it is behind, it is not
+        releasable, …), and then nothing is released. The new release pins the releases they
+        became. False or omitted: a draft whose declarations name a draft is refused with 409
+        (`release-dependencies-unreleased`).
+      example: false
 
-ReleaseCatalogResponse:
+ReleaseCatalogDraftResponse:
   type: object
+  required:
+    - release
+    - unchangedContent
+    - draftsBehind
+    - releasedDependencies
+  properties:
+    release:
+      $ref: '#/CatalogReleaseDto'
+      description: The release, now released, with the same `releaseId` and name it had as a draft
+    unchangedContent:
+      type: boolean
+      description: |
+        True when the released content is that of a release the catalog has already: its
+        `contentHash` is another release's (a draft whose changes restore an earlier release's
+        content, for one), so the two numbers name one release's content.
+      example: false
+    draftsBehind:
+      type: array
+      description: |
+        The catalog's drafts this release puts behind, by name: its version is below the version
+        each of them would be released as, so its changes do not reach them unless an author
+        applies them by hand. Empty when none.
+      items:
+        type: string
+        maxLength: 100
+      example: ["Redesign 2027"]
+    releasedDependencies:
+      type: array
+      description: |
+        The drafts of other catalogs released along with this one (`releaseDependencies`), each as
+        the release it became, in the order they were released: every catalog's dependencies
+        before it. Empty when none.
+      items:
+        $ref: '#/ReleasedDependencyDto'
+
+ReleasedDependencyDto:
+  type: object
+  description: A draft of another catalog released along with a release, and the release it became
+  required:
+    - registry
+    - namespace
+    - catalogKey
+    - releaseId
+    - version
+  properties:
+    registry:
+      $ref: './identifiers.yaml#/Registry'
+      description: |
+        Registry of the catalog: the exchange or domain its namespace lives in. Always written in
+        full, the default registry by its name, never `~`.
+      example: exchange.epistola.app
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the catalog, within its registry
+      example: acme-corp
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the catalog, unique within its registry and namespace
+      example: branding
+    releaseId:
+      $ref: './identifiers.yaml#/CatalogReleaseId'
+      description: The draft that was released, which keeps its `releaseId` once released
+    version:
+      $ref: './identifiers.yaml#/ReleaseVersion'
+      description: The version it was released as, which the new release pins
+
+UnreleasedCatalogDependency:
+  type: object
+  description: |
+    A draft of another catalog that a dependency declaration names, which must be released before
+    a release can pin it
+  required:
+    - registry
+    - namespace
+    - catalogKey
+    - releaseId
+    - releaseName
+  properties:
+    registry:
+      $ref: './identifiers.yaml#/Registry'
+      description: |
+        Registry of the catalog depended on. Always written in full, the default registry by its
+        name, never `~`.
+      example: exchange.epistola.app
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the catalog depended on, within its registry
+      example: acme-corp
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the catalog depended on, unique within its registry and namespace
+      example: branding
+    releaseId:
+      $ref: './identifiers.yaml#/CatalogReleaseId'
+      description: The draft the declaration names
+    releaseName:
+      type: string
+      maxLength: 100
+      description: The draft's name
+      example: House style 2027
+
+CatalogMergeOutcome:
+  type: string
+  enum:
+    - ours
+    - theirs
+    - conflict
+  description: |
+    What merging a release into a draft does with one entry, a resource or a catalog setting
+    (alpha, ADR 0005):
+
+    - `ours`: only the draft changed it since the merge base; the draft's stays.
+    - `theirs`: only the release changed it (added, modified or removed); the release's is taken.
+    - `conflict`: both changed it, differently; a resolution chooses a side.
+
+    Entries neither side changed, or both changed alike, are counted (`unchanged`), not listed.
+  example: conflict
+
+CatalogMergeSide:
+  type: string
+  enum:
+    - ours
+    - theirs
+  description: |
+    The side a conflict is resolved to: `ours` keeps the draft's resource, `theirs` takes the
+    release's (writing it as the release has it, or removing it when the release removed it).
+  example: theirs
+
+CatalogMergeEntryContent:
+  type: object
+  additionalProperties: true
+  description: |
+    One side of a merge entry, or the content merged from its sides, in the portable catalog format
+    (catalog wire v8; the `epistola-catalog` schemas define it, and the API does not repeat them),
+    as a JSON object (alpha, ADR 0005):
+
+    - a resource (`template/invoice`): the resource as a resource detail document carries it, the
+      object under its `resource` member (with its `type` and `key`; resource-detail-v8);
+    - `catalog/defaultTheme`: `{"defaultTheme": …}`, the manifest's `catalog.defaultTheme`, a theme
+      reference or null when the side has no default theme;
+    - `catalog/presets`: `{"presets": […]}`, the manifest's `catalog.presets`;
+    - `catalogDependency/<alias>`: the declaration as an entry of the manifest's
+      `catalogDependencies` has it (`alias`, `registry`, `namespace`, `catalogKey`,
+      `releaseVersion`, `releaseFingerprint`, the pinned release's content hash). A draft's
+      declaration that names a draft of that catalog, which no archive carries, has `releaseId`
+      naming that draft and `releaseVersion` and `releaseFingerprint` null.
+
+    A member whose value is null and an absent member mean the same: merged content may leave
+    nulls out, and a client may drop them when it sends it. A client keeps members it does not know.
+  example:
+    type: stencil
+    key: footer
+    name: Footer
+
+CatalogDraftMergeSides:
+  type: object
+  description: |
+    The three sides of one entry of a merge (alpha, ADR 0005), each its content in the portable
+    catalog format (`CatalogMergeEntryContent`), or null (or absent) when that side does not have
+    the entry, for a person, an assistant or a tool to combine them into merged content.
+  # base, draft and release are not required: a required nullable free-form object makes the
+  # Jakarta generator emit an empty initializer that does not compile.
+  required:
+    - entry
+    - mergeBase
+    - token
+  properties:
+    entry:
+      type: string
+      minLength: 3
+      maxLength: 128
+      description: The entry, as `resourceType/resourceKey`
+      example: template/invoice
+    mergeBase:
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
+      description: |
+        The version of the merge base the `base` side is read from, as the preview reports it
+        (`CatalogDraftMergePreview.base`); null when no common release is known, and `base` is
+        then null too
+      example: "1.4.0"
+    base:
+      type: [object, "null"]
+      additionalProperties: true
+      description: |
+        The entry in the merge base; null or absent when the merge base does not have it, or there is none, in the form `CatalogMergeEntryContent` describes
+    draft:
+      type: [object, "null"]
+      additionalProperties: true
+      description: |
+        The entry in the draft (ours); null or absent when the draft does not have it, in the form `CatalogMergeEntryContent` describes
+    release:
+      type: [object, "null"]
+      additionalProperties: true
+      description: |
+        The entry in the release merged in (theirs); null or absent when the release does not have it, in the form `CatalogMergeEntryContent` describes
+    token:
+      type: string
+      minLength: 1
+      maxLength: 128
+      description: |
+        The `token` of the preview these sides belong to (`previewCatalogDraftMerge`), the same for
+        every entry of one preview. Send it as the merge's `expectedToken`, so merged content made
+        from these sides is applied only to the draft and the release they were read from.
+      example: m1.k7m2x9qa.42.1-5-0.9f3a1c2b
+
+CatalogDraftMergeResource:
+  type: object
+  description: |
+    One entry a merge would change or has to ask about (alpha): a resource, one of the release's
+    catalog settings, or one catalog the release declares it uses, which are merged like resources
+    (ADR 0005).
+  required:
+    - resourceType
+    - resourceKey
+    - name
+    - outcome
+  properties:
+    resourceType:
+      type: string
+      description: |
+        What the entry is: a resource type as the portable catalog format names it (`template`,
+        `theme`, `stencil`, `attribute`, `code-list`, `font`, `image`, …), `catalog` for a setting
+        of the release (its default theme or presets), or `catalogDependency` for one catalog the
+        release declares it uses. A string, not an enum: a client keeps a type it does not know.
+      example: template
+    resourceKey:
+      type: string
+      minLength: 1
+      maxLength: 50
+      description: |
+        The entry's key within its type. For a resource, its key (`ResourceKey`). For `catalog`, the
+        setting: `defaultTheme` (the theme a template that names none renders with) or `presets`
+        (the block style presets); these are not resource keys and do not follow that rule. For
+        `catalogDependency`, the alias of the declaration (`CatalogAlias`), one entry per
+        declaration, as the release's content names the catalog: the catalog's name (registry,
+        namespace and key) and the release it pins are the declaration, the entry's value, not its
+        key, so two sides that declare the same alias for another name or another release differ in
+        value. A resolution names the entry as `resourceType/resourceKey` (`template/invoice`,
+        `catalog/defaultTheme`, `catalogDependency/shared`).
+      example: invoice
+    name:
+      type: [string, "null"]
+      description: |
+        What the draft calls the resource, else the release, else the merge base; for a setting,
+        what people call it (`Default theme`)
+      example: Invoice
+    outcome:
+      $ref: '#/CatalogMergeOutcome'
+    # draftChange and releaseChange are inline and not required: the .NET generator types a
+    # required enum, or a nullable reference to one, as non-nullable, so null could not be read.
+    draftChange:
+      type: [string, "null"]
+      enum: [added, modified, removed, null]
+      description: How the draft changed the entry since the merge base; null or absent when it did not
+      example: modified
+    releaseChange:
+      type: [string, "null"]
+      enum: [added, modified, removed, null]
+      description: |
+        How the release changed the entry since the merge base; null or absent when it did not
+      example: modified
+    needs:
+      type: array
+      description: |
+        The other entries of this preview, as `resourceType/resourceKey`, that this entry's value
+        (the draft's or the release's) refers to, so that a choice for it is made with them in view:
+        a template needs the theme or stencil it uses when the merge also changes that one, and an
+        entry referring into another catalog needs that catalog's dependency entry
+        (`catalog/defaultTheme` needs `catalogDependency/shared` when the default theme is a theme
+        of the catalog aliased `shared`). Only entries this preview lists, never the entry itself. Empty or
+        absent when there are none. Choosing a side of an entry without the side of what it needs
+        can leave a reference that does not resolve, which the merge refuses (409
+        `merge-refused`), saying what to choose.
+      items:
+        type: string
+        minLength: 1
+        maxLength: 128
+      example: ["stencil/footer", "theme/corporate"]
+
+CatalogDraftMergePreview:
+  type: object
+  description: |
+    What merging a release into a draft would do, entry by entry, **without merging it** (alpha,
+    ADR 0005). The entries are the resources, the release's catalog settings (default theme and
+    presets; `resourceType` `catalog`) and each catalog it declares it uses (`resourceType`
+    `catalogDependency`, keyed by that catalog's key). Each is compared in three states
+    by its fingerprint: the merge base (the closest release the draft and the release both descend
+    from), the draft (ours) and the release (theirs). Only entries a side changed differently from
+    the other are listed; the rest are counted in `unchanged`.
+  required:
+    - draft
+    - base
+    - release
+    - alreadyMerged
+    - resources
+    - unchanged
+    - token
+  properties:
+    draft:
+      $ref: './identifiers.yaml#/CatalogReleaseId'
+      description: The draft merged into, by its `releaseId`
+    base:
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
+      description: |
+        The merge base, which both sides are compared against: the closest release the draft and
+        the merged release both descend from, found by the base each release records (ADR 0005,
+        "The merge base travels with the release"). It need not be the draft's own base: a fix
+        `1.0.1` made from `1.0.0`, merged into a draft whose base is `1.1.0`, is compared against
+        `1.0.0`. Null when there is none: no common release is
+        known, or it is not installed (`missingBase` then names it). Without one, every entry the
+        two sides have differently is a choice for the author. A merge never moves the draft's
+        base (ADR 0002).
+      example: "1.4.0"
+    release:
+      $ref: './identifiers.yaml#/ReleaseVersion'
+      description: The version of the release merged in
+      example: "1.5.0"
+    alreadyMerged:
+      type: boolean
+      description: |
+        True when the draft already contains the release: it is the draft's base, or the draft
+        merged it before. Merging it is then refused with 422 `merge-not-applicable`.
+      example: false
+    resources:
+      type: array
+      description: |
+        The entries (resources, `catalog` settings and `catalogDependency` entries) whose outcome
+        is `ours`, `theirs` or `conflict`, ordered by type, then key, each with the other entries
+        it goes with (`needs`). Every `conflict` needs a resolution in `mergeIntoCatalogDraft`.
+      items:
+        $ref: '#/CatalogDraftMergeResource'
+    unchanged:
+      type: integer
+      minimum: 0
+      description: The number of entries neither side changed, or both changed alike
+      example: 12
+    token:
+      type: string
+      minLength: 1
+      maxLength: 128
+      description: |
+        Identifies what this preview was computed from: the draft, the release and the merge base,
+        as they were. Opaque: a client compares it for equality only and never parses it; the server
+        chooses its form. Sending it as `expectedToken` in `mergeIntoCatalogDraft` makes the merge
+        apply exactly what this preview showed: when the draft or the release changed since, the
+        merge is refused with 409 `merge-preview-outdated`.
+      example: m1.k7m2x9qa.42.1-5-0.9f3a1c2b
+    missingBase:
+      oneOf:
+        - $ref: '#/CatalogMergeBaseRef'
+        - type: 'null'
+      description: |
+        The merge base this installation does not have: the closest release both the draft and the
+        release descend from (ADR 0005, "The merge base travels with the release"), by its version
+        and its catalog fingerprint. The merge compares against that release's own resources, so
+        without it nothing can be classified: `resources` is empty and `unchanged` is 0, and
+        `mergeIntoCatalogDraft` is refused with 409 `merge-base-missing`. Install that release first
+        (`importCatalog`, `installCatalogRelease`), then preview again. Absent or null when the merge
+        base is installed, or when no common release is known (then every resource the two sides
+        have differently is a choice for the author).
+
+CatalogMergeBaseRef:
+  type: object
+  description: |
+    A release of this catalog named by identity only, as a release's `base` names it in its catalog
+    archive: its version and its catalog fingerprint, which tells whether the release an
+    installation has under that number is the same release (alpha, ADR 0005).
   required:
     - version
     - fingerprint
-    - releasedAt
-    - unchangedContent
   properties:
     version:
-      type: string
-      example: "1.4.0"
+      $ref: './identifiers.yaml#/ReleaseVersion'
+      description: The release's version
+      example: "1.0.0"
     fingerprint:
-      type: string
-      pattern: '^[a-f0-9]{64}$'
-      example: 9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
-    previousVersion:
-      type:
-        - string
-        - 'null'
-      example: "1.3.0"
-    releasedAt:
-      type: string
-      format: date-time
-      example: "2026-07-23T10:00:00Z"
-    unchangedContent:
-      type: boolean
-      description: True when the release content matches a previous release fingerprint.
-      example: false
-
-UpgradeCatalogRequest:
-  type: object
-  properties:
-    includeNewSlugs:
-      type: array
-      deprecated: true
+      $ref: './identifiers.yaml#/Fingerprint'
+      description: The release's catalog fingerprint, in the form that names its algorithm
+    contentHash:
+      oneOf:
+        - $ref: './identifiers.yaml#/ContentHash'
+        - type: 'null'
       description: |
-        **Deprecated and ignored.** An upgrade reconciles the whole catalog manifest, so resources
-        the publisher added since the installed release are installed whether or not they are
-        listed here — a superset of anything this field could request.
-
-        It existed because a catalog could be installed partially: an upgrade then updated only the
-        resources already present, and this was the opt-in for the rest. Catalogs are now one
-        install unit, so there is no subset to preserve and nothing left to opt into.
-
-        Note it never worked as documented over this API. The example format below is `type/slug`,
-        but the implementation matched bare slugs, so a correctly formatted value selected nothing.
-        The field is retained because this API is GA; it is a candidate for removal in the next
-        major version.
-      items:
-        type: string
-      default: []
-      example:
-        - template/cover-letter
-
-UpgradeCatalogResponse:
-  type: object
-  required:
-    - newVersion
-    - installResults
-    - removedResources
-    - aborted
-  properties:
-    previousVersion:
-      type:
-        - string
-        - 'null'
-      example: "1.3.0"
-    newVersion:
-      type: string
-      example: "1.4.0"
-    installResults:
-      type: array
-      items:
-        $ref: '#/CatalogInstallResultDto'
-    removedResources:
-      type: array
-      items:
-        $ref: '#/RemovedCatalogResourceDto'
-    aborted:
-      type: boolean
-      description: True when one or more resource installs failed and the catalog was left unchanged.
-      example: false
-
-CatalogInstallResultDto:
-  type: object
-  required:
-    - type
-    - slug
-    - status
-  properties:
-    type:
-      type: string
-      example: template
-    slug:
-      type: string
-      example: cover-letter
-    status:
-      type: string
-      enum:
-        - INSTALLED
-        - UPDATED
-        - SKIPPED
-        - FAILED
-      example: UPDATED
-    errorMessage:
-      type:
-        - string
-        - 'null'
+        The release's content hash, by which a receiver finds it whatever its number (lineage is
+        by hash, contract ADR 0003): `fingerprint` itself when that is a V6 one. Null or absent
+        when it is not known: a release recorded with an earlier algorithm whose content hash was
+        not computed.
       example: null
 
-RemovedCatalogResourceDto:
+MergeIntoCatalogDraftRequest:
   type: object
+  description: A release to merge into the draft, and how each conflict is resolved (alpha)
   required:
-    - type
-    - slug
+    - release
   properties:
-    type:
+    release:
+      $ref: './identifiers.yaml#/ReleaseVersion'
+      description: The version of the release of this catalog to merge in
+      example: "1.5.0"
+    resolutions:
+      type: object
+      description: |
+        Each conflict of the merge (`previewCatalogDraftMerge`), named `resourceType/resourceKey`
+        (`template/invoice`, a setting, `catalog/defaultTheme` or `catalog/presets`, or a catalog
+        used, `catalogDependency/shared`), resolved to `ours` or `theirs`; or resolved to merged
+        content instead, in `mergedContent`. Every conflict needs one resolution, here or in
+        `mergedContent` and not in both, or the merge is refused with 409
+        `merge-conflicts-unresolved` (a conflict in both is 400 `validation-error`); naming an
+        entry that is not a conflict is refused with 422 `merge-not-applicable`. Omitted: no
+        resolutions.
+      additionalProperties:
+        $ref: '#/CatalogMergeSide'
+      example:
+        template/invoice: theirs
+    mergedContent:
+      type: object
+      description: |
+        Conflicts resolved to merged content rather than to a side (alpha): each named
+        `resourceType/resourceKey`, as in `resolutions`, to the entry as the draft is to hold it,
+        combined from its sides (`getCatalogDraftMergeSides`) by a person, an assistant or a tool,
+        in the form that operation returns a side (`CatalogMergeEntryContent`). Its own member, not
+        a third value of `resolutions`, so that every client keeps reading and sending a resolution
+        as a plain string.
+
+        Merged content is written into the draft as given; a resource is not marked ready, so it is
+        reviewed before the draft is released. It is validated as an import validates content,
+        against the portable catalog format and the server's rules: invalid content, or content
+        for another entry (another `type` or `key`), is refused with 400 `validation-error`, each
+        failure's `field` naming the entry (`mergedContent.template/invoice`, then the path within
+        it). The merge's result is checked like any merge's: a reference it leaves unresolved is
+        refused with 409 `merge-refused`. Naming an entry that is not a conflict is refused with 422
+        `merge-not-applicable`. Omitted: none.
+      additionalProperties:
+        $ref: '#/CatalogMergeEntryContent'
+      example:
+        stencil/footer:
+          type: stencil
+          key: footer
+          name: Footer
+    expectedToken:
       type: string
-      example: theme
-    slug:
-      type: string
-      example: legacy
+      minLength: 1
+      maxLength: 128
+      description: |
+        The `token` of the preview the resolutions were chosen from (`previewCatalogDraftMerge`).
+        When given and the draft or the release changed since that preview, the merge is refused
+        with 409 `merge-preview-outdated` and nothing changes: preview again, and choose again.
+        Omitted: the merge applies to the draft and the release as they are now.
+      example: m1.k7m2x9qa.42.1-5-0.9f3a1c2b
+
+MergeIntoCatalogDraftResponse:
+  type: object
+  description: |
+    What the merge did, each entry as `resourceType/resourceKey` (alpha): resources, the release's
+    catalog settings as `catalog/defaultTheme` and `catalog/presets`, and each catalog used as
+    `catalogDependency/<alias>`
+  required:
+    - release
+    - taken
+    - removed
+    - kept
+  properties:
+    release:
+      $ref: './identifiers.yaml#/ReleaseVersion'
+      description: The version of the release merged in, which the draft now contains
+      example: "1.5.0"
+    taken:
+      type: array
+      description: |
+        The entries written into the draft as the release has them (outcome `theirs`, or a
+        conflict resolved to `theirs`): resources, marked ready, settings, which then are the
+        release's, and dependencies, declared as the release declares them (added or re-pinned)
+      items:
+        type: string
+      example: ["catalog/presets", "catalogDependency/shared", "template/invoice", "theme/corporate"]
+    removed:
+      type: array
+      description: |
+        The entries removed from the draft because the release removed them: resources, and
+        dependencies the release no longer declares. A dependency is never removed because nothing
+        refers to it after the merge: it stays declared, as editing keeps one.
+      items:
+        type: string
+      example: []
+    kept:
+      type: array
+      description: The conflicts resolved to `ours`, resources or settings, kept as the draft has them
+      items:
+        type: string
+      example: ["stencil/header"]
+    merged:
+      type: array
+      description: |
+        The conflicts resolved to merged content (`mergedContent`), written into the draft as
+        given; a resource among them is not marked ready, so it is reviewed before the draft is
+        released. Absent or empty when there are none.
+      items:
+        type: string
+      example: ["stencil/footer"]

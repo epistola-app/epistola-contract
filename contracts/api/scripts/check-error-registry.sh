@@ -48,4 +48,34 @@ if [ "$spec_pairs" != "$docs_pairs" ]; then
   exit 1
 fi
 
-echo "error registry OK: $(echo "$spec_pairs" | wc -l | tr -d ' ') problem types in sync"
+# The validation codes: x-validation-codes (code kind) against the "Validation codes" table.
+spec_codes=$(awk '
+  /^x-validation-codes:/ { in_block = 1; next }
+  in_block && /^[a-zA-Z]/ { in_block = 0 }
+  in_block && /- code:/ { code = $NF }
+  in_block && / kind:/ { print code, $NF }
+' "$SPEC" | sort)
+
+docs_codes=$(awk -F'|' '
+  /^### Validation codes/ { in_table = 1; next }
+  in_table && /^#/ { in_table = 0 }
+  in_table && $2 ~ /^ `[a-z-]+` $/ {
+    gsub(/[` ]/, "", $2); gsub(/ /, "", $3)
+    print $2, $3
+  }
+' "$DOCS" | sort)
+
+if [ -z "$spec_codes" ]; then
+  echo "error: no x-validation-codes entries found in $SPEC" >&2
+  exit 1
+fi
+
+if [ "$spec_codes" != "$docs_codes" ]; then
+  echo "error: validation-code registries disagree (code kind):" >&2
+  echo "--- openapi.yaml x-validation-codes" >&2
+  echo "+++ docs/error-types.md, Validation codes" >&2
+  diff <(echo "$spec_codes") <(echo "$docs_codes") >&2 || true
+  exit 1
+fi
+
+echo "error registry OK: $(echo "$spec_pairs" | wc -l | tr -d ' ') problem types and $(echo "$spec_codes" | wc -l | tr -d ' ') validation codes in sync"

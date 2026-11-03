@@ -22,11 +22,37 @@ import pytest
 from epistola_client import EpistolaClientBuilder, ResultCollector
 
 RESULTS = [
-    {"sequence": 501, "requestId": "11111111-1111-4111-8111-000000000501", "status": "COMPLETED"},
-    {"sequence": 502, "requestId": "11111111-1111-4111-8111-000000000502", "status": "FAILED"},
-    {"sequence": 503, "requestId": "11111111-1111-4111-8111-000000000503", "status": "COMPLETED"},
+    {
+        "sequence": 501,
+        "requestId": "11111111-1111-4111-8111-000000000501",
+        "status": "completed",
+        "registry": "exchange.example.org",
+        "namespace": "team-a",
+        "catalogKey": "invoices",
+        "version": "1.4.2",
+        "templateKey": "invoice",
+        "variantKey": "nl-nl",
+    },
+    {
+        "sequence": 502,
+        "requestId": "11111111-1111-4111-8111-000000000502",
+        "status": "failed",
+        "registry": "exchange.example.org",
+        "namespace": "team-a",
+        "catalogKey": "invoices",
+        "version": None,
+    },
+    {
+        "sequence": 503,
+        "requestId": "11111111-1111-4111-8111-000000000503",
+        "status": "completed",
+        "registry": "exchange.example.org",
+        "namespace": "team-a",
+        "catalogKey": "invoices",
+        "version": "1.4.2",
+    },
 ]
-META = {"_meta": True, "hasMore": True, "count": 3, "partitions": {"total": 8, "mine": [0, 3], "hash": "murmur3"}}
+META = {"_meta": True, "hasMore": True, "resultCount": 3, "partitions": {"total": 8, "mine": [0, 3], "hash": "murmur3"}}
 
 
 def _ndjson() -> bytes:
@@ -42,7 +68,7 @@ def server(request):
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self):
             self.send_response(200)
-            self.send_header("Content-Type", "application/vnd.epistola.v1+ndjson")
+            self.send_header("Content-Type", "application/vnd.epistola.v2+ndjson")
             if compress:
                 self.send_header("Content-Encoding", "gzip")
             self.send_header("Content-Length", str(len(body)))
@@ -62,7 +88,7 @@ def _collector(base_url, handled):
     return (
         ResultCollector.builder()
         .api_client(EpistolaClientBuilder().base_url(f"{base_url}/api").build())
-        .tenant_id("acme-corp")
+        .tenant_key("acme-corp")
         .handler(handled.append)
         .register_shutdown_hook(False)
         .build()
@@ -98,3 +124,96 @@ def test_the_batch_is_acknowledged_up_to_the_last_result_handled(server):
     collector.collect_once()
 
     assert collector._last_acknowledged_sequence == 503
+
+
+def test_each_result_names_the_catalog_release_it_was_generated_from(server):
+    handled = []
+
+    _collector(server, handled).collect_once()
+
+    first = handled[0]
+    assert (first.registry, first.namespace, first.catalog_key, first.version) == (
+        "exchange.example.org",
+        "team-a",
+        "invoices",
+        "1.4.2",
+    )
+    # A document rendered from a draft names its catalog but no release; that is null, not an error.
+    second = handled[1]
+    assert (second.registry, second.namespace, second.catalog_key, second.version) == (
+        "exchange.example.org",
+        "team-a",
+        "invoices",
+        None,
+    )
+
+
+def test_each_status_is_the_wire_value_as_sent(server):
+    handled = []
+
+    _collector(server, handled).collect_once()
+
+    assert [r.status for r in handled] == ["completed", "failed", "completed"]
+
+
+def test_each_result_names_its_template_and_variant_by_key(server):
+    handled = []
+
+    _collector(server, handled).collect_once()
+
+    assert (handled[0].template_key, handled[0].variant_key) == ("invoice", "nl-nl")
+    assert (handled[1].template_key, handled[1].variant_key) == (None, None)
+
+
+def _error_server(status, content_type, body: bytes):
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    httpd = HTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    return httpd
+
+
+def test_a_problem_response_is_raised_as_a_problem_detail_exception_and_reaches_no_handler():
+    from epistola_client.error.problem_detail_exception import ProblemDetailException
+
+    problem = {
+        "type": "https://epistola.app/errors/permission-denied",
+        "title": "Permission Denied",
+        "status": 403,
+        "detail": "Insufficient permissions",
+    }
+    httpd = _error_server(403, "application/problem+json", json.dumps(problem).encode("utf-8"))
+    handled = []
+    try:
+        with pytest.raises(ProblemDetailException) as raised:
+            _collector(f"http://127.0.0.1:{httpd.server_address[1]}", handled).collect_once()
+    finally:
+        httpd.shutdown()
+
+    assert raised.value.status == 403
+    assert raised.value.problem.detail == "Insufficient permissions"
+    assert handled == []
+
+
+def test_an_error_response_that_is_not_a_problem_is_raised_as_an_api_exception_with_its_status():
+    from epistola_client_generated.exceptions import ApiException
+
+    httpd = _error_server(503, "text/html", b"<html>maintenance</html>")
+    handled = []
+    try:
+        with pytest.raises(ApiException) as raised:
+            _collector(f"http://127.0.0.1:{httpd.server_address[1]}", handled).collect_once()
+    finally:
+        httpd.shutdown()
+
+    assert raised.value.status == 503
+    assert handled == []

@@ -9,7 +9,111 @@ records contract changes; this file records changes to the hand-written library 
 
 ## [Unreleased]
 
+### Fixed
+
+- `GenerationResult` carries `release_id` and `release_name`, after `version`. The collector
+  parsed result lines by hand and dropped both, so a consumer could not tell which draft rendered
+  a document.
+- `ResultCollector.collect_once()` raises a `ProblemDetailException` for an
+  `application/problem+json` error response, and the generated `ApiException` with the status and
+  body for any other non-2xx, as the client does for every other call (#30). It raised a bare
+  `RuntimeError` that dropped the problem detail, because the collector reads the response itself
+  and the client's problem handler never sees it.
+
+### Added
+
+- `KnownValidationCodes`, generated from the contract's `x-validation-codes` registry and exported
+  from `epistola_client`: one constant per code that says why a field of a `validation-error`
+  failed, and `ALL`. Compare a field error's `code` (`None` when the server sent none) against
+  them, keeping a fallback branch.
+- `ProblemDetailException.help`: the problem type's page with this request's context in its query
+  (`?operation=getTemplate`), the contract's new optional base member `help`, or `None` when the
+  server sent none. Switch on the type, not on this; open it for hints.
+- `ProblemDetailException.required_permission`, `refused_tenant_key`, `required_platform_role`,
+  `refusal_reason` and `is_forbidden_problem`: what a `forbidden` problem says was refused (a
+  permission in a tenant, access to a tenant, a platform role, or a policy's reason), read from that
+  problem only.
+- `ProblemDetailException.behind` and `is_catalog_version_behind_problem` (a
+  `catalog-version-behind` problem's versions to acknowledge), `environments`, `pinned_by` (each a
+  `CatalogReleaseRef`) and `is_release_in_use_problem` (what a `release-in-use` problem says uses
+  the release), and `tied_variants` and `is_ambiguous_variant_problem` (an `ambiguous-variant`
+  problem's variants).
+- `ProblemDetailException.missing_base_version`, `missing_base_fingerprint` and
+  `is_merge_base_missing_problem` surface the `version` and `fingerprint` members of a
+  `merge-base-missing` problem (409, from `merge_into_catalog_draft`, alpha): the release to install
+  first, read from that problem only. The new constructor parameters are optional.
+- `ProblemDetailException.unresolved_conflicts` and `is_merge_conflicts_unresolved_problem`
+  surface the `unresolvedConflicts` member of a `merge-conflicts-unresolved` problem (409, from
+  `merge_into_catalog_draft`, alpha): each conflict without a resolution, as
+  `resourceType/resourceKey`, skipping entries that are not strings. The exception's new
+  `unresolved_conflicts=` constructor parameter is optional.
+- `ProblemDetailException.read_only_reason` and `is_catalog_read_only_problem` surface the
+  `readOnlyReason` member of a `catalog-read-only` problem (409, from any write to a catalog that
+  cannot be changed): `editing-disabled` or `supplied-by-epistola`, kept as the wire string; `None`
+  when absent or not a string. The exception's new `read_only_reason=` constructor parameter is
+  optional.
+- `ProblemDetailException.missing_dependencies` and `is_release_dependencies_missing_problem`
+  surface a `release-dependencies-missing` problem (409 from `deploy_catalog_release`): each dependency
+  release that cannot be had, as a `MissingDependency(registry, namespace,
+  catalog_key, version, reason)`. `reason` is the wire string, so a reason a later
+  contract adds is kept rather than failing the parse. The member is `[]` when absent or
+  malformed, and the exception's new `missing_dependencies=` constructor parameter is optional.
+- `ProblemDetailException.unreleased_dependencies` and `is_release_dependencies_unreleased_problem`
+  surface a `release-dependencies-unreleased` problem (409 from `release_catalog_draft`): each
+  draft of another catalog the draft's dependency declarations name, as an
+  `UnreleasedDependency(registry, namespace, catalog_key, release_id, release_name)`, exported from
+  `epistola_client`. The member is `[]` when absent or malformed, and the exception's new
+  `unreleased_dependencies=` constructor parameter is optional.
+- `model_validation` also covers a model whose only constraint sits in a referenced plain string
+  schema (`ReleaseVersion`), which pydantic already enforces on the generated field.
+
 ### Changed
+
+- **BREAKING:** `GenerationResult.registry`, `namespace` and `catalog_key` are `str`, no longer
+  `Optional[str]`: every collected result names its catalog. `version` stays `None` for a
+  document rendered from a draft. `GenerationResult.status` carries the wire value as sent, now
+  `completed` or `failed`.
+- `MissingDependency.reason` carries the wire value as sent, now `unavailable`.
+- The README no longer mentions the `X-API-Key` header, which the contract no longer defines;
+  `.api_key(...)` sends `Authorization: ApiKey <key>`, as before.
+- **BREAKING:** the HTTP client and the result collector send `application/vnd.epistola.v2+json` and
+  `application/vnd.epistola.v2+ndjson`, the contract 2.x media types. A 2.x server refuses the 1.x
+  ones.
+- **BREAKING:** a resource's address is its `key`, following the contract's rename of `id`/`slug`
+  to `key` (#84). The hand-written library follows:
+  - `TemplateDataValidator.validate`, `ServerTemplateDataValidator.validate` and
+    `TemplateSchemaValidator.validate` take `(tenant_key, registry, namespace, catalog_key,
+    template_key, data)`.
+  - `ServerTemplateDataValidator`'s `variant_id=` and `environment_id=` are now `variant_key=` and
+    `environment_key=`.
+  - `ValidatingGenerationApi.generate_document` and `generate_document_batch` take `tenant_key`.
+  - `ResultCollectorBuilder.tenant_id()` is now `tenant_key()`, and `GenerationResult.template_id`
+    and `variant_id` are now `template_key` and `variant_key`, read from the stream's
+    `templateKey` and `variantKey`.
+- **BREAKING:** a catalog is identified by registry, namespace and key.
+  `TemplateDataValidator.validate`, `ServerTemplateDataValidator.validate` and
+  `TemplateSchemaValidator.validate` take `(tenant_id, registry, namespace, catalog_key,
+  template_id, data)`; `registry` is `~` for the server's default registry or a registry named in
+  full (`acme.com`). `ValidatingGenerationApi`'s pre-flight passes a request's `registry`, or `~`
+  when the request leaves it unset, and its namespace as is: the `host/name` → `host~name`
+  conversion is gone, because a namespace is now a plain slug.
+- The result collector's `GenerationResult` gained `registry` next to `namespace`, `catalog_key`
+  and `version` (`None` for results from before contract 2.0).
+
+- **BREAKING:** a catalog is addressed by namespace and key. `TemplateDataValidator.validate`,
+  `ServerTemplateDataValidator.validate` and `TemplateSchemaValidator.validate` take
+  `(tenant_id, namespace, catalog_key, template_id, data)` in place of
+  `(tenant_id, catalog_id, template_id, data)`, and `ValidatingGenerationApi` passes a request's
+  `namespace` and `catalog_key` to the validator. `ServerTemplateDataValidator`'s
+  `release_version=` is now `version_range=`, a version range (`1.4.0`, `^1.4.0`) sent as the
+  request's `versionRange`, that may be combined with `environment_key=`.
+- The result collector's `GenerationResult` gained `namespace` and `catalog_key` next to
+  `version`, naming the catalog release a document was generated from (`None` for results
+  from before contract 2.0).
+- **BREAKING:** the server-side template data validator no longer takes a `versionId`, matching
+  contract 2.0's generation by release; without a version range or an environment, the catalog's
+  latest release is checked. The result collector reports `version` (a string, the release's
+  version) in place of `version_id`.
 
 - **Template data is validated by the server, not by a bundled library.** `TemplateSchemaValidator`
   and `ValidatingGenerationApi` now call `validateTemplateData` through a pluggable

@@ -7,16 +7,25 @@ package app.epistola.client.jakarta.validation;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import app.epistola.client.jakarta.model.ActivationDto;
+import app.epistola.client.jakarta.model.CatalogDependencyRequirement;
+import app.epistola.client.jakarta.model.CatalogDto;
+import app.epistola.client.jakarta.model.FontVariantDto;
 import app.epistola.client.jakarta.model.BatchGenerationItem;
+import app.epistola.client.jakarta.model.CreateCatalogReleaseRequest;
 import app.epistola.client.jakarta.model.CreateEnvironmentRequest;
-import app.epistola.client.jakarta.model.CreateTemplateRequest;
 import app.epistola.client.jakarta.model.CreateTenantRequest;
 import app.epistola.client.jakarta.model.GenerateBatchRequest;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
+import app.epistola.client.jakarta.model.PreviewDocumentRequest;
+import app.epistola.client.jakarta.model.ReleaseCatalogDraftRequest;
+import app.epistola.client.jakarta.model.UpdateCatalogReleaseRequest;
+import app.epistola.client.jakarta.model.UpdateTemplateRequest;
 import app.epistola.client.jakarta.model.UpdateTenantRequest;
-import app.epistola.client.jakarta.model.VersionDto;
+import app.epistola.client.jakarta.model.ResourceStatus;
+import app.epistola.client.jakarta.model.VariantContentDto;
+import app.epistola.client.jakarta.model.VariantSelectionAttribute;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -29,12 +38,28 @@ import org.junit.jupiter.api.Test;
  */
 class ModelValidationTest {
 
+    // --- An attribute criterion: a resource key, its catalog in members of its own ---
+
+    @Test
+    void an_attribute_criterion_names_its_attribute_by_resource_key_never_dotted() {
+        VariantSelectionAttribute qualified = new VariantSelectionAttribute()
+                .key("locale").value("nl-NL").catalogKey("system");
+        assertSame(qualified, ModelValidation.validate(qualified));
+        // catalogKey is an alias, under the catalog key rule.
+        assertThrows(IllegalArgumentException.class,
+                () -> ModelValidation.validate(new VariantSelectionAttribute().key("locale").value("nl-NL").catalogKey("System")));
+        VariantSelectionAttribute ownCatalog = new VariantSelectionAttribute().key("2026-campaign").value("spring");
+        assertSame(ownCatalog, ModelValidation.validate(ownCatalog));
+        assertThrows(IllegalArgumentException.class,
+                () -> ModelValidation.validate(new VariantSelectionAttribute().key("system.locale").value("nl-NL")));
+    }
+
     // --- Slug pattern ---
 
     @Test
     void the_slug_pattern_accepts_valid_slugs() {
         for (String slug : List.of("abc", "a1b", "test-env", "my-long-slug-123")) {
-            CreateTenantRequest request = new CreateTenantRequest().id(slug).name("Test");
+            CreateTenantRequest request = new CreateTenantRequest().key(slug).name("Test");
             assertSame(request, ModelValidation.validate(request), "expected '" + slug + "' to be valid");
         }
     }
@@ -52,55 +77,55 @@ class ModelValidationTest {
 
         invalid.forEach((slug, reason) -> assertThrows(
                 IllegalArgumentException.class,
-                () -> ModelValidation.validate(new CreateTenantRequest().id(slug).name("Test")),
+                () -> ModelValidation.validate(new CreateTenantRequest().key(slug).name("Test")),
                 "expected '" + slug + "' to fail (" + reason + ")"));
     }
 
     // --- String length boundaries ---
 
     @Test
-    void an_id_at_the_exact_bounds_passes_and_one_step_outside_fails() {
-        ModelValidation.validate(new CreateTenantRequest().id("abc").name("Tenant"));
-        ModelValidation.validate(new CreateTenantRequest().id("a" + "b".repeat(62)).name("Tenant"));
+    void a_key_at_the_exact_bounds_passes_and_one_step_outside_fails() {
+        ModelValidation.validate(new CreateTenantRequest().key("abc").name("Tenant"));
+        ModelValidation.validate(new CreateTenantRequest().key("a" + "b".repeat(62)).name("Tenant"));
 
         assertEquals(
-                "id: length must be between 3 and 63",
+                "key: length must be between 3 and 63",
                 assertThrows(
                                 IllegalArgumentException.class,
-                                () -> ModelValidation.validate(new CreateTenantRequest().id("ab").name("Tenant")))
+                                () -> ModelValidation.validate(new CreateTenantRequest().key("ab").name("Tenant")))
                         .getMessage());
         assertEquals(
-                "id: length must be between 3 and 63",
+                "key: length must be between 3 and 63",
                 assertThrows(
                                 IllegalArgumentException.class,
                                 () -> ModelValidation.validate(
-                                        new CreateTenantRequest().id("a".repeat(64)).name("Tenant")))
+                                        new CreateTenantRequest().key("a".repeat(64)).name("Tenant")))
                         .getMessage());
     }
 
     @Test
     void a_name_is_checked_at_both_of_its_bounds() {
-        ModelValidation.validate(new CreateTenantRequest().id("abc").name("x"));
-        ModelValidation.validate(new CreateTenantRequest().id("abc").name("x".repeat(255)));
+        ModelValidation.validate(new CreateTenantRequest().key("abc").name("x"));
+        ModelValidation.validate(new CreateTenantRequest().key("abc").name("x".repeat(255)));
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ModelValidation.validate(new CreateTenantRequest().id("abc").name("")));
+                () -> ModelValidation.validate(new CreateTenantRequest().key("abc").name("")));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ModelValidation.validate(new CreateTenantRequest().id("abc").name("x".repeat(256))));
+                () -> ModelValidation.validate(new CreateTenantRequest().key("abc").name("x".repeat(256))));
     }
 
     @Test
-    void environments_have_their_own_shorter_id_bound() {
-        ModelValidation.validate(new CreateEnvironmentRequest().id("a" + "b".repeat(29)).name("Env"));
+    void environments_have_their_own_shorter_key_bound() {
+        ModelValidation.validate(new CreateEnvironmentRequest().key("a" + "b".repeat(29)).name("Env"));
 
         assertEquals(
-                "id: length must be between 3 and 30",
+                "key: length must be between 3 and 30",
                 assertThrows(
                                 IllegalArgumentException.class,
                                 () -> ModelValidation.validate(
-                                        new CreateEnvironmentRequest().id("a".repeat(31)).name("Env")))
+                                        new CreateEnvironmentRequest().key("a".repeat(31)).name("Env")))
                         .getMessage());
     }
 
@@ -121,7 +146,7 @@ class ModelValidationTest {
     @Test
     void a_missing_required_field_is_named_rather_than_causing_a_null_pointer() {
         assertEquals(
-                "id: is required",
+                "key: is required",
                 assertThrows(
                                 IllegalArgumentException.class,
                                 () -> ModelValidation.validate(new CreateTenantRequest().name("Tenant")))
@@ -131,40 +156,182 @@ class ModelValidationTest {
     // --- Integer ranges ---
 
     @Test
-    void integer_ranges_are_enforced_alongside_slug_patterns() {
-        OffsetDateTime now = OffsetDateTime.now();
-        ActivationDto valid = new ActivationDto()
-                .environmentId("production")
-                .environmentName("Production")
-                .versionId(42)
-                .activatedAt(now);
+    void integer_ranges_are_enforced() {
+        FontVariantDto valid = new FontVariantDto().weight(400).italic(false);
         assertSame(valid, ModelValidation.validate(valid));
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ModelValidation.validate(new ActivationDto()
-                        .environmentId("PRODUCTION")
-                        .environmentName("Production")
-                        .versionId(1)
-                        .activatedAt(now)));
+                () -> ModelValidation.validate(new FontVariantDto().weight(0).italic(false)));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ModelValidation.validate(new ActivationDto()
-                        .environmentId("production")
-                        .environmentName("Production")
-                        .versionId(0)
-                        .activatedAt(now)));
+                () -> ModelValidation.validate(new FontVariantDto().weight(1001).italic(true)));
     }
 
     @Test
-    void a_version_id_above_the_contract_maximum_is_rejected() {
+    void a_key_inside_a_catalog_versions_content_is_checked() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ModelValidation.validate(new VersionDto()
-                        .id(201)
-                        .variantId("english")
-                        .status(VersionDto.StatusEnum.DRAFT)
-                        .createdAt(OffsetDateTime.now())));
+                () -> ModelValidation.validate(new VariantContentDto()
+                        .variantKey("English")
+                        .status(ResourceStatus.MODIFIED)
+                        .lastModified(OffsetDateTime.now())));
+    }
+
+    // --- Catalog drafts and release numbers ---
+
+    @Test
+    void a_dependency_declaration_pins_an_exact_release() {
+        CatalogDependencyRequirement pinned =
+                new CatalogDependencyRequirement().namespace("epistola").catalogKey("system").version("1.3.0");
+        assertSame(pinned, ModelValidation.validate(pinned));
+        for (String release : List.of("^1.3.0", "1.x", "*", "01.3.0", "1.3.0-rc.1")) {
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> ModelValidation.validate(new CatalogDependencyRequirement()
+                            .namespace("epistola")
+                            .catalogKey("system")
+                            .version(release)),
+                    "expected a pinned release '" + release + "' to fail");
+        }
+    }
+
+    @Test
+    void a_dependency_declaration_may_give_the_catalog_an_alias() {
+        CatalogDependencyRequirement aliased = new CatalogDependencyRequirement()
+                .alias("shared-branding")
+                .namespace("acme-corp")
+                .catalogKey("branding")
+                .version("1.3.0");
+        assertSame(aliased, ModelValidation.validate(aliased));
+        assertThrows(IllegalArgumentException.class, () -> ModelValidation.validate(new CatalogDependencyRequirement()
+                .alias("x")
+                .namespace("acme-corp")
+                .catalogKey("branding")
+                .version("1.3.0")));
+    }
+
+    @Test
+    void a_dependency_declaration_in_a_draft_may_name_a_draft_instead() {
+        CatalogDependencyRequirement onDraft = new CatalogDependencyRequirement()
+                .namespace("acme-corp")
+                .catalogKey("branding")
+                .releaseId("r4t8w2nc");
+        assertSame(onDraft, ModelValidation.validate(onDraft));
+    }
+
+    @Test
+    void a_release_number_is_a_semver_core_number_or_a_patch_release() {
+        for (String version : List.of("0.1.0", "1.4.0", "10.20.30", "1.3.1-gemeente-x.1", "2.0.0-redesign-2027.12")) {
+            ReleaseCatalogDraftRequest request = new ReleaseCatalogDraftRequest().version(version);
+            assertSame(request, ModelValidation.validate(request), "expected '" + version + "' to be valid");
+        }
+        // Omitted, the server numbers the release from its changes.
+        ModelValidation.validate(new ReleaseCatalogDraftRequest());
+
+        for (String version : List.of(
+                "1.4", "v1.4.0", "01.4.0", "1.4.0-rc.1", "1.3.1-gemeente-x.0", "1.3.1-gemeente-x.01",
+                "1.3.1-Gemeente-x.1", "1.3.1-gemeente-x", "1.4.0+build", "^1.4.0", "next")) {
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> ModelValidation.validate(new ReleaseCatalogDraftRequest().version(version)),
+                    "expected a release as '" + version + "' to fail");
+        }
+    }
+
+    @Test
+    void a_draft_is_named_and_starts_from_a_release_or_another_draft() {
+        ModelValidation.validate(new CreateCatalogReleaseRequest().name("Redesign 2027"));
+        ModelValidation.validate(new CreateCatalogReleaseRequest().name("Fixes 1.4").from("1.4.0"));
+        ModelValidation.validate(
+                new CreateCatalogReleaseRequest().name("Redesign 2027").from("k7m2x9qa"));
+        ModelValidation.validate(new UpdateCatalogReleaseRequest().name("Redesign 2028"));
+
+        assertTrue(assertThrows(
+                        IllegalArgumentException.class,
+                        () -> ModelValidation.validate(
+                                new CreateCatalogReleaseRequest().name("Redesign 2027").from("Latest")))
+                .getMessage()
+                .startsWith("from: must match pattern"));
+        assertTrue(assertThrows(
+                        IllegalArgumentException.class,
+                        () -> ModelValidation.validate(
+                                new CreateCatalogReleaseRequest().name("Redesign 2027").from("1.4.x")))
+                .getMessage()
+                .startsWith("from: must match pattern"));
+        for (String name : List.of("", "x".repeat(101))) {
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> ModelValidation.validate(new CreateCatalogReleaseRequest().name(name)),
+                    "expected a draft named '" + name + "' to fail");
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> ModelValidation.validate(new UpdateCatalogReleaseRequest().name(name)),
+                    "expected an update to '" + name + "' to fail");
+        }
+    }
+
+    @Test
+    void a_fingerprint_names_its_algorithm() {
+        String hex = "0123456789abcdef".repeat(4);
+        ModelValidation.validate(catalogWithFingerprint("v1:" + hex));
+        ModelValidation.validate(catalogWithFingerprint("v12:" + hex));
+        for (String fingerprint : List.of(hex, "v0:" + hex, "V1:" + hex, "v1:" + hex.toUpperCase(), "v1:" + hex.substring(1))) {
+            assertTrue(assertThrows(
+                            IllegalArgumentException.class,
+                            () -> ModelValidation.validate(catalogWithFingerprint(fingerprint)),
+                            "expected the fingerprint '" + fingerprint + "' to fail")
+                    .getMessage()
+                    .startsWith("fingerprint: must match pattern"));
+        }
+    }
+
+    @Test
+    void a_content_hash_is_a_v6_fingerprint() {
+        String hex = "0123456789abcdef".repeat(4);
+        CatalogDto catalog = catalogWithFingerprint("v5:" + hex);
+        catalog.setContentHash("v6:" + hex);
+        assertSame(catalog, ModelValidation.validate(catalog));
+        for (String contentHash : List.of(hex, "v5:" + hex, "v7:" + hex, "v6:" + hex.toUpperCase(), "v6:" + hex.substring(1))) {
+            catalog.setContentHash(contentHash);
+            assertTrue(assertThrows(
+                            IllegalArgumentException.class,
+                            () -> ModelValidation.validate(catalog),
+                            "expected the content hash '" + contentHash + "' to fail")
+                    .getMessage()
+                    .startsWith("contentHash: must match pattern"));
+        }
+    }
+
+    private static CatalogDto catalogWithFingerprint(String fingerprint) {
+        CatalogDto catalog = new CatalogDto();
+        catalog.setRegistry("exchange.epistola.app");
+        catalog.setNamespace("acme-corp");
+        catalog.setCatalogKey("letters");
+        catalog.setFingerprint(fingerprint);
+        return catalog;
+    }
+
+    @Test
+    void a_preview_names_a_draft_by_its_id_never_by_a_number() {
+        ModelValidation.validate(previewOf("r4t8w2nc"));
+        for (String draft : List.of("1.4.0", "Next", "0193A6B2-8A10-7D2E-8B3C-4D5E6F708192", "abc")) {
+            assertTrue(assertThrows(
+                            IllegalArgumentException.class,
+                            () -> ModelValidation.validate(previewOf(draft)),
+                            "expected a preview of draft '" + draft + "' to fail")
+                    .getMessage()
+                    .startsWith("draft: "));
+        }
+    }
+
+    private static PreviewDocumentRequest previewOf(String draft) {
+        return new PreviewDocumentRequest()
+                .namespace("acme-corp")
+                .catalogKey("letters")
+                .templateKey("invoice")
+                .draft(draft)
+                .data(Map.of());
     }
 
     // --- Generation requests ---
@@ -172,10 +339,11 @@ class ModelValidationTest {
     @Test
     void a_realistic_generation_request_passes() {
         GenerateDocumentRequest request = new GenerateDocumentRequest()
-                .catalogId("default")
-                .templateId("monthly-invoice")
-                .variantId("english")
-                .versionId(2)
+                .namespace("acme-corp")
+                .catalogKey("default")
+                .templateKey("monthly-invoice")
+                .variantKey("english")
+                .versionRange("^1.4.0")
                 .filename("invoice-2026-001.pdf")
                 .correlationId("order-7890")
                 .data(Map.of(
@@ -188,15 +356,29 @@ class ModelValidationTest {
 
     @Test
     void each_optional_field_of_a_generation_request_is_checked_independently() {
-        ModelValidation.validate(baseGenerationRequest().versionId(null));
+        ModelValidation.validate(baseGenerationRequest().versionRange(null));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ModelValidation.validate(baseGenerationRequest().versionId(300)));
+                () -> ModelValidation.validate(baseGenerationRequest().versionRange("")));
+        // A range holds an exact release number of any valid length, up to 256 characters.
+        ModelValidation.validate(baseGenerationRequest().versionRange("1.0." + "1".repeat(124)));
+        ModelValidation.validate(baseGenerationRequest().versionRange("x".repeat(256)));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> ModelValidation.validate(baseGenerationRequest().versionRange("x".repeat(257))));
+        // `local` is the one registry without a dot; `localhost` is none.
+        ModelValidation.validate(baseGenerationRequest().registry("local"));
+        for (String registry : List.of("localhost", "Local", "locals")) {
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> ModelValidation.validate(baseGenerationRequest().registry(registry)),
+                    "expected the registry '" + registry + "' to fail");
+        }
 
-        ModelValidation.validate(baseGenerationRequest().environmentId(null));
+        ModelValidation.validate(baseGenerationRequest().environmentKey(null));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ModelValidation.validate(baseGenerationRequest().environmentId("PROD")));
+                () -> ModelValidation.validate(baseGenerationRequest().environmentKey("PROD")));
 
         ModelValidation.validate(baseGenerationRequest().filename("x".repeat(255)));
         assertEquals(
@@ -221,15 +403,17 @@ class ModelValidationTest {
     void a_populated_batch_passes() {
         List<BatchGenerationItem> items = List.of(
                 new BatchGenerationItem()
-                        .catalogId("default")
-                        .templateId("invoice")
-                        .variantId("english")
+                        .namespace("acme-corp")
+                        .catalogKey("default")
+                        .templateKey("invoice")
+                        .variantKey("english")
                         .data(Map.of("invoiceNumber", "INV-2026-001"))
                         .filename("invoice-001.pdf"),
                 new BatchGenerationItem()
-                        .catalogId("default")
-                        .templateId("invoice")
-                        .variantId("english")
+                        .namespace("acme-corp")
+                        .catalogKey("default")
+                        .templateKey("invoice")
+                        .variantKey("english")
                         .data(Map.of("invoiceNumber", "INV-2026-002")));
 
         GenerateBatchRequest request = new GenerateBatchRequest().items(items);
@@ -237,11 +421,10 @@ class ModelValidationTest {
     }
 
     @Test
-    void a_template_with_a_nested_json_schema_passes() {
-        CreateTemplateRequest request = new CreateTemplateRequest()
-                .id("monthly-invoice")
+    void a_template_with_a_nested_json_schema_data_model_passes() {
+        UpdateTemplateRequest request = new UpdateTemplateRequest()
                 .name("Monthly Invoice")
-                .schema(Map.of(
+                .dataModel(Map.of(
                         "type", "object",
                         "required", List.of("customerName"),
                         "properties", Map.of("customerName", Map.of("type", "string"))));
@@ -251,15 +434,16 @@ class ModelValidationTest {
 
     @Test
     void validate_returns_its_argument_so_it_composes_into_a_call() {
-        CreateTenantRequest request = new CreateTenantRequest().id("acme-corp").name("Acme Corporation");
+        CreateTenantRequest request = new CreateTenantRequest().key("acme-corp").name("Acme Corporation");
         assertSame(request, ModelValidation.validate(request));
     }
 
     private static GenerateDocumentRequest baseGenerationRequest() {
         return new GenerateDocumentRequest()
-                .catalogId("default")
-                .templateId("invoice")
-                .variantId("english")
+                .namespace("acme-corp")
+                .catalogKey("default")
+                .templateKey("invoice")
+                .variantKey("english")
                 .data(Map.of());
     }
 }

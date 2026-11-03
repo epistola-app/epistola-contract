@@ -34,6 +34,10 @@
  * - `problemTypes`: `List<Map<String, Any?>>` — one entry per registered problem type, with
  *   `slug`, `status`, `description` (whitespace collapsed) and `constantName` (the slug in
  *   MACRO_CASE, which every target language happens to agree on).
+ * - `validationCodes`: `List<Map<String, Any?>>` — one entry per code `x-validation-codes`
+ *   registers (why a field of a `validation-error` failed), with `code`, `kind` (`constraint`,
+ *   `template` or `domain`), `description` (whitespace collapsed) and `constantName` (the code in
+ *   MACRO_CASE).
  * - `constrainedSchemas`: `List<Map<String, Any?>>` — one entry per object schema that declares
  *   at least one constraint, with `name` and `fields`. Each field carries `property`, `nullable`
  *   (not required, or explicitly nullable) and `constraints` — a list of maps naming the
@@ -85,6 +89,35 @@ val epistolaSpecModel: (Map<String, Any>) -> Map<String, Any> = { document ->
         )
     }
 
+    val validationRegistry = document["x-validation-codes"] as? Map<String, Any>
+        ?: throw GradleException(
+            "bundled spec has no x-validation-codes extension — the validation-code constants cannot be generated",
+        )
+    val rawCodes = (validationRegistry["codes"] as? List<Map<String, Any>>).orEmpty()
+    if (rawCodes.size < 20) {
+        throw GradleException(
+            "x-validation-codes lists only ${rawCodes.size} codes (expected at least 20) — " +
+                "was the registry truncated?",
+        )
+    }
+    val validationCodes = rawCodes.map { entry ->
+        val code = entry["code"] as? String
+            ?: throw GradleException("an x-validation-codes entry has no code: $entry")
+        val kind = entry["kind"] as? String
+        if (kind !in setOf("constraint", "template", "domain")) {
+            throw GradleException("x-validation-codes entry '$code' has kind '$kind' (expected constraint, template or domain)")
+        }
+        mapOf(
+            "code" to code,
+            "kind" to kind,
+            "description" to (entry["description"] as? String).orEmpty().replace(Regex("\\s+"), " ").trim(),
+            "constantName" to code.uppercase().replace('-', '_'),
+        )
+    }
+    if (validationCodes.map { it["code"] }.toSet().size != validationCodes.size) {
+        throw GradleException("x-validation-codes registers a code twice")
+    }
+
     val identity = document["x-client-identity"] as? Map<String, Any>
         ?: throw GradleException(
             "the bundled spec has no x-client-identity extension — the client-identity constants " +
@@ -131,6 +164,26 @@ val epistolaSpecModel: (Map<String, Any>) -> Map<String, Any> = { document ->
     val schemas = (document["components"] as? Map<String, Any>)?.get("schemas") as? Map<String, Any>
         ?: throw GradleException("the bundled spec has no components.schemas")
 
+    // The schema a `$ref` names when it is a plain string schema with no `enum` (`ReleaseVersion`),
+    // which every generator renders as a string rather than a type of its own; null otherwise.
+    fun stringAlias(ref: String?): Map<String, Any>? {
+        val name = ref?.removePrefix("#/components/schemas/")?.takeIf { it != ref } ?: return null
+        val target = schemas[name] as? Map<String, Any> ?: return null
+        return target.takeIf { it["type"] == "string" && !it.containsKey("enum") }
+    }
+
+    // A nullable use of a named rule (`identifiers.yaml`) is `oneOf: [{$ref: Rule}, {type: 'null'}]`,
+    // which the generators render as a nullable String: the rule's constraints, and null allowed.
+    // Returns the referenced string schema, or null for anything else.
+    fun nullableStringAlias(declared: Map<String, Any>): Map<String, Any>? {
+        val branches = (declared["oneOf"] ?: declared["anyOf"]) as? List<*> ?: return null
+        if (branches.size != 2) return null
+        val maps = branches.map { it as? Map<*, *> ?: return null }
+        if (maps.none { it["type"] == "null" && it.size == 1 }) return null
+        val ref = maps.firstOrNull { it.containsKey("\$ref") }?.get("\$ref") as? String ?: return null
+        return stringAlias(ref)
+    }
+
     // The members each problem schema adds to the RFC 9457 base. `ProblemDetail` is the base by
     // name — it is the RFC's own, and the spec's plain problem schema — so anything a registered
     // problem schema declares beyond it is an extension member.
@@ -174,13 +227,20 @@ val epistolaSpecModel: (Map<String, Any>) -> Map<String, Any> = { document ->
         val fields = mutableListOf<Map<String, Any?>>()
 
         for ((propertyName, propertyDefinition) in properties) {
-            val property = propertyDefinition as? Map<String, Any> ?: continue
-            // Skip $ref properties — the referenced type carries its own constraints, and its own
-            // generated validator.
-            if (property.containsKey("\$ref")) continue
+            val declared = propertyDefinition as? Map<String, Any> ?: continue
+            // A $ref to an object or enum is a type of its own, with its own constraints and its own
+            // generated validator: skip it. A $ref to a plain string schema (`ReleaseVersion`) is
+            // generated as a String, so its constraints are checked here, as if written inline.
+            // `oneOf: [{$ref}, {type: 'null'}]` is the same, and nullable.
+            val nullableAlias = nullableStringAlias(declared)
+            val property = when {
+                declared.containsKey("\$ref") -> stringAlias(declared["\$ref"] as? String) ?: continue
+                nullableAlias != null -> nullableAlias
+                else -> declared
+            }
 
             val declaredType = property["type"]
-            val explicitlyNullable = declaredType is List<*> && declaredType.contains("null")
+            val explicitlyNullable = nullableAlias != null || (declaredType is List<*> && declaredType.contains("null"))
             val baseType = when (declaredType) {
                 is String -> declaredType
                 is List<*> -> declaredType.firstOrNull { it != "null" }?.toString()
@@ -245,6 +305,7 @@ val epistolaSpecModel: (Map<String, Any>) -> Map<String, Any> = { document ->
         "version" to version,
         "problemTypeBase" to problemTypeBase,
         "problemTypes" to problemTypes.toList(),
+        "validationCodes" to validationCodes,
         "clientIdentity" to clientIdentity,
         "problemExtensionMembers" to problemExtensionMembers,
         "vendorMediaTypes" to vendorMediaTypes,

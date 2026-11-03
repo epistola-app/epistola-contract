@@ -25,34 +25,39 @@ import app.epistola.client.model.ValidateTemplateDataRequest
  * because silently reporting unvalidated data as acceptable is worse than failing.
  *
  * @param templatesApi The generated [TemplatesApi].
- * @param variantId Optional variant to check against. Without any of the three selectors the data
- *   is checked against the template's latest contract; with one, against the contract of the
- *   version that selection resolves to — the version preview and generation would render.
- * @param versionId Optional explicit version number (mutually exclusive with [environmentId]).
- * @param environmentId Optional environment whose active version to check against.
+ * @param variantKey Optional variant to check against; without it, the default variant.
+ * @param versionRange Optional version range for the template's catalog release to check against,
+ *   such as `1.4.0` or `^1.4.0`. It may be combined with [environmentKey], which then narrows the
+ *   choice to the releases deployed there. Without either, the catalog's latest release is used —
+ *   the release preview and generation would render for the same selection.
+ * @param environmentKey Optional environment whose deployed releases to check against.
  */
 class ServerTemplateDataValidator @JvmOverloads constructor(
     private val templatesApi: TemplatesApi,
-    private val variantId: String? = null,
-    private val versionId: Int? = null,
-    private val environmentId: String? = null,
+    private val variantKey: String? = null,
+    private val versionRange: String? = null,
+    private val environmentKey: String? = null,
 ) : TemplateDataValidator {
 
     override fun validate(
-        tenantId: String,
-        catalogId: String,
-        templateId: String,
+        tenantKey: String,
+        registry: String,
+        namespace: String,
+        catalogKey: String,
+        templateKey: String,
         data: Any,
     ): List<TemplateDataValidationException.ValidationError> {
         val result = templatesApi.validateTemplateData(
-            tenantId,
-            catalogId,
-            templateId,
+            tenantKey,
+            registry,
+            namespace,
+            catalogKey,
+            templateKey,
             ValidateTemplateDataRequest(
                 data = data,
-                variantId = variantId,
-                versionId = versionId,
-                environmentId = environmentId,
+                variantKey = variantKey,
+                versionRange = versionRange,
+                environmentKey = environmentKey,
             ),
         )
         if (result.valid) {

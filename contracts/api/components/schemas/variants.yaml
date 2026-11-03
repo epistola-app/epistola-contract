@@ -1,64 +1,51 @@
 VariantDto:
   type: object
-  description: Full template variant with version summary
+  description: Full template variant, with its status in the release it was read from
   required:
-    - id
-    - templateId
-    - title
+    - key
+    - templateKey
+    - name
     - attributes
     - isDefault
-    - hasDraft
-    - publishedVersions
+    - status
     - createdAt
     - lastModified
   properties:
-    slug:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+    key:
+      $ref: './identifiers.yaml#/ResourceKey'
       description: |
-        Slug identifier of the variant
-
-        Sent by every server on contract 1.3.0 or later. Not required, because a server on an
-        older 1.x contract omits it and a client must still read its responses: when it is
-        absent, read `id`, which carries the same value. Required from 2.0.0, which removes
-        `id` (epistola-app/epistola-contract#84).
+        Key of the variant
       example: english
-    id:
-      type: string
-      deprecated: true
-      description: |
-        **Deprecated — use `slug`.** The same value, under the name the portable catalog
-        format already uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
-      example: english
-    templateId:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
-      description: Slug identifier of the template this variant belongs to
+    templateKey:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: Key of the template this variant belongs to
       example: invoice
-    title:
+    name:
       type: string
       minLength: 1
       maxLength: 100
-      description: Human-readable title for the variant
+      description: Human-readable name of the variant, which tells it from the template's other variants
       example: English Invoice
     description:
       type:
         - string
         - 'null'
+      maxLength: 2000
       description: Description of the variant
       example: English language invoice for international customers
     attributes:
       type: object
+      propertyNames:
+        pattern: '^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*\.)?[a-z0-9]+(-[a-z0-9]+)*$'
+        maxLength: 101
       additionalProperties:
         type: string
-      description: Variant attributes for selection criteria (e.g., language=dutch, brand=acme)
+        maxLength: 255
+      description: |
+        The attribute values that select this variant, by attribute key: the attribute's key in
+        this catalog (`tone`), or `<alias>.<key>` for one another catalog defines (`system.locale`),
+        by the alias the release's dependency declarations give that catalog, as catalog wire v8
+        keys them. A value is at most 255 characters.
       example:
         locale: en-US
         brand: acme
@@ -66,16 +53,8 @@ VariantDto:
       type: boolean
       description: Whether this variant is the default for its template
       example: false
-    hasDraft:
-      type: boolean
-      description: Whether this variant has an unpublished draft
-      example: true
-    publishedVersions:
-      type: array
-      items:
-        type: integer
-      description: List of published version numbers
-      example: [1, 2]
+    status:
+      $ref: './common.yaml#/ResourceStatus'
     createdAt:
       type: string
       format: date-time
@@ -87,17 +66,15 @@ VariantDto:
       description: Timestamp when the variant was last modified
       example: "2026-01-28T11:30:00Z"
   example:
-    slug: english
-    id: english
-    templateId: invoice
-    title: English Invoice
+    key: english
+    templateKey: invoice
+    name: English Invoice
     description: English language invoice for international customers
     attributes:
       locale: en-US
       brand: acme
     isDefault: false
-    hasDraft: true
-    publishedVersions: [1, 2]
+    status: ready
     createdAt: "2026-01-21T10:00:00Z"
     lastModified: "2026-01-28T11:30:00Z"
 
@@ -105,46 +82,31 @@ VariantSummaryDto:
   type: object
   description: Summary view of a variant for inclusion in template responses
   required:
-    - id
-    - title
+    - key
+    - name
     - attributes
     - isDefault
-    - hasDraft
-    - publishedVersions
+    - status
   properties:
-    slug:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+    key:
+      $ref: './identifiers.yaml#/ResourceKey'
       description: |
-        Slug identifier of the variant
-
-        Sent by every server on contract 1.3.0 or later. Not required, because a server on an
-        older 1.x contract omits it and a client must still read its responses: when it is
-        absent, read `id`, which carries the same value. Required from 2.0.0, which removes
-        `id` (epistola-app/epistola-contract#84).
+        Key of the variant
       example: english
-    id:
-      type: string
-      deprecated: true
-      description: |
-        **Deprecated — use `slug`.** The same value, under the name the portable catalog
-        format already uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
-      example: english
-    title:
+    name:
       type: string
       minLength: 1
       maxLength: 100
-      description: Human-readable title for the variant
+      description: Human-readable name of the variant, which tells it from the template's other variants
       example: English Invoice
     attributes:
       type: object
+      propertyNames:
+        pattern: '^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*\.)?[a-z0-9]+(-[a-z0-9]+)*$'
+        maxLength: 101
       additionalProperties:
         type: string
+        maxLength: 255
       description: Variant attributes for selection criteria
       example:
         locale: en-US
@@ -153,57 +115,49 @@ VariantSummaryDto:
       type: boolean
       description: Whether this variant is the default for its template
       example: false
-    hasDraft:
-      type: boolean
-      description: Whether this variant has an unpublished draft
-      example: true
-    publishedVersions:
-      type: array
-      items:
-        type: integer
-      description: List of published version numbers
-      example: [1, 2]
+    status:
+      $ref: './common.yaml#/ResourceStatus'
   example:
-    slug: english
-    id: english
-    title: English Invoice
+    key: english
+    name: English Invoice
     attributes:
       locale: en-US
       brand: acme
     isDefault: false
-    hasDraft: true
-    publishedVersions: [1, 2]
+    status: ready
 
 CreateVariantRequest:
   type: object
   description: Request body for creating a new variant
   required:
-    - id
-    - title
+    - key
+    - name
   properties:
-    id:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
-      description: Client-provided slug identifier for the variant
+    key:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: Client-chosen key for the variant
       example: english
-    title:
+    name:
       type: string
       minLength: 1
       maxLength: 100
-      description: Human-readable title for the variant
+      description: Human-readable name of the variant, which tells it from the template's other variants
       example: English Invoice
     description:
       type:
         - string
         - 'null'
+      maxLength: 2000
       description: Description of the variant
       example: English language invoice for international customers
     attributes:
       type: object
+      propertyNames:
+        pattern: '^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*\.)?[a-z0-9]+(-[a-z0-9]+)*$'
+        maxLength: 101
       additionalProperties:
         type: string
+        maxLength: 255
       description: Variant attributes for selection criteria for this variant
       example:
         locale: en-US
@@ -211,27 +165,36 @@ CreateVariantRequest:
 
 UpdateVariantRequest:
   type: object
-  description: Request body for updating a variant
-  required:
-    - title
+  description: Request body for updating a variant's metadata (all fields optional)
   properties:
-    title:
+    name:
       type: string
       minLength: 1
       maxLength: 100
-      description: Human-readable title for the variant
+      description: |
+        The variant's new human-readable name, which tells it from the template's other variants.
+        Omitted keeps the current one.
       example: English Invoice (Updated)
     description:
       type:
         - string
         - 'null'
-      description: Description of the variant
+      maxLength: 2000
+      description: |
+        The variant's new description. Omitted or null keeps the current one; an empty string (or
+        one of only whitespace) removes it.
       example: Updated English language invoice
     attributes:
       type: object
+      propertyNames:
+        pattern: '^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*\.)?[a-z0-9]+(-[a-z0-9]+)*$'
+        maxLength: 101
       additionalProperties:
         type: string
-      description: Updated attributes for this variant
+        maxLength: 255
+      description: |
+        The attribute values that select this variant, replacing the current ones. Omitted keeps
+        the current ones; an empty object removes them all.
       example:
         locale: en-US
         brand: acme
@@ -253,80 +216,311 @@ VariantListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - slug: english
-        id: english
-        templateId: invoice
-        title: English Invoice
+      - key: english
+        templateKey: invoice
+        name: English Invoice
         description: English language invoice for international customers
         attributes:
           locale: en-US
           brand: acme
         isDefault: true
-        hasDraft: true
-        publishedVersions: [1, 2]
+        status: ready
         createdAt: "2026-01-21T10:00:00Z"
         lastModified: "2026-01-28T11:30:00Z"
     page:
       number: 0
       size: 20
-      totalElements: 1
+      total: 1
       totalPages: 1
 
-ActivationDto:
+UpdateVariantContentRequest:
   type: object
-  description: Environment activation for a variant. versionId IS the version number (1-200).
+  description: |
+    The variant's new template model, replacing its content in the draft. The model is a flat graph
+    of nodes and slots; the
+    [template model guide](https://github.com/epistola-app/epistola-contract/blob/main/contracts/api/docs/template-model.md)
+    explains it with this example, a letter with a heading, an expression, a conditional with an
+    `else` branch, a table and a stencil instance.
   required:
-    - environmentId
-    - environmentName
-    - versionId
-    - activatedAt
+    - templateModel
   properties:
-    environmentId:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 30
-      description: Slug identifier of the environment
-      example: production
-    environmentName:
-      type: string
-      description: Name of the environment
-      example: Production
-    versionId:
-      type: integer
-      minimum: 1
-      maximum: 200
-      description: ID of the active version (also the version number, 1-200)
-      example: 1
-    activatedAt:
+    templateModel:
+      $ref: '../../../catalog/schemas/template-document.schema.json'
+  # Generated from docs/examples/template-letter.json; ExampleTemplateModelTest keeps the two equal.
+  example:
+    templateModel:
+      modelVersion: 1
+      root: root
+      nodes:
+        root:
+          id: root
+          type: root
+          slots:
+          - root-children
+        heading:
+          id: heading
+          type: text
+          slots: []
+          props:
+            content:
+              type: doc
+              content:
+              - type: heading
+                attrs:
+                  level: 1
+                content:
+                - type: text
+                  text: Order confirmation
+        greeting:
+          id: greeting
+          type: text
+          slots: []
+          props:
+            content:
+              type: doc
+              content:
+              - type: paragraph
+                content:
+                - type: text
+                  text: 'Dear '
+                - type: expression
+                  attrs:
+                    expression: customer.name
+                - type: text
+                  text: ', thank you for your order '
+                - type: expression
+                  attrs:
+                    expression: order.number
+                - type: text
+                  text: .
+        paid-check:
+          id: paid-check
+          type: conditional
+          slots:
+          - paid-check-body
+          - paid-check-else
+          props:
+            condition:
+              raw: order.paid
+              language: jsonata
+            inverse: false
+        paid-text:
+          id: paid-text
+          type: text
+          slots: []
+          props:
+            content:
+              type: doc
+              content:
+              - type: paragraph
+                content:
+                - type: text
+                  text: We have received your payment.
+        unpaid-text:
+          id: unpaid-text
+          type: text
+          slots: []
+          props:
+            content:
+              type: doc
+              content:
+              - type: paragraph
+                content:
+                - type: text
+                  text: 'Please pay '
+                - type: expression
+                  attrs:
+                    expression: $formatNumber(order.total, '#,##0.00')
+                - type: text
+                  text: ' within 14 days.'
+        order-table:
+          id: order-table
+          type: table
+          slots:
+          - order-table-cell-0-0
+          - order-table-cell-0-1
+          - order-table-cell-1-0
+          - order-table-cell-1-1
+          styles:
+            marginBottom: 6pt
+          props:
+            rows: 2
+            columns: 2
+            columnWidths:
+            - 70
+            - 30
+            headerRows: 1
+            merges: []
+            cellStyles:
+              0-0:
+                backgroundColor: '#f1f5f9'
+              0-1:
+                backgroundColor: '#f1f5f9'
+        cell-item-h:
+          id: cell-item-h
+          type: text
+          slots: []
+          props:
+            content:
+              type: doc
+              content:
+              - type: paragraph
+                content:
+                - type: text
+                  text: Item
+        cell-amount-h:
+          id: cell-amount-h
+          type: text
+          slots: []
+          props:
+            content:
+              type: doc
+              content:
+              - type: paragraph
+                content:
+                - type: text
+                  text: Amount
+        cell-item:
+          id: cell-item
+          type: text
+          slots: []
+          props:
+            content:
+              type: doc
+              content:
+              - type: paragraph
+                content:
+                - type: expression
+                  attrs:
+                    expression: order.item
+        cell-amount:
+          id: cell-amount
+          type: text
+          slots: []
+          props:
+            content:
+              type: doc
+              content:
+              - type: paragraph
+                content:
+                - type: expression
+                  attrs:
+                    expression: $formatNumber(order.total, '#,##0.00')
+        signature:
+          id: signature
+          type: stencil
+          slots:
+          - signature-children
+          props:
+            stencilKey: signature-block
+            parameterBindings:
+              signerName: sender.name
+        signature-closing:
+          id: signature-closing
+          type: placeholder
+          slots:
+          - signature-closing-fill
+          props:
+            name: closing
+        closing-text:
+          id: closing-text
+          type: text
+          slots: []
+          props:
+            content:
+              type: doc
+              content:
+              - type: paragraph
+                content:
+                - type: text
+                  text: Kind regards,
+      slots:
+        root-children:
+          id: root-children
+          nodeId: root
+          name: children
+          children:
+          - heading
+          - greeting
+          - paid-check
+          - order-table
+          - signature
+        paid-check-body:
+          id: paid-check-body
+          nodeId: paid-check
+          name: body
+          children:
+          - paid-text
+        paid-check-else:
+          id: paid-check-else
+          nodeId: paid-check
+          name: else
+          children:
+          - unpaid-text
+        order-table-cell-0-0:
+          id: order-table-cell-0-0
+          nodeId: order-table
+          name: cell-0-0
+          children:
+          - cell-item-h
+        order-table-cell-0-1:
+          id: order-table-cell-0-1
+          nodeId: order-table
+          name: cell-0-1
+          children:
+          - cell-amount-h
+        order-table-cell-1-0:
+          id: order-table-cell-1-0
+          nodeId: order-table
+          name: cell-1-0
+          children:
+          - cell-item
+        order-table-cell-1-1:
+          id: order-table-cell-1-1
+          nodeId: order-table
+          name: cell-1-1
+          children:
+          - cell-amount
+        signature-children:
+          id: signature-children
+          nodeId: signature
+          name: children
+          children:
+          - signature-closing
+        signature-closing-fill:
+          id: signature-closing-fill
+          nodeId: signature-closing
+          name: fill
+          children:
+          - closing-text
+      themeRef:
+        type: inherit
+
+VariantContentDto:
+  type: object
+  description: |
+    A variant's content in one release, and how it stands against that release's base.
+  required:
+    - variantKey
+    - templateModel
+    - status
+    - lastModified
+  properties:
+    variantKey:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: Key of the variant
+      example: english
+    templateModel:
+      $ref: '../../../catalog/schemas/template-document.schema.json'
+    status:
+      $ref: './common.yaml#/ResourceStatus'
+    lastModified:
       type: string
       format: date-time
-      description: Timestamp when this version was activated
-      example: "2026-01-28T12:00:00Z"
-  example:
-    environmentId: production
-    environmentName: Production
-    versionId: 1
-    activatedAt: "2026-01-28T12:00:00Z"
-
-ActivationListResponse:
-  type: object
-  description: List of environment activations for a variant
-  required:
-    - items
-  properties:
-    items:
-      type: array
-      description: List of activations
-      items:
-        $ref: '#/ActivationDto'
-  example:
-    items:
-      - environmentId: production
-        environmentName: Production
-        versionId: 1
-        activatedAt: "2026-01-28T12:00:00Z"
-      - environmentId: staging
-        environmentName: Staging
-        versionId: 2
-        activatedAt: "2026-01-29T09:00:00Z"
+      description: When the content was last edited
+      example: "2026-01-28T11:30:00Z"
+    readyAt:
+      type: [string, "null"]
+      format: date-time
+      description: When the current content was marked ready; null unless the status is `ready`
+      example: null

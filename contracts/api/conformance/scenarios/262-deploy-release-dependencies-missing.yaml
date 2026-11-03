@@ -1,0 +1,59 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: deploy-release-dependencies-missing
+title: A refused deployment says which dependency releases are missing, and why
+why: >
+  Deploying a release whose pinned dependency releases cannot be had (the tenant does not have
+  them, and they could not be fetched from their registry or a mirror, or not verified) is refused
+  with `release-dependencies-missing`. Its `missingDependencies` member is the reason: each release
+  the deployed one renders with, named in full, and why it is missing (`unavailable`, the one
+  reason the contract names). Without it a caller knows only that something conflicted, and cannot
+  tell which registry or mirror to fix.
+
+  A client's problem parser must surface the member, every entry in order, with the registry as
+  written and the reason as sent, including one it reached only through another dependency.
+
+action:
+  name: deploy-catalog-release
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    environmentKey: production
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: 1.4.0
+
+script:
+  - status: 409
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/release-dependencies-missing
+      title: Release dependencies missing
+      status: 409
+      detail: letters 1.4.0 renders with releases that cannot be had
+      instance: /api/tenants/acme-corp/environments/production/deployments/~/acme-corp/letters/1.4.0
+      missingDependencies:
+        - registry: exchange.epistola.app
+          namespace: epistola
+          catalogKey: system
+          version: 3.2.0
+          reason: unavailable
+        - registry: registry.gemeente-x.nl
+          namespace: huisstijl
+          catalogKey: branding
+          version: 1.4.2
+          reason: unavailable
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PUT
+      path: /api/tenants/acme-corp/environments/production/deployments/~/acme-corp/letters/1.4.0
+      query: ""
+  report:
+    problemTypeSlug: release-dependencies-missing
+    problemStatus: 409
+    problemMissingDependencies: exchange.epistola.app/epistola/system@3.2.0:unavailable,registry.gemeente-x.nl/huisstijl/branding@1.4.2:unavailable

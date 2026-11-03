@@ -1,0 +1,66 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: release-catalog-draft-version
+title: Releasing a draft under a version the author chose sends that version, and nothing else
+why: >
+  The server chooses a release's version from its changes against the draft's base, but the author may raise
+  the version, for example to mark a major on purpose (ADR 0002). The version travels as `version` in
+  the body of `…/releases/{releaseId}/release`; the server refuses one lower than the changes need,
+  not above the base, or one another release has. A client that drops it releases `1.5.0` where the
+  author asked for `2.0.0`.
+
+  No notes, no acknowledgement and no request to release dependencies were given, so none is sent
+  (`releaseDependencies` may go out as `false`, its default).
+  No other draft is open, so `draftsBehind` is empty, and nothing was released along with it.
+
+action:
+  name: release-catalog-draft
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: k7m2x9qa
+    version: 2.0.0
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      release:
+        version: 2.0.0
+        releaseId: k7m2x9qa
+        name: Redesign 2027
+        status: released
+        base: 1.4.0
+        createdFrom: null
+        behind: []
+        releasedAt: "2026-10-15T10:00:00Z"
+        notes: null
+        fingerprint: v5:2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b
+        dependencies: []
+        deployedTo: []
+      unchangedContent: false
+      draftsBehind: []
+      releasedDependencies: []
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/release
+      body:
+        json:
+          version: 2.0.0
+          # Its default is false, so a client may send `false` or leave it out, never `true`.
+          releaseDependencies: { whenPresent: { equals: false } }
+        jsonAbsent: [notes, acknowledgedBehind]
+  report:
+    version: 2.0.0
+    status: released
+    releaseId: k7m2x9qa
+    draftsBehind: ""
+    releasedDependencies: ""

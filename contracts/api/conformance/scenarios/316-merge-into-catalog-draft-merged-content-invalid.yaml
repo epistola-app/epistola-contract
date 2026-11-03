@@ -1,0 +1,54 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: merge-into-catalog-draft-merged-content-invalid
+title: Merged content that is not valid for its entry is refused as a validation error
+why: >
+  Merging is alpha (ADR 0005). Merged content is validated as an import validates content, against
+  the portable catalog format and the server's rules, and content that fails is refused with 400
+  `validation-error`, each failure's `field` naming the entry in `mergedContent` and the path within
+  it, with nothing changed. A client surfaces it as a problem with its slug and status, not as a
+  merge that did nothing.
+
+action:
+  name: merge-into-catalog-draft
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: k7m2x9qa
+    version: 1.5.0
+    mergedContent:
+      template/invoice:
+        type: template
+        key: Invoice!
+
+script:
+  - status: 400
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/validation-error
+      title: Bad Request
+      status: 400
+      detail: The merged content of template/invoice is not a valid template
+      errors:
+        - field: mergedContent.template/invoice/key
+          message: "must be the entry's key, invoice"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/merge
+      body:
+        json:
+          mergedContent:
+            template/invoice:
+              type: template
+              key: Invoice!
+  report:
+    problemTypeSlug: validation-error
+    problemStatus: 400

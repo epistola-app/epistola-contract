@@ -1,28 +1,20 @@
 attributes:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the catalog
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
   get:
     operationId: listAttributes
-    summary: List attribute definitions for a tenant
+    summary: List the attribute definitions in a release of a catalog
     description: >-
-      Retrieve all attribute definitions configured for a specific tenant.
+      Retrieve the attribute definitions of this release.
       Attribute definitions describe the keys that can be used for variant selection.
     tags:
       - Attributes
@@ -30,13 +22,11 @@ attributes:
     parameters:
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
-      - $ref: '../components/parameters/sorting.yaml#/Sort'
-      - $ref: '../components/parameters/sorting.yaml#/Direction'
     responses:
       '200':
         description: List of attribute definitions
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/attributes.yaml#/AttributeListResponse'
       '400':
@@ -50,21 +40,25 @@ attributes:
   post:
     operationId: createAttribute
     summary: Create a new attribute definition
-    description: Create a new attribute definition for the specified tenant.
+    description: Create an attribute definition in the draft.
     tags:
       - Attributes
     x-required-permissions: [REFERENCE_EDIT]
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/attributes.yaml#/CreateAttributeRequest'
     responses:
       '201':
         description: Attribute definition created successfully
+        headers:
+          Location:
+            $ref: '../components/headers/location.yaml#/Location'
+            description: The attribute's address (`getAttribute`)
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/attributes.yaml#/AttributeDto'
       '400':
@@ -76,37 +70,26 @@ attributes:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
 
 attributes-key:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the catalog
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
     - name: attributeKey
       in: path
       required: true
       description: The attribute key (e.g., "language", "brand")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 1
-        maxLength: 50
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
   get:
     operationId: getAttribute
     summary: Get an attribute definition
@@ -117,34 +100,11 @@ attributes-key:
     responses:
       '200':
         description: Attribute definition details
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/schemas/attributes.yaml#/AttributeDto'
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
-  patch:
-    operationId: updateAttribute
-    summary: Update an attribute definition
-    description: Update the description of an existing attribute definition.
-    tags:
-      - Attributes
-    x-required-permissions: [REFERENCE_EDIT]
-    requestBody:
-      required: true
-      content:
-        application/vnd.epistola.v1+json:
-          schema:
-            $ref: '../components/schemas/attributes.yaml#/UpdateAttributeRequest'
-    responses:
-      '200':
-        description: Attribute definition updated successfully
-        content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/attributes.yaml#/AttributeDto'
       '400':
@@ -155,6 +115,51 @@ attributes-key:
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+  patch:
+    operationId: updateAttribute
+    summary: Update an attribute definition
+    description: |
+      Update an attribute definition's `name` and constraint: its inline
+      `allowedValues`, or the code list it binds (`codeListBinding`). Omitted or null members are
+      left as they are; `clearCodeListBinding: true` removes the binding. The constraint may switch
+      kind, as `UpdateAttributeRequest` describes; mixing both kinds, or a `codeListBinding`
+      together with `clearCodeListBinding`, is refused with 400 `validation-error`, and an
+      attribute of a catalog that cannot be changed with 409 `catalog-read-only`.
+      Send the `ETag` from a read as `If-Match` to have the update refused with 412
+      `resource-modified` if the resource changed since; without it, the last write wins.
+    tags:
+      - Attributes
+    x-required-permissions: [REFERENCE_EDIT]
+    parameters:
+      - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v2+json:
+          schema:
+            $ref: '../components/schemas/attributes.yaml#/UpdateAttributeRequest'
+    responses:
+      '200':
+        description: Attribute definition updated successfully
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/attributes.yaml#/AttributeDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
+      '412':
+        $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
   delete:
     operationId: deleteAttribute
     summary: Delete an attribute definition
@@ -165,9 +170,13 @@ attributes-key:
     responses:
       '204':
         description: Attribute definition deleted successfully
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'

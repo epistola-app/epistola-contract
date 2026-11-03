@@ -1,0 +1,62 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: release-catalog-draft-patch-release
+title: Releasing a draft as a patch release sends the labelled number as given
+why: >
+  A tenant that does not hold a catalog's namespace releases its fix as a patch release, labelled
+  with a namespace it holds: `1.3.1-gemeente-x.1` (the patch rule, contract ADR 0003). Whether the
+  tenant may issue that number is the server's to decide; the shape is the contract's, and the
+  number is a `ReleaseVersion` like `1.3.1`. A client that validated the request against the plain
+  `MAJOR.MINOR.PATCH` rule would refuse it before it left, and one that normalized it would release
+  the holder's own number.
+
+action:
+  name: release-catalog-draft
+  config:
+    nodeId: conformance-node-1
+    tenantKey: gemeente-x
+    registry: exchange.epistola.app
+    namespace: acme-corp
+    catalogKey: letters
+    release: p7r2w9xm
+    version: 1.3.1-gemeente-x.1
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      release:
+        version: 1.3.1-gemeente-x.1
+        releaseId: p7r2w9xm
+        name: Fix the payment terms
+        status: released
+        base: 1.3.0
+        createdFrom: null
+        behind: []
+        releasedAt: "2026-10-21T12:00:00Z"
+        notes: null
+        fingerprint: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
+        dependencies: []
+        deployedTo: []
+      unchangedContent: false
+      draftsBehind: []
+      releasedDependencies: []
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/gemeente-x/catalogs/exchange.epistola.app/acme-corp/letters/releases/p7r2w9xm/release
+      body:
+        json:
+          version: 1.3.1-gemeente-x.1
+          releaseDependencies: { whenPresent: { equals: false } }
+        jsonAbsent: [notes, acknowledgedBehind]
+  report:
+    version: 1.3.1-gemeente-x.1
+    status: released
+    releaseId: p7r2w9xm
+    draftsBehind: ""
+    releasedDependencies: ""

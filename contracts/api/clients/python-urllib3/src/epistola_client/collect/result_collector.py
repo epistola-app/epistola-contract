@@ -30,8 +30,8 @@ import time
 from dataclasses import dataclass
 from typing import Callable, List, Optional, Protocol
 
-_VENDOR_JSON = "application/vnd.epistola.v1+json"
-_NDJSON = "application/vnd.epistola.v1+ndjson"
+_VENDOR_JSON = "application/vnd.epistola.v2+json"
+_NDJSON = "application/vnd.epistola.v2+ndjson"
 
 #: How many prefixes :meth:`ResultCollector.routing_key_to_me` tries before giving up. Reaching
 #: this means every one of a thousand hashes missed every partition this node owns.
@@ -40,7 +40,8 @@ MAX_ROUTING_KEY_ATTEMPTS = 1000
 
 @dataclass(frozen=True)
 class GenerationResult:
-    """A completed or failed generation result."""
+    """A completed or failed generation result. ``status`` is the wire value as sent:
+    ``completed`` or ``failed``."""
 
     sequence: int
     request_id: str
@@ -49,9 +50,20 @@ class GenerationResult:
     document_id: Optional[str]
     correlation_id: Optional[str]
     routing_key: Optional[str]
-    template_id: Optional[str]
-    variant_id: Optional[str]
-    version_id: Optional[int]
+    template_key: Optional[str]
+    variant_key: Optional[str]
+    #: The catalog's registry, named in full (never ``~``).
+    registry: str
+    #: The catalog's namespace within its registry.
+    namespace: str
+    #: The catalog's key within its namespace.
+    catalog_key: str
+    #: The version of the release the document was rendered from; ``None`` for a draft.
+    version: Optional[str]
+    #: The id of the release rendered: the draft's when ``version`` is ``None``.
+    release_id: Optional[str]
+    #: The name of the release rendered, at render time; ``None`` for a release that has none.
+    release_name: Optional[str]
     filename: Optional[str]
     content_type: Optional[str]
     size_bytes: Optional[int]
@@ -158,7 +170,7 @@ class ResultCollector:
     def __init__(
         self,
         api_client,
-        tenant_id: str,
+        tenant_key: str,
         batch_size: int,
         min_interval: float,
         max_interval: float,
@@ -170,7 +182,7 @@ class ResultCollector:
         register_shutdown_hook: bool,
     ) -> None:
         self._api_client = api_client
-        self._tenant_id = tenant_id
+        self._tenant_key = tenant_key
         self._batch_size = batch_size
         self._min_interval = min_interval
         self._max_interval = max_interval
@@ -346,7 +358,7 @@ class ResultCollector:
         headers["Accept-Encoding"] = _supported_encodings()
 
         url = self._api_client.configuration.host.rstrip("/") + (
-            f"/tenants/{self._tenant_id}/generation/collect"
+            f"/tenants/{self._tenant_key}/generation/collect"
         )
 
         response = self._api_client.rest_client.pool_manager.request(
@@ -359,7 +371,7 @@ class ResultCollector:
         )
         try:
             if response.status < 200 or response.status > 299:
-                raise RuntimeError(f"collect failed: HTTP {response.status}")
+                raise _error_for(response)
 
             encoding = response.headers.get("content-encoding")
             stream = _decompress(response, encoding)
@@ -454,6 +466,25 @@ def _supported_encodings() -> str:
     return ", ".join(encodings)
 
 
+
+def _error_for(response) -> Exception:
+    """The exception a non-2xx collect response raises, as the client raises it for every other
+    call: a :class:`ProblemDetailException` for a parseable problem+json body, else the generated
+    ``ApiException`` with the status and body. The collector reads the response itself, so the
+    client's problem handler never sees it; without this a 403 surfaced as a bare RuntimeError."""
+    from epistola_client_generated.exceptions import ApiException
+
+    from epistola_client.error.problem_detail_handler import PROBLEM_JSON, parse_problem
+
+    raw = response.read()
+    body = raw.decode("utf-8", errors="replace") if raw else ""
+    content_type = (response.headers.get("content-type") or "").split(";")[0].strip().lower()
+    if content_type == PROBLEM_JSON and body.strip():
+        problem = parse_problem(body, response.status, response.headers)
+        if problem is not None:
+            return problem
+    return ApiException(status=response.status, reason=f"collect failed: HTTP {response.status}", body=body or None)
+
 def _decompress(response, encoding: Optional[str]):
     if encoding == "gzip":
         return gzip.GzipFile(fileobj=response)
@@ -477,9 +508,14 @@ def _parse_result(node: dict) -> GenerationResult:
         document_id=node.get("documentId"),
         correlation_id=node.get("correlationId"),
         routing_key=node.get("routingKey"),
-        template_id=node.get("templateId"),
-        variant_id=node.get("variantId"),
-        version_id=node.get("versionId"),
+        template_key=node.get("templateKey"),
+        variant_key=node.get("variantKey"),
+        registry=node.get("registry") or "",
+        namespace=node.get("namespace") or "",
+        catalog_key=node.get("catalogKey") or "",
+        version=node.get("version"),
+        release_id=node.get("releaseId"),
+        release_name=node.get("releaseName"),
         filename=node.get("filename"),
         content_type=node.get("contentType"),
         size_bytes=node.get("sizeBytes"),
@@ -493,7 +529,7 @@ class ResultCollectorBuilder:
 
     def __init__(self) -> None:
         self._api_client = None
-        self._tenant_id: Optional[str] = None
+        self._tenant_key: Optional[str] = None
         self._batch_size = 100
         self._min_interval = 1.0
         self._max_interval = 30.0
@@ -509,9 +545,9 @@ class ResultCollectorBuilder:
         self._api_client = api_client
         return self
 
-    def tenant_id(self, tenant_id: str) -> "ResultCollectorBuilder":
+    def tenant_key(self, tenant_key: str) -> "ResultCollectorBuilder":
         """The tenant whose results to collect."""
-        self._tenant_id = tenant_id
+        self._tenant_key = tenant_key
         return self
 
     def batch_size(self, size: int) -> "ResultCollectorBuilder":
@@ -570,13 +606,13 @@ class ResultCollectorBuilder:
         """Build the :class:`ResultCollector`."""
         if self._api_client is None:
             raise ValueError("api_client is required")
-        if self._tenant_id is None:
-            raise ValueError("tenant_id is required")
+        if self._tenant_key is None:
+            raise ValueError("tenant_key is required")
         if self._handler is None:
             raise ValueError("handler is required")
         return ResultCollector(
             self._api_client,
-            self._tenant_id,
+            self._tenant_key,
             self._batch_size,
             self._min_interval,
             self._max_interval,

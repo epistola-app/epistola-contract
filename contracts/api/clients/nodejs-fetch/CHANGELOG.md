@@ -9,7 +9,78 @@ records contract changes; this file records changes to the hand-written library 
 
 ## [Unreleased]
 
+### Added
+
+- `KnownValidationCodes` (and the `KnownValidationCode` type), generated from the contract's
+  `x-validation-codes` registry: one constant per code that says why a field of a
+  `validation-error` failed. Compare a field error's `code` (`undefined` when the server sent none)
+  against them, keeping a `default` branch.
+- `ProblemDetailException.help`: the problem type's page with this request's context in its query
+  (`?operation=getTemplate`), the contract's new optional base member `help`, or `undefined` when
+  the server sent none. Switch on the type, not on this; open it for hints. It is a base member, so
+  `extensions` no longer reports it.
+- `ProblemDetailException.requiredPermission`, `refusedTenantKey`, `requiredPlatformRole`,
+  `refusalReason` and `isForbiddenProblem`: what a `forbidden` problem says was refused (a
+  permission in a tenant, access to a tenant, a platform role, or a policy's reason), read from that
+  problem only.
+- `ProblemDetailException.behind` and `isCatalogVersionBehindProblem` (a `catalog-version-behind`
+  problem's versions to acknowledge), `environments`, `pinnedBy` (each a `CatalogReleaseRef`) and
+  `isReleaseInUseProblem` (what a `release-in-use` problem says uses the release), and
+  `tiedVariants` and `isAmbiguousVariantProblem` (an `ambiguous-variant` problem's variants).
+- `ProblemDetailException.missingBaseVersion`, `missingBaseFingerprint` and
+  `isMergeBaseMissingProblem` surface the `version` and `fingerprint` members of a
+  `merge-base-missing` problem (409, from `mergeIntoCatalogDraft`, alpha): the release to install
+  first, read from that problem only, since other problems use `version` for other things.
+- `ProblemDetailException.unresolvedConflicts` lists the conflicts a `merge-conflicts-unresolved`
+  problem (409, from `mergeIntoCatalogDraft`, alpha) reports have no resolution, each as
+  `resourceType/resourceKey`, dropping entries that are not strings; `isMergeConflictsUnresolvedProblem`
+  is true when it is not empty.
+- `ProblemDetailException.readOnlyReason` says why a `catalog-read-only` problem (409, from any
+  write to a catalog that cannot be changed) refused the write: `editing-disabled` or
+  `supplied-by-epistola`, kept as the string the server sent; `undefined` when absent or not a
+  string. `isCatalogReadOnlyProblem` is true when it is set.
+- `ProblemDetailException.missingDependencies` lists the releases a `release-dependencies-missing`
+  problem (409, from `deployCatalogRelease`) reports cannot be had, each a `MissingDependency`
+  (`registry`, `namespace`, `catalogKey`, `version`, `reason`). `reason` is kept as the
+  string the server sent, so a reason added later is not lost; entries missing a member are
+  dropped, and the list is empty for any other problem. `isReleaseDependenciesMissingProblem` is
+  true when it is not empty.
+- `ProblemDetailException.unreleasedDependencies` lists the drafts of other catalogs a
+  `release-dependencies-unreleased` problem (409, from `releaseCatalogDraft`) reports the released
+  draft's dependency declarations name, each an `UnreleasedDependency` (`registry`, `namespace`,
+  `catalogKey`, `releaseId`, `releaseName`); entries missing a member are dropped, and the list is
+  empty for any other problem. `isReleaseDependenciesUnreleasedProblem` is true when it is not
+  empty.
+- The generated model validators check a member that references a plain string schema, such as
+  `CatalogDependencyRequirement.version` (`ReleaseVersion`), as if its constraints were
+  written inline. Before, every referenced member was skipped.
+
 ### Changed
+
+- **BREAKING:** a resource's address is its `key` (#84). The hand-written API follows the
+  generated one: `TemplateDataValidator.validate`, `TemplateSchemaValidator.validate`,
+  `ServerTemplateDataValidator.validate` and `SchemaCache.getOrLoad` / `evict` take
+  `(tenantKey, registry, namespace, catalogKey, templateKey, …)`; `ServerValidationTarget` takes
+  `variantKey` and `environmentKey` in place of `variantId` and `environmentId`; and
+  `ResultCollector.builder().tenantId(…)` is now `.tenantKey(…)`. The generated request parameters
+  and models carry the same renames (`tenantKey`, `templateKey`, …, and `key` in place of `slug` and
+  of a create request's `id`).
+- **BREAKING:** a catalog is addressed by registry, namespace and key. `TemplateDataValidator.validate`,
+  `TemplateSchemaValidator.validate` and `ServerTemplateDataValidator.validate` take
+  `(tenantId, registry, namespace, catalogKey, templateId, data)` in place of
+  `(tenantId, catalogId, templateId, data)`, the registry in its path-segment form (`~` for the
+  server's default registry, or named in full, such as `acme.com`) and the namespace a plain slug.
+  `SchemaCache.getOrLoad` / `evict` are keyed the same way. `ValidatingGenerationApi` hands a
+  pre-flighting validator the request's `registry`, or `~` when the request leaves it out or null.
+- **BREAKING:** `ServerValidationTarget` takes a `versionRange` (a version range such as `1.4.0` or
+  `^1.4.0`, sent as the request's `versionRange`) in place of `versionId`, matching contract 2.0's
+  generation by release. It may be combined with `environmentKey`; without either, the catalog's
+  latest release is checked.
+- Results handed to a `ResultCollector` handler carry the template's catalog as `registry`,
+  `namespace` and `catalogKey`, always set, next to `version`, which is null for a result
+  rendered from a draft.
+- The README no longer mentions the `X-API-Key` header: the contract dropped it, and the client
+  only ever sent `Authorization: ApiKey <key>`.
 
 - **Template data is validated by the server, not by a bundled schema compiler.**
   `TemplateSchemaValidator` and `ValidatingGenerationApi` now call `validateTemplateData` through a

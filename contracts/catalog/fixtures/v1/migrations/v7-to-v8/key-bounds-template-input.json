@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 7,
+  "resource": {
+    "type": "template",
+    "slug": "ab",
+    "name": "Letter",
+    "themeId": "x",
+    "pdfaEnabled": true,
+    "dataExamples": [
+      {
+        "name": "A",
+        "data": {}
+      },
+      {
+        "name": "Standard",
+        "data": {}
+      }
+    ],
+    "templateModel": {
+      "modelVersion": 1,
+      "root": "root",
+      "nodes": {
+        "root": {
+          "id": "root",
+          "type": "root",
+          "slots": [
+            "children"
+          ],
+          "styles": {
+            "fontFamily": {
+              "slug": "f"
+            }
+          }
+        },
+        "address": {
+          "id": "address",
+          "type": "stencil",
+          "slots": [
+            "address-children"
+          ],
+          "props": {
+            "stencilId": "ab"
+          }
+        },
+        "shared": {
+          "id": "shared",
+          "type": "stencil",
+          "slots": [],
+          "props": {
+            "stencilId": "ad",
+            "catalogKey": "shared"
+          }
+        },
+        "icon": {
+          "id": "icon",
+          "type": "image",
+          "slots": [],
+          "props": {
+            "assetId": "1",
+            "alt": "Icon"
+          }
+        }
+      },
+      "slots": {
+        "children": {
+          "id": "children",
+          "nodeId": "root",
+          "name": "children",
+          "children": [
+            "address",
+            "shared",
+            "icon"
+          ]
+        },
+        "address-children": {
+          "id": "address-children",
+          "nodeId": "address",
+          "name": "children",
+          "children": []
+        }
+      },
+      "themeRef": {
+        "type": "override",
+        "themeId": "cs",
+        "catalogKey": "shared"
+      }
+    },
+    "variants": [
+      {
+        "slug": "nl",
+        "title": "Dutch",
+        "attributes": {
+          "la": "nl"
+        },
+        "isDefault": true
+      },
+      {
+        "slug": "english",
+        "title": "English",
+        "attributes": {
+          "la": "en"
+        }
+      }
+    ]
+  }
+}

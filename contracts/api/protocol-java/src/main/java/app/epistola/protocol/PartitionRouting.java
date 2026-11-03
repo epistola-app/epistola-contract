@@ -13,8 +13,8 @@ import org.jspecify.annotations.Nullable;
  * The partition assignment a node holds, and the routing decisions that follow from it.
  *
  * <p>Generation results are routed to nodes by consistent hashing on the request's
- * {@code routingKey}: {@code murmur3(routingKey) % totalPartitions}, with partitions assigned to
- * nodes by the server. This is the client half of that scheme — deciding which partition a key
+ * {@code routingKey}: {@code (murmur3_x86_32(utf8(routingKey), seed 0) & 0x7FFFFFFF) % total}, with
+ * partitions assigned to nodes by the server. This is the client half of that scheme — deciding which partition a key
  * lands on, and constructing a key that lands here.
  *
  * <p>Shared rather than reimplemented per client. The prefix search below is the reason: every

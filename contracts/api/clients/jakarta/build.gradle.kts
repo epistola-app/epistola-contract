@@ -115,7 +115,7 @@ openApiGenerate {
 fun rewriteMultipartMethods(source: String): String {
     // One method per line, as the generator emits it. The parameter list is matched up to the
     // trailing `throws` rather than to the first `)`, because an annotation carries its own.
-    //   ImageDto uploadImage(@PathParam("tenantId") String tenantId,  @FormParam("file") File x, …) throws …;
+    //   ImageDto uploadImage(@PathParam("tenantKey") String tenantKey,  @FormParam("file") File x, …) throws …;
     val declaration = Regex(
         """^ {4}(\S+(?:<[^>]*>)?) (\w+)\((.*@FormParam.*)\) throws ApiException, ProcessingException;$""",
         RegexOption.MULTILINE,
@@ -183,6 +183,114 @@ $partBuilders
 tasks.openApiGenerate {
     val apiDir = generatedDir.map { it.dir("src/main/java/app/epistola/client/jakarta/api") }
 
+    // A JSON null for an enum member. The generator's JSON-B enum deserializer reads every value
+    // with `parser.getString()`, which JSON-P refuses on VALUE_NULL, so a nullable enum such as
+    // `CatalogDraftReleasePreview.changeKind` failed the whole response instead of reading as null
+    // (found by the `preview-catalog-draft-first-release` conformance scenario). A null now reads
+    // as null, as it does for every other member type. `currentEvent()` is JSON-P 2.1, which
+    // Jakarta EE 10 requires.
+    val modelDir = generatedDir.map { it.dir("src/main/java/app/epistola/client/jakarta/model") }
+    doLast {
+        val deserialize = Regex(
+            """( +)public \w+ deserialize\(JsonParser parser, DeserializationContext ctx, Type rtType\) \{\n""",
+        )
+        var deserializers = 0
+        fileTree(modelDir) { include("**/*.java") }.forEach { modelFile ->
+            val source = modelFile.readText()
+            if (!source.contains("implements JsonbDeserializer<")) {
+                return@forEach
+            }
+            val declared = Regex("""implements JsonbDeserializer<""").findAll(source).count()
+            val matched = deserialize.findAll(source).count()
+            check(matched == declared) {
+                "${modelFile.name} has $declared enum deserializer(s) but the null rewrite matched " +
+                    "$matched — the generator's emitted shape changed; update this rewrite"
+            }
+            modelFile.writeText(
+                deserialize.replace(source) { match ->
+                    val indent = match.groupValues[1] + "    "
+                    match.value +
+                        "${indent}if (parser.currentEvent() == JsonParser.Event.VALUE_NULL) {\n" +
+                        "$indent    return null;\n" +
+                        "$indent}\n"
+                },
+            )
+            deserializers += matched
+        }
+        if (deserializers == 0) {
+            throw GradleException(
+                "the enum null rewrite matched no generated deserializer — the generator no longer " +
+                    "emits JSON-B enum deserializers; check that a null enum member still reads as null",
+            )
+        }
+        logger.lifecycle("Taught $deserializers enum deserializer(s) to read a JSON null as null")
+    }
+
+    // The response headers of an operation that answers with an `ETag` or a `Location`. A
+    // MicroProfile Rest Client method returns its body alone, and the generator has no option to
+    // return the Response as well, so a caller had no way to read the `ETag` of a read and send it
+    // back as `If-Match` (optimistic locking was unusable from this client), nor the `Location` a
+    // create or an accepted generation answers with. Each such operation gains a sibling,
+    // `<operation>WithHttpInfo`, with the same annotations and parameters, returning the
+    // `jakarta.ws.rs.core.Response` (the name the other generated clients give the same thing).
+    // Found by the `get-variant-content` conformance scenario.
+    val spec = bundledSpec
+    doLast {
+        @Suppress("UNCHECKED_CAST")
+        val paths = (org.yaml.snakeyaml.Yaml().load<Map<String, Any>>(spec.readText())["paths"] as Map<String, Map<String, Any>>)
+        val exposedHeaders = setOf("etag", "location")
+        val headerOperations = paths.values
+            .flatMap { pathItem -> pathItem.values.filterIsInstance<Map<String, Any>>() }
+            .filter { operation ->
+                @Suppress("UNCHECKED_CAST")
+                val responses = operation["responses"] as? Map<String, Map<String, Any>> ?: emptyMap()
+                responses.any { (status, response) ->
+                    status.startsWith("2") && (response["headers"] as? Map<*, *>)?.keys?.any { "$it".lowercase() in exposedHeaders } == true
+                }
+            }
+            .map { it["operationId"] as String }
+            .toSortedSet()
+        check(headerOperations.isNotEmpty()) {
+            "no operation in the spec answers with an ETag or a Location header any more — remove the WithHttpInfo rewrite"
+        }
+
+        val rewritten = mutableSetOf<String>()
+        fileTree(apiDir) { include("**/*Api.java") }.forEach { apiFile ->
+            var source = apiFile.readText()
+            for (operation in headerOperations) {
+                // The annotations directly above the declaration, which the generator emits one per
+                // line (an absent @Path leaves an indented blank line), and the declaration itself.
+                val declaration = Regex(
+                    """((?:^ {4}(?:@[^\n]*)?\n)+)^ {4}(\S+(?:<[^>]*>)?) ($operation)\((.*)\) throws ApiException, ProcessingException;$""",
+                    RegexOption.MULTILINE,
+                )
+                val match = declaration.find(source) ?: continue
+                val (annotations, returnType, _, parameters) = match.destructured
+                val sibling = """
+
+    /**
+     * {@code $operation}, answering with the whole {@link Response} rather than its body alone: its
+     * status, its headers (the {@code ETag} to send back as {@code If-Match}, or the {@code Location}
+     * of what it created, among them), and its
+     * body, read with {@code readEntity($returnType.class)}. Close the response when done with it.
+     * An error response still arrives as a {@code ProblemDetailException}.
+     */
+$annotations    Response ${operation}WithHttpInfo($parameters) throws ApiException, ProcessingException;"""
+                source = source.substring(0, match.range.last + 1) + sibling + source.substring(match.range.last + 1)
+                rewritten += operation
+            }
+            apiFile.writeText(source)
+        }
+        val missing = headerOperations - rewritten
+        check(missing.isEmpty()) {
+            "the WithHttpInfo rewrite found no generated method for $missing — the generator's emitted " +
+                "method shape changed; update this rewrite"
+        }
+        logger.lifecycle("Gave ${rewritten.size} operation(s) answering with an ETag or a Location a WithHttpInfo sibling")
+    }
+
+    // After the WithHttpInfo rewrite, so an upload's sibling is rewritten onto EntityPart too and
+    // gains the same one-argument-per-field convenience overload.
     doLast {
         var rewritten = 0
         fileTree(apiDir) { include("**/*Api.java") }.forEach { apiFile ->
@@ -234,7 +342,7 @@ fun readSpec(spec: File): Map<String, Any> =
 val generatedProblemSlugsDir = layout.buildDirectory.dir("generated-problem-slugs/src/main/java")
 
 val generateProblemSlugs by tasks.registering {
-    description = "Generates KnownProblemSlugs from the spec's x-problem-types extension"
+    description = "Generates KnownProblemSlugs and KnownValidationCodes from the spec's x-problem-types and x-validation-codes extensions"
     group = "openapi tools"
 
     inputs.file(bundledSpec)
@@ -327,6 +435,50 @@ val generateProblemSlugs by tasks.registering {
             """.trimMargin() + "\n",
         )
         logger.lifecycle("Generated KnownProblemSlugs with ${types.size} slug(s) → ${outFile.relativeTo(project.projectDir)}")
+
+        val codes = model["validationCodes"] as List<Map<String, Any?>>
+        val codeConstants = codes.joinToString("\n\n") { entry ->
+            "    /** ${entry["kind"]} — ${entry["description"]} */\n" +
+                "    public static final String ${entry["constantName"]} = \"${entry["code"]}\";"
+        }
+        val allCodes = codes.joinToString(",\n") { "            ${it["constantName"]}" }
+        val codesFile = outDir.get().file("app/epistola/client/jakarta/error/KnownValidationCodes.java").asFile
+        codesFile.writeText(
+            """
+            |// Generated from the bundled OpenAPI spec's x-validation-codes extension — do not edit.
+            |package app.epistola.client.jakarta.error;
+            |
+            |import java.util.Arrays;
+            |import java.util.Collections;
+            |import java.util.List;
+            |
+            |/**
+            | * The codes that say why a field of a {@code validation-error} failed
+            | * ({@link app.epistola.client.jakarta.model.ValidationError#getCode()}), from the contract's
+            | * validation-code registry (the spec's {@code x-validation-codes} extension /
+            | * {@code docs/error-types.md}): {@code constraint} codes name the JSON Schema keyword a value
+            | * broke, {@code template} codes a finding in template or stencil content, {@code domain}
+            | * codes a rule the server applies beyond the schema.
+            | *
+            | * <p>These are convenience constants for {@code switch (error.getCode())}. The code is
+            | * deliberately a plain {@code String} (not an enum) so the API can introduce new codes in a
+            | * minor version without forcing a client release — always keep a {@code default} branch.
+            | */
+            |public final class KnownValidationCodes {
+            |
+            |$codeConstants
+            |
+            |    /** Every code in the registry, in declaration order. */
+            |    public static final List<String> ALL = Collections.unmodifiableList(Arrays.asList(
+            |$allCodes
+            |    ));
+            |
+            |    private KnownValidationCodes() {
+            |    }
+            |}
+            """.trimMargin() + "\n",
+        )
+        logger.lifecycle("Generated KnownValidationCodes with ${codes.size} code(s) → ${codesFile.relativeTo(project.projectDir)}")
     }
 }
 

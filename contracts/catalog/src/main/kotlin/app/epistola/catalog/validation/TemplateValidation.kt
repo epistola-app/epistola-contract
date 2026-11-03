@@ -67,19 +67,30 @@ enum class ResourceResolution {
 /**
  * Product-neutral identity of a resource referenced by template content.
  *
+ * Content names another catalog by an alias ([app.epistola.catalog.protocol.CatalogAliases], contract ADR
+ * 0003), so a reference made from content carries the alias as [catalogKey] and no [namespace] or
+ * [registry]. [CatalogValidator] resolves the alias through the catalog's dependency list before it
+ * asks a [CatalogDependencyResolver]: the resolver receives the declared catalog's name, its
+ * [catalogKey], [namespace] and [registry].
+ *
  * @property type portable resource discriminator such as `stencil` or `theme`.
- * @property slug resource slug within its catalog.
- * @property catalogKey owning catalog; null means the current catalog.
- * @property version exact stencil version, when the reference is versioned.
- * @property draftVersion exact mutable draft version, when authoring targets a
- *   draft. [version] remains the published base when one exists.
+ * @property key resource key within its catalog: its public address there.
+ * @property catalogKey the catalog holding the resource: in content its alias, null (or the current
+ *   catalog's own key) meaning the current catalog; when handed to a resolver, the declared catalog's
+ *   key.
+ * @property namespace the declared catalog's namespace, when handed to a resolver; null in content.
+ * @property registry the declared catalog's registry, when handed to a resolver; null in content.
+ *
+ * A reference carries no version. Catalogs are versioned as a whole from wire v8, so the resource a
+ * reference reaches is the one in the release its catalog dependency pins, or the one in
+ * the same catalog.
  */
 data class CatalogResourceReference(
     val type: String,
-    val slug: String,
+    val key: String,
     val catalogKey: String? = null,
-    val version: Int? = null,
-    val draftVersion: Int? = null,
+    val namespace: String? = null,
+    val registry: String? = null,
 )
 
 /**
@@ -96,7 +107,7 @@ interface TemplateValidationContext {
 
     /**
      * Catalog that owns the document being validated. A null stencil-node
-     * catalogKey resolves to this catalog when comparing reference identity.
+     * catalogKey (alias) resolves to this catalog when comparing reference identity.
      */
     val currentCatalogKey: String? get() = null
 
@@ -108,12 +119,6 @@ interface TemplateValidationContext {
      * content uses a synthetic root node rather than an outer stencil node.
      */
     val containingStencil: CatalogResourceReference? get() = null
-
-    /**
-     * Whether authoring references may target draft stencil versions.
-     * Portable catalog validation overrides this to false.
-     */
-    val allowDraftStencilReferences: Boolean get() = true
 
     /**
      * Resolves a theme, stencil, or other catalog-scoped reference.
@@ -148,19 +153,18 @@ interface TemplateValidationContext {
         /**
          * Creates a standalone stencil context.
          *
-         * Supplying [stencilId] seeds self-reference detection. Catalog and
-         * version are optional when validating content that has not yet been
-         * assigned a portable identity.
+         * Supplying [stencilKey] seeds self-reference detection. The catalog is
+         * optional when validating content that has not yet been assigned a
+         * portable identity.
          */
         fun forStencil(
-            stencilId: String? = null,
+            stencilKey: String? = null,
             catalogKey: String? = null,
-            version: Int? = null,
         ): TemplateValidationContext = object : TemplateValidationContext {
             override val documentKind: TemplateDocumentKind = TemplateDocumentKind.STENCIL
             override val currentCatalogKey: String? = catalogKey
-            override val containingStencil: CatalogResourceReference? = stencilId?.let {
-                CatalogResourceReference("stencil", it, catalogKey, version)
+            override val containingStencil: CatalogResourceReference? = stencilKey?.let {
+                CatalogResourceReference("stencil", it, catalogKey)
             }
         }
     }
@@ -185,7 +189,18 @@ object TemplateValidationCodes {
     const val TEMPLATE_SLOT_INVALID = "TEMPLATE_SLOT_INVALID"
     const val TEMPLATE_CHILD_TYPE_NOT_ALLOWED = "TEMPLATE_CHILD_TYPE_NOT_ALLOWED"
     const val TEMPLATE_NODE_PROPERTY_INVALID = "TEMPLATE_NODE_PROPERTY_INVALID"
+
+    /**
+     * A style key the style registry does not define, so it has no effect. A
+     * [ValidationSeverity.WARNING] (an error until #97), wherever styles appear.
+     */
     const val TEMPLATE_STYLE_UNKNOWN = "TEMPLATE_STYLE_UNKNOWN"
+
+    /**
+     * A style key the registry defines but the place it is set does not accept: the component's
+     * `applicableStyles`, a style map's `applicableStyles`, or the components a theme preset
+     * applies to. It has no effect. A [ValidationSeverity.WARNING] (an error until #97).
+     */
     const val TEMPLATE_STYLE_NOT_APPLICABLE = "TEMPLATE_STYLE_NOT_APPLICABLE"
     const val TEMPLATE_STYLE_PRESET_UNKNOWN = "TEMPLATE_STYLE_PRESET_UNKNOWN"
     const val TEMPLATE_THEME_NOT_FOUND = "TEMPLATE_THEME_NOT_FOUND"
@@ -226,6 +241,14 @@ object TemplateValidationCodes {
 
     @Deprecated("Page headers may sit anywhere in the flow; no longer emitted.")
     const val PAGEHEADER_NOT_AT_ROOT = "PAGEHEADER_NOT_AT_ROOT"
+
+    /**
+     * Codes reported with [ValidationSeverity.WARNING] only. They never make a report invalid.
+     */
+    val WARNINGS: Set<String> = setOf(
+        TEMPLATE_STYLE_UNKNOWN,
+        TEMPLATE_STYLE_NOT_APPLICABLE,
+    )
 
     /** Complete published code set, used to enforce fixture coverage. */
     val ALL: Set<String> = setOf(

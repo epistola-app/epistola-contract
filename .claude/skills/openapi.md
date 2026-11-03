@@ -86,7 +86,7 @@ widgets:
       '200':
         description: List of widgets
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/widgets.yaml#/WidgetListResponse'
 
@@ -98,20 +98,20 @@ widgets:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/widgets.yaml#/CreateWidgetRequest'
     responses:
       '201':
         description: Widget created successfully
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/widgets.yaml#/WidgetDto'
       '400':
         description: Invalid request
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
 ```
@@ -121,9 +121,9 @@ widgets:
 ```yaml
 paths:
   # Widgets
-  /v1/tenants/{tenantId}/widgets:
+  /tenants/{tenantKey}/widgets:
     $ref: './contracts/api/paths/widgets.yaml#/widgets'
-  /v1/tenants/{tenantId}/widgets/{widgetId}:
+  /tenants/{tenantKey}/widgets/{widgetKey}:
     $ref: './contracts/api/paths/widgets.yaml#/widgets-id'
 ```
 
@@ -131,8 +131,8 @@ paths:
 
 - Use kebab-case: `/document-templates`, not `/documentTemplates`
 - Use plural nouns: `/widgets`, not `/widget`
-- Nest under tenant: `/v1/tenants/{tenantId}/widgets`
-- Action endpoints use verbs: `/widgets/{id}/publish`, `/widgets/{id}/archive`
+- Nest under tenant: `/tenants/{tenantKey}/widgets`
+- Action endpoints use verbs: `/widgets/{widgetKey}/publish`, `/widgets/{widgetKey}/archive`
 
 ### OperationId Conventions
 
@@ -208,7 +208,7 @@ WidgetListResponse:
     - items
     - page
     - size
-    - totalElements
+    - total
     - totalPages
   properties:
     items:
@@ -219,7 +219,7 @@ WidgetListResponse:
       type: integer
     size:
       type: integer
-    totalElements:
+    total:
       type: integer
       format: int64
     totalPages:
@@ -293,7 +293,7 @@ Use existing patterns from `contracts/api/components/responses/errors.yaml`:
 '404':
   description: Widget not found
   content:
-    application/vnd.epistola.v1+json:
+    application/vnd.epistola.v2+json:
       schema:
         $ref: '../components/responses/errors.yaml#/ErrorResponse'
 
@@ -301,7 +301,7 @@ Use existing patterns from `contracts/api/components/responses/errors.yaml`:
 '400':
   description: Invalid request
   content:
-    application/vnd.epistola.v1+json:
+    application/vnd.epistola.v2+json:
       schema:
         $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
 ```
@@ -311,7 +311,7 @@ Use existing patterns from `contracts/api/components/responses/errors.yaml`:
 This API uses header-based versioning:
 
 ```
-Accept: application/vnd.epistola.v1+json
+Accept: application/vnd.epistola.v2+json
 ```
 
 ### When to bump versions
@@ -393,7 +393,7 @@ page:
   type: integer
 size:
   type: integer
-totalElements:
+total:
   type: integer
   format: int64
 totalPages:

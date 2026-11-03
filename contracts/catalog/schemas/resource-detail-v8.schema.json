@@ -1,0 +1,1013 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://epistola.app/schemas/resource-detail-v8.schema.json",
+  "title": "ResourceDetail",
+  "description": "Portable Epistola resource detail at wire version 8.",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 8
+    },
+    "resource": {
+      "$ref": "#/$defs/CatalogResource"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "resource"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "ProducerMetadata": {
+      "description": "Producer-specific facts about the resource that the contract carries but does not define, by namespace: each property name is a reverse-DNS namespace the producer owns (app.epistola.suite); only that producer writes into it, and every other reader, one that does not recognise the namespace included, keeps it as it is, member for member. Each value is a JSON object the contract does not interpret. Omitted rather than empty. Metadata is what a producer says about the content, not the content: no fingerprint covers it. At most 8 KiB serialized, which the validator checks.",
+      "type": "object",
+      "patternProperties": {
+        "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$": {
+          "type": "object"
+        }
+      },
+      "propertyNames": {
+        "maxLength": 100
+      },
+      "additionalProperties": false,
+      "minProperties": 1,
+      "maxProperties": 16
+    },
+    "CatalogResource": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/TemplateResource"
+        },
+        {
+          "$ref": "#/$defs/ThemeResource"
+        },
+        {
+          "$ref": "#/$defs/StencilResource"
+        },
+        {
+          "$ref": "#/$defs/AttributeResource"
+        },
+        {
+          "$ref": "#/$defs/ImageResource"
+        },
+        {
+          "$ref": "#/$defs/CodeListResource"
+        },
+        {
+          "$ref": "#/$defs/FontResource"
+        },
+        {
+          "$ref": "#/$defs/QualityProfileResource"
+        }
+      ]
+    },
+    "TemplateResource": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "template"
+        },
+        "key": {
+          "description": "The resource's key: its public address within its catalog. Until wire v8 this member was called slug.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "description": "Plain text for the template's authors and readers: what it is for, design decisions, known gaps. Not rendered. When the manifest's resource entry also carries a description, the two must be equal; this is the source.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2000
+        },
+        "themeKey": {
+          "description": "Key of the template's default theme. When the theme lives in another catalog, themeCatalogKey names that catalog's alias. Until wire v8 this member was called themeId.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "themeCatalogKey": {
+          "description": "The alias of the catalog holding the template's theme, as the manifest's catalogDependencies declares it (contract ADR 0003). Null or omitted means the template's own catalog, which content never names by its own key.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "pdfaEnabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "dataModel": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "dataExamples": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/DataExampleEntry"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "templateModel": {
+          "$ref": "template-document-v8.schema.json"
+        },
+        "variants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/VariantEntry"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels for finding the resource. Left out when there are none."
+        },
+        "metadata": {
+          "$ref": "#/$defs/ProducerMetadata"
+        },
+        "quality": {
+          "description": "The quality profiles the template adds to its catalog's, and its overrides of their rules (wire v8, contract ADR 0010). Omitted when none.",
+          "$ref": "#/$defs/QualityBinding"
+        }
+      },
+      "required": [
+        "type",
+        "key",
+        "name",
+        "templateModel",
+        "variants"
+      ],
+      "additionalProperties": false
+    },
+    "ThemeResource": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "theme"
+        },
+        "key": {
+          "description": "The resource's key: its public address within its catalog. Until wire v8 this member was called slug.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "documentStyles": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "pageSettings": {
+          "oneOf": [
+            {
+              "$ref": "template-shared-v8.schema.json#/$defs/PageSettings"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "blockStylePresets": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "theme-v8.schema.json#/$defs/BlockStylePreset"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "spacingUnit": {
+          "description": "Base spacing unit in points for the spacing scale: every sp value is a multiple of it (2sp at 4 is 8pt). From 0.5 to 16, with at most two decimals, as the API takes it; the validator reports another value as CATALOG_THEME_SPACING_UNIT_INVALID. Null or absent means the rendering default, 4pt.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0.5,
+          "maximum": 16
+        },
+        "defaultBlockStyles": {
+          "$ref": "theme-v8.schema.json#/$defs/DefaultBlockStyles"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels for finding the resource. Left out when there are none."
+        },
+        "metadata": {
+          "$ref": "#/$defs/ProducerMetadata"
+        }
+      },
+      "required": [
+        "type",
+        "key",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "StencilResource": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "stencil"
+        },
+        "key": {
+          "description": "The resource's key: its public address within its catalog. Until wire v8 this member was called slug.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "metadata": {
+          "$ref": "#/$defs/ProducerMetadata"
+        },
+        "content": {
+          "$ref": "template-document-v8.schema.json"
+        },
+        "parameterSchema": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "readsTemplateData": {
+          "type": "boolean",
+          "description": "The stencil's content also sees the using template's data and loop variables (ADR 0006). Absent means false."
+        }
+      },
+      "required": [
+        "type",
+        "key",
+        "name",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "AttributeResource": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "attribute"
+        },
+        "key": {
+          "description": "The resource's key: its public address within its catalog. Until wire v8 this member was called slug.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "name": {
+          "type": "string"
+        },
+        "allowedValues": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "codeListBinding": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CodeListBindingRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels for finding the resource. Left out when there are none."
+        },
+        "metadata": {
+          "$ref": "#/$defs/ProducerMetadata"
+        }
+      },
+      "required": [
+        "type",
+        "key",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "ImageResource": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "image"
+        },
+        "key": {
+          "description": "The resource's key: its public address within its catalog. Until wire v8 this member was called slug.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "name": {
+          "type": "string"
+        },
+        "mediaType": {
+          "type": "string"
+        },
+        "width": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "height": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "contentUrl": {
+          "type": "string",
+          "deprecated": true,
+          "description": "Deprecated. Where the bytes are, when the archive does not put them where the hash says. A catalog written from wire v7 omits this and files every binary at bin/<contentHash>; only an archive migrated from wire v6 or earlier still carries a path, because a migration rewrites documents and cannot move files. Read, never written. Kept in wire v8 because such archives are still in circulation. When present it is a relative path below the manifest's directory, by the same rule as a manifest detailUrl.",
+          "pattern": "^(?:\\./)?(?!\\.{1,2}(?:/|$))(?:[A-Za-z0-9._~-]|%(?!2[EeFf]|5[Cc])[0-9A-Fa-f]{2})+(?:/(?!\\.{1,2}(?:/|$))(?:[A-Za-z0-9._~-]|%(?!2[EeFf]|5[Cc])[0-9A-Fa-f]{2})+)*$"
+        },
+        "contentHash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels for finding the resource. Left out when there are none."
+        },
+        "metadata": {
+          "$ref": "#/$defs/ProducerMetadata"
+        }
+      },
+      "required": [
+        "type",
+        "key",
+        "name",
+        "mediaType",
+        "contentHash"
+      ],
+      "additionalProperties": false
+    },
+    "CodeListResource": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "codeList"
+        },
+        "key": {
+          "description": "The resource's key: its public address within its catalog. Until wire v8 this member was called slug.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CodeListEntryEntry"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels for finding the resource. Left out when there are none."
+        },
+        "metadata": {
+          "$ref": "#/$defs/ProducerMetadata"
+        }
+      },
+      "required": [
+        "type",
+        "key",
+        "name",
+        "entries"
+      ],
+      "additionalProperties": false
+    },
+    "FontResource": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "font"
+        },
+        "key": {
+          "description": "The resource's key: its public address within its catalog. Until wire v8 this member was called slug.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "name": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "variants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FontVariantEntry"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels for finding the resource. Left out when there are none."
+        },
+        "metadata": {
+          "$ref": "#/$defs/ProducerMetadata"
+        }
+      },
+      "required": [
+        "type",
+        "key",
+        "name",
+        "kind",
+        "variants"
+      ],
+      "additionalProperties": false
+    },
+    "CodeListBindingRef": {
+      "type": "object",
+      "properties": {
+        "catalogKey": {
+          "description": "The alias of the catalog holding the code list, as the manifest's catalogDependencies declares it (contract ADR 0003). Null or omitted means the attribute's own catalog, which content never names by its own key.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "key": {
+          "description": "Key of the code list within the catalog catalogKey names. Until wire v8 this member was called slug.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "additionalProperties": false
+    },
+    "CodeListEntryEntry": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "sortOrder": {
+          "type": "integer"
+        },
+        "hidden": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code",
+        "label"
+      ],
+      "additionalProperties": false
+    },
+    "FontVariantEntry": {
+      "type": "object",
+      "properties": {
+        "weight": {
+          "type": "integer"
+        },
+        "italic": {
+          "type": "boolean"
+        },
+        "mediaType": {
+          "type": "string"
+        },
+        "contentUrl": {
+          "type": "string",
+          "deprecated": true,
+          "description": "Deprecated. Where the bytes are, when the archive does not put them where the hash says. A catalog written from wire v7 omits this and files every binary at bin/<contentHash>; only an archive migrated from wire v6 or earlier still carries a path, because a migration rewrites documents and cannot move files. Read, never written. Kept in wire v8 because such archives are still in circulation. When present it is a relative path below the manifest's directory, by the same rule as a manifest detailUrl.",
+          "pattern": "^(?:\\./)?(?!\\.{1,2}(?:/|$))(?:[A-Za-z0-9._~-]|%(?!2[EeFf]|5[Cc])[0-9A-Fa-f]{2})+(?:/(?!\\.{1,2}(?:/|$))(?:[A-Za-z0-9._~-]|%(?!2[EeFf]|5[Cc])[0-9A-Fa-f]{2})+)*$"
+        },
+        "contentHash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "weight",
+        "italic",
+        "contentHash",
+        "mediaType"
+      ],
+      "additionalProperties": false
+    },
+    "DataExampleEntry": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "description": "The example's key: its address within its template, unique there. A v7 example had none; the v7-to-v8 migration derives one from its name.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "name": {
+          "description": "The example's display name, unique within its template.",
+          "type": "string"
+        },
+        "data": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "key",
+        "name",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "VariantEntry": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "description": "The variant's key: its public address within its template. Until wire v8 this member was called slug.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "name": {
+          "description": "The variant's human-readable name, which tells it from the template's other variants (\"US English\"). Until wire v8 this member was called title.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "attributes": {
+          "oneOf": [
+            {
+              "description": "The variant's attribute values, keyed by attribute key: the same rule as every resource key, qualified as <alias>.<key> when the attribute is another catalog's (system.locale), by the alias the manifest's catalogDependencies declares for that catalog. Each part keeps its own bounds (3 to 50 characters).",
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "propertyNames": {
+                "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*\\.)?[a-z0-9]+(-[a-z0-9]+)*$",
+                "minLength": 3,
+                "maxLength": 101
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "templateModel": {
+          "oneOf": [
+            {
+              "$ref": "template-document-v8.schema.json"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "isDefault": {
+          "type": "boolean"
+        },
+        "description": {
+          "description": "Plain text for the variant's authors: what it is for. Not rendered. Left out when there is none.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "additionalProperties": false
+    },
+    "QualityProfileResource": {
+      "description": "A quality profile (wire v8, contract ADR 0010): rules an organisation records about how its documents are written, independent of the systems that check them.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "qualityProfile"
+        },
+        "key": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50,
+          "description": "The resource's key: its public address within its catalog."
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/QualityRule"
+          }
+        },
+        "acceptedWords": {
+          "description": "Words the organisation uses on purpose (names, product terms) that a spelling check must not report. Left out when there are none.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Labels for finding the resource. Left out when there are none."
+        },
+        "metadata": {
+          "$ref": "#/$defs/ProducerMetadata"
+        }
+      },
+      "required": [
+        "type",
+        "key",
+        "name",
+        "rules"
+      ],
+      "additionalProperties": false
+    },
+    "QualityRule": {
+      "description": "One rule of a quality profile: a generic core every checking system and author reads, and extras per kind of checking system.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50,
+          "description": "The rule's address within its profile, unique there."
+        },
+        "title": {
+          "type": "string"
+        },
+        "intent": {
+          "description": "The rule in plain language: what and why. Shown to authors with every finding of the rule, and what a language model is asked to apply.",
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ]
+        },
+        "blocking": {
+          "description": "Whether an open finding of the rule stops a variant being marked ready and a release being cut. Left out when false.",
+          "type": "boolean"
+        },
+        "scope": {
+          "$ref": "#/$defs/QualityRuleScope"
+        },
+        "examples": {
+          "$ref": "#/$defs/QualityRuleExamples"
+        },
+        "extras": {
+          "description": "What a kind of checking system needs beyond the core, by kind (builtin, languagetool, llm, ...). Only builtin has a shape the contract fixes; a consumer keeps the extras of kinds it does not have.",
+          "allOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object"
+              }
+            },
+            {
+              "type": "object",
+              "properties": {
+                "builtin": {
+                  "$ref": "#/$defs/QualityBuiltinExtra"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "intent",
+        "severity"
+      ],
+      "additionalProperties": false
+    },
+    "QualityRuleScope": {
+      "description": "What a rule reads. Each list narrows; an absent one does not.",
+      "type": "object",
+      "properties": {
+        "roles": {
+          "description": "Field roles the rule reads; absent means prose.",
+          "type": "array",
+          "items": {
+            "enum": [
+              "prose",
+              "identifier",
+              "expression",
+              "value",
+              "reference"
+            ]
+          }
+        },
+        "components": {
+          "description": "Component types the rule reads.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "languages": {
+          "description": "BCP 47 language tags the rule applies to.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "QualityRuleExamples": {
+      "description": "Text that meets a rule and text that does not.",
+      "type": "object",
+      "properties": {
+        "good": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "bad": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "QualityBuiltinExtra": {
+      "description": "The extra of the builtin kind: one of the check types the built-in engine implements, with its parameters.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "repeated-word"
+            },
+            "allowed": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "description": "Per language, the words that may repeat (dat dat)."
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "max-sentence-words"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": [
+            "type",
+            "limit"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "double-space"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "space-before-punctuation"
+            },
+            "exceptLanguages": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Languages that put a space before punctuation."
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "word-list"
+            },
+            "entries": {
+              "description": "Per language, each phrase to avoid with the words to use instead.",
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "required": [
+            "type",
+            "entries"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "QualityProfileRef": {
+      "description": "A reference to a quality profile: in this catalog, or in another catalog this catalog depends on, named by the alias catalogDependencies declares for it.",
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50,
+          "description": "Key of the quality profile."
+        },
+        "catalogKey": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50,
+          "description": "The alias of the catalog holding the profile. Omitted means this catalog."
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "additionalProperties": false
+    },
+    "QualityRuleOverride": {
+      "description": "A change to one rule of a profile at the level of a quality binding: switch it off, or give it another severity.",
+      "type": "object",
+      "properties": {
+        "profile": {
+          "$ref": "#/$defs/QualityProfileRef"
+        },
+        "ruleId": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50,
+          "description": "The rule's id in that profile."
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "severity": {
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ]
+        }
+      },
+      "required": [
+        "profile",
+        "ruleId"
+      ],
+      "additionalProperties": false
+    },
+    "QualityBinding": {
+      "description": "Which quality profiles apply, and this level's overrides of their rules (wire v8, contract ADR 0010). A catalog's applies to every template; a template's adds to it.",
+      "type": "object",
+      "properties": {
+        "profiles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/QualityProfileRef"
+          }
+        },
+        "overrides": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/QualityRuleOverride"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

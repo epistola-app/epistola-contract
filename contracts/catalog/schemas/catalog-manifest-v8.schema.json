@@ -1,0 +1,643 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://epistola.app/schemas/catalog-manifest-v8.schema.json",
+  "title": "CatalogManifest",
+  "description": "Portable Epistola catalog manifest at wire version 8.",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "description": "The wire version the archive is written at. Not covered by the fingerprint (V6): the algorithm's canonical form fixes how content is encoded, so the same content under another wire version has the same V6 fingerprint.",
+      "const": 8
+    },
+    "catalog": {
+      "$ref": "#/$defs/CatalogInfo"
+    },
+    "publisher": {
+      "description": "Who publishes the catalog, for people; not publisher authority. Presentation: information about the catalog's name, not about a release. The fingerprint does not cover it, so it can change without a release; of the releases an installation receives, the presentation most recently received wins.",
+      "$ref": "#/$defs/PublisherInfo"
+    },
+    "release": {
+      "description": "The archive's binding of the catalog's name and release number to the release's content hash (release.fingerprint). Not covered by the fingerprint.",
+      "$ref": "#/$defs/ReleaseInfo"
+    },
+    "compatibility": {
+      "description": "The Epistola versions the content needs. Content: the fingerprint (V6) covers it, and a release fixes it.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/CompatibilityInfo"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "includes": {
+      "description": "Documents linked from the catalog, for people. Presentation: information about the catalog's name, not about a release. The fingerprint does not cover it, so it can change without a release; of the releases an installation receives, the presentation most recently received wins.",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/IncludeEntry"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "resources": {
+      "description": "The resource index. Content: the fingerprint (V6) covers it, and a release fixes it.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ResourceEntry"
+      }
+    },
+    "dependencies": {
+      "description": "The index of the resources in other catalogs the content uses, by alias. Content: the fingerprint (V6) covers it, and a release fixes it.",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DependencyRef"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "catalogDependencies": {
+      "description": "The catalogs this catalog depends on, each under its alias, by name and by pinned release. Content: the fingerprint (V6) covers each alias and the release fingerprint it pins, not the dependency's name or number.",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CatalogDependency"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "catalog",
+    "publisher",
+    "release",
+    "resources"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "CatalogInfo": {
+      "description": "The catalog: its name (registry, the authority, a domain; namespace; and key), which the fingerprint (V6) does not cover, so the same release under another name has the same fingerprint; its content settings (defaultTheme, presets, license), which it covers; and its presentation (name, description, keywords, presentation, attributes), which it does not (contract ADR 0003).",
+      "type": "object",
+      "properties": {
+        "registry": {
+          "$ref": "#/$defs/CatalogRegistry"
+        },
+        "namespace": {
+          "$ref": "#/$defs/CatalogNamespace"
+        },
+        "key": {
+          "description": "The catalog's key: its public address within its namespace. Until wire v8 this member was called slug. Part of the catalog's name, which the fingerprint (V6) does not cover: the same release under another name has the same fingerprint.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "name": {
+          "description": "The catalog's display name. Presentation: information about the catalog's name, not about a release. The fingerprint does not cover it, so it can change without a release; of the releases an installation receives, the presentation most recently received wins.",
+          "type": "string"
+        },
+        "description": {
+          "description": "The catalog's description, for people. Presentation: information about the catalog's name, not about a release. The fingerprint does not cover it, so it can change without a release; of the releases an installation receives, the presentation most recently received wins.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "attributes": {
+          "description": "Discovery labels. Presentation: information about the catalog's name, not about a release. The fingerprint does not cover it, so it can change without a release; of the releases an installation receives, the presentation most recently received wins.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AttributeAssignment"
+          }
+        },
+        "keywords": {
+          "description": "Discovery keywords. Presentation: information about the catalog's name, not about a release. The fingerprint does not cover it, so it can change without a release; of the releases an installation receives, the presentation most recently received wins.",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/CatalogKeyword"
+              },
+              "maxItems": 20,
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "presentation": {
+          "description": "Which of the catalog's images to show as its icon and gallery; the image resources themselves are content. Presentation: information about the catalog's name, not about a release. The fingerprint does not cover it, so it can change without a release; of the releases an installation receives, the presentation most recently received wins.",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CatalogPresentation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "license": {
+          "description": "The terms the catalog's content is licensed under. Content: the fingerprint (V6) covers it, and a release fixes it.",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CatalogLicense"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "defaultTheme": {
+          "description": "The theme a template that names none renders with, after the variant's own theme and the template's (ADR 0007). It names a theme in this catalog or in a catalog it depends on. Absent or null means no default theme: such a template renders with the rendering defaults alone. No render reads a tenant-wide default theme. Content: the fingerprint (V6) covers it, and a release fixes it.",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CatalogThemeRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "presets": {
+          "description": "The block style presets this catalog's content may use (ADR 0007), each declared once by key; a theme's blockStylePresets supplies their styles. A catalog's available presets are these plus those of the catalogs it depends on. Absent or empty means the catalog declares none. Keys are unique within the list; order carries no meaning. Content: the fingerprint (V6) covers it, and a release fixes it.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CatalogPresetDeclaration"
+          }
+        },
+        "quality": {
+          "description": "The quality profiles every template of the catalog uses, and the catalog's overrides of their rules (wire v8, contract ADR 0010). Content: the fingerprint covers it. Omitted when none.",
+          "$ref": "resource-detail-v8.schema.json#/$defs/QualityBinding"
+        }
+      },
+      "required": [
+        "registry",
+        "namespace",
+        "key",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "CatalogRegistry": {
+      "description": "The registry a catalog's namespace lives in, the authority of its name: an exchange (exchange.epistola.app) or a domain that publishes its own catalogs (acme.com), as a lowercase DNS name in normal order, or local, for names that never leave the organisation and that an Exchange refuses. Always written in full: an archive has no default registry, which is installation configuration.",
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^(local|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+)$"
+    },
+    "CatalogNamespace": {
+      "description": "A catalog namespace within its registry, as a lowercase kebab-case slug (acme-corp). The same name in two registries is two different namespaces.",
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 63,
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    },
+    "CatalogKeyword": {
+      "description": "Lowercase ASCII letters and digits in hyphen-separated parts, at most 30 characters.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 30,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "AttributeAssignment": {
+      "type": "object",
+      "properties": {
+        "catalogKey": {
+          "description": "Key of the catalog defining the attribute. Until wire v8 this member was called catalog.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+        },
+        "key": {
+          "description": "Key of the attribute resource within the catalog named by catalogKey; the same rule as every resource key.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "catalogKey",
+        "key",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "CatalogPresentation": {
+      "type": "object",
+      "properties": {
+        "iconImageKey": {
+          "description": "Key of the image resource in this catalog that serves as the catalog's icon. Until wire v8 this member was called iconAssetSlug.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "imageKeys": {
+          "description": "Keys of the image resources in this catalog shown in its gallery, in order. Until wire v8 this member was called imageAssetSlugs.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "minLength": 3,
+            "maxLength": 50
+          },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "CatalogLicense": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^\\S(?:.*\\S)?$"
+        },
+        "spdxExpression": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^\\S(?:.*\\S)?$"
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^https?://\\S+$"
+        },
+        "copyrightText": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^\\S(?:.*\\S)?$"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "CatalogThemeRef": {
+      "description": "A reference to a theme resource: in this catalog, or in another catalog this catalog depends on, named by the alias catalogDependencies declares for it (contract ADR 0003), like every reference into another catalog.",
+      "type": "object",
+      "properties": {
+        "key": {
+          "description": "Key of the theme resource.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "catalogKey": {
+          "description": "The alias of the catalog holding the theme, as catalogDependencies declares it. Omitted means this catalog; a catalog never names itself by its own key.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "additionalProperties": false
+    },
+    "CatalogPresetDeclaration": {
+      "description": "A block style preset the catalog declares: the name a block's stylePreset uses, shown to authors with its display name and description.",
+      "type": "object",
+      "properties": {
+        "key": {
+          "description": "The preset's key: the value a block's stylePreset names, and the key a theme's blockStylePresets styles it under.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "minLength": 1,
+          "maxLength": 50
+        },
+        "name": {
+          "description": "Display name.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 500
+        }
+      },
+      "required": [
+        "key",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "PublisherInfo": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "ReleaseInfo": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "description": "The release's number: MAJOR.MINOR.PATCH without leading zeros, as the holder of the catalog's namespace issues it (the API's ReleaseVersion), or, for a patch release by someone who does not hold the namespace, MAJOR.MINOR.PATCH-<namespace>.<N> labelled with a namespace they hold and a sequence number from 1 (1.3.1-gemeente-x.1, which sorts above 1.3.0 and below 1.3.1). No other pre-release or build part; at most 128 characters. With the catalog's name and release.fingerprint it is the archive's binding of a name and number to a content hash. The format checks the shape only: who holds a namespace is the installation's and the registry's to know.",
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-(?=[a-z0-9-]{3,63}\\.)([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\\.([1-9][0-9]*))?$",
+          "maxLength": 128
+        },
+        "releasedAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fingerprint": {
+          "description": "The release's identity: the canonical fingerprint of its content, in the form that names its algorithm: v6:<lowercase SHA-256 hex>. Required of a release written at wire v8 (the validator reports CATALOG_RELEASE_FINGERPRINT_INVALID); absent only in a catalog migrated from wire v7, where it was optional. Wire v8 fixes the algorithm, v6, which covers the release's content only, never the catalog's name, this release block or the catalog's presentation, so two releases with the same fingerprint are the same release wherever they come from and whatever they are called.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^v[1-9][0-9]*:[0-9a-f]{64}$"
+        },
+        "releaseId": {
+          "description": "The release's id: lowercase letters, digits and single hyphens, 4 to 36 characters, the same rule as the API's CatalogReleaseId. Unique among the releases of the catalog's name (registry, namespace and key) and kept when the release moves to another installation, by the Exchange, a registry or a file, so the release is the same everywhere. Optional: an archive without one gets one when it is installed. Release metadata, like the number: the fingerprint does not cover it.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 4,
+          "maxLength": 36
+        },
+        "metadata": {
+          "description": "Producer-specific facts about the release that the contract carries but does not define, by namespace, as a resource's metadata is: each property name is a reverse-DNS namespace the producer owns (app.epistola.suite records its renderingDefaultsVersion there); only that producer writes into it, and every other reader, one that does not recognise the namespace included, keeps it as it is, member for member, when it installs, migrates or re-exports the release. Each value is a JSON object the contract does not interpret. Omitted rather than empty. Release metadata: the fingerprint does not cover it. At most 8 KiB serialized, which the validator checks.",
+          "type": "object",
+          "patternProperties": {
+            "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$": {
+              "type": "object"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 100
+          },
+          "additionalProperties": false,
+          "minProperties": 1,
+          "maxProperties": 16
+        },
+        "base": {
+          "$ref": "#/$defs/ReleaseBase"
+        }
+      },
+      "required": [
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "ReleaseBase": {
+      "description": "The release this one was made from: the base of the draft it was released from, by identity only: its content hash, with its number for people. Merging a release into a draft compares each resource three ways against the merge base, the closest release both descend from (contract ADR 0005); every release names the release it was made from, so a receiver can follow the lineage to that common release, by hash, whatever it is called there. The merge needs that release installed. Absent for a first release, or when the producer does not know its base. A receiver keeps it as received, member for member, when it installs, migrates or re-exports the release. Release metadata: the fingerprint does not cover it.",
+      "type": "object",
+      "properties": {
+        "version": {
+          "description": "The base release's number, by the rule of release.version.",
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-(?=[a-z0-9-]{3,63}\\.)([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\\.([1-9][0-9]*))?$",
+          "maxLength": 128
+        },
+        "fingerprint": {
+          "description": "The base release's content hash: its catalog fingerprint, in the form that names its algorithm (v6:<lowercase SHA-256 hex> for a base made under V6), so a receiver finds the base by it, whatever its number or name there.",
+          "type": "string",
+          "pattern": "^v[1-9][0-9]*:[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "version",
+        "fingerprint"
+      ],
+      "additionalProperties": false
+    },
+    "CompatibilityInfo": {
+      "type": "object",
+      "properties": {
+        "epistolaVersions": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "IncludeEntry": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "additionalProperties": false
+    },
+    "ResourceEntry": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "key": {
+          "description": "The resource's key: its public address within the catalog and its type. Until wire v8 this member was called slug.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "description": "The resource's own description, copied from its resource detail where the resource has one (a theme, stencil, code list, or from wire v8 a template), so a listing can show it without opening the detail. Null or omitted when the resource has none. For a template that also states one in its detail the two must be equal.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "updatedAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "detailUrl": {
+          "description": "Where the resource detail is: a relative path below the manifest's own directory, resolved against the archive root for a zip and against the manifest's URL for a catalog read from a URL. An optional leading ./, then segments of unreserved characters (letters, digits, - . _ ~, or a percent-encoding other than of . / or \\) separated by /. No scheme, no leading /, no backslash, no empty, . or .. segment. Written as ./resources/<type>/<key>.json.",
+          "type": "string",
+          "pattern": "^(?:\\./)?(?!\\.{1,2}(?:/|$))(?:[A-Za-z0-9._~-]|%(?!2[EeFf]|5[Cc])[0-9A-Fa-f]{2})+(?:/(?!\\.{1,2}(?:/|$))(?:[A-Za-z0-9._~-]|%(?!2[EeFf]|5[Cc])[0-9A-Fa-f]{2})+)*$"
+        }
+      },
+      "required": [
+        "type",
+        "key",
+        "name",
+        "detailUrl"
+      ],
+      "additionalProperties": false
+    },
+    "DependencyRef": {
+      "description": "A resource in another catalog that this catalog's content uses: the manifest's index of what the content uses elsewhere, derived from the content by the producer. It names the catalog by the alias catalogDependencies declares for it, so this is exactly CatalogDependencyRef. A dependency carries no version: it renders with the release the declaration pins.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/CatalogDependencyRef"
+        }
+      ]
+    },
+    "CatalogDependencyRef": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": [
+            "theme",
+            "stencil",
+            "codeList",
+            "font",
+            "image",
+            "qualityProfile"
+          ]
+        },
+        "catalogKey": {
+          "description": "The alias of the catalog holding the resource, as catalogDependencies declares it (contract ADR 0003). Until aliases, it held the catalog's key, which is the alias a catalog is declared under unless the producer chose another.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "key": {
+          "description": "Key of the resource within the catalog the alias names. Until wire v8 this member was called slug.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        }
+      },
+      "required": [
+        "type",
+        "catalogKey",
+        "key"
+      ],
+      "additionalProperties": false
+    },
+    "CatalogDependency": {
+      "description": "A catalog this catalog depends on, declared once: the alias its content names it by, its name (registry, namespace and catalogKey), which finds newer releases of it, and the release it pins, by content hash (releaseFingerprint), with the number that release had (releaseVersion). References from this catalog's content into it name the alias and carry no version: they render with the release this declaration pins. Renaming or mirroring the dependency changes the name here and nothing in the content (contract ADR 0003).",
+      "type": "object",
+      "properties": {
+        "alias": {
+          "description": "How this catalog's content names the dependency: every reference into it names this alias and a resource key. The catalog key rule; unique within catalogDependencies, and never this catalog's own key: content names the catalog itself by naming no alias. A producer declares a catalog under its own key unless two catalogs it depends on share one.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "registry": {
+          "$ref": "#/$defs/CatalogRegistry"
+        },
+        "namespace": {
+          "$ref": "#/$defs/CatalogNamespace"
+        },
+        "catalogKey": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "releaseVersion": {
+          "description": "The number the pinned release had when it was pinned: a hint for people, and where a carried copy of it is found, while releaseFingerprint is the pin. A release number as release.version has it, a patch release's included, at most 128 characters. Null only for a catalog migrated from wire v7 or earlier, which pins no release, and then releaseFingerprint is null too: a release written at wire v8 pins every catalog it declares (the validator reports CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-(?=[a-z0-9-]{3,63}\\.)([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\\.([1-9][0-9]*))?$",
+          "maxLength": 128
+        },
+        "releaseFingerprint": {
+          "description": "The pin: the fingerprint of the release this catalog renders with and was cut with, copied from that release's own release.fingerprint, in the form that names its algorithm (v6:<lowercase SHA-256 hex> for a release made under V6, which covers content only, so the same release has the same pin under any name). A copy of that release fetched from any registry, mirror or file is checked with exactly that algorithm. Null exactly when releaseVersion is null.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^v[1-9][0-9]*:[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "alias",
+        "registry",
+        "namespace",
+        "catalogKey",
+        "releaseVersion",
+        "releaseFingerprint"
+      ],
+      "if": {
+        "properties": {
+          "releaseVersion": {
+            "type": "null"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "releaseFingerprint": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "releaseFingerprint": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

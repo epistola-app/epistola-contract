@@ -1,0 +1,55 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: deploy-release-with-dependencies
+title: Deploying with includeDependencies asks the server to deploy the dependency releases along
+why: >
+  A release renders with the releases of other catalogs it pins, which the environment uses
+  implicitly. `includeDependencies=true` asks the server to also deploy the ones it does not serve
+  yet explicitly (installing them first, if needed), so that their own templates are served too.
+
+  The flag is an optional boolean query parameter. A client must send it as `true`, the literal
+  JSON boolean, not `True` or `1`, and still address the release by its path alone, with no body.
+
+action:
+  name: deploy-catalog-release
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    environmentKey: production
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: 1.4.0
+    includeDependencies: true
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      registry: exchange.epistola.app
+      namespace: acme-corp
+      catalogKey: letters
+      releaseId: m3q8v5tw
+      status: released
+      version: 1.4.0
+      releaseName: null
+      deployedAt: "2026-10-02T07:30:00Z"
+      lastUsedAt: null
+      documentsRequested: 0
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PUT
+      path: /api/tenants/acme-corp/environments/production/deployments/~/acme-corp/letters/1.4.0
+      query: includeDependencies=true
+  report:
+    registry: exchange.epistola.app
+    namespace: acme-corp
+    catalogKey: letters
+    releaseId: m3q8v5tw
+    status: released
+    version: 1.4.0
+    releaseName: 'null'

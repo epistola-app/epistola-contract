@@ -33,24 +33,32 @@ namespace Epistola.Client.Validation.Schema;
 public sealed class ServerTemplateDataValidator : ITemplateDataValidator
 {
     private readonly ITemplatesApi _templatesApi;
-    private readonly string? _variantId;
-    private readonly int? _versionId;
-    private readonly string? _environmentId;
+    private readonly string? _variantKey;
+    private readonly string? _versionRange;
+    private readonly string? _environmentKey;
 
     /// <param name="templatesApi">The generated API used to reach <c>validateTemplateData</c>.</param>
-    /// <param name="variantId">Optional variant to check against.</param>
-    /// <param name="versionId">Optional explicit version number (mutually exclusive with <paramref name="environmentId"/>).</param>
-    /// <param name="environmentId">Optional environment whose active version to check against.</param>
+    /// <param name="variantKey">Optional variant to check against; without it, the default variant.</param>
+    /// <param name="versionRange">
+    /// Optional version range for the release of the template's catalog to check against, in the
+    /// npm range grammar the server accepts in full: an exact version such as <c>1.4.0</c>, or a range
+    /// such as <c>^1.4.0</c>. It is passed through unchecked.
+    /// Without it (and without <paramref name="environmentKey"/>), the catalog's latest release is used.
+    /// </param>
+    /// <param name="environmentKey">
+    /// Optional environment to check against: the highest release it serves (that satisfies
+    /// <paramref name="versionRange"/>, when both are given).
+    /// </param>
     public ServerTemplateDataValidator(
         ITemplatesApi templatesApi,
-        string? variantId = null,
-        int? versionId = null,
-        string? environmentId = null)
+        string? variantKey = null,
+        string? versionRange = null,
+        string? environmentKey = null)
     {
         _templatesApi = templatesApi;
-        _variantId = variantId;
-        _versionId = versionId;
-        _environmentId = environmentId;
+        _variantKey = variantKey;
+        _versionRange = versionRange;
+        _environmentKey = environmentKey;
     }
 
     /// <summary>
@@ -61,15 +69,15 @@ public sealed class ServerTemplateDataValidator : ITemplateDataValidator
 
     /// <inheritdoc />
     public IReadOnlyList<TemplateDataValidationException.ValidationError> Validate(
-        string tenantId, string catalogId, string templateId, object data)
+        string tenantKey, string registry, string @namespace, string catalogKey, string templateKey, object data)
     {
         var request = new ValidateTemplateDataRequest(
-            variantId: _variantId,
-            versionId: _versionId,
-            environmentId: _environmentId,
+            variantKey: _variantKey,
+            versionRange: _versionRange,
+            environmentKey: _environmentKey,
             data: data);
 
-        var result = _templatesApi.ValidateTemplateData(tenantId, catalogId, templateId, request);
+        var result = _templatesApi.ValidateTemplateData(tenantKey, registry, @namespace, catalogKey, templateKey, request);
         if (result == null || result.Valid)
         {
             return new List<TemplateDataValidationException.ValidationError>();

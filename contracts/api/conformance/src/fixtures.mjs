@@ -29,21 +29,114 @@ const SPEC_ID = 'https://epistola.local/openapi'
  */
 const ACTION_OPERATIONS = {
   ping: { method: 'post', path: '/ping' },
-  'list-templates': { method: 'get', path: '/tenants/{tenantId}/catalogs/{catalogId}/templates' },
-  problem: { method: 'get', path: '/tenants/{tenantId}/catalogs/{catalogId}/templates' },
+  'list-templates': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates' },
+  problem: { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates' },
   'validate-template-data': {
     method: 'post',
-    path: '/tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/validate',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/templates/{templateKey}/validate',
   },
-  'generate-document': { method: 'post', path: '/tenants/{tenantId}/documents/generate' },
-  'update-consumer': { method: 'patch', path: '/tenants/{tenantId}/consumers/{consumerId}' },
-  'download-document': { method: 'get', path: '/tenants/{tenantId}/documents/{documentId}' },
-  'list-images': { method: 'get', path: '/tenants/{tenantId}/catalogs/{catalogId}/images' },
-  'upload-image': { method: 'post', path: '/tenants/{tenantId}/catalogs/{catalogId}/images' },
-  'download-image': { method: 'get', path: '/tenants/{tenantId}/catalogs/{catalogId}/images/{imageSlug}/content' },
-  'delete-image': { method: 'delete', path: '/tenants/{tenantId}/catalogs/{catalogId}/images/{imageSlug}' },
-  collect: { method: 'post', path: '/tenants/{tenantId}/generation/collect' },
-  routing: { method: 'post', path: '/tenants/{tenantId}/generation/collect' },
+  'generate-document': { method: 'post', path: '/tenants/{tenantKey}/documents/generate' },
+  'update-consumer': { method: 'patch', path: '/tenants/{tenantKey}/consumers/{consumerId}' },
+  'update-attribute': {
+    method: 'patch',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/attributes/{attributeKey}',
+  },
+  'download-document': { method: 'get', path: '/tenants/{tenantKey}/documents/{documentId}' },
+  'list-documents': { method: 'get', path: '/tenants/{tenantKey}/documents' },
+  'get-generation-job-status': { method: 'get', path: '/tenants/{tenantKey}/documents/jobs/{requestId}' },
+  'list-generation-job-items': { method: 'get', path: '/tenants/{tenantKey}/documents/jobs/{requestId}/items' },
+  'search-tenant': { method: 'get', path: '/tenants/{tenantKey}/search' },
+  'list-images': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/images' },
+  'upload-image': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/images' },
+  'download-image': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/images/{imageKey}/content' },
+  'import-catalog': { method: 'post', path: '/tenants/{tenantKey}/catalogs/import' },
+  'delete-image': { method: 'delete', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/images/{imageKey}' },
+  'list-catalog-dependencies': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/dependencies' },
+  'update-catalog-dependencies': { method: 'put', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/dependencies' },
+  'deploy-catalog-release': {
+    method: 'put',
+    path: '/tenants/{tenantKey}/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{release}',
+  },
+  'undeploy-catalog-release': {
+    method: 'delete',
+    path: '/tenants/{tenantKey}/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{release}',
+  },
+  'create-environment': { method: 'post', path: '/tenants/{tenantKey}/environments' },
+  'update-environment': { method: 'patch', path: '/tenants/{tenantKey}/environments/{environmentKey}' },
+  'create-template': {
+    method: 'post',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates',
+  },
+  'update-variant-content': {
+    method: 'put',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates/{templateKey}/variants/{variantKey}/content',
+  },
+  'get-variant-content': {
+    method: 'get',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates/{templateKey}/variants/{variantKey}/content',
+  },
+  'mark-variant-ready': {
+    method: 'post',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates/{templateKey}/variants/{variantKey}/mark-ready',
+  },
+  'mark-template-ready': {
+    method: 'post',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates/{templateKey}/mark-ready',
+  },
+  'get-stencil-content': {
+    method: 'get',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/stencils/{stencilKey}/content',
+  },
+  'update-stencil-content': {
+    method: 'put',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/stencils/{stencilKey}/content',
+  },
+  'mark-stencil-ready': {
+    method: 'post',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/stencils/{stencilKey}/mark-ready',
+  },
+  'list-stencil-usage': {
+    method: 'get',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/stencils/{stencilKey}/usage',
+  },
+  'get-catalog-changes': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/changes' },
+  'mark-catalog-ready': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/mark-ready' },
+  'list-environment-deployments': { method: 'get', path: '/tenants/{tenantKey}/environments/{environmentKey}/deployments' },
+  'list-deployment-history': { method: 'get', path: '/tenants/{tenantKey}/environments/{environmentKey}/deployment-history' },
+  'create-catalog-release': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases' },
+  'list-catalog-releases': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases' },
+  'get-catalog-release': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}' },
+  'update-catalog-release': { method: 'patch', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}' },
+  'set-catalog-release-theme-settings': { method: 'patch', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}' },
+  'preview-catalog-draft-release': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/release-preview' },
+  'delete-catalog-release': { method: 'delete', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}' },
+  'release-catalog-draft': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/release' },
+  'preview-catalog-draft-merge': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/merge-preview' },
+  'get-catalog-draft-merge-sides': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/merge-sides' },
+  'merge-into-catalog-draft': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/merge' },
+  'list-release-registries': { method: 'get', path: '/tenants/{tenantKey}/release-registries' },
+  'list-registry-releases': { method: 'get', path: '/tenants/{tenantKey}/release-registries/{name}/catalogs/{registry}/{namespace}/{catalogKey}/releases' },
+  'install-registry-release': {
+    method: 'post',
+    path: '/tenants/{tenantKey}/release-registries/{name}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{version}/install',
+  },
+  'publish-release-to-registry': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/publish' },
+  'install-catalog-release': {
+    method: 'post',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/available-releases/{version}/install',
+  },
+  'list-available-catalog-releases': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/available-releases' },
+  'update-tenant': { method: 'patch', path: '/tenants/{tenantKey}' },
+  'update-template': {
+    method: 'patch',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates/{templateKey}',
+  },
+  'update-code-list-entry-hidden': {
+    method: 'patch',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/code-lists/{codeListKey}/entries/{code}/hidden',
+  },
+  collect: { method: 'post', path: '/tenants/{tenantKey}/generation/collect' },
+  routing: { method: 'post', path: '/tenants/{tenantKey}/generation/collect' },
 }
 
 let cached = null
@@ -109,7 +202,7 @@ export function checkFixtures(scenario, specPath) {
   for (const [index, entry] of (scenario.script ?? []).entries()) {
     const where = `${scenario.id}: script entry #${index + 1}`
     const status = String(entry.status ?? 200)
-    const declared = responses[status]
+    const declared = responses[status] ?? anyOperationResponse(document, status)
 
     if (!declared) {
       problems.push(`${where} answers ${status}, which ${operation.path} does not declare`)
@@ -141,6 +234,16 @@ export function checkFixtures(scenario, specPath) {
   }
 
   return problems
+}
+
+/**
+ * The response any operation may give with [status] although it does not list it: the registry's
+ * `anyOperation` types (405, 406, 413, 415, 500, 501), each a plain `ProblemDetail`.
+ */
+function anyOperationResponse(document, status) {
+  const types = document['x-problem-types']?.types ?? []
+  if (!types.some((type) => type.anyOperation && String(type.status) === status)) return undefined
+  return { content: { 'application/problem+json': { schema: { $ref: '#/components/schemas/ProblemDetail' } } } }
 }
 
 function report(problems, where, validate, value) {

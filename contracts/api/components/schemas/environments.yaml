@@ -1,71 +1,54 @@
 EnvironmentDto:
   type: object
-  description: Tenant environment for version activation (e.g., staging, production)
+  description: A deployment stage (e.g., staging, production) that serves releases of catalogs, possibly several released ones of one catalog and a draft
   required:
-    - id
-    - tenantId
+    - key
+    - tenantKey
     - name
+    - production
     - createdAt
   properties:
-    slug:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 30
+    key:
+      $ref: './identifiers.yaml#/EnvironmentKey'
       description: |
-        Slug identifier of the environment
-
-        Sent by every server on contract 1.3.0 or later. Not required, because a server on an
-        older 1.x contract omits it and a client must still read its responses: when it is
-        absent, read `id`, which carries the same value. Required from 2.0.0, which removes
-        `id` (epistola-app/epistola-contract#84).
+        Key of the environment
       example: production
-    id:
-      type: string
-      deprecated: true
-      description: |
-        **Deprecated — use `slug`.** The same value, under the name the portable catalog
-        format already uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 30
-      example: production
-    tenantId:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
-      description: Slug identifier of the tenant this environment belongs to
+    tenantKey:
+      $ref: './identifiers.yaml#/TenantKey'
+      description: Key of the tenant this environment belongs to
       example: acme-corp
     name:
       type: string
       description: Name of the environment (e.g., staging, production)
       example: Production
+    production:
+      type: boolean
+      description: |
+        A production environment serves only releases: deploying a draft there is refused (see
+        `deployCatalogRelease`).
+      example: true
     createdAt:
       type: string
       format: date-time
       description: Timestamp when the environment was created
       example: "2026-01-16T10:00:00Z"
   example:
-    slug: production
-    id: production
-    tenantId: acme-corp
+    key: production
+    tenantKey: acme-corp
     name: Production
+    production: true
     createdAt: "2026-01-16T10:00:00Z"
 
 CreateEnvironmentRequest:
   type: object
   description: Request body for creating a new environment
   required:
-    - id
+    - key
     - name
   properties:
-    id:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 30
-      description: Slug identifier for the environment (e.g., production, staging, development)
+    key:
+      $ref: './identifiers.yaml#/EnvironmentKey'
+      description: Key of the environment (e.g., production, staging, development)
       example: production
     name:
       type: string
@@ -73,6 +56,13 @@ CreateEnvironmentRequest:
       maxLength: 100
       description: Name of the environment to create
       example: Production
+    production:
+      type: boolean
+      default: false
+      description: |
+        Whether the environment is a production environment, which serves only releases.
+        Omitted: false.
+      example: true
 
 UpdateEnvironmentRequest:
   type: object
@@ -84,6 +74,13 @@ UpdateEnvironmentRequest:
       maxLength: 100
       description: New name for the environment
       example: Production (EU)
+    production:
+      type: [boolean, "null"]
+      description: |
+        Mark the environment as production, which serves only releases, or unmark it. Omitted or
+        null: unchanged. Marking it while it serves a draft of any catalog is refused with 409
+        (`environment-deployment-refused`); undeploy the draft first.
+      example: true
 
 EnvironmentListResponse:
   description: List of environments
@@ -101,18 +98,238 @@ EnvironmentListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - slug: production
-        id: production
-        tenantId: acme-corp
+      - key: production
+        tenantKey: acme-corp
         name: Production
+        production: true
         createdAt: "2026-01-16T10:00:00Z"
-      - slug: staging
-        id: staging
-        tenantId: acme-corp
+      - key: staging
+        tenantKey: acme-corp
         name: Staging
+        production: false
         createdAt: "2026-01-16T10:30:00Z"
     page:
       number: 0
       size: 20
-      totalElements: 2
+      total: 2
       totalPages: 1
+
+DeploymentDto:
+  type: object
+  description: |
+    One release of a catalog an environment serves: a released one, or a draft rendered live. An
+    environment serves at most one draft of a catalog.
+  required:
+    - registry
+    - namespace
+    - catalogKey
+    - releaseId
+    - status
+    - version
+    - releaseName
+    - deployedAt
+    - lastUsedAt
+    - documentsRequested
+  properties:
+    registry:
+      $ref: './identifiers.yaml#/Registry'
+      description: |
+        Registry of the catalog: the exchange or domain its namespace lives in. Always written in
+        full, the default registry by its name, never `~`.
+      example: exchange.epistola.app
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the catalog, within its registry
+      example: acme-corp
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the catalog, unique within its registry and namespace
+      example: letters
+    releaseId:
+      $ref: './identifiers.yaml#/CatalogReleaseId'
+      description: |
+        The release the environment serves, by its `releaseId`. A draft keeps it when it is
+        released, so a deployed draft that is released stays deployed, as the same release.
+    status:
+      $ref: './catalogs.yaml#/CatalogReleaseStatus'
+      description: |
+        The release's status: `released`, served at its `version`; or `draft`, rendered live with no
+        version. A draft is never served by a production environment.
+    version:
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
+      description: The version of the release the environment serves. Null for a draft.
+      example: "1.4.0"
+    releaseName:
+      type: [string, "null"]
+      maxLength: 100
+      description: |
+        The release's name. Null for a release that has none, as one installed by import or from
+        its source.
+      example: Redesign 2027
+    deployedAt:
+      type: string
+      format: date-time
+      example: "2026-10-02T07:30:00Z"
+    lastUsedAt:
+      type: [string, "null"]
+      format: date-time
+      description: |
+        When a generation request through this environment was last accepted for this release; null
+        when none has been since it was deployed.
+
+        A request is counted when it names this environment and is accepted and rendered with this
+        deployed release. Requests naming no environment are not counted. Updated within about a
+        minute of the request, and reset when the release is undeployed; a deployed draft that is
+        released keeps its counts, as the same deployment. Together with `documentsRequested` it
+        shows which deployed releases nobody uses any more, before undeploying them.
+      example: "2026-10-17T14:05:00Z"
+    documentsRequested:
+      type: integer
+      format: int64
+      minimum: 0
+      description: |
+        How many generation requests through this environment were accepted for this release since
+        it was deployed. Counted, updated and reset as `lastUsedAt` describes.
+      example: 1284
+
+
+MissingReleaseDependency:
+  type: object
+  description: A release of another catalog that a release renders with, which could not be served
+  required:
+    - registry
+    - namespace
+    - catalogKey
+    - version
+    - reason
+  properties:
+    registry:
+      $ref: './identifiers.yaml#/Registry'
+      description: |
+        Registry of the catalog depended on. Always written in full, the default registry by its
+        name, never `~`.
+      example: exchange.epistola.app
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the catalog depended on, within its registry
+      example: epistola
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the catalog depended on, unique within its registry and namespace
+      example: system
+    version:
+      $ref: './identifiers.yaml#/ReleaseVersion'
+      description: |
+        The version of the release of the catalog depended on that the deployed release renders
+        with
+    reason:
+      $ref: '#/MissingReleaseDependencyReason'
+
+MissingReleaseDependencyReason:
+  type: string
+  description: |
+    Why a dependency release cannot be used:
+
+    - `unavailable`: the tenant does not have the release, and it could not be fetched from its
+      registry or any configured mirror, or the copy did not match its recorded fingerprint.
+  enum:
+    - unavailable
+  example: unavailable
+
+DeploymentListResponse:
+  type: object
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/DeploymentDto'
+
+DeploymentEventDto:
+  type: object
+  description: One change to what an environment serves
+  required:
+    - registry
+    - namespace
+    - catalogKey
+    - releaseId
+    - status
+    - version
+    - releaseName
+    - action
+    - changedAt
+  properties:
+    registry:
+      $ref: './identifiers.yaml#/Registry'
+      description: |
+        Registry of the catalog: the exchange or domain its namespace lives in. Always written in
+        full, the default registry by its name, never `~`.
+      example: exchange.epistola.app
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the catalog, within its registry
+      example: acme-corp
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the catalog, unique within its registry and namespace
+      example: letters
+    action:
+      type: string
+      description: |
+        - `deployed`, `undeployed`: the environment started or stopped serving the release. A
+          draft replaced by deploying another, and a deployed draft that was discarded, are
+          `undeployed`.
+        - `released`: the deployed draft was released; the environment now serves it as released,
+          at `version`, with the same `releaseId` and name.
+      enum:
+        - deployed
+        - undeployed
+        - released
+      example: deployed
+    releaseId:
+      $ref: './identifiers.yaml#/CatalogReleaseId'
+      description: The release deployed, undeployed or released, by its `releaseId`
+    status:
+      $ref: './catalogs.yaml#/CatalogReleaseStatus'
+      description: |
+        The release's status after the change: `draft` for a draft deployed or undeployed,
+        `released` for a released one, and for a draft that was `released`.
+    version:
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
+      description: |
+        The version of the release deployed or undeployed, or the version a deployed draft was
+        released as. Null for a draft deployed or undeployed.
+      example: "1.4.1"
+    releaseName:
+      type: [string, "null"]
+      maxLength: 100
+      description: |
+        The release's name at the time of the change. Null for a release that has none, as one
+        installed by import or from its source.
+      example: Redesign 2027
+    changedAt:
+      type: string
+      format: date-time
+      example: "2026-10-02T07:30:00Z"
+    changedBy:
+      type: [string, "null"]
+      description: Display name of who made the change; null for a system change
+      example: Jane Smith
+
+DeploymentHistoryResponse:
+  type: object
+  required:
+    - items
+    - page
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/DeploymentEventDto'
+    page:
+      $ref: './common.yaml#/PageMeta'

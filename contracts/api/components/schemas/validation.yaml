@@ -3,32 +3,32 @@ ValidateTemplateDataRequest:
   description: |
     Request body for validating template input data against the template's JSON Schema.
 
-    Without `variantId`, `versionId` or `environmentId` the data is checked against the template's
-    latest data contract, as before. With any of them, it is checked against the contract of the
-    published version that selection resolves to — the same version preview and generation would
-    render — and absent optional fields that version's template reads are reported too.
+    The data is checked against the contract of the release that preview and generation would
+    render for the same selection: the highest release that satisfies `versionRange`, among the
+    releases `environmentKey` serves when it is set, and without either the catalog's highest
+    release. Absent optional fields that release's template reads are reported too.
   required:
     - data
   properties:
-    variantId:
-      type: [string, "null"]
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
-      description: Slug identifier of the variant to check against. If omitted while `versionId` or `environmentId` is set, the default variant is used.
+    variantKey:
+      oneOf:
+        - $ref: './identifiers.yaml#/ResourceKey'
+        - type: 'null'
+      description: Key of the variant to check against. If omitted, the default variant of the template in the resolved release is used.
       example: null
-    versionId:
-      type: [integer, "null"]
-      minimum: 1
-      maximum: 200
-      description: Explicit version ID (version number, 1-200, mutually exclusive with environmentId).
-      example: null
-    environmentId:
+    versionRange:
       type: [string, "null"]
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 30
-      description: Slug identifier of the environment whose active version to check against (mutually exclusive with versionId).
+      minLength: 1
+      maxLength: 256
+      description: |
+        Version range for the release of the template's catalog to check against (see "Version
+        ranges" in the API description). Combines with `environmentKey`.
+      example: null
+    environmentKey:
+      oneOf:
+        - $ref: './identifiers.yaml#/EnvironmentKey'
+        - type: 'null'
+      description: Key of an environment; only the releases it serves are considered.
       example: null
     data:
       type: object
@@ -77,7 +77,7 @@ TemplateDataValidationResult:
       description: |
         Absent fields, in schema declaration order. Each entry is the outermost absent node, so a
         missing object is one entry, not one per leaf. Required fields are always listed; optional
-        fields only when the resolved version's template reads them. Absent optional fields do not
+        fields only when the resolved release's template reads them. Absent optional fields do not
         make the data invalid.
       items:
         $ref: '#/MissingDataField'

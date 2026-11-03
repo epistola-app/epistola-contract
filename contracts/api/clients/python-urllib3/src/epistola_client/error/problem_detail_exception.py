@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 from epistola_client_generated import (
@@ -17,7 +18,68 @@ from epistola_client_generated import (
     ValidationError,
 )
 
+from epistola_client._generated.known_problem_slugs import KnownProblemSlugs
 from epistola_client.error import problem_types
+
+
+@dataclass(frozen=True)
+class MissingDependency:
+    """A release of another catalog that the release being deployed renders with, which the
+    server could not serve (one entry of a ``release-dependencies-missing`` problem's
+    ``missingDependencies`` member).
+
+    :attr:`reason` is the wire value as sent (``unavailable``), kept as a plain string so a reason
+    a later contract adds is reported rather than lost.
+    """
+
+    #: Registry of the catalog depended on, written in full.
+    registry: str
+    #: Namespace of the catalog depended on, within its registry.
+    namespace: str
+    #: Key of the catalog depended on.
+    catalog_key: str
+    #: The version of the release of the catalog depended on that the deployed release pins.
+    version: str
+    #: Why the release could not be served; an open set of wire values.
+    reason: str
+
+
+@dataclass(frozen=True)
+class UnreleasedDependency:
+    """A draft of another catalog that the draft being released declares as a dependency (one
+    entry of a ``release-dependencies-unreleased`` problem's ``unreleasedDependencies`` member).
+
+    A release pins only releases, so the draft must be released first, or along with it
+    (``releaseDependencies``).
+    """
+
+    #: Registry of the catalog depended on, written in full.
+    registry: str
+    #: Namespace of the catalog depended on, within its registry.
+    namespace: str
+    #: Key of the catalog depended on.
+    catalog_key: str
+    #: The draft the declaration names.
+    release_id: str
+    #: The draft's name.
+    release_name: str
+
+
+@dataclass(frozen=True)
+class CatalogReleaseRef:
+    """A release a problem names in full, such as each release of another catalog a
+    ``release-in-use`` problem's ``pinnedBy`` member says pins the release."""
+
+    #: Registry of the catalog, written in full.
+    registry: str
+    #: Namespace of the catalog, within its registry.
+    namespace: str
+    #: Key of the catalog.
+    catalog_key: str
+    #: The release's version.
+    version: str
+    #: The release's id.
+    release_id: str
 
 
 class ProblemDetailException(ApiException):
@@ -34,7 +96,11 @@ class ProblemDetailException(ApiException):
     shape) are surfaced via :attr:`errors`; per-example data-model validation failures
     (the ``DataModelValidationProblemDetail`` shape, ``data-model-validation-error``)
     via :attr:`validation_errors`; and a ``template-data-invalid`` problem's field-by-field
-    account of template data via :attr:`missing_fields` and :attr:`invalid_fields`.
+    account of template data via :attr:`missing_fields` and :attr:`invalid_fields`; and a
+    ``release-dependencies-missing`` problem's unservable dependency releases via
+    :attr:`missing_dependencies`; and a ``release-dependencies-unreleased`` problem's dependency
+    drafts via :attr:`unreleased_dependencies`; and why a ``catalog-read-only`` problem refused
+    a write via :attr:`read_only_reason`.
     """
 
     def __init__(
@@ -47,6 +113,20 @@ class ProblemDetailException(ApiException):
         headers: Optional[object] = None,
         missing_fields: Optional[List[MissingDataField]] = None,
         invalid_fields: Optional[List[InvalidDataField]] = None,
+        missing_dependencies: Optional[List[MissingDependency]] = None,
+        unreleased_dependencies: Optional[List[UnreleasedDependency]] = None,
+        read_only_reason: Optional[str] = None,
+        unresolved_conflicts: Optional[List[str]] = None,
+        missing_base_version: Optional[str] = None,
+        missing_base_fingerprint: Optional[str] = None,
+        behind: Optional[List[str]] = None,
+        environments: Optional[List[str]] = None,
+        pinned_by: Optional[List[CatalogReleaseRef]] = None,
+        tied_variants: Optional[List[str]] = None,
+        required_permission: Optional[str] = None,
+        refused_tenant_key: Optional[str] = None,
+        required_platform_role: Optional[str] = None,
+        refusal_reason: Optional[str] = None,
     ) -> None:
         super().__init__(
             status=status_code,
@@ -54,7 +134,7 @@ class ProblemDetailException(ApiException):
             body=raw_body,
         )
         self.headers = headers
-        #: The parsed base problem (``type``, ``title``, ``status``, ``detail``, ``instance``).
+        #: The parsed base problem (``type``, ``title``, ``status``, ``detail``, ``instance``, ``help``).
         self.problem = problem
         #: Field-level validation errors when the body was a ``ValidationProblemDetail``, else ``[]``.
         self.errors = errors
@@ -69,6 +149,54 @@ class ProblemDetailException(ApiException):
         self.missing_fields = missing_fields or []
         #: Supplied values the template's data contract rejected, else ``[]``.
         self.invalid_fields = invalid_fields or []
+        #: The dependency releases that could not be served when the body was a
+        #: ``ReleaseDependenciesMissingProblemDetail`` (``release-dependencies-missing``), else
+        #: ``[]``.
+        self.missing_dependencies = missing_dependencies or []
+        #: The drafts of other catalogs the draft's dependency declarations name when the body was a
+        #: ``ReleaseDependenciesUnreleasedProblemDetail`` (``release-dependencies-unreleased``), else
+        #: ``[]``.
+        self.unreleased_dependencies = unreleased_dependencies or []
+        #: Why the catalog cannot be changed when the body was a ``CatalogReadOnlyProblemDetail``
+        #: (``catalog-read-only``, 409, from any write to a catalog whose ``editable`` is false):
+        #: ``editing-disabled`` or ``supplied-by-epistola``, kept as the string the server sent so a
+        #: reason a later contract adds is surfaced; else ``None``.
+        self.read_only_reason = read_only_reason
+        #: The conflicts of a merge without a resolution when the body was a
+        #: ``MergeConflictsUnresolvedProblemDetail`` (``merge-conflicts-unresolved``, 409, alpha),
+        #: each as ``resourceType/resourceKey``, else ``[]``.
+        self.unresolved_conflicts = unresolved_conflicts or []
+        #: The version of the release a ``merge-base-missing`` problem (409, alpha) asks to get
+        #: first: the merge base, which this installation does not have; else ``None``.
+        self.missing_base_version = missing_base_version
+        #: That release's catalog fingerprint (``v5:<hex>``) from the same problem; else ``None``.
+        self.missing_base_fingerprint = missing_base_fingerprint
+        #: The versions of the releases a ``catalog-version-behind`` problem (409, from
+        #: ``release_catalog_draft``) says the draft is behind and the request did not acknowledge:
+        #: name each in ``acknowledged_behind`` to release it anyway; else ``[]``.
+        self.behind = behind or []
+        #: The environments a ``release-in-use`` problem (409, from ``delete_catalog_release``) says
+        #: deploy the release; else ``[]``.
+        self.environments = environments or []
+        #: The releases of other catalogs a ``release-in-use`` problem says pin the release, and
+        #: render with it; else ``[]``.
+        self.pinned_by = pinned_by or []
+        #: The keys of the variants an ``ambiguous-variant`` problem (409, from generating or
+        #: previewing a document) says match the request's attributes equally well; else ``[]``.
+        self.tied_variants = tied_variants or []
+        #: The permission a ``forbidden`` problem (403) says the caller lacks, as the operation's
+        #: ``x-required-permissions`` names it (``TEMPLATE_EDIT``): grant the caller, or the API key,
+        #: a role that carries it; else ``None``.
+        self.required_permission = required_permission
+        #: The tenant a ``forbidden`` problem is about, from its ``tenantKey`` member. Without a
+        #: ``required_permission``, the caller has no access to that tenant at all; else ``None``.
+        self.refused_tenant_key = refused_tenant_key
+        #: The platform role a ``forbidden`` problem says the caller lacks (``TENANT_MANAGER``);
+        #: else ``None``.
+        self.required_platform_role = required_platform_role
+        #: Why a policy refused the request, from the ``reason`` member of a ``forbidden`` problem:
+        #: text for a person, sent when there is no single permission to grant; else ``None``.
+        self.refusal_reason = refusal_reason
         #: The HTTP status of the error response.
         self.status_code = status_code
 
@@ -101,6 +229,15 @@ class ProblemDetailException(ApiException):
         return self.problem.detail
 
     @property
+    def help(self) -> Optional[str]:
+        """The problem type's page with this request's context in its query, such as
+        ``https://epistola.app/errors/not-found?operation=getTemplate``, or ``None`` when the server
+        sent none. Switch on the type (:attr:`type_slug`), not on this; open it for hints on what to
+        do. It names contract terms only, never a value, so it can be logged or shared.
+        """
+        return self.problem.help
+
+    @property
     def is_validation_problem(self) -> bool:
         """True when this problem carried field-level validation errors."""
         return len(self.errors) > 0
@@ -109,6 +246,51 @@ class ProblemDetailException(ApiException):
     def is_template_data_problem(self) -> bool:
         """True when this problem described template data field by field."""
         return bool(self.missing_fields or self.invalid_fields)
+
+    @property
+    def is_release_dependencies_missing_problem(self) -> bool:
+        """True when this problem listed dependency releases that could not be served."""
+        return len(self.missing_dependencies) > 0
+
+    @property
+    def is_release_dependencies_unreleased_problem(self) -> bool:
+        """True when this problem listed dependency drafts that must be released first."""
+        return len(self.unreleased_dependencies) > 0
+
+    @property
+    def is_catalog_read_only_problem(self) -> bool:
+        """True when this problem said the catalog cannot be changed, and why."""
+        return self.read_only_reason is not None
+
+    @property
+    def is_merge_conflicts_unresolved_problem(self) -> bool:
+        """True when this problem listed merge conflicts that need a resolution."""
+        return len(self.unresolved_conflicts) > 0
+
+    @property
+    def is_merge_base_missing_problem(self) -> bool:
+        """True when this problem named a merge base this installation does not have."""
+        return self.missing_base_version is not None
+
+    @property
+    def is_catalog_version_behind_problem(self) -> bool:
+        """True when this problem said the draft is behind releases the request did not acknowledge."""
+        return self.type_slug == KnownProblemSlugs.CATALOG_VERSION_BEHIND
+
+    @property
+    def is_release_in_use_problem(self) -> bool:
+        """True when this problem said the release cannot be deleted while something uses it."""
+        return self.type_slug == KnownProblemSlugs.RELEASE_IN_USE
+
+    @property
+    def is_ambiguous_variant_problem(self) -> bool:
+        """True when this problem said several variants match equally well."""
+        return self.type_slug == KnownProblemSlugs.AMBIGUOUS_VARIANT
+
+    @property
+    def is_forbidden_problem(self) -> bool:
+        """True when this problem is a refused authorization (``forbidden``, 403)."""
+        return self.type_slug == KnownProblemSlugs.FORBIDDEN
 
     @property
     def is_data_model_validation_problem(self) -> bool:

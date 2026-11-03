@@ -2,22 +2,19 @@
 
 consumer-register:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
 
   post:
     operationId: registerConsumer
     x-experimental: true
     summary: Register a new consumer in this tenant
     description: |
-      **Experimental** — Epistola Suite may not implement this operation yet.
+      **Experimental** (see the Consumers tag).
 
       Self-service registration for consumer applications using self-signed JWT
       authentication. The consumer is created in `pending` status within this
@@ -38,14 +35,18 @@ consumer-register:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/consumers.yaml#/RegisterConsumerRequest'
     responses:
       '201':
         description: Consumer registered (status = pending)
+        headers:
+          Location:
+            $ref: '../components/headers/location.yaml#/Location'
+            description: The consumer's address (`getConsumer`)
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
       '400':
@@ -57,28 +58,25 @@ consumer-register:
 
 consumer-collection:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
 
   get:
     operationId: listConsumers
     x-experimental: true
     summary: List consumers in this tenant
     description: |
-      **Experimental** — Epistola Suite may not implement this operation yet.
+      **Experimental** (see the Consumers tag).
 
       Retrieve a paginated list of consumers registered in this tenant
       with optional filtering by status.
     tags:
       - Consumers
-    x-required-permissions: [TENANT_USERS]
+    x-required-permissions: [CREDENTIALS_MANAGE]
     parameters:
       - name: q
         in: query
@@ -97,7 +95,7 @@ consumer-collection:
       '200':
         description: List of consumers
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/consumers.yaml#/ConsumerListResponse'
       '400':
@@ -109,43 +107,42 @@ consumer-collection:
 
 consumer-resource:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     - name: consumerId
       in: path
       required: true
       description: Unique slug identifier of the consumer
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/ConsumerId'
 
   get:
     operationId: getConsumer
     x-experimental: true
     summary: Get consumer by ID
     description: |
-      **Experimental** — Epistola Suite may not implement this operation yet.
+      **Experimental** (see the Consumers tag).
 
       Retrieve details of a specific consumer in this tenant.
     tags:
       - Consumers
-    x-required-permissions: [TENANT_USERS]
+    x-required-permissions: [CREDENTIALS_MANAGE]
     responses:
       '200':
         description: Consumer details
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -158,23 +155,30 @@ consumer-resource:
     x-experimental: true
     summary: Update consumer metadata or permissions
     description: |
-      **Experimental** — Epistola Suite may not implement this operation yet.
+      **Experimental** (see the Consumers tag).
 
       Update a consumer's metadata or permissions within this tenant.
+      Send the `ETag` from a read as `If-Match` to have the update refused with 412
+      `resource-modified` if the resource changed since; without it, the last write wins.
     tags:
       - Consumers
-    x-required-permissions: [TENANT_USERS]
+    x-required-permissions: [CREDENTIALS_MANAGE]
+    parameters:
+      - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/consumers.yaml#/UpdateConsumerRequest'
     responses:
       '200':
         description: Consumer updated
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
       '400':
@@ -185,13 +189,15 @@ consumer-resource:
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '412':
+        $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
 
   delete:
     operationId: deleteConsumer
     x-experimental: true
     summary: Delete a consumer
     description: |
-      **Experimental** — Epistola Suite may not implement this operation yet.
+      **Experimental** (see the Consumers tag).
 
       Permanently remove a consumer from this tenant.
 
@@ -200,15 +206,17 @@ consumer-resource:
       - Uncollected generation results remain in the system but are no longer
         deliverable via the `/generation/collect` endpoint.
       - Generated documents can still be accessed directly via
-        `GET /tenants/{tenantId}/documents/{documentId}`.
+        `GET /tenants/{tenantKey}/documents/{documentId}`.
       - The `createdBy` field on documents retains the consumer ID
         (orphaned reference).
     tags:
       - Consumers
-    x-required-permissions: [TENANT_USERS]
+    x-required-permissions: [CREDENTIALS_MANAGE]
     responses:
       '204':
         description: Consumer deleted
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -218,49 +226,43 @@ consumer-resource:
 
 consumer-approve:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     - name: consumerId
       in: path
       required: true
       description: Unique slug identifier of the consumer to approve
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/ConsumerId'
 
   post:
     operationId: approveConsumer
     x-experimental: true
     summary: Approve a pending consumer
     description: |
-      **Experimental** — Epistola Suite may not implement this operation yet.
+      **Experimental** (see the Consumers tag).
 
       Approve a consumer registration within this tenant. Sets the granted
       permissions and optional expiry. The consumer transitions from `pending`
       to `active`.
     tags:
       - Consumers
-    x-required-permissions: [TENANT_USERS]
+    x-required-permissions: [CREDENTIALS_MANAGE]
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/consumers.yaml#/ApproveConsumerRequest'
     responses:
       '200':
         description: Consumer approved (status = active)
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
       '400':
@@ -274,48 +276,42 @@ consumer-approve:
 
 consumer-reject:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     - name: consumerId
       in: path
       required: true
       description: Unique slug identifier of the consumer to reject
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/ConsumerId'
 
   post:
     operationId: rejectConsumer
     x-experimental: true
     summary: Reject a pending consumer
     description: |
-      **Experimental** — Epistola Suite may not implement this operation yet.
+      **Experimental** (see the Consumers tag).
 
       Reject a consumer registration. The consumer transitions from `pending`
       to `rejected`. Optionally provide a reason.
     tags:
       - Consumers
-    x-required-permissions: [TENANT_USERS]
+    x-required-permissions: [CREDENTIALS_MANAGE]
     requestBody:
       required: false
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/consumers.yaml#/RejectConsumerRequest'
     responses:
       '200':
         description: Consumer rejected (status = rejected)
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
       '400':
@@ -329,48 +325,50 @@ consumer-reject:
 
 consumer-public-key:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     - name: consumerId
       in: path
       required: true
       description: Unique slug identifier of the consumer
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/ConsumerId'
 
   put:
     operationId: rotatePublicKey
     x-experimental: true
     summary: Rotate public key
     description: |
-      **Experimental** — Epistola Suite may not implement this operation yet.
+      **Experimental** (see the Consumers tag).
 
-      Replace the public key for a self-signed JWT consumer. Must authenticate
-      with a valid JWT signed by the current key. After rotation, the old key
-      is immediately invalidated.
+      Replace the public key for a self-signed JWT consumer. Only the consumer itself may rotate
+      it: the request must carry a self-signed JWT (`Authorization: Bearer`) issued by the consumer
+      named in the path (`iss`) and signed with its current key. No permission and no API key
+      admits anyone else, a tenant manager included: an API key, or a JWT of another consumer, is
+      refused with 403. After rotation, the old key is immediately invalidated.
+
+      An API-key consumer cannot rotate this way; a tenant manager issues a new key and revokes the
+      old one out of band.
     tags:
       - Consumers
+    x-required-authentication: true
+    security:
+      - bearerAuth: []
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/consumers.yaml#/RotatePublicKeyRequest'
     responses:
       '200':
         description: Public key rotated
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
       '400':

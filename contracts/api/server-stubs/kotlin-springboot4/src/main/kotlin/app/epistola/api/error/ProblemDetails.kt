@@ -4,7 +4,11 @@
 
 package app.epistola.api.error
 
+import app.epistola.api.model.CatalogReadOnlyReason
+import app.epistola.api.model.CatalogReleaseRefDto
 import app.epistola.api.model.DataModelValidationError
+import app.epistola.api.model.MissingReleaseDependency
+import app.epistola.api.model.UnreleasedCatalogDependency
 import app.epistola.api.model.ValidationError
 import app.epistola.protocol.ProblemTypeUris
 import org.springframework.http.HttpStatusCode
@@ -62,6 +66,79 @@ object ProblemDetails {
      */
     const val VALIDATION_ERRORS_PROPERTY: String = ProblemExtensionMembers.VALIDATION_ERRORS
 
+    /**
+     * Extension member listing the dependency releases a deployment is missing. Generated from the
+     * `ReleaseDependenciesMissingProblemDetail` schema, so it stays the name the clients read.
+     */
+    const val MISSING_DEPENDENCIES_PROPERTY: String = ProblemExtensionMembers.MISSING_DEPENDENCIES
+
+    /**
+     * Extension member listing the drafts of other catalogs a release would need released first.
+     * Generated from the `ReleaseDependenciesUnreleasedProblemDetail` schema, so it stays the name
+     * the clients read.
+     */
+    const val UNRELEASED_DEPENDENCIES_PROPERTY: String = ProblemExtensionMembers.UNRELEASED_DEPENDENCIES
+
+    /**
+     * Extension member saying why a catalog cannot be changed. Generated from the
+     * `CatalogReadOnlyProblemDetail` schema, so it stays the name the clients read.
+     */
+    const val READ_ONLY_REASON_PROPERTY: String = ProblemExtensionMembers.READ_ONLY_REASON
+
+    /**
+     * Extension member listing the conflicts of a merge that have no resolution. Generated from the
+     * `MergeConflictsUnresolvedProblemDetail` schema, so it stays the name the clients read.
+     */
+    const val UNRESOLVED_CONFLICTS_PROPERTY: String = ProblemExtensionMembers.UNRESOLVED_CONFLICTS
+
+    /**
+     * Extension member naming the version of the release a `merge-base-missing` problem asks for.
+     * Generated from the `MergeBaseMissingProblemDetail` schema, so it stays the name the clients read.
+     */
+    const val VERSION_PROPERTY: String = ProblemExtensionMembers.VERSION
+
+    /** Extension member naming that release's catalog fingerprint (`MergeBaseMissingProblemDetail`). */
+    const val FINGERPRINT_PROPERTY: String = ProblemExtensionMembers.FINGERPRINT
+
+    /**
+     * Extension member naming the rendering defaults version a `catalog-rendering-defaults-too-new`
+     * problem's release names (`CatalogRenderingDefaultsTooNewProblemDetail`).
+     */
+    const val RENDERING_DEFAULTS_VERSION_PROPERTY: String = ProblemExtensionMembers.RENDERING_DEFAULTS_VERSION
+
+    /** Extension member naming the newest rendering defaults version this installation has. */
+    const val SUPPORTED_VERSION_PROPERTY: String = ProblemExtensionMembers.SUPPORTED_VERSION
+
+    /**
+     * Extension member listing the versions of the releases a draft is behind that a release did not
+     * acknowledge. Generated from the `CatalogVersionBehindProblemDetail` schema.
+     */
+    const val BEHIND_PROPERTY: String = ProblemExtensionMembers.BEHIND
+
+    /** Extension member listing the environments that deploy a release (`ReleaseInUseProblemDetail`). */
+    const val ENVIRONMENTS_PROPERTY: String = ProblemExtensionMembers.ENVIRONMENTS
+
+    /** Extension member listing the releases of other catalogs that pin a release (`ReleaseInUseProblemDetail`). */
+    const val PINNED_BY_PROPERTY: String = ProblemExtensionMembers.PINNED_BY
+
+    /** Extension member listing the variants that match equally well (`AmbiguousVariantProblemDetail`). */
+    const val TIED_VARIANTS_PROPERTY: String = ProblemExtensionMembers.TIED_VARIANTS
+
+    /**
+     * Extension member naming the permission a `forbidden` problem's caller lacks, as the operation's
+     * `x-required-permissions` names it (`ForbiddenProblemDetail`).
+     */
+    const val REQUIRED_PERMISSION_PROPERTY: String = ProblemExtensionMembers.REQUIRED_PERMISSION
+
+    /** Extension member naming the platform role a `forbidden` problem's caller lacks (`ForbiddenProblemDetail`). */
+    const val REQUIRED_PLATFORM_ROLE_PROPERTY: String = ProblemExtensionMembers.REQUIRED_PLATFORM_ROLE
+
+    /** Extension member naming the tenant a `forbidden` problem is about (`ForbiddenProblemDetail`). */
+    const val TENANT_KEY_PROPERTY: String = ProblemExtensionMembers.TENANT_KEY
+
+    /** Extension member saying why a policy refused a `forbidden` problem's request (`ForbiddenProblemDetail`). */
+    const val REASON_PROPERTY: String = ProblemExtensionMembers.REASON
+
     // The mapping is shared with the clients, which use it in the other direction.
     private val uris = ProblemTypeUris.of(TYPE_BASE)
 
@@ -73,6 +150,47 @@ object ProblemDetails {
      * types — the inverse of [typeFor], and what the clients switch on.
      */
     fun slugFor(type: URI?): String? = uris.slugFor(type)
+
+    /**
+     * The generic problem type of HTTP [status], as a slug for [typeFor]: what a server answers with
+     * for a problem that has no more specific registered type, such as a framework's own rejection
+     * of a malformed request or an unexpected failure. The contract allows registered types only,
+     * so a problem Spring creates with `about:blank` is given this type. Null for a status the
+     * registry has no generic type for (422, 502, 503).
+     */
+    fun genericSlugFor(status: Int): String? = GENERIC_SLUGS[status]
+
+    /** The base member a problem links its page with this request's context through ([helpFor]). */
+    const val HELP_PROPERTY: String = "help"
+
+    /**
+     * The `help` link of a problem of type [slug] that operation [operationId] answered: the type's
+     * page, with the operation as its context, so the page can give the hints for it. The context
+     * names the contract's terms only, never a value: an [operationId] that is not shaped like one
+     * (letters and digits, as the contract's are) is left out, and the link is the type's page.
+     */
+    fun helpFor(slug: String, operationId: String?): URI {
+        val type = typeFor(slug)
+        return if (operationId != null && OPERATION_ID.matches(operationId)) URI.create("$type?operation=$operationId") else type
+    }
+
+    private val OPERATION_ID = Regex("^[A-Za-z][A-Za-z0-9]*$")
+
+    private val GENERIC_SLUGS: Map<Int, String> = mapOf(
+        400 to KnownProblemSlugs.BAD_REQUEST,
+        401 to KnownProblemSlugs.UNAUTHORIZED,
+        403 to KnownProblemSlugs.FORBIDDEN,
+        404 to KnownProblemSlugs.NOT_FOUND,
+        405 to KnownProblemSlugs.METHOD_NOT_ALLOWED,
+        406 to KnownProblemSlugs.NOT_ACCEPTABLE,
+        409 to KnownProblemSlugs.CONFLICT,
+        412 to KnownProblemSlugs.RESOURCE_MODIFIED,
+        413 to KnownProblemSlugs.CONTENT_TOO_LARGE,
+        415 to KnownProblemSlugs.UNSUPPORTED_MEDIA_TYPE,
+        429 to KnownProblemSlugs.RATE_LIMITED,
+        500 to KnownProblemSlugs.INTERNAL_ERROR,
+        501 to KnownProblemSlugs.OPERATION_NOT_IMPLEMENTED,
+    )
 
     /**
      * The canonical problem `type` slugs from the contract's error-type registry, for use with
@@ -95,26 +213,159 @@ object ProblemDetails {
         /** 400 — malformed or not applicable to the resource state (no `errors`). */
         const val BAD_REQUEST: String = KnownProblemSlugs.BAD_REQUEST
 
+        /**
+         * 400 — a received release renders with rendering defaults this installation does not
+         * have; upgrade to receive it (use [catalogRenderingDefaultsTooNew]).
+         */
+        const val CATALOG_RENDERING_DEFAULTS_TOO_NEW: String = KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW
+
+        /** 400 — a catalog archive's wire version is newer than this installation reads. */
+        const val CATALOG_SCHEMA_TOO_NEW: String = KnownProblemSlugs.CATALOG_SCHEMA_TOO_NEW
+
+        /** 400 — a catalog archive's wire version is older than the oldest this installation migrates. */
+        const val CATALOG_SCHEMA_TOO_OLD: String = KnownProblemSlugs.CATALOG_SCHEMA_TOO_OLD
+
+        /** 400 — the payload is not a catalog archive this installation recognizes. */
+        const val CATALOG_SCHEMA_UNKNOWN: String = KnownProblemSlugs.CATALOG_SCHEMA_UNKNOWN
+
         /** 401 — missing or invalid credentials. */
         const val UNAUTHORIZED: String = KnownProblemSlugs.UNAUTHORIZED
 
         /** 401 — API-key authentication is disabled for this deployment. */
         const val API_KEY_AUTH_DISABLED: String = KnownProblemSlugs.API_KEY_AUTH_DISABLED
 
-        /** 403 — authenticated but not allowed to perform the operation. */
+        /** 403 — authenticated but refused (use [forbidden]). */
         const val FORBIDDEN: String = KnownProblemSlugs.FORBIDDEN
 
         /** 404 — the addressed resource does not exist. */
         const val NOT_FOUND: String = KnownProblemSlugs.NOT_FOUND
 
+        /** 404 — the template exists, but none of its variants matches the attributes required. */
+        const val NO_MATCHING_VARIANT: String = KnownProblemSlugs.NO_MATCHING_VARIANT
+
+        /**
+         * 404 — the release registry the request names (alpha) is not one this installation has
+         * configured or is connected to.
+         */
+        const val RELEASE_REGISTRY_NOT_FOUND: String = KnownProblemSlugs.RELEASE_REGISTRY_NOT_FOUND
+
+        /** 405 — the operation does not accept this HTTP method; any operation may answer it. */
+        const val METHOD_NOT_ALLOWED: String = KnownProblemSlugs.METHOD_NOT_ALLOWED
+
+        /** 406 — no media type the `Accept` header accepts is available; any operation may answer it. */
+        const val NOT_ACCEPTABLE: String = KnownProblemSlugs.NOT_ACCEPTABLE
+
         /** 409 — the request conflicts with the current state of the resource. */
         const val CONFLICT: String = KnownProblemSlugs.CONFLICT
+
+        /** 409 — the draft is behind releases the request did not acknowledge (use [catalogVersionBehind]). */
+        const val CATALOG_VERSION_BEHIND: String = KnownProblemSlugs.CATALOG_VERSION_BEHIND
+
+        /** 409 — the release is deployed or pinned, so it cannot be deleted (use [releaseInUse]). */
+        const val RELEASE_IN_USE: String = KnownProblemSlugs.RELEASE_IN_USE
+
+        /** 409 — another draft of the catalog has this name. */
+        const val CATALOG_DRAFT_NAME_IN_USE: String = KnownProblemSlugs.CATALOG_DRAFT_NAME_IN_USE
+
+        /** 409 — several variants match equally well (use [ambiguousVariant]). */
+        const val AMBIGUOUS_VARIANT: String = KnownProblemSlugs.AMBIGUOUS_VARIANT
+
+        /** 409 — the generation job has finished, so it cannot be cancelled. */
+        const val GENERATION_JOB_NOT_CANCELLABLE: String = KnownProblemSlugs.GENERATION_JOB_NOT_CANCELLABLE
+
+        /**
+         * 409 — publishing a release (alpha) was refused: the release registry holds this version
+         * with other content.
+         */
+        const val RELEASE_NUMBER_TAKEN: String = KnownProblemSlugs.RELEASE_NUMBER_TAKEN
+
+        /**
+         * 409 — publishing a release (alpha) was refused: the release registry (the Exchange) does
+         * not grant this installation the catalog's namespace.
+         */
+        const val NAMESPACE_NOT_GRANTED: String = KnownProblemSlugs.NAMESPACE_NOT_GRANTED
+
+        /**
+         * 409 — a release cannot be deployed because dependency releases it pins cannot be had
+         * (use [releaseDependenciesMissing]).
+         */
+        const val RELEASE_DEPENDENCIES_MISSING: String = KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING
+
+        /**
+         * 409 — a draft cannot be released because its dependency declarations name drafts of
+         * other catalogs, and the request does not release them along
+         * (use [releaseDependenciesUnreleased]).
+         */
+        const val RELEASE_DEPENDENCIES_UNRELEASED: String = KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED
+
+        /**
+         * 409 — the catalog cannot be changed in this installation, so a write to it was refused
+         * (use [catalogReadOnly]).
+         */
+        const val CATALOG_READ_ONLY: String = KnownProblemSlugs.CATALOG_READ_ONLY
+
+        /**
+         * 409 — merging a release into a draft (alpha) was refused because conflicts have no
+         * resolution (use [mergeConflictsUnresolved]).
+         */
+        const val MERGE_CONFLICTS_UNRESOLVED: String = KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED
+
+        /** 409 — a merge (alpha) cannot be applied: the release removes a resource the draft still uses. */
+        const val MERGE_REFUSED: String = KnownProblemSlugs.MERGE_REFUSED
+
+        /**
+         * 409 — a merge (alpha) was refused: the draft or the release changed since the preview
+         * whose `token` the request sent as `expectedToken`.
+         */
+        const val MERGE_PREVIEW_OUTDATED: String = KnownProblemSlugs.MERGE_PREVIEW_OUTDATED
+
+        /**
+         * 409 — a merge (alpha) was refused: this installation does not have the merge base (use
+         * [mergeBaseMissing]).
+         */
+        const val MERGE_BASE_MISSING: String = KnownProblemSlugs.MERGE_BASE_MISSING
+
+        /**
+         * 422 — a merge (alpha) does not apply: the draft already contains the release, or a
+         * resolution names a resource that is not a conflict.
+         */
+        const val MERGE_NOT_APPLICABLE: String = KnownProblemSlugs.MERGE_NOT_APPLICABLE
+
+        /**
+         * 409 — a production environment serves only releases: a draft deployed to it, or an
+         * environment that serves a draft marked production.
+         */
+        const val ENVIRONMENT_DEPLOYMENT_REFUSED: String = KnownProblemSlugs.ENVIRONMENT_DEPLOYMENT_REFUSED
+
+        /**
+         * 412 — an update's `If-Match` names a revision that is no longer current: the resource
+         * changed since it was read, and nothing changed.
+         */
+        const val RESOURCE_MODIFIED: String = KnownProblemSlugs.RESOURCE_MODIFIED
+
+        /** 413 — the request body is larger than the server accepts. */
+        const val CONTENT_TOO_LARGE: String = KnownProblemSlugs.CONTENT_TOO_LARGE
+
+        /** 415 — the request body's `Content-Type` is not one the operation accepts. */
+        const val UNSUPPORTED_MEDIA_TYPE: String = KnownProblemSlugs.UNSUPPORTED_MEDIA_TYPE
 
         /** 422 — data examples do not validate against the data model (use [dataModelValidation]). */
         const val DATA_MODEL_VALIDATION_ERROR: String = KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR
 
         /** 429 — too many requests; the client is being rate limited. */
         const val RATE_LIMITED: String = KnownProblemSlugs.RATE_LIMITED
+
+        /** 500 — the server failed to answer the request; any operation may answer it. */
+        const val INTERNAL_ERROR: String = KnownProblemSlugs.INTERNAL_ERROR
+
+        /** 501 — the operation is part of the contract, but this server does not implement it yet. */
+        const val OPERATION_NOT_IMPLEMENTED: String = KnownProblemSlugs.OPERATION_NOT_IMPLEMENTED
+
+        /**
+         * 503 or 502 — a catalog's source could not be used, so its releases could not
+         * be listed or installed (use [catalogSourceUnavailable]).
+         */
+        const val CATALOG_SOURCE_UNAVAILABLE: String = KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE
     }
 
     /**
@@ -166,5 +417,197 @@ object ProblemDetails {
         val problem = of(status, type, detail, instance)
         problem.setProperty(VALIDATION_ERRORS_PROPERTY, validationErrors)
         return problem
+    }
+
+    /**
+     * Builds a `release-dependencies-missing` [ProblemDetail] (409): like [of] plus the
+     * [missingDependencies] extension member, each dependency release that cannot be had, and
+     * why (the `ReleaseDependenciesMissingProblemDetail` shape from the contract).
+     */
+    fun releaseDependenciesMissing(
+        missingDependencies: List<MissingReleaseDependency>,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING), detail, instance)
+        problem.setProperty(MISSING_DEPENDENCIES_PROPERTY, missingDependencies)
+        return problem
+    }
+
+    /**
+     * Builds a `release-dependencies-unreleased` [ProblemDetail] (409): like [of] plus the
+     * [unreleasedDependencies] extension member, each draft of another catalog the released
+     * draft's dependency declarations name (the `ReleaseDependenciesUnreleasedProblemDetail` shape
+     * from the contract).
+     */
+    fun releaseDependenciesUnreleased(
+        unreleasedDependencies: List<UnreleasedCatalogDependency>,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED), detail, instance)
+        problem.setProperty(UNRELEASED_DEPENDENCIES_PROPERTY, unreleasedDependencies)
+        return problem
+    }
+
+    /**
+     * Builds a `catalog-version-behind` [ProblemDetail] (409): like [of] plus the [behind] extension
+     * member, the versions of the releases the draft is behind that the request did not acknowledge
+     * (the `CatalogVersionBehindProblemDetail` shape from the contract).
+     */
+    fun catalogVersionBehind(
+        behind: List<String>,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.CATALOG_VERSION_BEHIND), detail, instance)
+        problem.setProperty(BEHIND_PROPERTY, behind)
+        return problem
+    }
+
+    /**
+     * Builds a `release-in-use` [ProblemDetail] (409): like [of] plus the [environments] that deploy
+     * the release and the releases of other catalogs it is [pinnedBy] (the `ReleaseInUseProblemDetail`
+     * shape from the contract).
+     */
+    fun releaseInUse(
+        environments: List<String>,
+        pinnedBy: List<CatalogReleaseRefDto>,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.RELEASE_IN_USE), detail, instance)
+        problem.setProperty(ENVIRONMENTS_PROPERTY, environments)
+        problem.setProperty(PINNED_BY_PROPERTY, pinnedBy)
+        return problem
+    }
+
+    /**
+     * Builds an `ambiguous-variant` [ProblemDetail] (409): like [of] plus the [tiedVariants]
+     * extension member, the keys of the variants that match equally well (the
+     * `AmbiguousVariantProblemDetail` shape from the contract).
+     */
+    fun ambiguousVariant(
+        tiedVariants: List<String>,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.AMBIGUOUS_VARIANT), detail, instance)
+        problem.setProperty(TIED_VARIANTS_PROPERTY, tiedVariants)
+        return problem
+    }
+
+    /**
+     * Builds a `catalog-read-only` [ProblemDetail] (409): like [of] plus the [readOnlyReason]
+     * extension member, why the catalog cannot be changed in this installation (the
+     * `CatalogReadOnlyProblemDetail` shape from the contract), written as its wire value.
+     */
+    fun catalogReadOnly(
+        readOnlyReason: CatalogReadOnlyReason,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.CATALOG_READ_ONLY), detail, instance)
+        problem.setProperty(READ_ONLY_REASON_PROPERTY, readOnlyReason.value)
+        return problem
+    }
+
+    /**
+     * Builds a `merge-conflicts-unresolved` [ProblemDetail] (409): like [of] plus the
+     * [unresolvedConflicts] extension member, each conflict of the merge without a resolution, as
+     * `resourceType/resourceKey` (the `MergeConflictsUnresolvedProblemDetail` shape from the
+     * contract).
+     */
+    fun mergeConflictsUnresolved(
+        unresolvedConflicts: List<String>,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED), detail, instance)
+        problem.setProperty(UNRESOLVED_CONFLICTS_PROPERTY, unresolvedConflicts)
+        return problem
+    }
+
+    /**
+     * Builds a `forbidden` [ProblemDetail] (403): like [of] plus whichever extension members say what
+     * was refused (the `ForbiddenProblemDetail` shape from the contract), each written only when
+     * given. Name the [requiredPermission] and [tenantKey] for a permission the caller lacks in a
+     * tenant, the [tenantKey] alone when the caller has no access to the tenant, the
+     * [requiredPlatformRole] for a platform role, and a [reason] when a policy refused the request
+     * and there is no single permission to grant. Permissions and roles are named as the operation's
+     * `x-required-permissions` and `x-required-platform-roles` name them.
+     */
+    fun forbidden(
+        requiredPermission: String? = null,
+        tenantKey: String? = null,
+        requiredPlatformRole: String? = null,
+        reason: String? = null,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        val problem = of(HttpStatusCode.valueOf(403), typeFor(KnownProblemSlugs.FORBIDDEN), detail, instance)
+        if (requiredPermission != null) problem.setProperty(REQUIRED_PERMISSION_PROPERTY, requiredPermission)
+        if (tenantKey != null) problem.setProperty(TENANT_KEY_PROPERTY, tenantKey)
+        if (requiredPlatformRole != null) problem.setProperty(REQUIRED_PLATFORM_ROLE_PROPERTY, requiredPlatformRole)
+        if (reason != null) problem.setProperty(REASON_PROPERTY, reason)
+        return problem
+    }
+
+    /**
+     * Builds a `merge-base-missing` [ProblemDetail] (409): like [of] plus the [version] and
+     * [fingerprint] extension members, naming the merge base this installation does not have, the
+     * release to get first (the `MergeBaseMissingProblemDetail` shape from the contract).
+     */
+    fun mergeBaseMissing(
+        version: String,
+        fingerprint: String,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.MERGE_BASE_MISSING), detail, instance)
+        problem.setProperty(VERSION_PROPERTY, version)
+        problem.setProperty(FINGERPRINT_PROPERTY, fingerprint)
+        return problem
+    }
+
+    /**
+     * Builds a `catalog-rendering-defaults-too-new` [ProblemDetail] (400): like [of] plus the
+     * [renderingDefaultsVersion] the received release names, as it names it, and the
+     * [supportedVersion], the newest this installation has (the
+     * `CatalogRenderingDefaultsTooNewProblemDetail` shape from the contract). For `importCatalog`
+     * and `installCatalogRelease`, refused before anything is written.
+     */
+    fun catalogRenderingDefaultsTooNew(
+        renderingDefaultsVersion: String,
+        supportedVersion: Int,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        val problem = of(HttpStatusCode.valueOf(400), typeFor(KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW), detail, instance)
+        problem.setProperty(RENDERING_DEFAULTS_VERSION_PROPERTY, renderingDefaultsVersion)
+        problem.setProperty(SUPPORTED_VERSION_PROPERTY, supportedVersion)
+        return problem
+    }
+
+    /**
+     * Builds a `catalog-source-unavailable` [ProblemDetail]: a catalog's source (its
+     * registry, through its mirrors) could not be used by `listAvailableCatalogReleases` or
+     * `installCatalogRelease`, and nothing was installed. The one problem type is sent with either
+     * of two statuses: 503 when the source could not be reached or did not answer in time, 502
+     * when it answered with an error or with something that is not a valid answer. Any other
+     * status is refused.
+     *
+     * A 503 may tell the caller when to retry with a `Retry-After` response header, which the
+     * application sets on the response; it is not part of the problem body.
+     */
+    fun catalogSourceUnavailable(
+        status: HttpStatusCode,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        require(status.value() == 502 || status.value() == 503) {
+            "catalog-source-unavailable is sent as 502 or 503, not ${status.value()}"
+        }
+        return of(status, typeFor(KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE), detail, instance)
     }
 }

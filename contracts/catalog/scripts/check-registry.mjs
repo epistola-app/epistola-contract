@@ -75,8 +75,23 @@ for (const [groupIndex, group] of styleRegistry.groups.entries()) {
     requireString(property.key, `style-registry.json groups[${groupIndex}].properties[${propertyIndex}].key`);
     requireString(property.label, `style-registry.json groups[${groupIndex}].properties[${propertyIndex}].label`);
     requireString(property.type, `style-registry.json groups[${groupIndex}].properties[${propertyIndex}].type`);
+    if (property.includedInAll !== undefined && typeof property.includedInAll !== 'boolean') {
+      fail(`style-registry.json groups[${groupIndex}].properties[${propertyIndex}].includedInAll must be a boolean`);
+    }
+    if (property.type === 'select' && property.key !== 'fontFamily') {
+      requireArray(property.options, `style-registry.json groups[${groupIndex}].properties[${propertyIndex}].options`);
+    }
     if (styleKeys.has(property.key)) fail(`duplicate style key '${property.key}'`);
     styleKeys.add(property.key);
+  }
+}
+
+// A style map lists the keys its entries accept by name, with the same family-prefix
+// matching the validator applies; every entry must reach at least one registry key.
+function checkStyleList(keys, path) {
+  requireArray(keys, path);
+  for (const key of keys ?? []) {
+    if (!styleKeys.has(key)) fail(`${path} references unknown style key '${key}'`);
   }
 }
 
@@ -106,9 +121,37 @@ for (const [index, component] of componentRegistry.components.entries()) {
   }
 
   if (component.applicableStyles !== 'all') {
-    requireArray(component.applicableStyles, `${prefix}.applicableStyles`);
-    for (const key of component.applicableStyles ?? []) {
-      if (!styleKeys.has(key)) fail(`${prefix}.applicableStyles references unknown style key '${key}'`);
+    checkStyleList(component.applicableStyles, `${prefix}.applicableStyles`);
+  }
+
+  if (component.styleMaps !== undefined) {
+    requireArray(component.styleMaps, `${prefix}.styleMaps`);
+    const declaredProps = new Set([
+      ...(component.inspector ?? []).map((field) => field.key.split('.')[0]),
+      ...Object.keys(component.defaultProps ?? {}),
+    ]);
+    const mapKeys = new Set();
+    for (const [mapIndex, styleMap] of (component.styleMaps ?? []).entries()) {
+      const mapPrefix = `${prefix}.styleMaps[${mapIndex}]`;
+      requireString(styleMap.key, `${mapPrefix}.key`);
+      requireString(styleMap.label, `${mapPrefix}.label`);
+      requireString(styleMap.description, `${mapPrefix}.description`);
+      if (mapKeys.has(styleMap.key)) fail(`${mapPrefix}.key '${styleMap.key}' is declared twice`);
+      mapKeys.add(styleMap.key);
+      if (declaredProps.has(styleMap.key)) fail(`${mapPrefix}.key '${styleMap.key}' is also an inspector field or default prop`);
+      if (styleMap.shape === 'keyed') {
+        requireString(styleMap.keyPattern, `${mapPrefix}.keyPattern`);
+        try {
+          new RegExp(styleMap.keyPattern);
+        } catch {
+          fail(`${mapPrefix}.keyPattern is not a valid pattern`);
+        }
+      } else if (styleMap.shape === 'indexed') {
+        if (styleMap.keyPattern !== undefined) fail(`${mapPrefix}.keyPattern applies only to shape 'keyed'`);
+      } else {
+        fail(`${mapPrefix}.shape must be 'keyed' or 'indexed'`);
+      }
+      checkStyleList(styleMap.applicableStyles, `${mapPrefix}.applicableStyles`);
     }
   }
 

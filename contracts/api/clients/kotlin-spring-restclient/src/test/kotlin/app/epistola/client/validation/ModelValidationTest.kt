@@ -4,20 +4,26 @@
 
 package app.epistola.client.validation
 
-import app.epistola.client.model.ActivationDto
 import app.epistola.client.model.BatchGenerationItem
+import app.epistola.client.model.CatalogDependencyRequirement
+import app.epistola.client.model.CatalogReleaseDto
+import app.epistola.client.model.CatalogReleaseStatus
 import app.epistola.client.model.CreateEnvironmentRequest
 import app.epistola.client.model.CreateTemplateRequest
 import app.epistola.client.model.CreateTenantRequest
 import app.epistola.client.model.DocumentDto
+import app.epistola.client.model.FontVariantDto
 import app.epistola.client.model.GenerateBatchRequest
 import app.epistola.client.model.GenerateDocumentRequest
 import app.epistola.client.model.Node
+import app.epistola.client.model.ResourceStatus
 import app.epistola.client.model.Slot
 import app.epistola.client.model.TemplateDocument
 import app.epistola.client.model.ThemeRef
+import app.epistola.client.model.UpdateTemplateRequest
 import app.epistola.client.model.UpdateTenantRequest
-import app.epistola.client.model.VersionDto
+import app.epistola.client.model.VariantContentDto
+import app.epistola.client.model.VariantSelectionAttribute
 import java.time.OffsetDateTime
 import java.util.UUID
 import kotlin.test.Test
@@ -26,13 +32,59 @@ import kotlin.test.assertFailsWith
 
 class ModelValidationTest {
 
+    // --- A named rule (ReleaseVersion), referenced as nullable, is checked as if inline ---
+
+    @Test
+    fun `a dependency declaration pins an exact release`() {
+        val pinned = CatalogDependencyRequirement(namespace = "epistola", catalogKey = "system", version = "1.3.0")
+        assertEquals(pinned, pinned.validate())
+        for (release in listOf("^1.3.0", "1.x", "*", "01.3.0", "1.3.0-rc.1", "1.3.0+build.5")) {
+            assertFailsWith<IllegalArgumentException>("Expected '$release' to fail") {
+                pinned.copy(version = release).validate()
+            }
+        }
+    }
+
+    @Test
+    fun `a dependency declaration may give the catalog an alias`() {
+        val aliased = CatalogDependencyRequirement(alias = "shared-branding", namespace = "acme-corp", catalogKey = "branding", version = "1.3.0")
+        assertEquals(aliased, aliased.validate())
+        assertFailsWith<IllegalArgumentException> { aliased.copy(alias = "x").validate() }
+    }
+
+    @Test
+    fun `a patch release number is a release number`() {
+        val pinned = CatalogDependencyRequirement(namespace = "epistola", catalogKey = "system", version = "1.3.1-gemeente-x.1")
+        assertEquals(pinned, pinned.validate())
+        for (release in listOf("1.3.1-gemeente-x.0", "1.3.1-gemeente-x.01", "1.3.1-Gemeente-x.1", "1.3.1-gemeente-x")) {
+            assertFailsWith<IllegalArgumentException>("Expected '$release' to fail") {
+                pinned.copy(version = release).validate()
+            }
+        }
+    }
+
+    // --- An attribute criterion: a resource key, its catalog in members of its own ---
+
+    @Test
+    fun `an attribute criterion names its attribute by resource key, never dotted`() {
+        val qualified = VariantSelectionAttribute(key = "locale", `value` = "nl-NL", catalogKey = "system")
+        assertEquals(qualified, qualified.validate())
+        // catalogKey is an alias, under the catalog key rule.
+        assertFailsWith<IllegalArgumentException> { qualified.copy(catalogKey = "System").validate() }
+        val ownCatalog = VariantSelectionAttribute(key = "2026-campaign", `value` = "spring")
+        assertEquals(ownCatalog, ownCatalog.validate())
+        assertFailsWith<IllegalArgumentException> {
+            VariantSelectionAttribute(key = "system.locale", `value` = "nl-NL").validate()
+        }
+    }
+
     // --- Slug pattern: regex edge cases ---
 
     @Test
     fun `slug pattern accepts valid slugs`() {
         val validSlugs = listOf("abc", "a1b", "test-env", "my-long-slug-123", "x".repeat(3))
         for (slug in validSlugs) {
-            val request = CreateTenantRequest(id = slug, name = "Test")
+            val request = CreateTenantRequest(key = slug, name = "Test")
             assertEquals(request, request.validate(), "Expected '$slug' to be valid")
         }
     }
@@ -50,7 +102,7 @@ class ModelValidationTest {
         )
         for ((slug, reason) in invalid) {
             assertFailsWith<IllegalArgumentException>("Expected '$slug' to fail ($reason)") {
-                CreateTenantRequest(id = slug, name = "Test").validate()
+                CreateTenantRequest(key = slug, name = "Test").validate()
             }
         }
     }
@@ -58,54 +110,54 @@ class ModelValidationTest {
     // --- String length boundaries ---
 
     @Test
-    fun `id at exact minimum length passes`() {
-        val request = CreateTenantRequest(id = "abc", name = "Tenant")
+    fun `key at exact minimum length passes`() {
+        val request = CreateTenantRequest(key = "abc", name = "Tenant")
         assertEquals(request, request.validate())
     }
 
     @Test
-    fun `id one below minimum length fails`() {
+    fun `key one below minimum length fails`() {
         val ex = assertFailsWith<IllegalArgumentException> {
-            CreateTenantRequest(id = "ab", name = "Tenant").validate()
+            CreateTenantRequest(key = "ab", name = "Tenant").validate()
         }
-        assertEquals("id: length must be between 3 and 63", ex.message)
+        assertEquals("key: length must be between 3 and 63", ex.message)
     }
 
     @Test
-    fun `id at exact maximum length passes`() {
+    fun `key at exact maximum length passes`() {
         // 63 chars, valid slug: 'a' followed by 62 lowercase chars
-        val id = "a" + "b".repeat(62)
-        val request = CreateTenantRequest(id = id, name = "Tenant")
+        val key = "a" + "b".repeat(62)
+        val request = CreateTenantRequest(key = key, name = "Tenant")
         assertEquals(request, request.validate())
     }
 
     @Test
-    fun `id one above maximum length fails`() {
+    fun `key one above maximum length fails`() {
         val ex = assertFailsWith<IllegalArgumentException> {
-            CreateTenantRequest(id = "a".repeat(64), name = "Tenant").validate()
+            CreateTenantRequest(key = "a".repeat(64), name = "Tenant").validate()
         }
-        assertEquals("id: length must be between 3 and 63", ex.message)
+        assertEquals("key: length must be between 3 and 63", ex.message)
     }
 
     @Test
     fun `name at boundary values`() {
         // min=1 passes
         assertEquals(
-            CreateTenantRequest(id = "abc", name = "x"),
-            CreateTenantRequest(id = "abc", name = "x").validate(),
+            CreateTenantRequest(key = "abc", name = "x"),
+            CreateTenantRequest(key = "abc", name = "x").validate(),
         )
         // max=255 passes
         assertEquals(
-            CreateTenantRequest(id = "abc", name = "x".repeat(255)),
-            CreateTenantRequest(id = "abc", name = "x".repeat(255)).validate(),
+            CreateTenantRequest(key = "abc", name = "x".repeat(255)),
+            CreateTenantRequest(key = "abc", name = "x".repeat(255)).validate(),
         )
         // empty fails
         assertFailsWith<IllegalArgumentException> {
-            CreateTenantRequest(id = "abc", name = "").validate()
+            CreateTenantRequest(key = "abc", name = "").validate()
         }
         // 256 fails
         assertFailsWith<IllegalArgumentException> {
-            CreateTenantRequest(id = "abc", name = "x".repeat(256)).validate()
+            CreateTenantRequest(key = "abc", name = "x".repeat(256)).validate()
         }
     }
 
@@ -130,69 +182,41 @@ class ModelValidationTest {
         }
     }
 
-    // --- Different maxLength per schema (environment id capped at 30) ---
+    // --- Different maxLength per schema (environment key capped at 30) ---
 
     @Test
-    fun `CreateEnvironmentRequest enforces id maxLength of 30`() {
-        val valid = CreateEnvironmentRequest(id = "a" + "b".repeat(29), name = "Env")
+    fun `CreateEnvironmentRequest enforces key maxLength of 30`() {
+        val valid = CreateEnvironmentRequest(key = "a" + "b".repeat(29), name = "Env")
         assertEquals(valid, valid.validate())
 
         val ex = assertFailsWith<IllegalArgumentException> {
-            CreateEnvironmentRequest(id = "a".repeat(31), name = "Env").validate()
+            CreateEnvironmentRequest(key = "a".repeat(31), name = "Env").validate()
         }
-        assertEquals("id: length must be between 3 and 30", ex.message)
+        assertEquals("key: length must be between 3 and 30", ex.message)
     }
 
-    // --- Mixed constraint model: ActivationDto has slug pattern + integer range ---
+    // --- Integer range: FontVariantDto.weight is bounded 1-1000 ---
 
     @Test
-    fun `ActivationDto validates both slug pattern and integer range`() {
-        val now = OffsetDateTime.now()
-        val valid = ActivationDto(
-            environmentId = "production",
-            environmentName = "Production",
-            versionId = 42,
-            activatedAt = now,
-        )
+    fun `FontVariantDto accepts a weight inside 1-1000`() {
+        val valid = FontVariantDto(weight = 400, italic = false)
         assertEquals(valid, valid.validate())
     }
 
     @Test
-    fun `ActivationDto rejects invalid environmentId pattern`() {
-        val now = OffsetDateTime.now()
-        assertFailsWith<IllegalArgumentException> {
-            ActivationDto(
-                environmentId = "PRODUCTION",
-                environmentName = "Production",
-                versionId = 1,
-                activatedAt = now,
-            ).validate()
-        }
+    fun `FontVariantDto rejects a weight outside 1-1000`() {
+        assertFailsWith<IllegalArgumentException> { FontVariantDto(weight = 0, italic = false).validate() }
+        assertFailsWith<IllegalArgumentException> { FontVariantDto(weight = 1001, italic = true).validate() }
     }
 
-    @Test
-    fun `ActivationDto rejects versionId outside 1-200`() {
-        val now = OffsetDateTime.now()
-        assertFailsWith<IllegalArgumentException> {
-            ActivationDto(
-                environmentId = "production",
-                environmentName = "Production",
-                versionId = 0,
-                activatedAt = now,
-            ).validate()
-        }
-    }
-
-    // --- VersionDto: integer id + slug variantId ---
+    // --- VariantContentDto: variantKey (a slug) + nested TemplateDocument + status enum ---
 
     @Test
-    fun `VersionDto validates integer id and slug variantId together`() {
-        val now = OffsetDateTime.now()
-        val valid = VersionDto(
-            id = 1,
-            variantId = "english",
-            status = VersionDto.Status.published,
-            createdAt = now,
+    fun `VariantContentDto validates its key and nested template model together`() {
+        val valid = VariantContentDto(
+            variantKey = "english",
+            status = ResourceStatus.ready,
+            lastModified = OffsetDateTime.now(),
             templateModel = TemplateDocument(
                 modelVersion = TemplateDocument.ModelVersion._1,
                 root = "node-root",
@@ -205,31 +229,24 @@ class ModelValidationTest {
                 ),
                 themeRef = ThemeRef(type = ThemeRef.Type.inherit),
             ),
-            publishedAt = now,
         )
         assertEquals(valid, valid.validate())
     }
 
     @Test
-    fun `VersionDto rejects id above 200`() {
+    fun `VariantContentDto rejects an invalid variantKey pattern`() {
         assertFailsWith<IllegalArgumentException> {
-            VersionDto(
-                id = 201,
-                variantId = "english",
-                status = VersionDto.Status.draft,
-                createdAt = OffsetDateTime.now(),
-            ).validate()
-        }
-    }
-
-    @Test
-    fun `VersionDto rejects invalid variantId pattern`() {
-        assertFailsWith<IllegalArgumentException> {
-            VersionDto(
-                id = 1,
-                variantId = "English",
-                status = VersionDto.Status.draft,
-                createdAt = OffsetDateTime.now(),
+            VariantContentDto(
+                variantKey = "English",
+                status = ResourceStatus.modified,
+                lastModified = OffsetDateTime.now(),
+                templateModel = TemplateDocument(
+                    modelVersion = TemplateDocument.ModelVersion._1,
+                    root = "node-root",
+                    nodes = mapOf("node-root" to Node(id = "node-root", type = "container", slots = emptyList())),
+                    slots = emptyMap(),
+                    themeRef = ThemeRef(type = ThemeRef.Type.inherit),
+                ),
             ).validate()
         }
     }
@@ -239,9 +256,10 @@ class ModelValidationTest {
     @Test
     fun `GenerateDocumentRequest with realistic nested data passes`() {
         val request = GenerateDocumentRequest(
-            catalogId = "default",
-            templateId = "monthly-invoice",
-            variantId = "english",
+            namespace = "acme-corp",
+            catalogKey = "default",
+            templateKey = "monthly-invoice",
+            variantKey = "english",
             data = mapOf(
                 "customer" to mapOf(
                     "name" to "Jane Smith",
@@ -259,7 +277,7 @@ class ModelValidationTest {
                 "invoiceNumber" to "INV-2026-001",
                 "totals" to mapOf("subtotal" to 222.40, "tax" to 44.48, "total" to 266.88),
             ),
-            versionId = 2,
+            versionRange = "^1.4.0",
             filename = "invoice-2026-001.pdf",
             correlationId = "order-7890",
         )
@@ -268,51 +286,76 @@ class ModelValidationTest {
 
     @Test
     fun `GenerateDocumentRequest validates each nullable field independently`() {
-        // null versionId: skipped
+        // null versionRange: skipped
         GenerateDocumentRequest(
-            catalogId = "default",
-            templateId = "invoice",
-            variantId = "english",
+            namespace = "acme-corp",
+            catalogKey = "default",
+            templateKey = "invoice",
+            variantKey = "english",
             data = emptyMap<String, Any>(),
-            versionId = null,
+            versionRange = null,
         ).validate()
 
-        // invalid versionId: fails
+        // empty versionRange: fails
         assertFailsWith<IllegalArgumentException> {
             GenerateDocumentRequest(
-                catalogId = "default",
-                templateId = "invoice",
-                variantId = "english",
+                namespace = "acme-corp",
+                catalogKey = "default",
+                templateKey = "invoice",
+                variantKey = "english",
                 data = emptyMap<String, Any>(),
-                versionId = 300,
+                versionRange = "",
             ).validate()
         }
 
-        // null environmentId: skipped
-        GenerateDocumentRequest(
-            catalogId = "default",
-            templateId = "invoice",
-            variantId = "english",
+        // a versionRange holds an exact release number of any valid length, up to 256 characters
+        val exact = GenerateDocumentRequest(
+            namespace = "acme-corp",
+            catalogKey = "default",
+            templateKey = "invoice",
             data = emptyMap<String, Any>(),
-            environmentId = null,
+            versionRange = "1.0." + "1".repeat(124),
+        )
+        assertEquals(exact, exact.validate())
+        val longest = exact.copy(versionRange = "x".repeat(256))
+        assertEquals(longest, longest.validate())
+        assertFailsWith<IllegalArgumentException> { exact.copy(versionRange = "x".repeat(257)).validate() }
+
+        // `local` is the one registry without a dot; `localhost` is none
+        val local = exact.copy(registry = "local")
+        assertEquals(local, local.validate())
+        for (registry in listOf("localhost", "Local", "locals")) {
+            assertFailsWith<IllegalArgumentException>("Expected '$registry' to fail") { exact.copy(registry = registry).validate() }
+        }
+
+        // null environmentKey: skipped
+        GenerateDocumentRequest(
+            namespace = "acme-corp",
+            catalogKey = "default",
+            templateKey = "invoice",
+            variantKey = "english",
+            data = emptyMap<String, Any>(),
+            environmentKey = null,
         ).validate()
 
-        // invalid environmentId pattern: fails
+        // invalid environmentKey pattern: fails
         assertFailsWith<IllegalArgumentException> {
             GenerateDocumentRequest(
-                catalogId = "default",
-                templateId = "invoice",
-                variantId = "english",
+                namespace = "acme-corp",
+                catalogKey = "default",
+                templateKey = "invoice",
+                variantKey = "english",
                 data = emptyMap<String, Any>(),
-                environmentId = "PROD",
+                environmentKey = "PROD",
             ).validate()
         }
 
         // filename at limit: passes
         GenerateDocumentRequest(
-            catalogId = "default",
-            templateId = "invoice",
-            variantId = "english",
+            namespace = "acme-corp",
+            catalogKey = "default",
+            templateKey = "invoice",
+            variantKey = "english",
             data = emptyMap<String, Any>(),
             filename = "x".repeat(255),
         ).validate()
@@ -320,9 +363,10 @@ class ModelValidationTest {
         // filename over limit: fails
         val ex = assertFailsWith<IllegalArgumentException> {
             GenerateDocumentRequest(
-                catalogId = "default",
-                templateId = "invoice",
-                variantId = "english",
+                namespace = "acme-corp",
+                catalogKey = "default",
+                templateKey = "invoice",
+                variantKey = "english",
                 data = emptyMap<String, Any>(),
                 filename = "x".repeat(256),
             ).validate()
@@ -334,15 +378,39 @@ class ModelValidationTest {
     fun `GenerateDocumentRequest fails on invalid required slug field before reaching nullable fields`() {
         val ex = assertFailsWith<IllegalArgumentException> {
             GenerateDocumentRequest(
-                catalogId = "default",
-                templateId = "INVALID",
-                variantId = "english",
+                namespace = "acme-corp",
+                catalogKey = "default",
+                templateKey = "INVALID",
+                variantKey = "english",
                 data = emptyMap<String, Any>(),
-                versionId = 999,
+                versionRange = "",
             ).validate()
         }
-        // templateId is validated first — fails on pattern before versionId is checked
-        assertEquals("templateId: must match pattern ^[a-z][a-z0-9]*(-[a-z0-9]+)*\$", ex.message)
+        // templateKey is validated first — fails on pattern before versionRange is checked
+        assertEquals("templateKey: must match pattern ^[a-z0-9]+(-[a-z0-9]+)*\$", ex.message)
+    }
+
+    @Test
+    fun `GenerateDocumentRequest names its registry in full or leaves it out, and its namespace as a slug`() {
+        fun request(registry: String?, namespace: String = "acme-corp") = GenerateDocumentRequest(
+            registry = registry,
+            namespace = namespace,
+            catalogKey = "default",
+            templateKey = "invoice",
+            data = emptyMap<String, Any>(),
+        )
+
+        // omitted: the server's default registry
+        request(registry = null).validate()
+        // a registry in full
+        request(registry = "exchange.example.org").validate()
+
+        // `~` addresses the default registry in a path only; a body leaves the registry out instead
+        assertFailsWith<IllegalArgumentException> { request(registry = "~").validate() }
+        // a registry is a DNS name with at least one dot
+        assertFailsWith<IllegalArgumentException> { request(registry = "localhost").validate() }
+        // the registry is its own member; the namespace no longer carries it
+        assertFailsWith<IllegalArgumentException> { request(registry = null, namespace = "exchange.example.org/team-a").validate() }
     }
 
     // --- BatchGenerationItem: all constraint types in one model ---
@@ -350,15 +418,16 @@ class ModelValidationTest {
     @Test
     fun `BatchGenerationItem with all optional fields populated validates everything`() {
         val item = BatchGenerationItem(
-            catalogId = "default",
-            templateId = "invoice",
-            variantId = "english",
+            namespace = "acme-corp",
+            catalogKey = "default",
+            templateKey = "invoice",
+            variantKey = "english",
             data = mapOf(
                 "customer" to mapOf("name" to "Jane Smith"),
                 "items" to listOf(mapOf("sku" to "A1", "qty" to 1)),
             ),
-            versionId = 100,
-            environmentId = "staging",
+            versionRange = null,
+            environmentKey = "staging",
             filename = "batch-doc-001.pdf",
             correlationId = "batch-run-42",
         )
@@ -366,15 +435,16 @@ class ModelValidationTest {
     }
 
     @Test
-    fun `BatchGenerationItem rejects environmentId with invalid slug when versionId is null`() {
+    fun `BatchGenerationItem rejects environmentKey with invalid slug when versionRange is null`() {
         assertFailsWith<IllegalArgumentException> {
             BatchGenerationItem(
-                catalogId = "default",
-                templateId = "invoice",
-                variantId = "english",
+                namespace = "acme-corp",
+                catalogKey = "default",
+                templateKey = "invoice",
+                variantKey = "english",
                 data = emptyMap<String, Any>(),
-                versionId = null,
-                environmentId = "Production!", // invalid slug
+                versionRange = null,
+                environmentKey = "Production!", // invalid slug
             ).validate()
         }
     }
@@ -385,9 +455,10 @@ class ModelValidationTest {
     fun `GenerateBatchRequest with multiple items passes`() {
         val items = (1..5).map { i ->
             BatchGenerationItem(
-                catalogId = "default",
-                templateId = "invoice",
-                variantId = "english",
+                namespace = "acme-corp",
+                catalogKey = "default",
+                templateKey = "invoice",
+                variantKey = "english",
                 data = mapOf(
                     "invoiceNumber" to "INV-2026-%03d".format(i),
                     "customer" to mapOf("name" to "Customer $i"),
@@ -411,16 +482,60 @@ class ModelValidationTest {
         assertEquals("items: must have at least 1 item(s)", ex.message)
     }
 
+    // --- A fingerprint names the algorithm that computed it ---
+
+    @Test
+    fun `a fingerprint must name its algorithm, a bare hex value is rejected`() {
+        val hex = "0123456789abcdef".repeat(4)
+        val version = CatalogReleaseDto(
+            version = "1.0.0",
+            releaseId = "v1x9q2",
+            status = CatalogReleaseStatus.released,
+            behind = emptyList(),
+            dependencies = emptyList(),
+            deployedTo = emptyList(),
+            fingerprint = "v1:$hex",
+        )
+        assertEquals(version, version.validate())
+
+        val ex = assertFailsWith<IllegalArgumentException> { version.copy(fingerprint = hex).validate() }
+        assertEquals(true, ex.message?.startsWith("fingerprint: must match pattern"))
+        assertFailsWith<IllegalArgumentException> { version.copy(fingerprint = "v0:$hex").validate() }
+    }
+
+    @Test
+    fun `a content hash is a V6 fingerprint`() {
+        val hex = "0123456789abcdef".repeat(4)
+        val release = CatalogReleaseDto(
+            version = "1.0.0",
+            releaseId = "v1x9q2",
+            status = CatalogReleaseStatus.released,
+            behind = emptyList(),
+            dependencies = emptyList(),
+            deployedTo = emptyList(),
+            fingerprint = "v5:$hex",
+            contentHash = "v6:$hex",
+        )
+        assertEquals(release, release.validate())
+        for (contentHash in listOf(hex, "v5:$hex", "v7:$hex", "v6:${hex.uppercase()}", "v6:${hex.drop(1)}")) {
+            val ex = assertFailsWith<IllegalArgumentException>("Expected '$contentHash' to fail") { release.copy(contentHash = contentHash).validate() }
+            assertEquals(true, ex.message?.startsWith("contentHash: must match pattern"))
+        }
+    }
+
     // --- DocumentDto: many slug fields + integer range in one DTO ---
 
     @Test
     fun `DocumentDto with realistic values passes`() {
         val doc = DocumentDto(
-            id = UUID.randomUUID(),
-            tenantId = "acme-corp",
-            templateId = "monthly-invoice",
-            variantId = "english",
-            versionId = 3,
+            documentId = UUID.randomUUID(),
+            tenantKey = "acme-corp",
+            registry = "exchange.epistola.app",
+            namespace = "acme",
+            catalogKey = "invoices",
+            templateKey = "monthly-invoice",
+            variantKey = "english",
+            version = "1.4.0",
             filename = "invoice-2026-001.pdf",
             contentType = "application/pdf",
             sizeBytes = 184_320L,
@@ -434,46 +549,49 @@ class ModelValidationTest {
     fun `DocumentDto rejects any invalid slug among its multiple slug fields`() {
         val now = OffsetDateTime.now()
         val base = DocumentDto(
-            id = UUID.randomUUID(),
-            tenantId = "acme-corp",
-            templateId = "invoice",
-            variantId = "english",
-            versionId = 1,
+            documentId = UUID.randomUUID(),
+            tenantKey = "acme-corp",
+            registry = "exchange.epistola.app",
+            namespace = "acme",
+            catalogKey = "invoices",
+            templateKey = "invoice",
+            variantKey = "english",
+            version = "1.0.0",
             filename = "doc.pdf",
             contentType = "application/pdf",
             sizeBytes = 1024L,
             createdAt = now,
         )
 
-        // invalid tenantId
+        // invalid tenantKey
         assertFailsWith<IllegalArgumentException> {
-            base.copy(tenantId = "ACME").validate()
+            base.copy(tenantKey = "ACME").validate()
         }
 
-        // invalid templateId
+        // invalid templateKey
         assertFailsWith<IllegalArgumentException> {
-            base.copy(templateId = "My Template").validate()
+            base.copy(templateKey = "My Template").validate()
         }
 
-        // invalid variantId
+        // invalid variantKey
         assertFailsWith<IllegalArgumentException> {
-            base.copy(variantId = "English!").validate()
+            base.copy(variantKey = "English!").validate()
         }
 
-        // versionId out of range
+        // version over its length limit (128), though a MAJOR.MINOR.PATCH number otherwise
         assertFailsWith<IllegalArgumentException> {
-            base.copy(versionId = 0).validate()
+            base.copy(version = "1.0." + "1".repeat(125)).validate()
         }
+        assertEquals("1.0.${"1".repeat(124)}", base.copy(version = "1.0." + "1".repeat(124)).validate().version)
     }
 
-    // --- CreateTemplateRequest: slug + name + optional nested schema ---
+    // --- Template requests: key + name on create, a nested JSON Schema data model on update ---
 
     @Test
-    fun `CreateTemplateRequest with JSON Schema passes`() {
-        val request = CreateTemplateRequest(
-            id = "monthly-invoice",
+    fun `UpdateTemplateRequest with a JSON Schema data model passes`() {
+        val request = UpdateTemplateRequest(
             name = "Monthly Invoice",
-            schema = mapOf(
+            dataModel = mapOf(
                 "type" to "object",
                 "required" to listOf("customerName", "invoiceNumber"),
                 "properties" to mapOf(
@@ -497,12 +615,11 @@ class ModelValidationTest {
     }
 
     @Test
-    fun `CreateTemplateRequest rejects invalid id even with valid schema`() {
+    fun `CreateTemplateRequest rejects invalid key`() {
         assertFailsWith<IllegalArgumentException> {
             CreateTemplateRequest(
-                id = "Monthly Invoice",
+                key = "Monthly Invoice",
                 name = "Monthly Invoice",
-                schema = mapOf("type" to "object"),
             ).validate()
         }
     }
@@ -511,7 +628,7 @@ class ModelValidationTest {
 
     @Test
     fun `validate returns this for fluent chaining`() {
-        val request = CreateTenantRequest(id = "acme-corp", name = "Acme Corporation")
+        val request = CreateTenantRequest(key = "acme-corp", name = "Acme Corporation")
         val result = request.validate()
         assert(request === result) { "validate() should return the same instance" }
     }

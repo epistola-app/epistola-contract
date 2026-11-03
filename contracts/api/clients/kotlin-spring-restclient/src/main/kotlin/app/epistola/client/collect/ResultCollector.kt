@@ -5,6 +5,7 @@
 package app.epistola.client.collect
 
 import app.epistola.client.ContractMediaTypes
+import app.epistola.client.error.handleErrorResponse
 import app.epistola.protocol.Compression
 import app.epistola.protocol.PartitionRouting
 import app.epistola.protocol.PollBackoff
@@ -44,11 +45,11 @@ import kotlin.concurrent.withLock
  * ```
  * val collector = ResultCollector.builder()
  *     .restClient(restClient)
- *     .tenantId("acme-corp")
+ *     .tenantKey("acme-corp")
  *     .handler { result ->
  *         when (result.status) {
- *             "COMPLETED" -> downloadAndProcess(result.documentId, result.correlationId)
- *             "FAILED" -> logFailure(result.correlationId, result.error)
+ *             "completed" -> downloadAndProcess(result.documentId, result.correlationId)
+ *             "failed" -> logFailure(result.correlationId, result.error)
  *         }
  *     }
  *     .build()
@@ -58,7 +59,7 @@ import kotlin.concurrent.withLock
  */
 class ResultCollector private constructor(
     private val restClient: RestClient,
-    private val tenantId: String,
+    private val tenantKey: String,
     private val batchSize: Int,
     private val minInterval: Duration,
     private val maxInterval: Duration,
@@ -116,9 +117,20 @@ class ResultCollector private constructor(
         val documentId: String?,
         val correlationId: String?,
         val routingKey: String?,
-        val templateId: String?,
-        val variantId: String?,
-        val versionId: Int?,
+        val templateKey: String?,
+        val variantKey: String?,
+        /** Registry of the template's catalog, in full. */
+        val registry: String,
+        /** Namespace of the template's catalog. */
+        val namespace: String,
+        /** Key of the template's catalog. */
+        val catalogKey: String,
+        /** Release of the template's catalog used; null when the document was rendered from a draft. */
+        val version: String?,
+        /** Id of the release rendered: the draft's when [version] is null. */
+        val releaseId: String?,
+        /** Name of the release rendered, at render time; null for a release that has none. */
+        val releaseName: String?,
         val filename: String?,
         val contentType: String?,
         val sizeBytes: Long?,
@@ -293,12 +305,17 @@ class ResultCollector private constructor(
             }
 
             val result = restClient.method(HttpMethod.POST)
-                .uri("/tenants/{tenantId}/generation/collect", tenantId)
+                .uri("/tenants/{tenantKey}/generation/collect", tenantKey)
                 .contentType(EPISTOLA_JSON)
                 .accept(NDJSON)
                 .header("Accept-Encoding", Compression.acceptEncoding())
                 .body(requestBody)
                 .exchange { _, response ->
+                    // `exchange` does not raise on an error status, so an error body would otherwise
+                    // be read as result lines: a 403 problem then surfaced as a NullPointerException
+                    // on its missing `sequence`. Raise it as the client raises every API error: a
+                    // ProblemDetailException for problem+json, else Spring's HTTP error.
+                    if (!response.statusCode.is2xxSuccessful) handleErrorResponse(response)
                     // Sniffs the stream's leading bytes rather than trusting Content-Encoding,
                     // which is only correct if every request factory this client might be configured
                     // with either leaves the body encoded or strips the header when it decodes.
@@ -359,22 +376,33 @@ class ResultCollector private constructor(
     }
 
     private fun parseResult(node: com.fasterxml.jackson.databind.JsonNode) = GenerationResult(
-        sequence = node["sequence"].asLong(),
-        requestId = node["requestId"].asText(),
-        batchId = node["batchId"]?.asText(),
-        status = node["status"].asText(),
-        documentId = node["documentId"]?.asText(),
-        correlationId = node["correlationId"]?.asText(),
-        routingKey = node["routingKey"]?.asText(),
-        templateId = node["templateId"]?.asText(),
-        variantId = node["variantId"]?.asText(),
-        versionId = node["versionId"]?.asInt(),
-        filename = node["filename"]?.asText(),
-        contentType = node["contentType"]?.asText(),
-        sizeBytes = node["sizeBytes"]?.asLong(),
-        error = node["error"]?.asText(),
-        completedAt = node["completedAt"]?.asText(),
+        sequence = node.resultField("sequence").asLong(),
+        requestId = node.resultField("requestId").asText(),
+        batchId = node.optionalField("batchId")?.asText(),
+        status = node.resultField("status").asText(),
+        documentId = node.optionalField("documentId")?.asText(),
+        correlationId = node.optionalField("correlationId")?.asText(),
+        routingKey = node.optionalField("routingKey")?.asText(),
+        templateKey = node.optionalField("templateKey")?.asText(),
+        variantKey = node.optionalField("variantKey")?.asText(),
+        registry = node.resultField("registry").asText(),
+        namespace = node.resultField("namespace").asText(),
+        catalogKey = node.resultField("catalogKey").asText(),
+        version = node.optionalField("version")?.asText(),
+        releaseId = node.optionalField("releaseId")?.asText(),
+        releaseName = node.optionalField("releaseName")?.asText(),
+        filename = node.optionalField("filename")?.asText(),
+        contentType = node.optionalField("contentType")?.asText(),
+        sizeBytes = node.optionalField("sizeBytes")?.asLong(),
+        error = node.optionalField("error")?.asText(),
+        completedAt = node.optionalField("completedAt")?.asText(),
     )
+
+    /** [field] of a result line, or null when it is absent or JSON `null` (which `asText()` would make `"null"`). */
+    private fun com.fasterxml.jackson.databind.JsonNode.optionalField(field: String): com.fasterxml.jackson.databind.JsonNode? = get(field)?.takeUnless { it.isNull }
+
+    /** [field] of a result line, or a refusal naming the line instead of a bare NullPointerException. */
+    private fun com.fasterxml.jackson.databind.JsonNode.resultField(field: String): com.fasterxml.jackson.databind.JsonNode = get(field)?.takeUnless { it.isNull } ?: throw IllegalStateException("Unexpected collect line without '$field': $this")
 
     private fun removeShutdownHook() {
         shutdownHook?.let {
@@ -389,7 +417,7 @@ class ResultCollector private constructor(
 
     class Builder {
         private var restClient: RestClient? = null
-        private var tenantId: String? = null
+        private var tenantKey: String? = null
         private var batchSize: Int = 100
         private var minInterval: Duration = Duration.ofSeconds(1)
         private var maxInterval: Duration = Duration.ofSeconds(30)
@@ -402,7 +430,7 @@ class ResultCollector private constructor(
         private var registerShutdownHook: Boolean = true
 
         fun restClient(client: RestClient) = apply { this.restClient = client }
-        fun tenantId(tenantId: String) = apply { this.tenantId = tenantId }
+        fun tenantKey(tenantKey: String) = apply { this.tenantKey = tenantKey }
 
         /** Maximum results per collection (default: 100). */
         fun batchSize(size: Int) = apply {
@@ -466,7 +494,7 @@ class ResultCollector private constructor(
         fun build(): ResultCollector =
             ResultCollector(
                 restClient = requireNotNull(restClient) { "restClient is required" },
-                tenantId = requireNotNull(tenantId) { "tenantId is required" },
+                tenantKey = requireNotNull(tenantKey) { "tenantKey is required" },
                 batchSize = batchSize,
                 minInterval = minInterval,
                 maxInterval = maxInterval,

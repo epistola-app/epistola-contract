@@ -1,0 +1,40 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: merge-into-catalog-draft-read-only
+title: A write to a catalog that cannot be changed is refused with the reason
+why: >
+  Whether a catalog can be changed is the installation's (contract 2.0, Epistola Suite ADR 0032):
+  a run-only installation refuses every write to it, a merge included, with `catalog-read-only`,
+  and its `readOnlyReason` says why (`editing-disabled` here; `supplied-by-epistola` for a catalog
+  the server supplies). A client that drops the member leaves its caller unable to say why.
+
+action:
+  name: merge-into-catalog-draft
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: k7m2x9qa
+    version: 1.5.0
+
+script:
+  - status: 409
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/catalog-read-only
+      title: Catalog Read Only
+      status: 409
+      detail: this installation only receives and runs releases
+      readOnlyReason: editing-disabled
+
+expect:
+  requestCount: 1
+  report:
+    problemTypeSlug: catalog-read-only
+    problemStatus: 409
+    problemUnresolvedConflicts: ''
+    problemReadOnlyReason: editing-disabled

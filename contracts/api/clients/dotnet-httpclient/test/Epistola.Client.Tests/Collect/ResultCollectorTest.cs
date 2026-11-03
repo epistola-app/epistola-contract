@@ -29,14 +29,14 @@ public class ResultCollectorTest
     public void CollectOnceStreamsResultsAndReadsMeta()
     {
         var ndjson =
-            "{\"sequence\":1,\"requestId\":\"r1\",\"status\":\"COMPLETED\",\"documentId\":\"d1\"}\n" +
-            "{\"sequence\":2,\"requestId\":\"r2\",\"status\":\"FAILED\",\"error\":\"boom\"}\n" +
-            "{\"_meta\":true,\"hasMore\":false,\"partitions\":{\"total\":4,\"mine\":[0,2],\"hash\":\"murmur3\"}}\n";
+            "{\"sequence\":1,\"requestId\":\"r1\",\"status\":\"completed\",\"registry\":\"exchange.epistola.app\",\"namespace\":\"acme-corp\",\"catalogKey\":\"letters\",\"documentId\":\"d1\"}\n" +
+            "{\"sequence\":2,\"requestId\":\"r2\",\"status\":\"failed\",\"registry\":\"exchange.epistola.app\",\"namespace\":\"acme-corp\",\"catalogKey\":\"letters\",\"error\":\"boom\"}\n" +
+            "{\"_meta\":true,\"hasMore\":false,\"resultCount\":2,\"partitions\":{\"total\":4,\"mine\":[0,2],\"hash\":\"murmur3\"}}\n";
 
         var received = new List<ResultCollector.GenerationResult>();
         var collector = ResultCollector.Builder()
             .HttpClient(StubClient(ndjson))
-            .TenantId("acme")
+            .TenantKey("acme")
             .RegisterShutdownHook(false)
             .Handler(received.Add)
             .Build();
@@ -46,7 +46,7 @@ public class ResultCollectorTest
         Assert.Equal(2, result.Count);
         Assert.False(result.HasMore);
         Assert.Equal(2, received.Count);
-        Assert.Equal("COMPLETED", received[0].Status);
+        Assert.Equal("completed", received[0].Status);
         Assert.Equal("d1", received[0].DocumentId);
         Assert.Equal("boom", received[1].Error);
 
@@ -56,11 +56,82 @@ public class ResultCollectorTest
     }
 
     [Fact]
+    public void AResultNamesTheCatalogAndReleaseItRendered()
+    {
+        var ndjson =
+            "{\"sequence\":1,\"requestId\":\"r1\",\"status\":\"completed\",\"registry\":\"exchange.epistola.app\",\"namespace\":\"acme-corp\",\"catalogKey\":\"letters\",\"version\":\"1.4.0\"}\n" +
+            "{\"sequence\":2,\"requestId\":\"r2\",\"status\":\"completed\",\"registry\":\"exchange.epistola.app\",\"namespace\":\"acme-corp\",\"catalogKey\":\"letters\",\"version\":null}\n" +
+            "{\"_meta\":true,\"hasMore\":false}\n";
+
+        var received = new List<ResultCollector.GenerationResult>();
+        ResultCollector.Builder()
+            .HttpClient(StubClient(ndjson))
+            .TenantKey("acme")
+            .RegisterShutdownHook(false)
+            .Handler(received.Add)
+            .Build()
+            .CollectOnce();
+
+        Assert.Equal("exchange.epistola.app", received[0].Registry);
+        Assert.Equal("acme-corp", received[0].Namespace);
+        Assert.Equal("letters", received[0].CatalogKey);
+        Assert.Equal("1.4.0", received[0].Version);
+        // Rendered from a draft: the catalog is named, the release version is null.
+        Assert.Equal("letters", received[1].CatalogKey);
+        Assert.Null(received[1].Version);
+    }
+
+    [Fact]
+    public void AResultLineWithoutItsCatalogIsMalformed()
+    {
+        // The contract requires registry, namespace and catalogKey on every result line.
+        var ndjson =
+            "{\"sequence\":1,\"requestId\":\"r1\",\"status\":\"completed\",\"namespace\":\"acme-corp\",\"catalogKey\":\"letters\"}\n" +
+            "{\"_meta\":true,\"hasMore\":false}\n";
+
+        var received = new List<ResultCollector.GenerationResult>();
+        var collector = ResultCollector.Builder()
+            .HttpClient(StubClient(ndjson))
+            .TenantKey("acme")
+            .RegisterShutdownHook(false)
+            .Handler(received.Add)
+            .Build();
+
+        var e = Assert.Throws<FormatException>(() => collector.CollectOnce());
+        Assert.Contains("registry", e.Message);
+        Assert.Empty(received);
+    }
+
+    [Fact]
+    public void AResultNamesItsTemplateAndVariantByKey()
+    {
+        // Contract 2.0 names the template and variant by their keys; the old *Id names are not read.
+        var ndjson =
+            "{\"sequence\":1,\"requestId\":\"r1\",\"status\":\"completed\",\"registry\":\"exchange.epistola.app\",\"namespace\":\"acme-corp\",\"catalogKey\":\"letters\",\"templateKey\":\"invoice\",\"variantKey\":\"nl-nl\"}\n" +
+            "{\"sequence\":2,\"requestId\":\"r2\",\"status\":\"completed\",\"registry\":\"exchange.epistola.app\",\"namespace\":\"acme-corp\",\"catalogKey\":\"letters\",\"templateId\":\"invoice\",\"variantId\":\"nl-nl\"}\n" +
+            "{\"_meta\":true,\"hasMore\":false}\n";
+
+        var received = new List<ResultCollector.GenerationResult>();
+        ResultCollector.Builder()
+            .HttpClient(StubClient(ndjson))
+            .TenantKey("acme")
+            .RegisterShutdownHook(false)
+            .Handler(received.Add)
+            .Build()
+            .CollectOnce();
+
+        Assert.Equal("invoice", received[0].TemplateKey);
+        Assert.Equal("nl-nl", received[0].VariantKey);
+        Assert.Null(received[1].TemplateKey);
+        Assert.Null(received[1].VariantKey);
+    }
+
+    [Fact]
     public void PartitionHelpersRequireAssignment()
     {
         var collector = ResultCollector.Builder()
             .HttpClient(StubClient(""))
-            .TenantId("acme")
+            .TenantKey("acme")
             .RegisterShutdownHook(false)
             .Handler(_ => { })
             .Build();
@@ -73,10 +144,10 @@ public class ResultCollectorTest
     [Fact]
     public void PartitionForIsDeterministicAndInRange()
     {
-        var ndjson = "{\"_meta\":true,\"hasMore\":false,\"partitions\":{\"total\":8,\"mine\":[0,1,2,3,4,5,6,7],\"hash\":\"murmur3\"}}\n";
+        var ndjson = "{\"_meta\":true,\"hasMore\":false,\"resultCount\":2,\"partitions\":{\"total\":8,\"mine\":[0,1,2,3,4,5,6,7],\"hash\":\"murmur3\"}}\n";
         var collector = ResultCollector.Builder()
             .HttpClient(StubClient(ndjson))
-            .TenantId("acme")
+            .TenantKey("acme")
             .RegisterShutdownHook(false)
             .Handler(_ => { })
             .Build();
@@ -97,10 +168,10 @@ public class ResultCollectorTest
         // Trying only the partition numbers this node owns is not enough: "3:key" hashes to
         // wherever it hashes, not to partition 3. With 2 of 8 partitions the old fallback returned
         // a foreign key more often than not, which sends the result to another node.
-        var ndjson = "{\"_meta\":true,\"hasMore\":false,\"partitions\":{\"total\":8,\"mine\":[0,3],\"hash\":\"murmur3\"}}\n";
+        var ndjson = "{\"_meta\":true,\"hasMore\":false,\"resultCount\":2,\"partitions\":{\"total\":8,\"mine\":[0,3],\"hash\":\"murmur3\"}}\n";
         var collector = ResultCollector.Builder()
             .HttpClient(StubClient(ndjson))
-            .TenantId("acme")
+            .TenantKey("acme")
             .RegisterShutdownHook(false)
             .Handler(_ => { })
             .Build();
@@ -128,7 +199,7 @@ public class ResultCollectorTest
         // connection the rate is bounded by round-trip time, but the loop is just as endless.
         var polls = 0;
         var drained = false;
-        var burst = "{\"sequence\":1,\"requestId\":\"r1\",\"status\":\"COMPLETED\"}\n"
+        var burst = "{\"sequence\":1,\"requestId\":\"r1\",\"status\":\"completed\",\"registry\":\"exchange.epistola.app\",\"namespace\":\"acme-corp\",\"catalogKey\":\"letters\"}\n"
                     + "{\"_meta\":true,\"hasMore\":true}\n";
         var empty = "{\"_meta\":true,\"hasMore\":false}\n";
 
@@ -140,13 +211,13 @@ public class ResultCollectorTest
             drained = true;
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent(body, Encoding.UTF8, "application/vnd.epistola.v1+ndjson"),
+                Content = new StringContent(body, Encoding.UTF8, "application/vnd.epistola.v2+ndjson"),
             };
         });
 
         var collector = ResultCollector.Builder()
             .HttpClient(new HttpClient(handler) { BaseAddress = new Uri("https://epistola.test/api") })
-            .TenantId("acme")
+            .TenantKey("acme")
             .RegisterShutdownHook(false)
             .MinInterval(TimeSpan.FromMilliseconds(200))
             .MaxInterval(TimeSpan.FromSeconds(5))

@@ -13,8 +13,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import app.epistola.client.jakarta.EpistolaRestClients;
 import app.epistola.client.jakarta.StubServer;
+import app.epistola.client.jakarta.error.CatalogReleaseRef;
 import app.epistola.client.jakarta.error.KnownProblemSlugs;
+import app.epistola.client.jakarta.error.MissingDependency;
 import app.epistola.client.jakarta.error.ProblemDetailException;
+import app.epistola.client.jakarta.error.UnreleasedDependency;
+import java.util.List;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 
@@ -45,8 +49,22 @@ class ApiExceptionMapperTest {
         assertEquals(404, e.getProblemStatus());
         assertEquals("Not Found", e.getTitle());
         assertEquals("Tenant 'acme-corp' does not exist", e.getDetail());
+        assertNull(e.getHelp());
         assertFalse(e.isValidationProblem());
         assertFalse(e.isDataModelValidationProblem());
+    }
+
+    @Test
+    void a_problem_surfaces_its_help_link_beside_the_type() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(404, PROBLEM_JSON,
+                        """
+                        {"type":"https://epistola.app/errors/not-found","title":"Not Found","status":404,
+                         "help":"https://epistola.app/errors/not-found?operation=getTenant"}
+                        """)));
+
+        assertEquals(KnownProblemSlugs.NOT_FOUND, e.getTypeSlug());
+        assertEquals("https://epistola.app/errors/not-found?operation=getTenant", e.getHelp());
     }
 
     @Test
@@ -96,6 +114,23 @@ class ApiExceptionMapperTest {
         assertEquals(KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR, e.getTypeSlug());
         assertTrue(e.isDataModelValidationProblem());
         assertEquals(1, e.getValidationErrors().get("happy-path").size());
+    }
+
+    @Test
+    void a_catalog_source_problem_is_typed_whether_it_comes_as_a_503_or_a_502() {
+        for (int status : List.of(503, 502)) {
+            ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                    StubServer.StubResponse.of(status, PROBLEM_JSON,
+                            """
+                            {"type":"https://epistola.app/errors/catalog-source-unavailable",
+                             "title":"Catalog Source Unavailable","status":%d,
+                             "detail":"registry.gemeente-x.nl could not be used"}
+                            """.formatted(status))));
+
+            assertEquals(KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE, e.getTypeSlug());
+            assertEquals(status, e.getStatusCode());
+            assertEquals(status, e.getProblemStatus());
+        }
     }
 
     @Test
@@ -189,6 +224,215 @@ class ApiExceptionMapperTest {
         assertFalse(e.isTemplateDataProblem());
         assertTrue(e.getMissingFields().isEmpty());
         assertTrue(e.getInvalidFields().isEmpty());
+    }
+
+    @Test
+    void a_release_dependencies_problem_lists_what_is_missing() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(409, PROBLEM_JSON,
+                        """
+                        {
+                          "type": "https://epistola.app/errors/release-dependencies-missing",
+                          "title": "Release dependencies missing",
+                          "status": 409,
+                          "missingDependencies": [
+                            {"registry": "exchange.epistola.app", "namespace": "acme-corp",
+                             "catalogKey": "shared", "version": "1.2.0", "reason": "unavailable"}
+                          ]
+                        }
+                        """)));
+
+        assertEquals(KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING, e.getTypeSlug());
+        assertEquals(409, e.getStatusCode());
+        assertTrue(e.isReleaseDependenciesMissingProblem());
+        assertEquals(
+                List.of(new MissingDependency("exchange.epistola.app", "acme-corp", "shared", "1.2.0", "unavailable")),
+                e.getMissingDependencies());
+        assertFalse(e.isTemplateDataProblem());
+    }
+
+    @Test
+    void a_release_dependencies_unreleased_problem_lists_the_drafts() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(409, PROBLEM_JSON,
+                        """
+                        {
+                          "type": "https://epistola.app/errors/release-dependencies-unreleased",
+                          "title": "Release dependencies unreleased",
+                          "status": 409,
+                          "unreleasedDependencies": [
+                            {"registry": "exchange.epistola.app", "namespace": "acme-corp", "catalogKey": "branding",
+                             "releaseId": "r4t8w2nc", "releaseName": "House style 2027"}
+                          ]
+                        }
+                        """)));
+
+        assertEquals(KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED, e.getTypeSlug());
+        assertTrue(e.isReleaseDependenciesUnreleasedProblem());
+        assertFalse(e.isReleaseDependenciesMissingProblem());
+        assertEquals(
+                List.of(new UnreleasedDependency("exchange.epistola.app", "acme-corp", "branding",
+                        "r4t8w2nc", "House style 2027")),
+                e.getUnreleasedDependencies());
+    }
+
+    @Test
+    void a_catalog_read_only_problem_says_why() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(409, PROBLEM_JSON,
+                        """
+                        {"type": "https://epistola.app/errors/catalog-read-only", "title": "Catalog Read Only",
+                         "status": 409, "readOnlyReason": "editing-disabled"}
+                        """)));
+
+        assertEquals(KnownProblemSlugs.CATALOG_READ_ONLY, e.getTypeSlug());
+        assertTrue(e.isCatalogReadOnlyProblem());
+        assertEquals("editing-disabled", e.getReadOnlyReason());
+    }
+
+    @Test
+    void a_catalog_version_behind_problem_lists_the_versions_to_acknowledge() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(409, PROBLEM_JSON,
+                        """
+                        {"type": "https://epistola.app/errors/catalog-version-behind", "title": "Catalog Version Behind",
+                         "status": 409, "behind": ["1.5.0", "1.6.0"]}
+                        """)));
+
+        assertTrue(e.isCatalogVersionBehindProblem());
+        assertEquals(List.of("1.5.0", "1.6.0"), e.getBehind());
+    }
+
+    @Test
+    void a_release_in_use_problem_names_what_uses_the_release() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(409, PROBLEM_JSON,
+                        """
+                        {"type": "https://epistola.app/errors/release-in-use", "title": "Release In Use", "status": 409,
+                         "environments": ["production"],
+                         "pinnedBy": [{"registry": "exchange.epistola.app", "namespace": "acme-corp",
+                                       "catalogKey": "invoices", "version": "2.1.0", "releaseId": "q8w2e4rt"}]}
+                        """)));
+
+        assertTrue(e.isReleaseInUseProblem());
+        assertEquals(List.of("production"), e.getEnvironments());
+        assertEquals(
+                List.of(new CatalogReleaseRef("exchange.epistola.app", "acme-corp", "invoices", "2.1.0", "q8w2e4rt")),
+                e.getPinnedBy());
+    }
+
+    @Test
+    void an_ambiguous_variant_problem_lists_the_tied_variants() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(409, PROBLEM_JSON,
+                        """
+                        {"type": "https://epistola.app/errors/ambiguous-variant", "title": "Ambiguous Variant",
+                         "status": 409, "tiedVariants": ["english", "english-legal"]}
+                        """)));
+
+        assertTrue(e.isAmbiguousVariantProblem());
+        assertFalse(e.isReleaseInUseProblem());
+        assertEquals(List.of("english", "english-legal"), e.getTiedVariants());
+    }
+
+    @Test
+    void a_forbidden_problem_says_what_was_refused() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(403, PROBLEM_JSON,
+                        """
+                        {"type": "https://epistola.app/errors/forbidden", "title": "Forbidden", "status": 403,
+                         "requiredPermission": "TEMPLATE_EDIT", "tenantKey": "acme-corp"}
+                        """)));
+
+        assertTrue(e.isForbiddenProblem());
+        assertEquals("TEMPLATE_EDIT", e.getRequiredPermission());
+        assertEquals("acme-corp", e.getRefusedTenantKey());
+        assertNull(e.getRequiredPlatformRole());
+        assertNull(e.getRefusalReason());
+
+        ProblemDetailException byPolicy = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(403, PROBLEM_JSON,
+                        """
+                        {"type": "https://epistola.app/errors/forbidden", "title": "Forbidden", "status": 403,
+                         "reason": "Only the release board deploys to production environments."}
+                        """)));
+        assertEquals("Only the release board deploys to production environments.", byPolicy.getRefusalReason());
+        assertNull(byPolicy.getRequiredPermission());
+    }
+
+    @Test
+    void the_forbidden_members_are_read_from_a_forbidden_problem_only() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(409, PROBLEM_JSON,
+                        """
+                        {"type": "https://epistola.app/errors/conflict", "title": "Conflict", "status": 409,
+                         "tenantKey": "acme-corp", "reason": "x"}
+                        """)));
+
+        assertFalse(e.isForbiddenProblem());
+        assertNull(e.getRefusedTenantKey());
+        assertNull(e.getRefusalReason());
+    }
+
+    @Test
+    void a_merge_conflicts_unresolved_problem_lists_the_conflicts() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(409, PROBLEM_JSON,
+                        """
+                        {"type": "https://epistola.app/errors/merge-conflicts-unresolved",
+                         "title": "Merge Conflicts Unresolved", "status": 409,
+                         "unresolvedConflicts": ["stencil/footer", 7, "template/invoice"]}
+                        """)));
+
+        assertEquals(KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED, e.getTypeSlug());
+        assertTrue(e.isMergeConflictsUnresolvedProblem());
+        assertEquals(List.of("stencil/footer", "template/invoice"), e.getUnresolvedConflicts());
+    }
+
+    @Test
+    void a_merge_base_missing_problem_names_the_release_to_get_first() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(409, PROBLEM_JSON,
+                        """
+                        {"type": "https://epistola.app/errors/merge-base-missing",
+                         "title": "Merge Base Missing", "status": 409,
+                         "version": "1.0.0", "fingerprint": "v5:9999999999999999999999999999999999999999999999999999999999999999"}
+                        """)));
+
+        assertEquals(KnownProblemSlugs.MERGE_BASE_MISSING, e.getTypeSlug());
+        assertTrue(e.isMergeBaseMissingProblem());
+        assertEquals("1.0.0", e.getMissingBaseVersion());
+        assertEquals("v5:9999999999999999999999999999999999999999999999999999999999999999", e.getMissingBaseFingerprint());
+    }
+
+    @Test
+    void another_problem_with_a_version_names_no_merge_base() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(409, PROBLEM_JSON,
+                        """
+                        {"type": "https://epistola.app/errors/catalog-schema-too-old",
+                         "title": "Too old", "status": 409, "version": "4"}
+                        """)));
+
+        assertFalse(e.isMergeBaseMissingProblem());
+        assertNull(e.getMissingBaseVersion());
+        assertNull(e.getMissingBaseFingerprint());
+    }
+
+    @Test
+    void another_problem_lists_no_missing_dependencies() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(409, PROBLEM_JSON,
+                        "{\"type\":\"https://epistola.app/errors/conflict\",\"title\":\"Conflict\",\"status\":409}")));
+
+        assertFalse(e.isReleaseDependenciesMissingProblem());
+        assertTrue(e.getMissingDependencies().isEmpty());
+        assertFalse(e.isReleaseDependenciesUnreleasedProblem());
+        assertTrue(e.getUnreleasedDependencies().isEmpty());
+        assertFalse(e.isCatalogReadOnlyProblem());
+        assertNull(e.getReadOnlyReason());
+        assertFalse(e.isMergeConflictsUnresolvedProblem());
+        assertTrue(e.getUnresolvedConflicts().isEmpty());
     }
 
     private static void callGetTenant(Function<StubServer.RecordedRequest, StubServer.StubResponse> responder) {

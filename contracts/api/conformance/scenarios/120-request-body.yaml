@@ -12,7 +12,7 @@ why: >
 
   The interesting part is what is *not* sent. Five optional fields are left unset, and a client that
   serializes them as explicit nulls says something different from one that omits them: the contract
-  marks variantId, versionId and environmentId mutually exclusive with other fields, so a null that
+  marks variantKey mutually exclusive with attributes, and versionRange and environmentKey narrow the release rendered with other fields, so a null that
   looks like a value is a request a strict server can reject. Jackson, JSON-B, System.Text.Json and
   pydantic each decide this for themselves, by configuration none of them shares.
 
@@ -20,13 +20,19 @@ why: >
   types it and each client hands its serializer a raw map. Every JSON type is in there, including a
   decimal, because that is where serializers most often disagree with each other.
 
+  The catalog is in a registry other than the default, so the body names it: `registry` and
+  `namespace` are two members, each sent exactly as given. A client that drops `registry` asks
+  for the same namespace in the default registry, which is a different catalog.
+
 action:
   name: generate-document
   config:
     nodeId: conformance-node-1
-    tenantId: acme-corp
-    catalogId: default
-    templateId: invoice
+    tenantKey: acme-corp
+    registry: exchange.example.org
+    namespace: team-a
+    catalogKey: default
+    templateKey: invoice
     correlationId: inv-2026-0042
     routingKey: acme-node-1
     data:
@@ -46,12 +52,14 @@ action:
 
 script:
   - status: 202
-    contentType: application/vnd.epistola.v1+json
+    contentType: application/vnd.epistola.v2+json
+    headers:
+      Location: /api/tenants/acme-corp/documents/jobs/88888888-8888-4888-8888-000000000001
     body:
       requestId: 88888888-8888-4888-8888-000000000001
-      status: PENDING
-      jobType: SINGLE
-      totalCount: 1
+      status: pending
+      jobType: single
+      total: 1
       createdAt: "2026-02-01T08:00:00Z"
 
 expect:
@@ -61,11 +69,13 @@ expect:
       path: /api/tenants/acme-corp/documents/generate
       headers:
         Content-Type:
-          matches: '^application/vnd\.epistola\.v1\+json(;.*)?$'
+          matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
       body:
         json:
-          catalogId: default
-          templateId: invoice
+          registry: exchange.example.org
+          namespace: team-a
+          catalogKey: default
+          templateKey: invoice
           correlationId: inv-2026-0042
           routingKey: acme-node-1
           data:
@@ -84,4 +94,4 @@ expect:
         # Kotlin client's mapper wrote null for every unset field. Prism rejected the body. The
         # tolerant assertion had waved through a request no validating server accepts, which is why
         # this one is strict.
-        jsonAbsent: [variantId, attributes, versionId, environmentId, filename]
+        jsonAbsent: [variantKey, attributes, versionRange, environmentKey, filename]

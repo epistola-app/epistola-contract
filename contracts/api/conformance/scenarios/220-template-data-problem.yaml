@@ -23,8 +23,11 @@ action:
   name: problem
   config:
     nodeId: conformance-node-1
-    tenantId: acme-corp
-    catalogId: main
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: main
+    release: 2.0.0
 
 script:
   - status: 400

@@ -6,7 +6,8 @@ package app.epistola.catalog.validation
 
 import app.epistola.catalog.validation.TemplateValidationCodes.STENCIL_NESTING_DEPTH_EXCEEDED
 import app.epistola.catalog.validation.TemplateValidationCodes.STENCIL_RECURSION
-import app.epistola.catalog.validation.TemplateValidationCodes.STENCIL_REFERENCE_INVALID
+import app.epistola.catalog.validation.TemplateValidationCodes.STENCIL_REFERENCE_NOT_FOUND
+import app.epistola.catalog.validation.TemplateValidationCodes.TEMPLATE_NODE_PROPERTY_INVALID
 import app.epistola.template.model.Node
 import app.epistola.template.model.Slot
 import app.epistola.template.model.TemplateDocument
@@ -40,7 +41,7 @@ class TemplateValidatorStencilNestingTest {
                 TemplateValidationFinding(
                     code = STENCIL_NESTING_DEPTH_EXCEEDED,
                     severity = ValidationSeverity.ERROR,
-                    path = "nodes.stencil-5.props.stencilId",
+                    path = "nodes.stencil-5.props.stencilKey",
                     message = "stencil nesting depth 6 exceeds maximum 5",
                 ),
             ),
@@ -49,14 +50,44 @@ class TemplateValidatorStencilNestingTest {
     }
 
     @Test
-    fun `stencil depth is counted through placeholder fills`() {
+    fun `stencil depth is not counted through placeholder fills, which are written outside the stencil`() {
         val report = TemplateValidator.validate(
             nestedStencilsThroughFills(TemplateValidationLimits.MAX_STENCIL_NESTING_DEPTH + 1),
         )
 
+        assertEquals(emptyList(), report.findings.filter { it.code == STENCIL_NESTING_DEPTH_EXCEEDED })
+    }
+
+    @Test
+    fun `a fill may hold the stencil it fills, which is not recursion`() {
+        val report = TemplateValidator.validate(boxInBoxFill())
+
+        assertEquals(emptyList(), report.findings.filter { it.code == STENCIL_RECURSION })
+    }
+
+    @Test
+    fun `inside a stencil's own content, a fill holding the owner is still recursion`() {
+        val report = TemplateValidator.validate(boxInBoxFill(outerKey = "frame"), TemplateValidationContext.forStencil("box", "default"))
+
         assertEquals(
-            listOf("nodes.stencil-5.props.stencilId"),
-            report.findings.filter { it.code == STENCIL_NESTING_DEPTH_EXCEEDED }.map { it.path },
+            listOf("nodes.inner.props.stencilKey"),
+            report.findings.filter { it.code == STENCIL_RECURSION }.map { it.path },
+        )
+    }
+
+    /** `outerKey(fill: box)` — an instance of `box` written in the fill of an instance of [outerKey]. */
+    private fun boxInBoxFill(outerKey: String = "box"): TemplateDocument {
+        val outer = stencil("outer", outerKey, listOf("outer-children"))
+        val placeholder = Node(id = "inside", type = "placeholder", slots = listOf("inside-fill"), props = mapOf("name" to "inside"))
+        val inner = stencil("inner", "box", listOf("inner-children"))
+        return template(
+            nodes = listOf(outer, placeholder, inner),
+            slots = listOf(
+                Slot("outer-children", outer.id, "children", listOf(placeholder.id)),
+                Slot("inside-fill", placeholder.id, "fill", listOf(inner.id)),
+                Slot("inner-children", inner.id, "children"),
+            ),
+            rootChildren = listOf(outer.id),
         )
     }
 
@@ -119,7 +150,7 @@ class TemplateValidatorStencilNestingTest {
 
         assertFalse(report.valid)
         assertEquals(
-            listOf("nodes.stencil-1.props.stencilId"),
+            listOf("nodes.stencil-1.props.stencilKey"),
             report.findings.filter { it.code == STENCIL_RECURSION }.map { it.path },
         )
     }
@@ -130,7 +161,7 @@ class TemplateValidatorStencilNestingTest {
 
         assertFalse(report.valid)
         assertEquals(
-            listOf("nodes.stencil-2.props.stencilId"),
+            listOf("nodes.stencil-2.props.stencilKey"),
             report.findings.filter { it.code == STENCIL_RECURSION }.map { it.path },
         )
     }
@@ -141,7 +172,7 @@ class TemplateValidatorStencilNestingTest {
 
         val report = TemplateValidator.validate(
             document,
-            TemplateValidationContext.forStencil("letter", "default", 1),
+            TemplateValidationContext.forStencil("letter", "default"),
         )
 
         assertTrue(report.valid, report.findings.toString())
@@ -154,11 +185,11 @@ class TemplateValidatorStencilNestingTest {
 
         val report = TemplateValidator.validate(
             document,
-            TemplateValidationContext.forStencil("letter", "default", 1),
+            TemplateValidationContext.forStencil("letter", "default"),
         )
 
         assertEquals(
-            listOf("nodes.stencil-0.props.stencilId"),
+            listOf("nodes.stencil-0.props.stencilKey"),
             report.findings.filter { it.code == STENCIL_RECURSION }.map { it.path },
         )
     }
@@ -169,11 +200,11 @@ class TemplateValidatorStencilNestingTest {
 
         val report = TemplateValidator.validate(
             document,
-            TemplateValidationContext.forStencil("letter", "default", 1),
+            TemplateValidationContext.forStencil("letter", "default"),
         )
 
         assertEquals(
-            listOf("nodes.stencil-1.props.stencilId"),
+            listOf("nodes.stencil-1.props.stencilKey"),
             report.findings.filter { it.code == STENCIL_RECURSION }.map { it.path },
         )
     }
@@ -182,16 +213,16 @@ class TemplateValidatorStencilNestingTest {
     fun `stencil definition depth includes the containing stencil`() {
         val allowed = TemplateValidator.validate(
             nestedStencils("one", "two", "three", "four"),
-            TemplateValidationContext.forStencil("owner", "default", 1),
+            TemplateValidationContext.forStencil("owner", "default"),
         )
         val rejected = TemplateValidator.validate(
             nestedStencils("one", "two", "three", "four", "five"),
-            TemplateValidationContext.forStencil("owner", "default", 1),
+            TemplateValidationContext.forStencil("owner", "default"),
         )
 
         assertTrue(allowed.valid, allowed.findings.toString())
         assertEquals(
-            listOf("nodes.stencil-4.props.stencilId"),
+            listOf("nodes.stencil-4.props.stencilKey"),
             rejected.findings.filter { it.code == STENCIL_NESTING_DEPTH_EXCEEDED }.map { it.path },
         )
     }
@@ -201,8 +232,7 @@ class TemplateValidatorStencilNestingTest {
         val nested = stencil("nested", "letter", listOf("nested-children")).copy(
             props = mapOf(
                 "catalogKey" to "shared",
-                "stencilId" to "letter",
-                "version" to 1,
+                "stencilKey" to "letter",
             ),
         )
         val document = template(
@@ -213,57 +243,76 @@ class TemplateValidatorStencilNestingTest {
 
         val report = TemplateValidator.validate(
             document,
-            TemplateValidationContext.forStencil("letter", "default", 1),
+            TemplateValidationContext.forStencil("letter", "default"),
         )
 
         assertTrue(report.valid, report.findings.toString())
     }
 
     @Test
-    fun `nested stencil references require valid exact version provenance`() {
-        val missingVersion = stencil("missing-version", "address", listOf("missing-children")).copy(
-            props = mapOf("stencilId" to "address"),
-        )
-        val zeroVersion = stencil("zero-version", "contact", listOf("zero-children")).copy(
-            props = mapOf("stencilId" to "contact", "version" to 0),
-        )
-        val invalidDraftVersion = stencil("invalid-draft-version", "footer", listOf("invalid-draft-children")).copy(
-            props = mapOf("stencilId" to "footer", "version" to 1, "draftVersion" to "2"),
+    fun `same key in another catalog, named by its alias, is not self reference`() {
+        val nested = stencil("nested", "letter", listOf("nested-children")).copy(
+            props = mapOf("catalogKey" to "shared", "stencilKey" to "letter"),
         )
         val document = template(
-            nodes = listOf(missingVersion, zeroVersion, invalidDraftVersion),
-            slots = listOf(
-                Slot("missing-children", missingVersion.id, "children"),
-                Slot("zero-children", zeroVersion.id, "children"),
-                Slot("invalid-draft-children", invalidDraftVersion.id, "children"),
-            ),
-            rootChildren = listOf(missingVersion.id, zeroVersion.id, invalidDraftVersion.id),
+            nodes = listOf(nested),
+            slots = listOf(Slot("nested-children", nested.id, "children")),
+            rootChildren = listOf(nested.id),
         )
 
-        val report = TemplateValidator.validate(
-            document,
-            TemplateValidationContext.forStencil("letter", "default", 1),
+        val own = TemplateValidator.validate(document, TemplateValidationContext.forStencil("letter", "default"))
+        val sameCatalog = TemplateValidator.validate(document, TemplateValidationContext.forStencil("letter", "shared"))
+
+        assertTrue(own.valid, own.findings.toString())
+        assertEquals(
+            listOf("nodes.nested.props.stencilKey"),
+            sameCatalog.findings.filter { it.code == STENCIL_RECURSION }.map { it.path },
         )
+    }
+
+    @Test
+    fun `stencil references carry no version, and no registry or namespace`() {
+        val versioned = stencil("versioned", "address", listOf("versioned-children")).copy(
+            props = mapOf("stencilKey" to "address", "version" to 1, "draftVersion" to 2),
+        )
+        // The catalog a reference names is an alias; its registry and namespace are the declaration's.
+        val namespaced = stencil("namespaced", "contact", listOf("namespaced-children")).copy(
+            props = mapOf("stencilKey" to "contact", "catalogKey" to "shared", "namespace" to "acme-corp"),
+        )
+        val qualified = stencil("qualified", "header", listOf("qualified-children")).copy(
+            props = mapOf("stencilKey" to "header", "registry" to "acme.com", "namespace" to "acme"),
+        )
+        val aliased = stencil("aliased", "footer", listOf("aliased-children")).copy(
+            props = mapOf("stencilKey" to "footer", "catalogKey" to "shared"),
+        )
+        val nodes = listOf(versioned, namespaced, qualified, aliased)
+        val document = template(
+            nodes = nodes,
+            slots = nodes.map { Slot(it.slots.single(), it.id, "children") },
+            rootChildren = nodes.map { it.id },
+        )
+
+        val report = TemplateValidator.validate(document, TemplateValidationContext.forStencil("letter", "default"))
 
         assertEquals(
             listOf(
-                "nodes.invalid-draft-version.props",
-                "nodes.missing-version.props",
-                "nodes.zero-version.props",
-            ),
-            report.findings.filter { it.code == STENCIL_REFERENCE_INVALID }.map { it.path },
+                TEMPLATE_NODE_PROPERTY_INVALID to "nodes.versioned.props.draftVersion",
+                TEMPLATE_NODE_PROPERTY_INVALID to "nodes.versioned.props.version",
+                TEMPLATE_NODE_PROPERTY_INVALID to "nodes.namespaced.props.namespace",
+                TEMPLATE_NODE_PROPERTY_INVALID to "nodes.qualified.props.namespace",
+                TEMPLATE_NODE_PROPERTY_INVALID to "nodes.qualified.props.registry",
+            ).sortedBy { it.second },
+            report.findings.map { it.code to it.path }.sortedBy { it.second },
         )
     }
 
     @Test
-    fun `missing stencil draft flag means published`() {
-        val published = stencil("published", "address", listOf("published-children")).copy(
-            props = mapOf("stencilId" to "address", "version" to 3),
-        )
+    fun `stencil reference reaches the resolver without a version`() {
+        val reference = stencil("reference", "address", listOf("reference-children"))
         val document = template(
-            nodes = listOf(published),
-            slots = listOf(Slot("published-children", published.id, "children")),
-            rootChildren = listOf(published.id),
+            nodes = listOf(reference),
+            slots = listOf(Slot("reference-children", reference.id, "children")),
+            rootChildren = listOf(reference.id),
         )
         var resolved: CatalogResourceReference? = null
         val report = TemplateValidator.validate(
@@ -279,18 +328,18 @@ class TemplateValidatorStencilNestingTest {
         )
 
         assertTrue(report.valid, report.findings.toString())
-        assertEquals(CatalogResourceReference("stencil", "address", version = 3), resolved)
+        assertEquals(CatalogResourceReference("stencil", "address"), resolved)
     }
 
     @Test
-    fun `draft stencil reference is valid during authoring and exposed to the resolver`() {
-        val draft = stencil("draft", "address", listOf("draft-children")).copy(
-            props = mapOf("stencilId" to "address", "version" to 3, "draftVersion" to 4),
+    fun `stencil reference passes the alias of its catalog to the resolver`() {
+        val qualified = stencil("qualified", "address", listOf("qualified-children")).copy(
+            props = mapOf("stencilKey" to "address", "catalogKey" to "shared"),
         )
         val document = template(
-            nodes = listOf(draft),
-            slots = listOf(Slot("draft-children", draft.id, "children")),
-            rootChildren = listOf(draft.id),
+            nodes = listOf(qualified),
+            slots = listOf(Slot("qualified-children", qualified.id, "children")),
+            rootChildren = listOf(qualified.id),
         )
         var resolved: CatalogResourceReference? = null
         val report = TemplateValidator.validate(
@@ -300,13 +349,16 @@ class TemplateValidatorStencilNestingTest {
 
                 override fun resolveResource(reference: CatalogResourceReference): ResourceResolution {
                     resolved = reference
-                    return ResourceResolution.PRESENT
+                    return ResourceResolution.MISSING
                 }
             },
         )
 
-        assertTrue(report.valid, report.findings.toString())
-        assertEquals(CatalogResourceReference("stencil", "address", version = 3, draftVersion = 4), resolved)
+        assertEquals(CatalogResourceReference("stencil", "address", "shared"), resolved)
+        assertEquals(
+            listOf(STENCIL_REFERENCE_NOT_FOUND to "nodes.qualified.props.stencilKey"),
+            report.findings.map { it.code to it.path },
+        )
     }
 
     @Test
@@ -353,8 +405,8 @@ class TemplateValidatorStencilNestingTest {
         }
         assertEquals(
             listOf(
-                "nodes.stencil-2.props.stencilId",
-                "nodes.stencil-3.props.stencilId",
+                "nodes.stencil-2.props.stencilKey",
+                "nodes.stencil-3.props.stencilKey",
             ),
             first.findings.filter { it.code == STENCIL_RECURSION }.map { it.path },
         )
@@ -379,36 +431,36 @@ class TemplateValidatorStencilNestingTest {
         "STENCIL_DEFINITION_REFERENCES_DISTINCT_STENCIL" ->
             TemplateValidator.validate(
                 nestedStencils("address"),
-                TemplateValidationContext.forStencil("letter", "default", 1),
+                TemplateValidationContext.forStencil("letter", "default"),
             )
         "STENCIL_DEFINITION_REFERENCES_ITSELF" ->
             TemplateValidator.validate(
                 nestedStencils("letter"),
-                TemplateValidationContext.forStencil("letter", "default", 1),
+                TemplateValidationContext.forStencil("letter", "default"),
             )
         "STENCIL_DEFINITION_REFERENCES_ITSELF_TRANSITIVELY" ->
             TemplateValidator.validate(
                 nestedStencils("address", "letter"),
-                TemplateValidationContext.forStencil("letter", "default", 1),
+                TemplateValidationContext.forStencil("letter", "default"),
             )
-        "STENCIL_DEFINITION_REFERENCES_DRAFT" -> {
-            val document = nestedStencils("address")
+        "STENCIL_DEFINITION_REFERENCES_SAME_KEY_IN_ANOTHER_CATALOG" -> {
+            val document = nestedStencils("letter")
             val node = requireNotNull(document.nodes["stencil-0"])
             TemplateValidator.validate(
                 document.copy(
                     nodes = document.nodes + (
                         node.id to node.copy(
-                            props = node.props.orEmpty() + ("draftVersion" to 2),
+                            props = node.props.orEmpty() + ("catalogKey" to "shared"),
                         )
                         ),
                 ),
-                TemplateValidationContext.forStencil("letter", "default", 1),
+                TemplateValidationContext.forStencil("letter", "default"),
             )
         }
         "STENCIL_DEFINITION_EXCEEDS_DEPTH" ->
             TemplateValidator.validate(
                 nestedStencils("one", "two", "three", "four", "five"),
-                TemplateValidationContext.forStencil("owner", "default", 1),
+                TemplateValidationContext.forStencil("owner", "default"),
             )
         else -> error("Unknown template composition fixture scenario: $scenario")
     }
@@ -465,9 +517,6 @@ class TemplateValidatorStencilNestingTest {
         id = id,
         type = "stencil",
         slots = slots,
-        props = mapOf(
-            "stencilId" to slug,
-            "version" to 1,
-        ),
+        props = mapOf("stencilKey" to slug),
     )
 }

@@ -2,33 +2,38 @@
 
 > **Status**: Draft
 > **Date**: 2026-02-12
+> **Updated**: 2026-10-19, for contract 2.0
 > **Audience**: Epistola contributors and API consumers
+
+Nothing in this document is part of the API yet. The event feed, its schemas, its filters and the
+problem type in Appendix B are proposals. The operations, schemas and fields it names as triggers
+and payloads exist in the 2.0 contract (`contracts/api/openapi.yaml`).
 
 ---
 
 ## 1. Problem Statement
 
-Epistola currently provides no mechanism for API consumers to learn about changes in the system beyond what they explicitly poll for. The only near-real-time pattern today is job status polling (`GET /tenants/{tenantId}/documents/jobs/{requestId}`), which is scoped to a single generation request.
+Epistola currently provides no mechanism for API consumers to learn about changes in the system beyond what they explicitly poll for. The near-real-time patterns that exist today cover generation only: job status polling (`getGenerationJobStatus`, `GET /tenants/{tenantKey}/documents/jobs/{requestId}`), scoped to a single generation request, and result collection (`collectGenerationResults`, `POST /tenants/{tenantKey}/generation/collect`), which delivers finished documents to the node that should receive them.
 
 This leaves several important use-cases unserved:
 
-- **Cache invalidation** — Consumers that cache template metadata, variant lists, or activation state have no way to know when that data becomes stale. They must choose between aggressive polling (wasteful) or long TTLs (stale data).
-- **Workflow orchestration** — When a version is published or an activation changes, downstream systems (preview renderers, CDN warmers, audit loggers) need to react. Today, this requires out-of-band coordination.
-- **Multi-instance coordination** — When multiple server instances exist behind a load balancer, an action on one instance (e.g., publishing a version) is invisible to consumers connected to other instances unless they re-fetch.
-- **Audit and compliance** — Tracking who changed what and when requires either querying each resource individually or building a custom audit trail outside the API contract.
+- **Cache invalidation** — Consumers that cache template metadata, variant lists, or which releases an environment serves have no way to know when that data becomes stale. They must choose between aggressive polling (wasteful) or long TTLs (stale data).
+- **Workflow orchestration** — When a draft is released, or a release or a draft is deployed to an environment, downstream systems (preview renderers, CDN warmers, audit loggers) need to react. Today, this requires out-of-band coordination.
+- **Multi-instance coordination** — When multiple server instances exist behind a load balancer, an action on one instance (e.g., releasing a draft or deploying a release) is invisible to consumers connected to other instances unless they re-fetch.
+- **Audit and compliance** — Tracking who changed what and when requires either querying each resource individually or building a custom audit trail outside the API contract. The deployment history (`listDeploymentHistory`) covers what environments serve, and nothing else.
 
 ### Goals
 
 1. Deliver a batched stream of domain events to interested consumers with low latency.
-2. Support filtering so consumers receive only events relevant to them (by resource type, template, environment, etc.).
+2. Support filtering so consumers receive only events relevant to them (by resource type, catalog, template, environment, etc.).
 3. Work correctly when both the server and client are horizontally scaled to multiple instances.
-4. Remain expressible in OpenAPI 3.1 and compatible with generated Kotlin clients (Spring RestClient) and server stubs (Spring Boot 4 interfaces).
+4. Remain expressible in OpenAPI 3.1 and compatible with the generated clients (Kotlin, Jakarta EE, .NET, Python and Node.js) and server stubs (Spring Boot 4 interfaces).
 5. Provide at-least-once delivery guarantees with idempotency support so consumers can safely retry.
 
 ### Non-goals
 
 - Sub-second push latency (this is a document platform, not a trading system).
-- Replacing the existing job polling endpoint (that continues to serve its purpose).
+- Replacing the existing job polling and result collection endpoints (they continue to serve their purpose).
 - Cross-tenant event streaming (events are always tenant-scoped).
 
 ---
@@ -39,29 +44,63 @@ Regardless of delivery mechanism, the event schema and semantics are the same.
 
 ### 2.1 Event Types
 
-Events correspond to state changes in the domain model. Every mutating API operation produces exactly one event.
+Events correspond to state changes in the domain model. Every mutating API operation produces exactly one event, with one exception: an operation that changes what an environment serves produces one event per entry it writes to the environment's deployment history (`listDeploymentHistory`), so the event stream and the history agree. `deployCatalogRelease` with `replace=true` or `includeDependencies=true`, or deploying a draft where the environment served another, writes several entries; `releaseCatalogDraft` and `deleteCatalogRelease` write one per environment the draft is deployed to.
+
+An event type is `{resourceType}.{action}`, both in kebab-case. The triggers below are operation IDs in the 2.0 contract. Resources inside a catalog (templates, variants, stencils, themes, attributes, code lists, images) are addressed as `/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/…`, and are only ever changed in a draft: a released release is immutable.
+
+**Resources in a release of a catalog**
 
 | Event Type | Trigger |
 |---|---|
-| `template.created` | `POST /tenants/{tenantId}/templates` |
-| `template.updated` | `PATCH /tenants/{tenantId}/templates/{templateId}` |
-| `template.deleted` | `DELETE /tenants/{tenantId}/templates/{templateId}` |
-| `variant.created` | `POST /tenants/{tenantId}/templates/{templateId}/variants` |
-| `variant.updated` | `PATCH /tenants/{tenantId}/templates/{templateId}/variants/{variantId}` |
-| `variant.deleted` | `DELETE /tenants/{tenantId}/templates/{templateId}/variants/{variantId}` |
-| `version.draft_updated` | `PATCH .../versions/{versionId}` |
-| `version.published` | `POST .../versions/{versionId}/publish` |
-| `version.archived` | `POST .../versions/{versionId}/archive` |
-| `activation.changed` | `PUT .../variants/{variantId}/activations/{environmentId}` |
-| `activation.removed` | `DELETE .../variants/{variantId}/activations/{environmentId}` |
-| `theme.created` | `POST /tenants/{tenantId}/themes` |
-| `theme.updated` | `PATCH /tenants/{tenantId}/themes/{themeId}` |
-| `theme.deleted` | `DELETE /tenants/{tenantId}/themes/{themeId}` |
-| `environment.created` | `POST /tenants/{tenantId}/environments` |
-| `environment.updated` | `PATCH /tenants/{tenantId}/environments/{environmentId}` |
-| `environment.deleted` | `DELETE /tenants/{tenantId}/environments/{environmentId}` |
-| `generation.completed` | Job transitions to `COMPLETED` |
-| `generation.failed` | Job transitions to `FAILED` |
+| `template.created`, `template.updated`, `template.deleted` | `createTemplate`, `updateTemplate`, `deleteTemplate` |
+| `template.marked-ready` | `markTemplateReady` |
+| `variant.created`, `variant.updated`, `variant.deleted` | `createVariant`, `updateVariant`, `deleteVariant` |
+| `variant.content-updated` | `updateVariantContent` |
+| `variant.default-set` | `setDefaultVariant` |
+| `variant.marked-ready` | `markVariantReady` |
+| `stencil.created`, `stencil.updated`, `stencil.deleted` | `createStencil`, `updateStencil`, `deleteStencil` |
+| `stencil.content-updated` | `updateStencilContent` |
+| `stencil.marked-ready` | `markStencilReady` |
+| `theme.created`, `theme.updated`, `theme.deleted` | `createTheme`, `updateTheme`, `deleteTheme` |
+| `attribute.created`, `attribute.updated`, `attribute.deleted` | `createAttribute`, `updateAttribute`, `deleteAttribute` |
+| `code-list.created`, `code-list.updated`, `code-list.deleted` | `createCodeList`, `updateCodeList`, `deleteCodeList` |
+| `code-list.refreshed` | `refreshCodeList` |
+| `code-list.entry-hidden-updated` | `updateCodeListEntryHidden` |
+| `image.uploaded`, `image.deleted` | `uploadImage`, `deleteImage` |
+
+**Catalogs and their releases**
+
+| Event Type | Trigger |
+|---|---|
+| `catalog.imported` | `importCatalog` |
+| `catalog.release-installed` | `installCatalogRelease` |
+| `catalog.dependencies-updated` | `updateCatalogDependencies` |
+| `catalog-release.draft-created` | `createCatalogRelease` |
+| `catalog-release.draft-updated` | `updateCatalogRelease` (its name, default theme or presets) |
+| `catalog-release.draft-discarded` | `deleteCatalogRelease` |
+| `catalog-release.marked-ready` | `markCatalogReady` (every changed resource of a draft) |
+| `catalog-release.released` | `releaseCatalogDraft` (a draft gets its version and becomes immutable, keeping its `releaseId` and name; one event per release, including drafts of other catalogs released along with it) |
+
+**Environments**
+
+| Event Type | Trigger |
+|---|---|
+| `environment.created`, `environment.updated`, `environment.deleted` | `createEnvironment`, `updateEnvironment`, `deleteEnvironment` |
+| `environment.deployed` | `deployCatalogRelease`: the environment starts serving a release or a draft (deployment history `deployed`) |
+| `environment.undeployed` | `undeployCatalogRelease`; `deployCatalogRelease` with `replace=true`, or deploying a draft in place of the one the environment served; `deleteCatalogRelease` of a deployed draft (deployment history `undeployed`) |
+| `environment.released` | `releaseCatalogDraft` of a deployed draft: the environment now serves it as released, with the same `releaseId` (deployment history `released`) |
+
+**Generation**
+
+| Event Type | Trigger |
+|---|---|
+| `document.generated` | A generation item completes and its document is stored |
+| `document.deleted` | `deleteDocument` |
+| `generation.completed` | Job transitions to `completed` |
+| `generation.failed` | Job transitions to `failed` |
+| `generation.cancelled` | `cancelGenerationJob` (job transitions to `cancelled`) |
+
+Most events about resources inside a catalog happen in a draft, which generation never renders, with two exceptions: preview, and an environment a draft is deployed to (`deployCatalogRelease`, never a production environment). A consumer that caches what it renders therefore mostly needs `catalog-release.released` and the `environment.*` events; editors and environments serving a draft need the rest.
 
 ### 2.2 Event Envelope
 
@@ -71,7 +110,7 @@ EventEnvelope:
   required:
     - id
     - type
-    - tenantId
+    - tenantKey
     - timestamp
     - sequenceNumber
     - resourceRef
@@ -82,8 +121,8 @@ EventEnvelope:
       description: Globally unique event identifier (for idempotency)
     type:
       type: string
-      description: Dot-separated event type (e.g., "version.published")
-    tenantId:
+      description: Dot-separated event type (e.g., "catalog-release.released")
+    tenantKey:
       type: string
       description: Tenant scope of this event
     timestamp:
@@ -101,28 +140,59 @@ EventEnvelope:
       type: object
       required:
         - resourceType
-        - resourceId
+        - key
       properties:
         resourceType:
           type: string
           enum:
+            - catalog
+            - catalog-release
             - template
             - variant
-            - version
-            - activation
+            - stencil
             - theme
+            - attribute
+            - code-list
+            - image
             - environment
             - generation-job
-        resourceId:
+            - document
+        key:
           type: string
-          description: Slug or UUID of the affected resource
+          description: >
+            The affected resource's address: its key for a resource
+            in a catalog (templateKey, variantKey, …) and for an
+            environment (environmentKey); the catalog key for a catalog;
+            the release (see release) for a release of a catalog;
+            the id (UUID) for a generation job or document.
+        catalog:
+          type: object
+          description: >
+            The catalog the resource belongs to, or the catalog an
+            environment event is about (the release deployed or
+            undeployed). Absent for events outside a catalog.
+            The registry is written in full, never `~`.
+          required: [registry, namespace, catalogKey]
+          properties:
+            registry:
+              type: string
+            namespace:
+              type: string
+            catalogKey:
+              type: string
+        release:
+          type: [string, "null"]
+          description: >
+            The release the change was made in: a released
+            release's version, or a draft's releaseId. A draft
+            keeps its releaseId when it is released, so the id
+            keeps addressing it from then on.
         parentRefs:
           type: object
           description: >
             Ancestor identifiers for hierarchical resources.
-            For example, a version event includes templateId
-            and variantId so consumers can filter without
-            fetching the resource.
+            For example, a variant event includes templateKey
+            so consumers can filter without fetching the resource.
           additionalProperties:
             type: string
     actor:
@@ -138,9 +208,11 @@ EventEnvelope:
       type: object
       description: >
         Event-type-specific payload. For "created" and "updated"
-        events, contains the resource's state after the change.
-        For "deleted" events, contains the resource's state
-        before deletion.
+        events, contains the resource's state after the change,
+        as the operation's response body has it (for
+        "catalog-release.released", a ReleaseCatalogDraftResponse;
+        for "environment.deployed", a DeploymentDto). For "deleted"
+        events, contains the resource's state before deletion.
 ```
 
 **Example event:**
@@ -148,29 +220,78 @@ EventEnvelope:
 ```json
 {
   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "type": "version.published",
-  "tenantId": "acme-corp",
-  "timestamp": "2026-02-12T14:30:00Z",
+  "type": "catalog-release.released",
+  "tenantKey": "acme-corp",
+  "timestamp": "2026-10-12T14:30:00Z",
   "sequenceNumber": 4207,
   "resourceRef": {
-    "resourceType": "version",
-    "resourceId": "3",
-    "parentRefs": {
-      "templateId": "invoice",
-      "variantId": "english"
-    }
+    "resourceType": "catalog-release",
+    "key": "1.4.0",
+    "catalog": {
+      "registry": "exchange.epistola.app",
+      "namespace": "acme-corp",
+      "catalogKey": "letters"
+    },
+    "release": "1.4.0"
   },
   "actor": {
     "type": "user",
     "identifier": "jane@acme-corp.com"
   },
   "data": {
-    "versionId": 3,
-    "status": "published",
-    "publishedAt": "2026-02-12T14:30:00Z"
+    "release": {
+      "version": "1.4.0",
+      "releaseId": "k7m2x9qa",
+      "name": "Spring fixes",
+      "status": "released",
+      "base": "1.3.2",
+      "releasedAt": "2026-10-12T14:30:00Z",
+      "fingerprint": "v5:3b1f0c9e8d7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c",
+      "dependencies": [],
+      "deployedTo": [],
+      "behind": []
+    },
+    "unchangedContent": false,
+    "draftsBehind": ["Redesign 2027"],
+    "releasedDependencies": []
   }
 }
 ```
+
+A `document.generated` event carries the release the document was rendered from, so a consumer can tell which release served it without fetching the document:
+
+```json
+{
+  "type": "document.generated",
+  "resourceRef": {
+    "resourceType": "document",
+    "key": "770e8400-e29b-41d4-a716-446655440002",
+    "catalog": {
+      "registry": "exchange.epistola.app",
+      "namespace": "acme-corp",
+      "catalogKey": "letters"
+    },
+    "release": "1.4.0",
+    "parentRefs": {
+      "requestId": "550e8400-e29b-41d4-a716-446655440000",
+      "templateKey": "invoice",
+      "variantKey": "english"
+    }
+  },
+  "data": {
+    "templateKey": "invoice",
+    "variantKey": "english",
+    "version": "1.4.0",
+    "releaseId": "k7m2x9qa",
+    "releaseName": null,
+    "environmentKey": "production",
+    "correlationId": "order-7890",
+    "filename": "invoice-2026-001.pdf"
+  }
+}
+```
+
+The `data` members are taken from `DocumentGenerationItemDto`. A document rendered from a draft, through an environment that follows one, has a null `version` and carries `releaseName`; its `release` is the `releaseId`.
 
 ### 2.3 Ordering and Idempotency
 
@@ -184,10 +305,13 @@ All options support server-side filtering to reduce payload size. Filters are ap
 
 | Filter | Type | Example |
 |---|---|---|
-| `resourceType` | string (repeatable) | `resourceType=version&resourceType=activation` |
-| `templateId` | string | `templateId=invoice` |
-| `environmentId` | string | `environmentId=production` |
-| `eventType` | string (repeatable) | `eventType=version.published` |
+| `resourceType` | string (repeatable) | `resourceType=catalog-release&resourceType=environment` |
+| `registry`, `namespace`, `catalogKey` | string | `namespace=acme-corp&catalogKey=letters` |
+| `templateKey` | string (requires `namespace` and `catalogKey`) | `templateKey=invoice` |
+| `environmentKey` | string | `environmentKey=production` |
+| `eventType` | string (repeatable) | `eventType=catalog-release.released` |
+
+A catalog is named by its three parts, never its key alone. As in every request that names a catalog, an omitted `registry` means the server's default registry. A `templateKey` without the catalog is refused, because two catalogs can each have a template with that key.
 
 Filters are combined with AND logic (all must match). Repeatable filters use OR within the same key.
 
@@ -208,17 +332,18 @@ The client immediately reconnects after receiving a response.
 #### API Shape
 
 ```
-GET /tenants/{tenantId}/events
+GET /tenants/{tenantKey}/events
   ?after={sequenceNumber}      # cursor: last seen sequence number
   &timeout=30                  # max seconds to hold connection (1-60, default 30)
-  &resourceType=version        # filter (repeatable)
-  &templateId=invoice          # filter
+  &resourceType=catalog-release  # filter (repeatable)
+  &namespace=acme-corp           # filter: the catalog, by its parts
+  &catalogKey=letters
   &limit=100                   # max events per batch (1-1000, default 100)
 
-Accept: application/vnd.epistola.v1+json
+Accept: application/vnd.epistola.v2+json
 
 200 OK
-Content-Type: application/vnd.epistola.v1+json
+Content-Type: application/vnd.epistola.v2+json
 
 {
   "events": [ ... ],
@@ -235,7 +360,7 @@ When catching up from a stale cursor, the server returns immediately with a full
 
 - **Server**: Each held connection occupies a thread (or virtual thread on Spring Boot 4/Loom). With virtual threads, thousands of held connections are feasible per instance. Events are written to a shared database event log; any instance can serve any tenant's feed.
 - **Client**: Multiple client instances can each maintain their own cursor. No coordination needed — each instance tracks its own position.
-- **Database**: Requires an append-only `events` table with a per-tenant sequence column and appropriate indexes (`tenant_id, sequence_number`). Old events can be retained for a configurable window (e.g., 7 days) and purged.
+- **Database**: Requires an append-only `events` table with a per-tenant sequence column and appropriate indexes (`tenant_key, sequence_number`). Old events can be retained for a configurable window (e.g., 7 days) and purged.
 
 #### Delivery Guarantees
 
@@ -279,10 +404,11 @@ The client opens a persistent HTTP connection. The server pushes events as they 
 #### API Shape
 
 ```
-GET /tenants/{tenantId}/events/stream
+GET /tenants/{tenantKey}/events/stream
   ?after={sequenceNumber}      # resume from cursor
-  &resourceType=version        # filter (repeatable)
-  &templateId=invoice          # filter
+  &resourceType=catalog-release  # filter (repeatable)
+  &namespace=acme-corp           # filter: the catalog, by its parts
+  &catalogKey=letters
 
 Accept: text/event-stream
 
@@ -292,12 +418,12 @@ Content-Type: text/event-stream
 : heartbeat
 
 id: 4208
-event: version.published
-data: {"id":"a1b2...","type":"version.published",...}
+event: catalog-release.released
+data: {"id":"a1b2...","type":"catalog-release.released",...}
 
 id: 4209
-event: activation.changed
-data: {"id":"b2c3...","type":"activation.changed",...}
+event: environment.deployed
+data: {"id":"b2c3...","type":"environment.deployed",...}
 
 : heartbeat
 ```
@@ -338,7 +464,7 @@ The `id` field is set to the sequence number, enabling the browser/client to sen
 - **Breaks the generated server** — SSE cannot be expressed as a return type in OpenAPI-generated Spring interfaces. The server implementation must work around generated stubs.
 - Cross-instance fan-out adds infrastructure complexity (pub/sub layer).
 - Load balancers, proxies, and firewalls can interfere with long-lived connections.
-- Content type is `text/event-stream`, not `application/vnd.epistola.v1+json` — inconsistent with the rest of the API.
+- Content type is `text/event-stream`, not `application/vnd.epistola.v2+json` — inconsistent with the rest of the API.
 
 ---
 
@@ -353,15 +479,18 @@ Consumers register a callback URL with the Epistola API. When events occur, the 
 **Registration:**
 
 ```
-POST /tenants/{tenantId}/event-subscriptions
-Content-Type: application/vnd.epistola.v1+json
+POST /tenants/{tenantKey}/event-subscriptions
+Content-Type: application/vnd.epistola.v2+json
 
 {
   "callbackUrl": "https://my-app.example.com/epistola/events",
   "secret": "whsec_abc123...",
   "filters": {
-    "resourceTypes": ["version", "activation"],
-    "templateIds": ["invoice"]
+    "resourceTypes": ["catalog-release", "environment"],
+    "catalogs": [
+      { "namespace": "acme-corp", "catalogKey": "letters" }
+    ],
+    "templateKeys": ["invoice"]
   },
   "batchSettings": {
     "maxBatchSize": 50,
@@ -382,7 +511,7 @@ Content-Type: application/vnd.epistola.v1+json
 
 ```
 POST https://my-app.example.com/epistola/events
-Content-Type: application/vnd.epistola.v1+json
+Content-Type: application/vnd.epistola.v2+json
 X-Epistola-Signature: sha256=...
 X-Epistola-Delivery-Id: dlv-12345
 
@@ -398,11 +527,11 @@ X-Epistola-Delivery-Id: dlv-12345
 **Management:**
 
 ```
-GET    /tenants/{tenantId}/event-subscriptions           # List subscriptions
-GET    /tenants/{tenantId}/event-subscriptions/{subId}    # Get subscription
-PATCH  /tenants/{tenantId}/event-subscriptions/{subId}    # Update subscription
-DELETE /tenants/{tenantId}/event-subscriptions/{subId}    # Delete subscription
-POST   /tenants/{tenantId}/event-subscriptions/{subId}/test  # Send test event
+GET    /tenants/{tenantKey}/event-subscriptions           # List subscriptions
+GET    /tenants/{tenantKey}/event-subscriptions/{subId}    # Get subscription
+PATCH  /tenants/{tenantKey}/event-subscriptions/{subId}    # Update subscription
+DELETE /tenants/{tenantKey}/event-subscriptions/{subId}    # Delete subscription
+POST   /tenants/{tenantKey}/event-subscriptions/{subId}/test  # Send test event
 ```
 
 #### Scalability
@@ -456,16 +585,17 @@ This is the simplest option — no long-held connections, no push, just a regula
 #### API Shape
 
 ```
-GET /tenants/{tenantId}/events
+GET /tenants/{tenantKey}/events
   ?after={sequenceNumber}      # cursor: last seen sequence number (0 = from beginning)
-  &resourceType=version        # filter (repeatable)
-  &templateId=invoice          # filter
+  &resourceType=catalog-release  # filter (repeatable)
+  &namespace=acme-corp           # filter: the catalog, by its parts
+  &catalogKey=letters
   &limit=100                   # max events per batch (1-1000, default 100)
 
-Accept: application/vnd.epistola.v1+json
+Accept: application/vnd.epistola.v2+json
 
 200 OK
-Content-Type: application/vnd.epistola.v1+json
+Content-Type: application/vnd.epistola.v2+json
 
 {
   "events": [ ... ],
@@ -482,7 +612,7 @@ When `hasMore` is `true`, the client should immediately request the next page. W
 
 - **Server**: Stateless — each request is an indexed database query. No held connections, no pub/sub. Horizontal scaling is trivial; any instance can serve any request.
 - **Client**: Each client instance tracks its own cursor independently. Poll interval is client-controlled.
-- **Database**: Same append-only `events` table as Option A. With proper indexing, the query `WHERE tenant_id = ? AND sequence_number > ? ORDER BY sequence_number LIMIT ?` is a simple index range scan.
+- **Database**: Same append-only `events` table as Option A. With proper indexing, the query `WHERE tenant_key = ? AND sequence_number > ? ORDER BY sequence_number LIMIT ?` is a simple index range scan.
 
 #### Delivery Guarantees
 
@@ -505,7 +635,7 @@ When `hasMore` is `true`, the client should immediately request the next page. W
 - Simplest to implement on both client and server.
 - Full compatibility with OpenAPI code generation — no special handling needed.
 - Stateless server: trivial horizontal scaling, no connection management.
-- Uses `application/vnd.epistola.v1+json` content type like every other endpoint.
+- Uses `application/vnd.epistola.v2+json` content type like every other endpoint.
 - Cursor-based catch-up works across restarts and outages.
 - Easy to test, debug, and monitor (standard HTTP request/response).
 
@@ -536,15 +666,15 @@ The gRPC channel is explicitly best-effort. If the stream disconnects, the consu
 **REST endpoint (identical to Option D):**
 
 ```
-GET /tenants/{tenantId}/events
+GET /tenants/{tenantKey}/events
   ?after={sequenceNumber}
-  &resourceType=version
+  &resourceType=catalog-release
   &limit=100
 
-Accept: application/vnd.epistola.v1+json
+Accept: application/vnd.epistola.v2+json
 
 200 OK
-Content-Type: application/vnd.epistola.v1+json
+Content-Type: application/vnd.epistola.v2+json
 
 {
   "events": [ ... ],
@@ -563,7 +693,7 @@ syntax = "proto3";
 package epistola.notifications.v1;
 
 option java_multiple_files = true;
-option java_package = "com.epistola.notifications.v1";
+option java_package = "app.epistola.notifications.v1";
 
 service EventNotificationService {
   // Bidirectional stream: client subscribes, server pushes notifications
@@ -581,7 +711,7 @@ message ClientMessage {
 }
 
 message Subscribe {
-  string tenant_id = 1;
+  string tenant_key = 1;
   repeated string resource_types = 2;  // empty = all types
 }
 
@@ -590,7 +720,7 @@ message Heartbeat {
 }
 
 message Unsubscribe {
-  string tenant_id = 1;
+  string tenant_key = 1;
 }
 
 // --- Server → Client ---
@@ -604,14 +734,14 @@ message ServerMessage {
 }
 
 message SubscriptionConfirmed {
-  string tenant_id = 1;
+  string tenant_key = 1;
   int64 latest_sequence_number = 2;
 }
 
 message EventNotification {
-  string tenant_id = 1;
+  string tenant_key = 1;
   int64 latest_sequence_number = 2;
-  repeated string affected_resource_types = 3;  // e.g., ["version", "activation"]
+  repeated string affected_resource_types = 3;  // e.g., ["catalog-release", "environment"]
 }
 
 message ServerHeartbeat {
@@ -647,7 +777,7 @@ Notifications carry only three pieces of information: which tenant changed, the 
 
 - **Very low latency when connected** — gRPC notifications arrive in ~10ms, triggering an immediate REST fetch.
 - **Graceful degradation** — gRPC is optional. If unavailable (network, infrastructure, client library), the consumer falls back to Option D polling. No events are lost.
-- **No schema drift** — gRPC carries only signaling (tenant ID, sequence number, resource types). All domain models live exclusively in OpenAPI. The protobuf contract is small and stable.
+- **No schema drift** — gRPC carries only signaling (tenant key, sequence number, resource types). All domain models live exclusively in OpenAPI. The protobuf contract is small and stable.
 - **Consumer liveness** — unique to this option: the server knows which consumers are actively connected via heartbeats. This enables operational dashboards, alerting on disconnected consumers, and future features like consumer-specific backpressure.
 - **REST event log remains source of truth** — all delivery guarantees, ordering, and durability come from the REST layer, which is already proven in Option D.
 
@@ -676,7 +806,7 @@ Notifications carry only three pieces of information: which tenant changed, the 
 | **Event ordering** | Guaranteed | Guaranteed | Per-batch | Guaranteed | Guaranteed (via REST) |
 | **Firewall friendly** | Yes | Mostly | Requires inbound | **Yes** | Mostly (gRPC needs HTTP/2) |
 | **Infrastructure needs** | Database | Database + pub/sub | Database + workers + queues | **Database only** | Database + pub/sub + gRPC server + HTTP/2 LB |
-| **Content type** | `vnd.epistola.v1` | `text/event-stream` | `vnd.epistola.v1` | `vnd.epistola.v1` | `vnd.epistola.v1` (REST) + protobuf (gRPC) |
+| **Content type** | `vnd.epistola.v2` | `text/event-stream` | `vnd.epistola.v2` | `vnd.epistola.v2` | `vnd.epistola.v2` (REST) + protobuf (gRPC) |
 | **Catchup from outage** | Built-in (cursor) | Built-in (Last-Event-ID) | Replay from dead letter | Built-in (cursor) | Built-in (cursor via REST) |
 | **Observability** | Standard HTTP metrics | Custom SSE metrics | Delivery status tracking | **Standard HTTP metrics** | HTTP metrics (REST) + gRPC metrics |
 | **Consumer liveness** | No | No | No | No | **Yes** (heartbeat-based) |
@@ -701,7 +831,7 @@ Options A, D, and E's REST layer all fit the contract-first model. They use stan
 
 #### Complexity budget
 
-Epistola is in its `0.1.x` phase. Introducing a delivery worker fleet (webhooks), a pub/sub layer (SSE), connection-holding semantics (long polling), or a gRPC server is premature. The event log approach requires:
+Epistola has no event infrastructure yet. Introducing a delivery worker fleet (webhooks), a pub/sub layer (SSE), connection-holding semantics (long polling), or a gRPC server is premature. The event log approach requires:
 - One database table.
 - One new endpoint.
 - Zero infrastructure beyond what already exists.
@@ -731,7 +861,7 @@ The API shape for Options A and D is intentionally identical — same endpoint, 
 
 #### Why not jump to Option E?
 
-The 90ms latency difference between Option A (~100ms) and Option E (~10ms) does not justify the infrastructure cost for a `0.1.x` document template platform where events are human-initiated. Option A achieves sub-second latency by adding a single query parameter — no new protocols, no new build pipelines, no new load balancer requirements.
+The 90ms latency difference between Option A (~100ms) and Option E (~10ms) does not justify the infrastructure cost for a document template platform where events are human-initiated. Option A achieves sub-second latency by adding a single query parameter — no new protocols, no new build pipelines, no new load balancer requirements.
 
 Option E becomes justified when Epistola needs capabilities that long polling genuinely cannot serve:
 - **Real-time collaboration** — multiple users editing templates simultaneously need sub-50ms notification of each other's changes.
@@ -742,50 +872,57 @@ Until those requirements emerge, Option A covers the latency needs with dramatic
 
 #### Latency is acceptable
 
-For Epistola's current use-cases (cache invalidation, workflow orchestration, audit), a 5-10 second delay is entirely acceptable. Template publishes and activation changes are human-initiated operations that happen at most a few times per hour. When sub-second latency becomes a requirement, the long-polling upgrade (Path D → A) addresses it without breaking existing consumers. If true real-time needs emerge beyond that, the gRPC upgrade (Path D → E) is available.
+For Epistola's current use-cases (cache invalidation, workflow orchestration, audit), a 5-10 second delay is entirely acceptable. Releases and deployments are human-initiated operations that happen at most a few times per hour. When sub-second latency becomes a requirement, the long-polling upgrade (Path D → A) addresses it without breaking existing consumers. If true real-time needs emerge beyond that, the gRPC upgrade (Path D → E) is available.
 
 ### Implementation outline (not part of this design — for future planning)
 
-1. Add `EventEnvelope` and `EventFeedResponse` schemas to `components/schemas/events.yaml`.
-2. Add `paths/events.yaml` with the event feed endpoint.
-3. Reference both from `openapi.yaml`.
+1. Add `EventEnvelope` and `EventFeedResponse` schemas to `contracts/api/components/schemas/events.yaml`.
+2. Add `contracts/api/paths/events.yaml` with the event feed endpoint.
+3. Reference both from `contracts/api/openapi.yaml`.
 4. Add an `Events` tag.
-5. Run `make lint && make build` to verify generation.
-6. Server implementation: append events to a database table on each mutating operation, expose the query endpoint.
+5. Register the `cursor-expired` problem type (Appendix B) in `x-problem-types` and `docs/error-types.md`.
+6. Add the feed to every client and the conformance suite: a driver action in all five drivers and a scenario, then run `make lint`, `make build` and `make conformance`.
+7. Server implementation: append events to a database table on each mutating operation, expose the query endpoint.
 
 ---
 
 ## Appendix A: Cursor-Based vs Offset-Based Pagination
 
-The existing API uses offset-based pagination (`page` + `size` + `totalElements` + `totalPages`). The event feed uses cursor-based pagination (`after` + `limit` + `hasMore`). This is intentional:
+The existing API uses offset-based pagination: `page` and `size` query parameters, and a `page` object (`PageMeta`: `number`, `size`, `total`, `totalPages`) in the response. The event feed uses cursor-based pagination (`after` + `limit` + `hasMore`). This is intentional:
 
-- **Offset pagination** is appropriate for relatively stable datasets (template lists, version lists) where items are rarely inserted or deleted while paginating.
+- **Offset pagination** is appropriate for relatively stable datasets (template lists, release lists) where items are rarely inserted or deleted while paginating.
 - **Cursor pagination** is required for append-only logs where new entries are continuously added. Offset-based pagination over a growing log would cause items to shift between pages, leading to duplicates or missed events.
 
-The two patterns coexist in the API. The event feed's cursor-based response uses a different shape (`cursor.sequenceNumber` + `cursor.hasMore`) from the offset-based shape (`page` + `size` + `totalElements` + `totalPages`) to make the distinction explicit.
+The two patterns coexist in the API. The event feed's cursor-based response uses a different shape (`cursor.sequenceNumber` + `cursor.hasMore`) from the offset-based shape (`PageMeta`) to make the distinction explicit.
 
 ## Appendix B: Event Retention and Purging
 
 Events should be retained for a configurable window (recommended default: 7 days). Consumers that have not polled within the retention window will receive a `410 Gone` response with the earliest available sequence number, allowing them to reset their cursor and catch up from the oldest available event.
 
+The response is an RFC 9457 problem, like every other error in the API. The `cursor-expired` problem type and its `earliestAvailable` member are **proposed**: neither is in `x-problem-types` yet, and 410 is not a status the API returns today.
+
 ```
-GET /tenants/{tenantId}/events?after=100
+GET /tenants/{tenantKey}/events?after=100
 
 410 Gone
+Content-Type: application/problem+json
+
 {
-  "code": "CURSOR_EXPIRED",
-  "message": "Requested cursor is older than the retention window",
+  "type": "https://epistola.app/errors/cursor-expired",
+  "title": "Cursor expired",
+  "status": 410,
+  "detail": "Requested cursor is older than the retention window",
   "earliestAvailable": 5000
 }
 ```
 
-## Appendix C: Role Requirements
+## Appendix C: Permission Requirements
 
-The event feed endpoint should require the `reader` role (or higher). Events may contain resource state in their `data` field, so access should be gated by the same authorization rules that apply to reading those resources.
+Events may contain resource state in their `data` field, so access should be gated by the same authorization rules that apply to reading those resources. The contract documents those as Suite permissions in `x-required-permissions`.
 
-Suggested `x-required-roles`: `[reader, editor, generator, manager]`
+Suggested `x-required-permissions` for the feed: `[TEMPLATE_VIEW]`. The feed then leaves out each event whose resource the caller may not read, by the permission reading it requires: `CATALOG_VIEW` for catalogs and their releases (as `listCatalogReleases`), `DOCUMENT_VIEW` for generation jobs and documents (as `listGenerationJobs` and `listDocuments`), `THEME_VIEW`, `STENCIL_VIEW` and `REFERENCE_VIEW` for themes, stencils, attributes and code lists.
 
-This matches the pattern used by other read endpoints (e.g., `listVersions`, `listGenerationJobs`).
+A consumer authenticated with a bearer JWT (experimental) is authorized by its `ConsumerPermissions`, which have no level for events. Whether the feed is gated by the levels of the resources it carries, or by a new `events` resource, is open.
 
 ## Appendix D: Protobuf Contract and OpenAPI Spec Relationship
 
@@ -796,8 +933,8 @@ If Option E is adopted, the project would maintain two interface definition lang
 | Concern | IDL | Scope |
 |---|---|---|
 | Domain models (DTOs, requests, responses) | OpenAPI | All event payloads, resource schemas, error responses |
-| Event delivery (event log endpoint) | OpenAPI | `GET /tenants/{tenantId}/events` — full event data |
-| Notification signaling | Protobuf | `EventNotificationService` — tenant ID, sequence number, affected types only |
+| Event delivery (event log endpoint) | OpenAPI | `GET /tenants/{tenantKey}/events` — full event data |
+| Notification signaling | Protobuf | `EventNotificationService` — tenant key, sequence number, affected types only |
 
 The protobuf contract contains **no domain models**. It defines only the signaling messages (`Subscribe`, `EventNotification`, `Heartbeat`, etc.) which carry identifiers and metadata, never event payloads. This means:
 
@@ -809,7 +946,7 @@ The protobuf contract contains **no domain models**. It defines only the signali
 
 | Aspect | OpenAPI (existing) | Protobuf (Option E) |
 |---|---|---|
-| **IDL file** | `openapi.yaml` | `proto/epistola/notifications/v1/notifications.proto` |
+| **IDL file** | `contracts/api/openapi.yaml` | `proto/epistola/notifications/v1/notifications.proto` |
 | **Generator** | OpenAPI Generator | protoc + grpc-kotlin |
 | **Client artifact** | `client-kotlin-spring-restclient` | `grpc-kotlin-protobuf` (new module) |
 | **Server artifact** | `server-kotlin-springboot4` | `grpc-kotlin-protobuf` (shared) |
@@ -820,8 +957,8 @@ The protobuf contract contains **no domain models**. It defines only the signali
 
 The OpenAPI spec and protobuf contract are versioned independently:
 
-- **OpenAPI**: Versioned via `info.version` in `openapi.yaml` and the `application/vnd.epistola.v1+json` media type. Follows the existing release process.
-- **Protobuf**: Versioned via the package name (`epistola.notifications.v1`). New versions introduce a new package (`v2`) rather than modifying the existing one.
+- **OpenAPI**: Versioned via `info.version` in `contracts/api/openapi.yaml` and the `application/vnd.epistola.v2+json` media type. Follows the existing release process.
+- **Protobuf**: Versioned via the package name (`epistola.notifications.v1`), independently of the API major version in the media type. New versions introduce a new package (`v2`) rather than modifying the existing one.
 
 Because the protobuf contract is small and stable (only signaling messages), it is expected to change rarely compared to the OpenAPI spec.
 
@@ -831,14 +968,15 @@ If added, the protobuf module would be a new Gradle subproject:
 
 ```
 epistola-contract/
-├── clients/kotlin-spring-restclient/   # OpenAPI → Kotlin client
-├── server-stubs/kotlin-springboot4/    # OpenAPI → Spring server stubs
-├── grpc-kotlin-protobuf/               # Protobuf → gRPC stubs (new)
-│   ├── build.gradle.kts
-│   └── src/main/proto/
-│       └── epistola/notifications/v1/
-│           └── notifications.proto
-├── openapi.yaml
+├── contracts/api/
+│   ├── openapi.yaml
+│   ├── clients/kotlin-spring-restclient/   # OpenAPI → Kotlin client
+│   ├── server-stubs/kotlin-springboot4/    # OpenAPI → Spring server stubs
+│   └── grpc-kotlin-protobuf/               # Protobuf → gRPC stubs (new)
+│       ├── build.gradle.kts
+│       └── src/main/proto/
+│           └── epistola/notifications/v1/
+│               └── notifications.proto
 └── Makefile
 ```
 

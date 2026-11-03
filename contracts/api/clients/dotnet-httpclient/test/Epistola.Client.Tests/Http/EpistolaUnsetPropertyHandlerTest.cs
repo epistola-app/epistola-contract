@@ -28,15 +28,15 @@ public class EpistolaUnsetPropertyHandlerTest
     private static async Task<string> Send(string body)
     {
         var (http, _, captured) = Build();
-        await http.PatchAsync("thing", new StringContent(body, Encoding.UTF8, "application/vnd.epistola.v1+json"));
+        await http.PatchAsync("thing", new StringContent(body, Encoding.UTF8, "application/vnd.epistola.v2+json"));
         return await captured[0]!.Content!.ReadAsStringAsync();
     }
 
     [Fact]
     public async Task DropsPropertiesTheCallerNeverSet()
     {
-        // description, contact and expiresAt are documented "null to clear" on the API's PATCH
-        // operations, so sending them turns a rename into a rename plus an erase.
+        // A server built to a contract before 2.0 reads a null description, contact or expiresAt as
+        // "clear", so sending them turns a rename into a rename plus an erase.
         var sent = await Send("""{"name":"Billing Service","description":null,"contact":null,"expiresAt":null}""");
 
         Assert.Equal("""{"name":"Billing Service"}""", sent);
@@ -47,15 +47,15 @@ public class EpistolaUnsetPropertyHandlerTest
     {
         // A generation request's `data` is free-form and belongs to the caller; a null in there is
         // theirs and means what they meant by it.
-        var sent = await Send("""{"templateId":"invoice","data":{"notes":null},"filename":null}""");
+        var sent = await Send("""{"templateKey":"invoice","data":{"notes":null},"filename":null}""");
 
-        Assert.Equal("""{"templateId":"invoice","data":{"notes":null}}""", sent);
+        Assert.Equal("""{"templateKey":"invoice","data":{"notes":null}}""", sent);
     }
 
     [Fact]
     public async Task LeavesABodyWithNothingToStripByteIdentical()
     {
-        var body = """{"catalogId":"default","templateId":"invoice"}""";
+        var body = """{"namespace":"acme-corp","catalogKey":"default","templateKey":"invoice"}""";
 
         Assert.Equal(body, await Send(body));
     }

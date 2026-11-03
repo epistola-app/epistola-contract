@@ -6,7 +6,13 @@
 
 import json
 
-from epistola_client import KnownProblemSlugs
+from epistola_client import (
+    CatalogReleaseRef,
+    KnownProblemSlugs,
+    KnownValidationCodes,
+    MissingDependency,
+    UnreleasedDependency,
+)
 from epistola_client.error.problem_detail_handler import parse_problem
 
 
@@ -24,8 +30,44 @@ def test_parses_base_problem_and_exposes_type_slug():
     assert exc.type_slug == KnownProblemSlugs.NOT_FOUND
     assert exc.problem_status == 404
     assert exc.detail == "tenant acme not found"
+    assert exc.help is None
     assert not exc.is_validation_problem
     assert not exc.is_data_model_validation_problem
+
+
+def test_parses_help_as_a_base_member_beside_the_type():
+    body = json.dumps(
+        {
+            "type": "https://epistola.app/errors/not-found",
+            "title": "Not Found",
+            "status": 404,
+            "instance": "/api/tenants/acme-corp/templates/invoice",
+            "help": "https://epistola.app/errors/not-found?operation=getTemplate",
+        }
+    )
+    exc = parse_problem(body, 404)
+    assert exc is not None
+    assert exc.help == "https://epistola.app/errors/not-found?operation=getTemplate"
+    assert exc.problem.instance == "/api/tenants/acme-corp/templates/invoice"
+    # The context is in help; type stays the registered URI.
+    assert exc.type == "https://epistola.app/errors/not-found"
+    assert exc.type_slug == KnownProblemSlugs.NOT_FOUND
+
+
+def test_parses_catalog_source_unavailable_as_a_503_and_as_a_502():
+    for status in (503, 502):
+        body = json.dumps(
+            {
+                "type": "https://epistola.app/errors/catalog-source-unavailable",
+                "title": "Catalog Source Unavailable",
+                "status": status,
+                "detail": "registry.gemeente-x.nl could not be used",
+            }
+        )
+        exc = parse_problem(body, status)
+        assert exc is not None
+        assert exc.type_slug == KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE
+        assert exc.problem_status == status
 
 
 def test_parses_validation_problem_with_errors_array():
@@ -36,7 +78,7 @@ def test_parses_validation_problem_with_errors_array():
             "status": 400,
             "errors": [
                 {"field": "name", "message": "must not be blank"},
-                {"field": "slug", "message": "invalid", "rejectedValue": "BAD"},
+                {"field": "key", "message": "invalid", "rejectedValue": "BAD"},
             ],
         }
     )
@@ -44,8 +86,26 @@ def test_parses_validation_problem_with_errors_array():
     assert exc is not None
     assert exc.type_slug == KnownProblemSlugs.VALIDATION_ERROR
     assert exc.is_validation_problem
-    assert [e.var_field for e in exc.errors] == ["name", "slug"]
+    assert [e.var_field for e in exc.errors] == ["name", "key"]
     assert exc.errors[1].rejected_value == "BAD"
+
+
+def test_a_field_error_carries_the_code_that_says_why_it_failed_or_none_without_one():
+    body = json.dumps(
+        {
+            "type": "https://epistola.app/errors/validation-error",
+            "title": "Validation Failed",
+            "status": 400,
+            "errors": [
+                {"field": "name", "message": "too short", "code": "min-length"},
+                {"field": "key", "message": "must match a pattern"},
+            ],
+        }
+    )
+    exc = parse_problem(body, 400)
+    assert exc is not None
+    assert exc.errors[0].code == KnownValidationCodes.MIN_LENGTH
+    assert exc.errors[1].code is None
 
 
 def test_parses_data_model_validation_problem_with_validation_errors_map():
@@ -144,3 +204,337 @@ def test_malformed_json_returns_none():
 
 def test_non_object_body_returns_none():
     assert parse_problem("[1, 2, 3]", 400) is None
+
+
+def _release_dependencies_missing(missing_dependencies) -> str:
+    body = {
+        "type": "https://epistola.app/errors/release-dependencies-missing",
+        "title": "Release dependencies missing",
+        "status": 409,
+        "detail": "letters 1.4.0 renders with releases production does not serve",
+    }
+    if missing_dependencies is not None:
+        body["missingDependencies"] = missing_dependencies
+    return json.dumps(body)
+
+
+def test_parses_release_dependencies_missing_problem_in_order():
+    body = _release_dependencies_missing(
+        [
+            {
+                "registry": "exchange.epistola.app",
+                "namespace": "epistola",
+                "catalogKey": "system",
+                "version": "3.2.0",
+                "reason": "unavailable",
+            },
+            {
+                "registry": "registry.gemeente-x.nl",
+                "namespace": "huisstijl",
+                "catalogKey": "branding",
+                "version": "1.4.2",
+                "reason": "unavailable",
+            },
+        ]
+    )
+    exc = parse_problem(body, 409)
+    assert exc is not None
+    assert exc.type_slug == KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING
+    assert exc.is_release_dependencies_missing_problem
+    assert exc.missing_dependencies == [
+        MissingDependency("exchange.epistola.app", "epistola", "system", "3.2.0", "unavailable"),
+        MissingDependency(
+            "registry.gemeente-x.nl", "huisstijl", "branding", "1.4.2", "unavailable"
+        ),
+    ]
+    assert exc.missing_dependencies[0].catalog_key == "system"
+    assert exc.missing_dependencies[0].version == "3.2.0"
+
+
+def test_an_unknown_missing_dependency_reason_is_kept_as_sent():
+    # The reasons are an open set: a reason a later contract adds must reach the caller, not
+    # fail the member the way the generated enum would.
+    body = _release_dependencies_missing(
+        [
+            {
+                "registry": "exchange.epistola.app",
+                "namespace": "epistola",
+                "catalogKey": "system",
+                "version": "3.2.0",
+                "reason": "quarantined",
+            }
+        ]
+    )
+    exc = parse_problem(body, 409)
+    assert exc is not None
+    assert [d.reason for d in exc.missing_dependencies] == ["quarantined"]
+
+
+def test_a_release_dependencies_problem_without_the_member_lists_nothing():
+    exc = parse_problem(_release_dependencies_missing(None), 409)
+    assert exc is not None
+    assert exc.type_slug == KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING
+    assert exc.missing_dependencies == []
+    assert not exc.is_release_dependencies_missing_problem
+
+
+def test_another_problem_reports_no_missing_dependencies():
+    body = json.dumps(
+        {"type": "https://epistola.app/errors/conflict", "title": "Conflict", "status": 409}
+    )
+    exc = parse_problem(body, 409)
+    assert exc is not None
+    assert exc.missing_dependencies == []
+    assert not exc.is_release_dependencies_missing_problem
+
+
+def test_a_malformed_missing_dependencies_member_yields_nothing_rather_than_a_guess():
+    not_an_array = parse_problem(_release_dependencies_missing("not an array"), 409)
+    assert not_an_array is not None
+    assert not_an_array.type_slug == KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING
+    assert not_an_array.missing_dependencies == []
+
+    incomplete_entry = parse_problem(
+        _release_dependencies_missing(
+            [
+                {
+                    "registry": "exchange.epistola.app",
+                    "namespace": "epistola",
+                    "catalogKey": "system",
+                    "version": "3.2.0",
+                    "reason": "unavailable",
+                },
+                {"registry": "exchange.epistola.app", "catalogKey": 42},
+            ]
+        ),
+        409,
+    )
+    assert incomplete_entry is not None
+    assert incomplete_entry.type_slug == KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING
+    assert incomplete_entry.missing_dependencies == []
+
+
+def _release_dependencies_unreleased(unreleased_dependencies) -> str:
+    body = {
+        "type": "https://epistola.app/errors/release-dependencies-unreleased",
+        "title": "Release dependencies unreleased",
+        "status": 409,
+        "detail": "letters uses drafts of other catalogs",
+    }
+    if unreleased_dependencies is not None:
+        body["unreleasedDependencies"] = unreleased_dependencies
+    return json.dumps(body)
+
+
+def test_parses_release_dependencies_unreleased_problem_in_order():
+    body = _release_dependencies_unreleased(
+        [
+            {
+                "registry": "exchange.epistola.app",
+                "namespace": "acme-corp",
+                "catalogKey": "branding",
+                "releaseId": "r4t8w2nc",
+                "releaseName": "House style 2027",
+            },
+            {
+                "registry": "registry.gemeente-x.nl",
+                "namespace": "huisstijl",
+                "catalogKey": "fonts",
+                "releaseId": "h3v9p6db",
+                "releaseName": "New typefaces, round 2",
+            },
+        ]
+    )
+    exc = parse_problem(body, 409)
+    assert exc is not None
+    assert exc.type_slug == KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED
+    assert exc.is_release_dependencies_unreleased_problem
+    assert not exc.is_release_dependencies_missing_problem
+    assert exc.unreleased_dependencies == [
+        UnreleasedDependency(
+            "exchange.epistola.app",
+            "acme-corp",
+            "branding",
+            "r4t8w2nc",
+            "House style 2027",
+        ),
+        UnreleasedDependency(
+            "registry.gemeente-x.nl",
+            "huisstijl",
+            "fonts",
+            "h3v9p6db",
+            "New typefaces, round 2",
+        ),
+    ]
+    assert exc.unreleased_dependencies[0].release_id == "r4t8w2nc"
+    assert exc.unreleased_dependencies[1].release_name == "New typefaces, round 2"
+
+
+def test_another_problem_reports_no_unreleased_dependencies():
+    exc = parse_problem(_release_dependencies_missing(None), 409)
+    assert exc is not None
+    assert exc.unreleased_dependencies == []
+    assert not exc.is_release_dependencies_unreleased_problem
+
+
+def test_a_malformed_unreleased_dependencies_member_yields_nothing_rather_than_a_guess():
+    not_an_array = parse_problem(_release_dependencies_unreleased("not an array"), 409)
+    assert not_an_array is not None
+    assert not_an_array.type_slug == KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED
+    assert not_an_array.unreleased_dependencies == []
+
+    incomplete_entry = parse_problem(
+        _release_dependencies_unreleased(
+            [
+                {
+                    "registry": "exchange.epistola.app",
+                    "namespace": "acme-corp",
+                    "catalogKey": "branding",
+                    "releaseId": "r4t8w2nc",
+                    "releaseName": "House style 2027",
+                },
+                {"registry": "exchange.epistola.app", "releaseId": 42},
+            ]
+        ),
+        409,
+    )
+    assert incomplete_entry is not None
+    assert incomplete_entry.unreleased_dependencies == []
+
+
+def test_parses_why_a_catalog_read_only_problem_refused_the_write():
+    body = json.dumps(
+        {
+            "type": "https://epistola.app/errors/catalog-read-only",
+            "title": "Catalog Read Only",
+            "status": 409,
+            "readOnlyReason": "supplied-by-epistola",
+        }
+    )
+    exc = parse_problem(body, 409)
+    assert exc is not None
+    assert exc.type_slug == KnownProblemSlugs.CATALOG_READ_ONLY
+    assert exc.is_catalog_read_only_problem
+    assert exc.read_only_reason == "supplied-by-epistola"
+
+
+def test_a_catalog_version_behind_problem_lists_the_versions_to_acknowledge():
+    body = json.dumps({"type": "https://epistola.app/errors/catalog-version-behind", "title": "Catalog Version Behind", "status": 409, "behind": ["1.5.0", "1.6.0"]})
+    exc = parse_problem(body, 409)
+    assert exc is not None
+    assert exc.is_catalog_version_behind_problem
+    assert exc.behind == ["1.5.0", "1.6.0"]
+
+
+def test_a_release_in_use_problem_names_what_uses_the_release():
+    body = json.dumps(
+        {
+            "type": "https://epistola.app/errors/release-in-use",
+            "title": "Release In Use",
+            "status": 409,
+            "environments": ["production"],
+            "pinnedBy": [{"registry": "exchange.epistola.app", "namespace": "acme-corp", "catalogKey": "invoices", "version": "2.1.0", "releaseId": "q8w2e4rt"}],
+        }
+    )
+    exc = parse_problem(body, 409)
+    assert exc is not None
+    assert exc.is_release_in_use_problem
+    assert exc.environments == ["production"]
+    assert exc.pinned_by == [CatalogReleaseRef("exchange.epistola.app", "acme-corp", "invoices", "2.1.0", "q8w2e4rt")]
+
+
+def test_an_ambiguous_variant_problem_lists_the_tied_variants():
+    body = json.dumps({"type": "https://epistola.app/errors/ambiguous-variant", "title": "Ambiguous Variant", "status": 409, "tiedVariants": ["english", "english-legal"]})
+    exc = parse_problem(body, 409)
+    assert exc is not None
+    assert exc.is_ambiguous_variant_problem
+    assert not exc.is_release_in_use_problem
+    assert exc.tied_variants == ["english", "english-legal"]
+
+
+def test_a_forbidden_problem_says_what_was_refused():
+    body = json.dumps({"type": "https://epistola.app/errors/forbidden", "title": "Forbidden", "status": 403, "requiredPermission": "TEMPLATE_EDIT", "tenantKey": "acme-corp"})
+    exc = parse_problem(body, 403)
+    assert exc is not None
+    assert exc.is_forbidden_problem
+    assert exc.required_permission == "TEMPLATE_EDIT"
+    assert exc.refused_tenant_key == "acme-corp"
+    assert exc.required_platform_role is None
+    assert exc.refusal_reason is None
+
+    by_policy = parse_problem(json.dumps({"type": "https://epistola.app/errors/forbidden", "title": "Forbidden", "status": 403, "reason": "Only the release board deploys to production environments."}), 403)
+    assert by_policy is not None
+    assert by_policy.refusal_reason == "Only the release board deploys to production environments."
+    assert by_policy.required_permission is None
+
+
+def test_the_forbidden_members_are_read_from_a_forbidden_problem_only():
+    exc = parse_problem(json.dumps({"type": "https://epistola.app/errors/conflict", "title": "Conflict", "status": 409, "tenantKey": "acme-corp", "reason": "x"}), 409)
+    assert exc is not None
+    assert not exc.is_forbidden_problem
+    assert exc.refused_tenant_key is None
+    assert exc.refusal_reason is None
+
+
+def test_a_read_only_reason_that_is_not_a_string_reads_as_none():
+    not_a_string = parse_problem(json.dumps({"title": "Catalog Read Only", "status": 409, "readOnlyReason": 7}), 409)
+    plain = parse_problem(json.dumps({"title": "Conflict", "status": 409}), 409)
+    for exc in (not_a_string, plain):
+        assert exc is not None
+        assert exc.read_only_reason is None
+        assert not exc.is_catalog_read_only_problem
+
+
+def test_parses_the_unresolved_conflicts_of_a_merge_in_order():
+    body = json.dumps(
+        {
+            "type": "https://epistola.app/errors/merge-conflicts-unresolved",
+            "title": "Merge Conflicts Unresolved",
+            "status": 409,
+            "unresolvedConflicts": ["stencil/footer", 7, "template/invoice"],
+        }
+    )
+    exc = parse_problem(body, 409)
+    assert exc is not None
+    assert exc.type_slug == KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED
+    assert exc.is_merge_conflicts_unresolved_problem
+    assert exc.unresolved_conflicts == ["stencil/footer", "template/invoice"]
+
+    plain = parse_problem(json.dumps({"title": "Conflict", "status": 409}), 409)
+    assert plain is not None
+    assert plain.unresolved_conflicts == []
+    assert not plain.is_merge_conflicts_unresolved_problem
+
+
+def test_parses_the_release_a_merge_base_missing_problem_asks_for_and_no_other_version():
+    body = json.dumps(
+        {
+            "type": "https://epistola.app/errors/merge-base-missing",
+            "title": "Merge Base Missing",
+            "status": 409,
+            "version": "1.0.0",
+            "fingerprint": "v5:9999999999999999999999999999999999999999999999999999999999999999",
+        }
+    )
+    exc = parse_problem(body, 409)
+    assert exc is not None
+    assert exc.type_slug == KnownProblemSlugs.MERGE_BASE_MISSING
+    assert exc.is_merge_base_missing_problem
+    assert exc.missing_base_version == "1.0.0"
+    assert exc.missing_base_fingerprint == "v5:9999999999999999999999999999999999999999999999999999999999999999"
+
+    other = parse_problem(
+        json.dumps(
+            {
+                "type": "https://epistola.app/errors/catalog-schema-too-old",
+                "title": "Too old",
+                "status": 409,
+                "version": "4",
+            }
+        ),
+        409,
+    )
+    assert other is not None
+    assert other.missing_base_version is None
+    assert other.missing_base_fingerprint is None
+    assert not other.is_merge_base_missing_problem

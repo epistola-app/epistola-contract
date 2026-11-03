@@ -40,24 +40,28 @@ var http = new EpistolaHttpClientBuilder()
     .Build();
 
 var templates = new TemplatesApi(http, "https://epistola.example.com/api");
-var template = templates.GetTemplate("my-tenant", "default", "monthly-invoice");
+// Catalog content is addressed by registry, namespace, catalog key and release (its version, or its releaseId).
+// The registry `~` is the server's default registry; another is named in full ("acme.com").
+var template = templates.GetTemplate("my-tenant", "~", "acme-corp", "default", "1.4.0", "monthly-invoice");
 ```
 
 The builder always installs two corrections the C# generator gives no way to configure on the model:
 a handler that rewrites the request `Content-Type` to the versioned Epistola media type
-`application/vnd.epistola.v1+json`, and one that **drops top-level properties you never set** from
+`application/vnd.epistola.v2+json`, and one that **drops top-level properties you never set** from
 request bodies instead of sending them as `null`.
 
 The second is not cosmetic. The generated models are plain nullable properties with no way to
 distinguish "not set" from "explicitly null", so whatever the serializer does with an unset property
-becomes the request's meaning. On the API's `PATCH` operations a null is an instruction —
-`description` and `contact` are documented "null to clear", `expiresAt` as "null to remove expiry" —
-so a default serializer turned renaming a consumer into renaming it *and* erasing the rest. Nulls
-inside caller-supplied free-form data (a generation request's `data`) are left alone; they are
-yours.
+becomes the request's meaning. On the API's `PATCH` operations an omitted or null member keeps its
+value, but contracts before 2.0 documented null as "clear" on some of them (`description`,
+`contact` and `expiresAt` of a consumer, among others), so against a server built to one of those a
+default serializer turned renaming a consumer into renaming it *and* erasing the rest. Nulls inside
+caller-supplied free-form data (a generation request's `data`) are left alone; they are yours.
 
-The trade is that clearing a field is not expressible — but it never was, since you could not clear
-one field without clearing every other you had not set.
+Removing a value never relies on null. An empty string removes an optional text member
+(`Description = ""`), an empty array or object replaces a list or a map with nothing, and a member
+that has neither has an explicit flag (`ClearExpiresAt = true`, `ClearDefaultTheme = true`,
+`ClearCodeListBinding = true`).
 
 ## Client identity
 
@@ -72,8 +76,7 @@ X-EP-Node-Id: my-pod-123
 ## Authentication
 
 Static tenant API keys are the supported method. `.ApiKey("epk_...")` sets
-`Authorization: ApiKey <key>`. The legacy `X-API-Key` header remains supported for existing
-integrations, but is deprecated. Some Epistola Suite deployments may disable API-key authentication
+`Authorization: ApiKey <key>`. Some Epistola Suite deployments may disable API-key authentication
 entirely; with `InstallProblemDetailHandler()`, switch on `ProblemDetailException.TypeSlug ==
 KnownProblemSlugs.API_KEY_AUTH_DISABLED` and guide the caller to JWT auth.
 
@@ -95,7 +98,7 @@ using Epistola.Client.Error;
 
 try
 {
-    templates.GetTemplate("my-tenant", "default", "unknown");
+    templates.GetTemplate("my-tenant", "~", "acme-corp", "default", "1.4.0", "unknown");
 }
 catch (ProblemDetailException e)
 {
@@ -107,15 +110,134 @@ catch (ProblemDetailException e)
         case KnownProblemSlugs.VALIDATION_ERROR:
             foreach (var err in e.Errors) Console.WriteLine($"{err.Field}: {err.Message}");
             break;
-        default:                                 // always keep a default branch
-            Console.WriteLine($"{e.ProblemStatus} {e.Title}");
+        case KnownProblemSlugs.CATALOG_VERSION_BEHIND:   // ReleaseCatalogDraft: name these in AcknowledgedBehind
+            Console.WriteLine($"the draft is behind {string.Join(", ", e.Behind)}");
+            break;
+        case KnownProblemSlugs.RELEASE_IN_USE:           // DeleteCatalogRelease
+            Console.WriteLine($"deployed to {string.Join(", ", e.Environments)}; pinned by {string.Join(", ", e.PinnedBy)}");
+            break;
+        case KnownProblemSlugs.AMBIGUOUS_VARIANT:        // GenerateDocument, PreviewDocument: name one by VariantKey
+            Console.WriteLine($"several variants match: {string.Join(", ", e.TiedVariants)}");
+            break;
+        case KnownProblemSlugs.FORBIDDEN:                // any refused authorization
+            Console.WriteLine(e.RequiredPermission != null
+                ? $"grant a role with {e.RequiredPermission} in {e.RefusedTenantKey}"
+                : e.RefusalReason ?? e.Detail);
+            break;
+        default:                                 // always keep a default branch: a type this client
+            Console.WriteLine($"{e.ProblemStatus} {e.Title}");  // does not know is handled by its status
             break;
     }
 }
 ```
 
+A deployment refused because releases of other catalogs it renders with (the releases it pins)
+cannot be had is a `release-dependencies-missing` problem. `MissingDependencies` lists each missing release and why,
+with `Reason` kept as the string the server sent (compare against `MissingDependency.Reasons`):
+
+```csharp
+try
+{
+    environments.DeployCatalogRelease("my-tenant", "production", "~", "acme-corp", "letters", "1.4.0",
+        includeDependencies: false);
+}
+catch (ProblemDetailException e) when (e.TypeSlug == KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING)
+{
+    foreach (var d in e.MissingDependencies)
+        Console.WriteLine($"{d.Registry}/{d.Namespace}/{d.CatalogKey}@{d.Version}: {d.Reason}");
+    // "unavailable": the release could not be fetched from its registry or a mirror, or not verified
+}
+```
+
+Releasing a draft whose dependency declarations name drafts of other catalogs, without
+`releaseDependencies`, is a `release-dependencies-unreleased` problem. `UnreleasedDependencies` lists
+each such draft:
+
+```csharp
+catch (ProblemDetailException e) when (e.TypeSlug == KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED)
+{
+    foreach (var d in e.UnreleasedDependencies)
+        Console.WriteLine($"{d.Registry}/{d.Namespace}/{d.CatalogKey}: draft {d.ReleaseName} ({d.ReleaseId})");
+}
+```
+
+Any write to a catalog that cannot be changed in this installation (`CatalogDto.Editable` is false)
+is a `catalog-read-only` problem. `ReadOnlyReason` says why, as the string the server sent:
+`editing-disabled` (the installation only receives and runs releases) or `supplied-by-epistola`
+(the server supplies the catalog):
+
+```csharp
+catch (ProblemDetailException e) when (e.TypeSlug == KnownProblemSlugs.CATALOG_READ_ONLY)
+{
+    Console.WriteLine($"catalog cannot be changed here: {e.ReadOnlyReason}");
+}
+```
+
+Merging a release into a draft (`MergeIntoCatalogDraft`, alpha) with conflicts that have no
+resolution is a `merge-conflicts-unresolved` problem. `UnresolvedConflicts` lists each as
+`resourceType/resourceKey`:
+
+```csharp
+catch (ProblemDetailException e) when (e.TypeSlug == KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED)
+{
+    foreach (var conflict in e.UnresolvedConflicts)
+        Console.WriteLine($"needs ours or theirs: {conflict}");
+}
+```
+
+A merge that sent the preview's `Token` as `ExpectedToken` is refused with
+`merge-preview-outdated` when the draft or the release changed since that preview: preview again.
+A merge whose merge base this installation does not have is refused with `merge-base-missing`;
+`MissingBaseVersion` and `MissingBaseFingerprint` name the release to install first:
+
+```csharp
+catch (ProblemDetailException e) when (e.IsMergeBaseMissingProblem)
+{
+    Console.WriteLine($"install {e.MissingBaseVersion} ({e.MissingBaseFingerprint}) first");
+}
+```
+
+Importing an archive or installing a release (`ImportCatalog`, `InstallCatalogRelease`) whose
+release renders with rendering defaults this installation does not have is refused with
+`catalog-rendering-defaults-too-new` (400; the body's `renderingDefaultsVersion` and
+`supportedVersion` say which): upgrade Epistola to receive it.
+
+Publishing a release to a release registry (`PublishReleaseToRegistry`, alpha) is refused with
+`release-number-taken` when the registry holds that version with other content, with
+`namespace-not-granted` when the registry (the Exchange) does not grant the catalog's namespace,
+and a registry the installation does not have is `release-registry-not-found`. Receiving a release
+(`ImportCatalog`, `InstallCatalogRelease`, `InstallRegistryRelease`) is refused with
+`release-number-taken` too when the tenant has that version, or one the release pins, with another
+fingerprint, or its release id names another release or a draft of the catalog: one number and one
+id name one release.
+
+Listing or installing the releases a catalog's source offers fails with
+`catalog-source-unavailable` when that source cannot be used: 503 when it could not be reached or
+timed out (a `Retry-After` header may say when to try again), 502 when it answered badly. Nothing
+is installed:
+
+```csharp
+try
+{
+    catalogs.InstallCatalogRelease("my-tenant", "~", "acme-corp", "letters", "1.5.0");
+}
+catch (ProblemDetailException e) when (e.TypeSlug == KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE)
+{
+    Console.WriteLine($"catalog source unavailable ({e.ProblemStatus}): {e.Detail}");
+}
+```
+
 `ProblemDetailException` extends the generated `ApiException`, so existing `catch (ApiException)`
 sites keep working. Non-problem errors fall through to the generated `ApiException`.
+
+`Help` is the problem type's page with this request's context in its query, such as
+`https://epistola.app/errors/not-found?operation=getTemplate`, or `null` when the server sent none.
+Switch on the type, not on this; open it, or log it, for hints on what to do.
+
+Each field error's `Code` says why the field failed (`min-length`, `stencil-recursion`,
+`catalog-resources-not-ready`, ...), or is `null` when the server sent none. Compare it against
+`KnownValidationCodes`, generated from the contract's registry, and keep a `default` branch: new
+codes may come in a minor version.
 
 ## Document generation & result collection
 
@@ -128,13 +250,14 @@ using Epistola.Client.Collect;
 
 var collector = ResultCollector.Builder()
     .HttpClient(http)
-    .TenantId("acme-corp")
+    .TenantKey("acme-corp")
     .Handler(result =>
     {
         switch (result.Status)
         {
-            case "COMPLETED": Download(result.DocumentId, result.CorrelationId); break;
-            case "FAILED":    LogFailure(result.CorrelationId, result.Error);    break;
+            // Registry, Namespace and CatalogKey name the catalog rendered; Version is null for a draft.
+            case "completed": Download(result.DocumentId, result.CorrelationId); break;
+            case "failed":    LogFailure(result.CorrelationId, result.Error);    break;
         }
     })
     .Build();
@@ -146,6 +269,78 @@ collector.Start();          // blocks, running the adaptive poll loop; Stop() to
 the backoff when a result is expected soon. Partition helpers: `PartitionFor`, `IsMyPartition`,
 `RoutingKeyToMe`.
 
+## Releases
+
+A catalog consists of releases, each a `draft` or `released`. A catalog has any number of drafts,
+each named, on a fixed base (the release it started from), and each released on its own. A draft
+has no version until it is released and is addressed by its `ReleaseId`; releasing it keeps its id
+and its name, and it is then addressed by that id or by its version. Every catalog-content
+operation (templates, variants, stencils, themes, images, dependencies, …) takes the release after
+the catalog key; template data validation (`ValidateTemplateData`) does not. The releases
+themselves are managed through `CatalogsApi`:
+
+```csharp
+var catalogs = new CatalogsApi(http, "https://epistola.example.com/api");
+
+// Start a draft, named, as a copy of a release (`from`, which becomes its base), of another draft
+// (`from` its `ReleaseId`), or, without `from`, of the highest release. A fix to an older line is a draft
+// from a release of that line.
+var draft = catalogs.CreateCatalogRelease("my-tenant", "~", "acme-corp", "default",
+    new CreateCatalogReleaseRequest(name: "Fixes 1.4", from: "1.4.0"));
+var id = draft.ReleaseId;
+
+// The version releasing it would give it, from its changes against its base: `Needed`, or the next
+// free version of the same kind when another release already has it (`Suggested`).
+var preview = catalogs.PreviewCatalogDraftRelease("my-tenant", "~", "acme-corp", "default", id);
+Console.WriteLine($"{preview.Suggested} (needs {preview.Needed}): {string.Join("; ", preview.Reasons)}");
+
+// A draft is an independent copy: releases it does not contain are listed in `Behind`, and
+// releasing it must acknowledge each of them. Leave `version` out to release it as suggested.
+// `releaseDependencies` releases the drafts of other catalogs its dependency declarations name
+// along with it, in one transaction.
+var current = catalogs.GetCatalogRelease("my-tenant", "~", "acme-corp", "default", id);
+var released = catalogs.ReleaseCatalogDraft("my-tenant", "~", "acme-corp", "default", id,
+    new ReleaseCatalogDraftRequest(
+        notes: "Spring update",
+        acknowledgedBehind: current.Behind.Select(b => b.Version).ToList(),
+        releaseDependencies: true));
+
+// Releasing never changes other drafts; the answer names those now behind it, and the releases
+// made along with it.
+foreach (var behind in released.DraftsBehind)
+    Console.WriteLine($"{behind} does not contain {released.Release.Version}");
+foreach (var dependency in released.ReleasedDependencies)
+    Console.WriteLine($"also released {dependency.CatalogKey} {dependency.Version}");
+```
+
+A draft's `Version` is null, and a preview's `ChangeKind` is null when the draft has no base to
+compare with.
+
+Generated members take the plain PascalCase of their JSON name: `version` is `Version`, `base` is
+`Base`, `namespace` is `Namespace`. Parameters take the camelCase name; `base` and `namespace` are
+C# keywords, so those parameters are `@base` and `@namespace`, which matters only when you pass them
+by name:
+
+```csharp
+var requirement = new CatalogDependencyRequirement(@namespace: "epistola", catalogKey: "system", version: "1.3.0");
+templates.ListTemplates(tenantKey: "my-tenant", registry: "~", @namespace: "acme-corp", catalogKey: "default", release: "1.4.0");
+```
+
+## Response headers and conditional updates
+
+Each operation also has a `…WithHttpInfo` variant whose `ApiResponse<T>.Headers` carries the
+response headers: the `Location` of what a create made (and of the job `GenerateDocument` and
+`GenerateDocumentBatch` accepted), and the `ETag` of a resource. Pass that `ETag` back unchanged as
+`ifMatch` on its update; when someone changed the resource in between, the update is refused with a
+412 `resource-modified` problem:
+
+```csharp
+var read = catalogs.GetCatalogReleaseWithHttpInfo("my-tenant", "~", "acme-corp", "default", id);
+var etag = read.Headers["ETag"][0];
+catalogs.UpdateCatalogRelease("my-tenant", "~", "acme-corp", "default", id,
+    new UpdateCatalogReleaseRequest(name: "Fixes 1.4 (spring)"), ifMatch: etag);
+```
+
 ## Uploading files
 
 Multipart operations such as `UploadImage` and `ImportCatalog` take a `FileParameter`. Give it the
@@ -156,7 +351,7 @@ using Epistola.Client.Client;
 
 using var content = File.OpenRead("logo.png");
 var image = new ImagesApi(http, "https://epistola.example.com/api").UploadImage(
-    "acme-corp", "main", new FileParameter("logo.png", "image/png", content), name: "Logo");
+    "acme-corp", "~", "acme-corp", "main", "next", new FileParameter("logo.png", "image/png", content), name: "Logo");
 ```
 
 A `FileParameter` built from a bare stream is sent as `no_name_provided`, with type
@@ -168,13 +363,15 @@ as not an image unless you also pass `mediaType`.
 Template data is checked by **Epistola**, through `validateTemplateData`. Nothing is compiled
 locally, so the package references no JSON Schema library, and the verdict cannot disagree with what
 generation will do — the server validates the same data when a job is submitted, and it also knows
-which optional fields the version being rendered actually reads.
+which optional fields the release being rendered actually reads.
 
 ```csharp
 using Epistola.Client.Validation.Schema;
 
 var validator = new TemplateSchemaValidator(new TemplatesApi(http));
-validator.Validate("my-tenant", "default", "invoice", data);   // throws TemplateDataValidationException
+// A catalog is addressed by registry, namespace and key. The registry is `~` for the server's
+// default registry (ITemplateDataValidator.DefaultRegistry), or named in full ("acme.com").
+validator.Validate("my-tenant", "~", "acme-corp", "default", "invoice", data);   // throws TemplateDataValidationException
 
 // Or around generation, which turns the server's `template-data-invalid` problem into the same exception:
 var validating = new ValidatingGenerationApi(new GenerationApi(http), new TemplatesApi(http));
@@ -193,7 +390,8 @@ To avoid a request per check — pre-flighting a large batch, say — implement
 `ITemplateDataValidator` over the library of your choice and pass it instead of the API:
 
 ```csharp
-var validator = new TemplateSchemaValidator(new MyNJsonSchemaValidator(templatesApi));
+// A template is read from a release of its catalog, so a local validator is told which one.
+var validator = new TemplateSchemaValidator(new MyNJsonSchemaValidator(templatesApi, "1.4.0"));
 ```
 
 An implementation that answers in-process leaves `PreflightsGeneration` at its default `true`, so
@@ -217,7 +415,7 @@ extension methods (from `Epistola.Client.Validation`):
 ```csharp
 using Epistola.Client.Validation;
 
-var request = new CreateTenantRequest(id: "acme-corp", name: "Acme").Validate();
+var request = new CreateTenantRequest(key: "acme-corp", name: "Acme").Validate();
 ```
 
 ## Building from source

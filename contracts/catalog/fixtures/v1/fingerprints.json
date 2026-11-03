@@ -1,14 +1,25 @@
 {
   "fixtureVersion": 1,
   "catalogFingerprint": "f696120480b9edd317f2fc127f74eec4b621e2e95fe4ac235ccddfb820ddedb5",
-  "currentCatalogFingerprint": "026ef55bf700eb6a6e976a241e2f7116d6b5fcc819e4d36562c385ccef7ccf7e",
+  "currentCatalogFingerprint": "4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb",
   "catalogFingerprints": {
     "V1": "f696120480b9edd317f2fc127f74eec4b621e2e95fe4ac235ccddfb820ddedb5",
     "V2": "54ddd6d47b9b07c638c14ea262c4127b503b785664826da06e4d06a077cc3e03",
     "V3": "54ddd6d47b9b07c638c14ea262c4127b503b785664826da06e4d06a077cc3e03",
-    "V4": "026ef55bf700eb6a6e976a241e2f7116d6b5fcc819e4d36562c385ccef7ccf7e"
+    "V4": "026ef55bf700eb6a6e976a241e2f7116d6b5fcc819e4d36562c385ccef7ccf7e",
+    "V5": "720855657992f90e5b13423c36fe086cd09eaf285f1133299a7b0ab0bc725ac1",
+    "V6": "4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb"
+  },
+  "currentWireV8CatalogFingerprint": "9b0178630514aef88d0b0c94d15e31557971fb7c0602208a7ad26d9261ba6350",
+  "wireV8CatalogFingerprints": {
+    "V5": "883cd88cbb9e6c2dc125383691ea3a6828e9c5b0c9fa519fc432a049e329d746",
+    "V6": "9b0178630514aef88d0b0c94d15e31557971fb7c0602208a7ad26d9261ba6350"
   },
   "resourceFingerprints": {
     "theme/default": "30edf3c18acf6882267ad37c7cddd60f12b2536c3517c618d36f9ce0610b3e95"
+  },
+  "completeWireV8ResourceFingerprints": {
+    "template/letter": "5e7e91c8d51980bfa1795e7eb668bf058af86988048368bd71c1416a550d4d70",
+    "theme/default": "2e5f86b774ffafabac9116a067dcef62d8eb246bda740c312c783a3132303766"
   }
 }

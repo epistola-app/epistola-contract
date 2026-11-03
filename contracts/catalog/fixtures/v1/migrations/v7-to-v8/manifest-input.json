@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 7,
+  "catalog": {
+    "slug": "letters",
+    "name": "Letters",
+    "description": "Catalog-v7 manifest that names other catalogs",
+    "attributes": [],
+    "keywords": [
+      "letters"
+    ],
+    "presentation": null,
+    "license": null
+  },
+  "publisher": {
+    "name": "Acme"
+  },
+  "release": {
+    "version": "2.1.0"
+  },
+  "resources": [],
+  "dependencies": [
+    {
+      "type": "theme",
+      "catalogKey": "shared",
+      "slug": "corporate"
+    },
+    {
+      "type": "stencil",
+      "catalogKey": "shared",
+      "slug": "address-block"
+    },
+    {
+      "type": "image",
+      "catalogKey": "brand",
+      "slug": "logo"
+    }
+  ]
+}

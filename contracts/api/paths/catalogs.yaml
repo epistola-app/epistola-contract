@@ -1,32 +1,30 @@
 catalogs:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
 
   get:
     operationId: listCatalogs
     summary: List catalogs for a tenant
-    description: Returns all catalogs (authored and subscribed) for the specified tenant.
+    description: |
+      Returns all catalogs of the specified tenant, each with whether it can be changed in this
+      installation (`editable`, and `readOnlyReason` when not) and where its releases come from
+      (`source`). A catalog does not list its releases or drafts: `listCatalogReleases` does.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_VIEW]
     parameters:
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
-      - $ref: '../components/parameters/sorting.yaml#/Sort'
-      - $ref: '../components/parameters/sorting.yaml#/Direction'
     responses:
       '200':
         description: List of catalogs
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/CatalogListResponse'
       '400':
@@ -38,95 +36,50 @@ catalogs:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
-catalog-upgrade-preview:
+catalog-available-releases:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the SUBSCRIBED catalog
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
 
   get:
-    operationId: previewCatalogUpgrade
-    summary: Preview a catalog upgrade
+    operationId: listAvailableCatalogReleases
+    summary: List the releases a catalog's source offers that the tenant has not installed
     description: |
-      Preview what upgrading a SUBSCRIBED catalog to its source's latest
-      release would do, **without applying it**. Re-fetches the source
-      manifest and diffs it against the installed release (source-vs-source):
-      added / removed / changed / unchanged resources (each `type/slug`), plus
-      any cross-catalog conflicts that would block removals.
+      Read-only. Lists every release of a catalog that its source (`CatalogDto.source`: an exchange,
+      a registry, or a mirror of one the server is configured with) offers and the tenant has not
+      installed,
+      lowest first. Not only those above the highest installed release: a fix to an older line
+      (`1.4.1`) is listed while the tenant has `2.0.0`.
 
-      Read-only. Apply the returned change set with `POST .../upgrade`.
+      For each, the release it is compared to (`comparedTo`): the closest installed release whose
+      version is below it, or null when the tenant has none below it. What it added, modified and removed
+      against `comparedTo` (everything added when `comparedTo` is null), and the releases of other
+      catalogs it pins, each with whether the tenant has it already.
+
+      Nothing is installed: `POST .../available-releases/{version}/install` installs one of
+      them, beside the others. A catalog without a source (`source` null) is refused with 409
+      `conflict`. It works whether or not the catalog can be changed: receiving releases is not
+      changing the catalog. When the source cannot be reached, or answers with an error or with something
+      that is not a valid answer, the request fails with `catalog-source-unavailable`: 503 when it
+      could not be reached or did not answer in time, possibly with `Retry-After`, and 502 when it
+      answered badly.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_VIEW]
     responses:
       '200':
-        description: The upgrade diff.
+        description: The releases the source offers that the tenant has not installed
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
-              $ref: '../components/schemas/catalogs.yaml#/CatalogUpgradeDiff'
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
-
-catalog-release:
-  parameters:
-    - name: tenantId
-      in: path
-      required: true
-      description: Unique slug identifier of the tenant
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the AUTHORED catalog
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-  post:
-    operationId: releaseCatalog
-    summary: Release an authored catalog
-    description: Cut a new immutable SemVer release for an AUTHORED catalog.
-    tags:
-      - Catalogs
-    x-required-permissions: [TEMPLATE_PUBLISH]
-    requestBody:
-      required: true
-      content:
-        application/vnd.epistola.v1+json:
-          schema:
-            $ref: '../components/schemas/catalogs.yaml#/ReleaseCatalogRequest'
-    responses:
-      '200':
-        description: Catalog released.
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/schemas/catalogs.yaml#/ReleaseCatalogResponse'
+              $ref: '../components/schemas/catalogs.yaml#/AvailableCatalogReleases'
       '400':
         $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
@@ -137,57 +90,566 @@ catalog-release:
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
         $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+      '502':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogSourceBadGatewayError'
+      '503':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogSourceUnavailableError'
 
-catalog-upgrade:
+catalog-available-release-install:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - name: version
       in: path
       required: true
-      description: Slug identifier of the SUBSCRIBED catalog
+      description: The version of the release to install, one the source offers
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+        $ref: '../components/schemas/identifiers.yaml#/ReleaseVersion'
   post:
-    operationId: upgradeCatalog
-    summary: Upgrade a subscribed catalog
+    operationId: installCatalogRelease
+    summary: Install a release of a catalog from its source
     description: |
-      Re-fetch the source catalog and apply an upgrade to an existing SUBSCRIBED
-      catalog.
+      Install a release of a catalog fetched from its source (`CatalogDto.source`), exactly as
+      `importCatalog` installs the release an archive carries. It is fetched from the source,
+      through a mirror of it the server is configured with, and installed as an immutable release, side by side
+      with the releases of the catalog the tenant has, whether its version is above theirs or below.
+      Nothing is updated in place and nothing is removed: the releases installed before stay, and
+      every draft, deployment and catalog that uses them keeps doing so. Which release an
+      environment serves is decided by deploying it (`deployCatalogRelease`).
+      `GET .../available-releases` lists the releases the source offers that the tenant lacks.
 
-      The whole manifest is reconciled: resources added since the installed release are
-      installed, changed ones are updated in place, and resources the publisher no longer
-      publishes are removed — the last only when nothing outside the catalog still references
-      them, otherwise the upgrade is rejected and nothing changes. Use
-      `GET .../upgrade-preview` to see all three before applying.
+      - **A release the tenant does not have** is installed (`newlyInstalled: true`).
+      - **The same version with the same fingerprint** is the release the tenant has already: nothing
+        changes (`newlyInstalled: false`).
+      - **The same version with a different fingerprint** is different content under one name: the
+        install is refused with 409 `release-number-taken`, and nothing changes. So is a release
+        whose id another release or a draft of the catalog has here: one number and one id name
+        one release.
 
-      `includeNewSlugs` on the request body is deprecated and ignored.
+      The releases of other catalogs the release pins (`catalogDependencies`), directly or through
+      other pins, are installed first, each before every release that pins it, as an import
+      installs the releases an archive carries: those the tenant lacks are fetched and installed
+      (`installedDependencies`), each in a catalog the install creates when the tenant does not
+      have that catalog; those it has with the same fingerprint are left alone (`presentDependencies`). One
+      the tenant has under the same version with a different fingerprint refuses the install with
+      409 `release-number-taken`; one that cannot be fetched, or does not match its pin's
+      `releaseFingerprint`, refuses it with 409 `release-dependencies-missing`, listing each
+      (`unavailable`). A release whose `release.metadata` names rendering defaults this
+      installation does not have, newer or unknown, is refused with 400
+      `catalog-rendering-defaults-too-new` before anything is written, as `importCatalog` refuses it.
+      Installing is all or nothing, in one transaction.
+
+      A catalog without a source (`source` null) is refused with 409 `conflict`; whether the
+      catalog can be changed does not matter, since receiving a release changes no draft. A
+      `version` the source does not offer is refused with 404 `not-found`. When the
+      catalog's source cannot be reached, or answers with an error or with something that is not a
+      valid answer, the request fails with `catalog-source-unavailable` and nothing is installed:
+      503 when it could not be reached or did not answer in time, possibly with `Retry-After`, and
+      502 when it answered badly.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_MANAGE]
-    requestBody:
-      required: false
-      content:
-        application/vnd.epistola.v1+json:
-          schema:
-            $ref: '../components/schemas/catalogs.yaml#/UpgradeCatalogRequest'
     responses:
       '200':
-        description: Upgrade result.
+        description: The release is installed, or was already present
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
-              $ref: '../components/schemas/catalogs.yaml#/UpgradeCatalogResponse'
+              $ref: '../components/schemas/catalogs.yaml#/InstallCatalogReleaseResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogInstallBadRequestError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ReleaseDependenciesMissingError'
+      '502':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogSourceBadGatewayError'
+      '503':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogSourceUnavailableError'
+
+catalog-changes:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
+
+  get:
+    operationId: getCatalogChanges
+    summary: List a release's changes since its base
+    description: |
+      What differs from its base, the release the draft started from: every resource of the release
+      that is `new`, `modified` or `ready`, and the resources removed since the base (`changes`,
+      each marked `mergedForReview` when it holds merged content no one has marked ready); and its
+      catalog-level content outside the resources (`catalogChanges`): each dependency declaration
+      added, removed or re-pinned, by its alias, and its default theme, presets and license when
+      they changed. Together that is what the release's content hash covers; the catalog's
+      presentation (its name, description and the like) is not content and is not listed.
+
+      For a draft, `releasable` says whether releasing it would be accepted now: something changed,
+      and every changed resource is ready, among the rest `CatalogChangesDto.releasable` lists.
+      Once released it has no changes and is not releasable.
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_VIEW]
+    responses:
+      '200':
+        description: The release's changes
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogChangesDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+catalog-mark-ready:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
+
+  post:
+    operationId: markCatalogReady
+    summary: Mark every changed resource of a draft ready
+    description: |
+      Marks each `new` or `modified` resource of the draft ready in one action, and returns the
+      changes that remain. Refused with 409 outside a draft.
+    tags:
+      - Catalogs
+    x-required-permissions: [TEMPLATE_EDIT, STENCIL_EDIT]
+    responses:
+      '200':
+        description: The draft's changes after marking ready
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogChangesDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
+
+catalog-dependencies:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
+
+  get:
+    operationId: listCatalogDependencies
+    summary: List the catalogs a release depends on
+    description: |
+      The dependencies declared in the release, each under its alias, with the catalog's name and
+      the exact release it pins, or, in a draft, the draft of it the draft uses. A resource can
+      reference another catalog's resources only through a declared dependency, by its alias.
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_VIEW]
+    responses:
+      '200':
+        description: The declared dependencies
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogDependencyListResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+  put:
+    operationId: updateCatalogDependencies
+    summary: Replace the catalogs a draft depends on
+    description: |
+      Replaces the dependencies declared in a draft. The change is released
+      with the draft, like any other change. Each catalog is declared at most once, with the exact
+      release the catalog renders with (`version`), so a release renders with exactly the
+      releases its dependencies pin. A declaration names an exact release, never a range.
+
+      Each declaration gives the catalog an **alias** (`alias`, by default the catalog's key), by
+      which the draft's content and the references this API reports name it: unique among the
+      declarations and never the draft's own catalog key, or the request is refused with 400.
+      Because content names the alias, pinning another release, or another catalog under the same
+      alias, changes no content. Changing an alias does not rewrite the content that names the old
+      one: releasing is refused while a resource names an alias no declaration gives.
+
+      In a draft, a declaration may name a **draft** of the other catalog instead (`releaseId`), to
+      build on work that is not released yet: this draft then renders with that draft, live. A
+      release never pins a draft, so releasing this one is refused until that draft is released,
+      or the release takes it along (`releaseDependencies` on `releaseCatalogDraft`).
+
+      Refused with 409 outside a draft, and with 409 `catalog-read-only` when the catalog cannot be
+      changed in this installation.
+
+      Send the `ETag` from `listCatalogDependencies` or `getCatalogRelease` as `If-Match` to have
+      the update refused with 412 `resource-modified` if the draft's settings or dependency
+      declarations changed since; without it, the last write wins.
+    tags:
+      - Catalogs
+    x-required-permissions: [TEMPLATE_EDIT]
+    parameters:
+      - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v2+json:
+          schema:
+            $ref: '../components/schemas/catalogs.yaml#/UpdateCatalogDependenciesRequest'
+    responses:
+      '200':
+        description: The declared dependencies after the change
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogDependencyListResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
+      '412':
+        $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
+
+catalog-releases:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+
+  get:
+    operationId: listCatalogReleases
+    summary: List a catalog's releases
+    description: |
+      The catalog's releases, drafts included: its drafts, oldest first, then its released
+      releases, highest version first, each with its `status`. This is the only place a catalog's
+      drafts are listed; `?status=draft` gives only the drafts. Releases received from elsewhere
+      (imported, or installed from the catalog's source) are listed like those released here.
+
+      **Finding a release by its content**: `?contentHash=` gives the releases whose content hash
+      it is (`CatalogReleaseDto.contentHash`), highest version first: every number in the catalog
+      that names that content, since several can (a release whose changes restore an earlier one's
+      content, or one received again under another number), and an empty list when none does,
+      never 404. A draft has no content hash and is never listed by it, and neither is a release
+      the server has none for yet. The filter combines with `status` and paging.
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_VIEW]
+    parameters:
+      - name: status
+        in: query
+        required: false
+        description: Only releases with this status. Omitted, every release.
+        schema:
+          $ref: '../components/schemas/catalogs.yaml#/CatalogReleaseStatus'
+      - name: contentHash
+        in: query
+        required: false
+        description: |
+          Only the releases with this content hash (`ContentHash`, `v6:` and 64 lowercase hex
+          digits); anything else is refused with 400. Omitted, every release.
+        schema:
+          $ref: '../components/schemas/identifiers.yaml#/ContentHash'
+        example: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
+      - $ref: '../components/parameters/pagination.yaml#/Page'
+      - $ref: '../components/parameters/pagination.yaml#/Size'
+    responses:
+      '200':
+        description: The catalog's releases
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogReleaseListResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+  post:
+    operationId: createCatalogRelease
+    summary: Start a draft release
+    description: |
+      Starts a release of a catalog, always as a draft. A catalog has any number of
+      drafts, each named, and each released on its own. A draft has no version until it is
+      released, and keeps its `releaseId` and its name when it is.
+
+      - With `from` a released release, it starts as a copy of it, which is its base. A fix to an
+        older line is a draft from a release of that line (`1.4.0`, released as `1.4.1` while
+        `2.0.0` exists).
+      - With `from` another draft's `releaseId`, it starts as a copy of that draft, unreleased
+        changes included, on that draft's base.
+      - Without `from`, it starts as a copy of the catalog's highest release, or empty,
+        with no base, when the catalog has none.
+
+
+      The base is fixed. The draft is an independent copy, and the releases it is **behind** are
+      listed (see `CatalogReleaseDto.behind`); an author can merge one in (`mergeIntoCatalogDraft`,
+      alpha).
+
+      Refused with 409 when another draft of the catalog has the name, and with 409
+      `catalog-read-only` when the catalog cannot be changed in this installation
+      (`CatalogDto.editable`).
+    tags:
+      - Catalogs
+    x-required-permissions: [TEMPLATE_EDIT]
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v2+json:
+          schema:
+            $ref: '../components/schemas/catalogs.yaml#/CreateCatalogReleaseRequest'
+    responses:
+      '201':
+        description: The draft
+        headers:
+          Location:
+            $ref: '../components/headers/location.yaml#/Location'
+            description: The draft's address, by its `releaseId` (`getCatalogRelease`)
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogReleaseDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogDraftConflictError'
+
+catalog-release:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
+
+  get:
+    operationId: getCatalogRelease
+    summary: Get a release of a catalog
+    description: |
+      One release of the catalog: a draft, by its `releaseId`, or a released one, by its
+      `releaseId` or its version, which return the same release. A released one also lists
+      the releases of other catalogs it renders with. Both list the environments that serve them.
+      The id of a discarded draft addresses nothing: 404.
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_VIEW]
+    responses:
+      '200':
+        description: The release
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogReleaseDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+  patch:
+    operationId: updateCatalogRelease
+    summary: Update a draft release's name, default theme, presets or quality binding
+    description: |
+      Changes a draft's own settings: its name, its default theme (the theme a template that names
+      none renders with), its declared presets (the block styles its content may name) and its
+      quality binding (alpha: the quality profiles its templates are checked against). Each
+      changes only when the request names it: an omitted or null member keeps its value,
+      `clearDefaultTheme: true` removes the default theme, an empty `presets` array removes the
+      presets and an empty `quality` binding removes the binding. Its address, its `releaseId`, does not change, and it keeps its name when it is
+      released. Refused with 409 for
+      a name another draft of the catalog has, with 409 `catalog-read-only` when the catalog cannot
+      be changed, and with 409 outside a draft: a released release cannot be
+      changed, its name included; with 400 for a default theme that cannot be found or names a
+      catalog the draft does not declare, for a `defaultTheme` together with `clearDefaultTheme`,
+      for presets that repeat a key, and for a quality binding `QualityBinding` refuses; with 501
+      `operation-not-implemented` for a `quality` by a server that does not support quality
+      profiles yet.
+
+      Send the `ETag` from `getCatalogRelease` or `listCatalogDependencies` as `If-Match` to have
+      the update refused with 412 `resource-modified` if the draft's settings or dependency
+      declarations changed since; without it, the last write wins.
+
+      Changing the draft's quality binding (`quality`, alpha) additionally needs `QUALITY_EDIT`:
+      a request whose `quality` differs from the current binding is refused with 403 without it.
+      A `quality` equal to the current one needs nothing more.
+    tags:
+      - Catalogs
+    x-required-permissions: [TEMPLATE_EDIT]
+    parameters:
+      - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v2+json:
+          schema:
+            $ref: '../components/schemas/catalogs.yaml#/UpdateCatalogReleaseRequest'
+    responses:
+      '200':
+        description: The draft, as changed
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogReleaseDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogDraftConflictError'
+      '412':
+        $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
+
+  delete:
+    operationId: deleteCatalogRelease
+    summary: Discard a draft release
+    description: |
+      Discards a draft and everything changed in it; its `releaseId` then addresses nothing. Where
+      the draft is deployed (`deployCatalogRelease`), the deployment ends, recorded as `undeployed`.
+
+      Refused with 409 `catalog-read-only` when the catalog cannot be changed, and with 409 outside
+      a draft (a released release is never deleted), while a dependency
+      declaration in a draft of another catalog names this draft, and while the draft alone holds a resource something outside it
+      still uses (a theme another catalog's templates or variants name, or another catalog names
+      as its default theme, `defaultTheme`; a code list another catalog's attribute binds).
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_RELEASE]
+    responses:
+      '204':
+        description: The draft is discarded
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ReleaseInUseError'
+
+catalog-release-preview:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
+
+  get:
+    operationId: previewCatalogDraftRelease
+    summary: Preview the version a draft is released as
+    description: |
+      The version releasing the draft would give it, **without releasing it**: the kind of change it
+      holds against its base, why, the version that needs (`needed`), and the version it gets
+      (`suggested`): `needed`, or the next free version of the same kind when another release
+      already has it. Refused with 409 outside a draft.
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_VIEW]
+    responses:
+      '200':
+        description: The version, and why
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogDraftReleasePreview'
       '400':
         $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
@@ -198,3 +660,349 @@ catalog-upgrade:
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
         $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+
+catalog-release-action:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
+
+  post:
+    operationId: releaseCatalogDraft
+    summary: Release a draft
+    description: |
+      Releases a draft. Any draft can be released, whatever else the catalog has released since it
+      started; a draft of a catalog that cannot be changed in this installation is refused with 409
+      `catalog-read-only`.
+
+      **The version** follows from the kind of change against the draft's base: corrections raise
+      the patch, additions the minor, breaking changes the major (`previewCatalogDraftRelease`).
+      Omitted `version`: that version, or the next free one of the same kind when another
+      release already has it (`suggested`). A given `version` must be one no release of the
+      catalog has, above the base and no lower than the changes need (`needed`), or the request is
+      refused with 400. From `1.4.0`, while `1.5.0` and `2.0.0` exist, a fix becomes `1.4.1`, and a breaking
+      redesign `3.0.0`. A given `version` may be a patch release number (`1.3.1-gemeente-x.1`,
+      `ReleaseVersion`) only where the tenant may issue it: labelled with a namespace it holds, for a
+      catalog whose namespace it does not hold (the patch rule, contract ADR 0003); which namespaces
+      a tenant holds is the installation's to know, and a number the tenant may not issue is refused
+      with 400.
+
+      A release contains the whole draft: it is refused while any resource is `new` or `modified`
+      (merged content included, `mergedForReview`), and with 409 `conflict` when nothing changed
+      against its base (`getCatalogChanges` lists no change, so `releasable` is false), since
+      releasing it would only give its base's content another number.
+
+      A draft that is **behind** (see `CatalogReleaseDto.behind`, recomputed for the version it is
+      released as) does not contain those releases' changes unless an author applied them by hand,
+      which the server cannot tell, or merged them in (`mergeIntoCatalogDraft`, alpha; a merged
+      release is not listed as behind). Releasing it is refused with 409 unless
+      `acknowledgedBehind` names every one.
+
+      Each declared dependency pins one release, and the releases it pins pin theirs in turn; the
+      release records them all. It is refused when a resource references a catalog that is not
+      declared, when a declaration pins no release or one the tenant does not have, or when two
+      paths through the dependencies pin different releases of one catalog. A declaration that
+      names a **draft** of another catalog is refused with 409 (`release-dependencies-unreleased`,
+      listing each such draft), unless `releaseDependencies` releases those drafts along with it:
+      each first, recursively, as the version its own changes need, in the same transaction, all
+      or nothing, and the new release pins them as released (`releasedDependencies`).
+
+      The draft becomes released at that version, immutable. It keeps its `releaseId`, which
+      addresses it as the version does, and its name; writes through either are refused with 409.
+      Where the draft, or a draft released along with it, is deployed, the environment now serves
+      it as released, an explicit deployment recorded as `released` in the deployment history.
+      Other drafts are untouched; the response names those the release puts behind (`draftsBehind`).
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_RELEASE]
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v2+json:
+          schema:
+            $ref: '../components/schemas/catalogs.yaml#/ReleaseCatalogDraftRequest'
+    responses:
+      '200':
+        description: The draft is released
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/ReleaseCatalogDraftResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ReleaseDependenciesUnreleasedError'
+
+catalog-release-merge-preview:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
+
+  get:
+    operationId: previewCatalogDraftMerge
+    x-experimental: true
+    summary: Preview merging a release into a draft (alpha)
+    description: |
+      **Alpha** (`x-experimental`, ADR 0005): may still change in a minor release.
+
+      What merging the release `version` into the draft would do, entry by entry, **without
+      merging it**. The entries are the resources; the release's catalog settings, its default
+      theme and its presets, each one entry of `resourceType` `catalog` (`catalog/defaultTheme`,
+      `catalog/presets`); and each catalog it declares it uses, one entry of `resourceType`
+      `catalogDependency` keyed by the declaration's alias (`catalogDependency/shared`), the name
+      the release's content gives that catalog, valued by its declaration (the catalog's name and
+      the release it pins, or the draft it names). Each is resolved like a resource, so adding,
+      removing or re-pinning one dependency is a change of its own, and only both sides changing
+      the same alias's declaration differently is a conflict. The catalog's name,
+      description and other catalog-wide details are not a release's and are not merged. Each
+      entry is compared in three states by its fingerprint: the **merge base** (see below), the
+      draft (ours) and the release (theirs):
+
+      | Ours vs base | Theirs vs base | Outcome |
+      | --- | --- | --- |
+      | same | same | not listed (`unchanged`) |
+      | changed | same | `ours`: the draft's stays |
+      | same | changed | `theirs`: taken (added, modified or removed) |
+      | changed | changed alike | not listed (`unchanged`) |
+      | changed | changed differently | `conflict`: a resolution chooses a side |
+
+      `getCatalogDraftMergeSides` returns the content of one listed entry on each side, so a
+      conflict can be resolved with content combined from them.
+
+      Each listed entry names the other listed entries it goes with (`needs`): those its value
+      refers to, such as the theme or stencil a template uses, or the dependency entry through which
+      a reference into another catalog resolves. Choosing them apart can leave a reference that does
+      not resolve, which the merge refuses with 409 `merge-refused`.
+
+      `alreadyMerged` says whether the draft already contains the release (its base, or merged
+      before). `token` identifies what the preview was computed from (the draft, the release and
+      the merge base); sent back as `expectedToken`, it makes `mergeIntoCatalogDraft` apply what
+      this preview showed or nothing. The release is named by the query parameter `version`,
+      because `{release}` in the path names the draft.
+
+      The merge compares against the **merge base**, the closest release both the draft and the
+      release descend from (ADR 0005), in that release's own content; it is reported as `base`,
+      and need not be the draft's own base. When this installation does not have it, the preview
+      still answers: `missingBase` names it (`version`, `fingerprint`), nothing is classified, and the merge is refused with `merge-base-missing` until that release
+      is installed. Refused with 409 outside a draft, and 404 when the catalog has no such
+      draft or no released release with that version.
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_VIEW]
+    parameters:
+      - name: version
+        in: query
+        required: true
+        description: The version of the release of this catalog to merge in
+        schema:
+          $ref: '../components/schemas/identifiers.yaml#/ReleaseVersion'
+    responses:
+      '200':
+        description: What the merge would do
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogDraftMergePreview'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+
+catalog-release-merge-sides:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
+
+  get:
+    operationId: getCatalogDraftMergeSides
+    x-experimental: true
+    summary: Read the three sides of one entry of a merge (alpha)
+    description: |
+      **Alpha** (`x-experimental`, ADR 0005): may still change in a minor release.
+
+      The content of one entry of merging the release `version` into the draft, on each of its
+      three sides: the merge base (`base`, read from the release `mergeBase`), the draft (`draft`,
+      ours) and the release (`release`, theirs), each in the portable catalog format
+      (`CatalogMergeEntryContent`: a resource as a resource detail carries it, a setting's or a
+      dependency's value), or null when that side does not have the entry. So that a person, an
+      assistant or a tool can combine the sides of a conflict and resolve it with the result
+      (`mergeIntoCatalogDraft`, `mergedContent`) instead of choosing one side. Changes
+      nothing.
+
+      The entry is named as the preview names it, `resourceType/resourceKey` (`entry`), and must be
+      one the preview lists (outcome `ours`, `theirs` or `conflict`); merged content resolves a
+      conflict only. `token` is the preview's: send it as the merge's `expectedToken`, so the merged
+      content is applied only to the sides it was made from.
+
+      404 when the catalog has no such draft, no released release with that version, or the
+      merge does not list the entry; 409 `merge-base-missing` when this installation does not have
+      the merge base (`version` and `fingerprint` name it), and 409 `conflict` outside a draft.
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_VIEW]
+    parameters:
+      - name: version
+        in: query
+        required: true
+        description: The version of the release of this catalog to merge in
+        schema:
+          $ref: '../components/schemas/identifiers.yaml#/ReleaseVersion'
+      - name: entry
+        in: query
+        required: true
+        description: The entry, as `resourceType/resourceKey` (`template/invoice`, `catalog/defaultTheme`, `catalogDependency/shared`)
+        schema:
+          type: string
+          minLength: 3
+          maxLength: 128
+          pattern: '^[A-Za-z][A-Za-z0-9-]{0,63}/[^/]+$'
+        example: template/invoice
+    responses:
+      '200':
+        description: The three sides of the entry
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogDraftMergeSides'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/MergeSidesConflictError'
+
+catalog-release-merge:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
+
+  post:
+    operationId: mergeIntoCatalogDraft
+    x-experimental: true
+    summary: Merge a release into a draft (alpha)
+    description: |
+      **Alpha** (`x-experimental`, ADR 0005): may still change in a minor release.
+
+      Merges a released release of the catalog into the draft, as `previewCatalogDraftMerge`
+      classifies it: what only the release changed is taken (written as the release has it, or
+      removed), what only the draft changed stays, and each conflict is resolved by `resolutions`
+      (`resourceType/resourceKey` to `ours` or `theirs`) or by `mergedContent` (to content). Taken
+      resources are marked ready, since they are released content. Merged content, combined from
+      the entry's sides (`getCatalogDraftMergeSides`) by a person, an assistant or a tool, is
+      written into the draft as given and is not marked ready: it is reviewed before the draft is
+      released. It is validated as an import validates content (the portable catalog format and the
+      server's rules), and the merge's result is checked as every merge's is. The release's catalog settings (its default theme and presets)
+      are merged the same way, each as one entry (`catalog/defaultTheme`, `catalog/presets`), and
+      so is each catalog it declares it uses (`catalogDependency/<alias>`): taken when only the
+      release changed it, kept when only the draft did, and resolved when both did. A dependency
+      the release added or re-pinned is declared as the release declares it, one it no longer
+      declares is removed, and one nothing refers to any more after the merge stays declared, as
+      editing keeps one. The catalog's name, description and other catalog-wide details are not
+      merged.
+
+      Afterwards the draft **contains** the release: it is no longer behind it
+      (`CatalogReleaseDto.behind`), and merging it again is refused. Its base does not move
+      (ADR 0002). A merge without conflicts and without changes of the draft's own leaves the draft
+      equal to the release.
+
+      All or nothing. Refused, with nothing changed:
+
+      - 400 `validation-error` when merged content is not valid for its entry (each failure's
+        `field` names the entry, `mergedContent.template/invoice`, and the path within it), or a
+        conflict is resolved both in `resolutions` and in `mergedContent`;
+      - 409 `merge-conflicts-unresolved` when a conflict has no resolution; `unresolvedConflicts`
+        lists each;
+      - 409 `merge-refused` when the result would hold a reference that does not resolve: a
+        resource the release removes that the draft still uses, or a reference left without what
+        it refers to, within the catalog or into another catalog through a declared dependency,
+        checked against the release that declaration pins (or the draft it names), the catalog's
+        default theme included; a reference into a catalog the result does not declare does not
+        resolve either. Only what the merge leaves unresolved is refused: a reference that did not
+        resolve in the draft before is the draft's own. The problem's `detail` names what is
+        missing and what to choose (keep the draft's side with `ours`, or take the release's side of
+        what it needs too);
+      - 409 `merge-preview-outdated` when the request sends `expectedToken`, the `token` of a
+        preview, and the draft or the release changed since that preview (preview again);
+      - 409 `merge-base-missing` when this installation does not have the merge base, the closest
+        release both the draft and the release descend from; `version` and `fingerprint` name the
+        release to install first (the preview names it as `missingBase`);
+      - 422 `merge-not-applicable` when the draft already contains the release (its base, or merged
+        before), or a resolution or merged content names an entry that is not a conflict;
+      - 409 `catalog-read-only` when the catalog cannot be changed in this installation
+        (`readOnlyReason`);
+      - 409 `conflict` outside a draft, and 404 when there is no such draft or release.
+    tags:
+      - Catalogs
+    x-required-permissions: [TEMPLATE_EDIT]
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v2+json:
+          schema:
+            $ref: '../components/schemas/catalogs.yaml#/MergeIntoCatalogDraftRequest'
+    responses:
+      '200':
+        description: The release is merged into the draft
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/MergeIntoCatalogDraftResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/MergeConflictError'
+      '422':
+        $ref: '../components/responses/problem-responses.yaml#/MergeNotApplicableError'

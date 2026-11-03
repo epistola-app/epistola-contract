@@ -24,7 +24,6 @@ epistola-contract/
 │   ├── paths/                     # Endpoint definitions
 │   │   ├── templates.yaml
 │   │   ├── variants.yaml
-│   │   ├── versions.yaml
 │   │   ├── generation.yaml
 │   │   └── ...
 │   └── components/
@@ -130,11 +129,11 @@ CreateExampleRequest:
 # contracts/api/paths/example.yaml
 example-collection:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
       schema:
-        type: string
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
   get:
     operationId: listExamples
     tags:
@@ -142,21 +141,45 @@ example-collection:
     responses:
       '200':
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/example.yaml#/ExampleListResponse'
 ```
 
 ### Content Type
 
-All endpoints use versioned media type: `application/vnd.epistola.v1+json`
+All endpoints use versioned media type: `application/vnd.epistola.v2+json`
 
 ### Common Patterns
 
-- **Tenant scoping**: All resources are scoped under `/v1/tenants/{tenantId}/`
-- **Slug IDs**: Use lowercase kebab-case identifiers (pattern: `^[a-z][a-z0-9]*(-[a-z0-9]+)*$`)
-- **Error responses**: Reference `../components/responses/errors.yaml#/ErrorResponse`
-- **Validation errors**: Reference `../components/responses/errors.yaml#/ValidationErrorResponse`
+- **Tenant scoping**: All resources are scoped under `/tenants/{tenantKey}/` (the server prefixes
+  `/api`); a catalog's content under `…/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/`
+- **Keys, not IDs**: a `key` is a resource's public address within its parent; an `id` is a
+  generated identifier (`documentId`, `requestId`, …). A release's `releaseId` is the
+  exception: server-assigned, yet it addresses the release, like its version once released
+- **Release, version, range**: a catalog's *release* is the object (status `draft` or `released`,
+  by `releaseId`, keeping its id and name when released); its number is always `version`, and every
+  member called `version` is one; a range is always `versionRange`. "Publish" only means making a
+  catalog available in a registry, never releasing
+- **Key and number rules are named, in `components/schemas/identifiers.yaml`**: `ResourceKey`
+  (template, variant, stencil, theme, attribute, code list, font, image, data example; 3–50, a
+  leading digit allowed because these keys used to be UUIDs; the same in catalog wire v8),
+  `TenantKey` and `Namespace` (letter first, 3–63), `CatalogKey` (3–50), `EnvironmentKey` (3–30),
+  `Registry` (a DNS name with a dot) and `RegistryOrDefault` (or `~`), `ReleaseVersion`,
+  `CatalogReleaseId`, `CatalogReleaseRef`, `Fingerprint`
+- **Never write a key or number pattern inline**: reference `identifiers.yaml#/<Rule>`; a nullable
+  use is `oneOf: [{$ref: …}, {type: 'null'}]`. The bundle inlines the rules inside
+  `multipart/form-data` bodies only (`normalize-bundle.mjs`), because generators mishandle refs there
+- **Error responses**: Reference the problem responses in
+  `../components/responses/problem-responses.yaml` (e.g. `#/NotFoundError`, `#/ConflictError`) and
+  `../components/responses/auth-errors.yaml`
+- **Validation errors**: Reference `../components/responses/problem-responses.yaml#/ValidationFailedError`
+- **Enum values** are lowercase, kebab-case when multiword (`in-progress`, `api-key`), except values
+  owned by the catalog wire format (such as `PageFormat`)
+- **Counts and timestamps**: a count of items is `total`; a last change is `lastModified`
+- **Created resources**: a 201 carries `Location`; a 202 that starts a job carries the job's `Location`
+- **Concurrency**: every update returns `ETag` and accepts `If-Match` (412 `resource-modified`); Jakarta
+  has a `…WithHttpInfo` sibling for every operation declaring `ETag` or `Location`
 
 ## API Domain Model
 
@@ -165,19 +188,42 @@ The Epistola API manages:
 1. **Tenants** - Multi-tenant isolation
 2. **Templates** - Document templates with JSON Schema for input validation
 3. **Themes** - Reusable style collections
-4. **Environments** - Deployment contexts (staging, production)
-5. **Variants** - Language/brand variations of templates
-6. **Versions** - Version lifecycle (draft → published → archived)
-7. **Generation** - Async document generation with batch support
+4. **Environments** - Deployment contexts (staging, production); each serves the releases it deploys:
+   released ones, possibly several per catalog, and at most one draft per catalog, rendered live (never in
+   an environment marked `production`). A request naming no `versionRange` gets the deployed draft, else the
+   highest release; a range or number matches releases only. Rollback is undeploying the newer release
+5. **Variants** - Language/brand variations of templates, edited in a draft release
+6. **Releases** - A draft (editable, no version) or released (immutable, with a `version`). Every
+   release has a `releaseId` and keeps it and its name when it is released; a released release is
+   addressed by either.
+   A catalog has any number of drafts, all alike: each named, started from a release (its fixed **base**) or another draft, and released on its
+   own, given its version from what it changed against its base (a fix to an older line is `1.4.1` after
+   `2.0.0`). Drafts are independent copies: nothing is merged, and a draft is **behind** releases
+   whose version is below the one it would get (above its base, or released after it started). In a
+   draft, a dependency may name another catalog's draft; releasing takes such drafts along
+   (`releaseDependencies`) or is refused (ADR 0002). Importing an archive (`importCatalog`) installs
+   the release it carries next to the catalog's other releases, never into a draft. Nothing is
+   upgraded: a catalog with a source (`CatalogDto.source`) lists the releases it offers that the
+   tenant lacks (`listAvailableCatalogReleases`, older lines included) and installs one fetched from
+   it the same way (`installCatalogRelease`), with nothing updated in place or removed; a source
+   that cannot be used is 503/502 `catalog-source-unavailable`. There are no catalog types: whether
+   a catalog can be changed is the installation's (`CatalogDto.editable`, `readOnlyReason`), and
+   every write to one that cannot is 409 `catalog-read-only`
+7. **Generation** - Async document generation with batch support, from a release, or from a draft
+   deployed to the environment the request names
 
 ### Template Hierarchy
 
 ```
 Tenant
-└── Template (with JSON Schema)
-    └── Variant (language/brand)
-        └── Version (draft/published/archived)
-            └── Activation (per environment)
+├── Catalog (identified by registry + namespace + key; `~` in a path = the default registry)
+│   └── Release (by `releaseId`; once released also by its version): draft or released
+│       │   draft (from a release, its base, or another draft)
+│       │     ──release (versioned from what changed against the base)──▶ released (immutable)
+│       └── Template (with data contract) → Variant, Stencil, Theme, …
+│           each new / modified / ready / released against the release's base
+└── Environment ─ deploys ─▶ Releases of each Catalog: releases (the highest that matches) and at
+                                most one draft (rendered when a request names no `versionRange`; not in production)
 ```
 
 ## Build System
@@ -255,6 +301,7 @@ are standalone artifacts, and the Jakarta client ships no runtime dependencies a
 | Extension | Generates | Into |
 | --- | --- | --- |
 | `x-problem-types` | `KnownProblemSlugs`, the problem-type base URI | Kotlin client, Jakarta client, server stubs |
+| `x-validation-codes` | `KnownValidationCodes` — why a field of a `validation-error` failed: constraint, template and domain codes; the template codes are held to the catalog's `TemplateValidationCodes` | every client, server stubs |
 | `x-client-identity` | `ContractIdentity` — the `X-EP-Node-Id` header name and the `User-Agent` product grammar | Kotlin client, Jakarta client, server stubs |
 | the registry's problem schemas | `ProblemExtensionMembers` — the members each problem body adds to the RFC 9457 base (`errors`, `validationErrors`) | Kotlin client, Jakarta client, server stubs |
 | the operations' content types | `ContractMediaTypes` — the versioned vendor media types, which carry the API major version | Kotlin client, Jakarta client (and the server build's `produces` rewrite) |
@@ -456,5 +503,5 @@ When a fix is needed on an older release:
 
 - `openapi.yaml` is gitignored - always regenerate with `make bundle`
 - The API version in `contracts/api/openapi.yaml` drives artifact versioning
-- All IDs use slug format (kebab-case, 3-63 chars)
+- Addresses are keys (see "Common Patterns" for the rules per kind); generated `id`s are not addresses
 - Timestamps use ISO 8601 format (`date-time`)

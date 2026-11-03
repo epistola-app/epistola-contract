@@ -56,11 +56,13 @@ const client = EpistolaClient.builder('https://epistola.example.com/api')
   .build()
 
 const templates = new TemplatesApi(client)
-const template = await templates.getTemplate({ tenantId: 'acme', catalogId: 'invoices', templateId: 'invoice' })
+const template = await templates.getTemplate({ tenantKey: 'acme', registry: '~', namespace: 'acme', catalogKey: 'invoices', release: '1.4.0', templateKey: 'invoice' })
 ```
 
-`EpistolaClient.builder(baseUrl, apiKey)` is a shorthand for the same thing. The legacy `X-API-Key`
-header is not sent: it remains supported server-side but is deprecated. Some Epistola Suite
+A catalog is addressed by its `registry`, `namespace` and `catalogKey`. `registry: '~'` addresses the
+server's default registry; any other registry is named in full (`registry: 'acme.com'`).
+
+`EpistolaClient.builder(baseUrl, apiKey)` is a shorthand for the same thing. Some Epistola Suite
 deployments disable API-key authentication entirely; switch on
 `e.typeSlug === KnownProblemSlugs.API_KEY_AUTH_DISABLED` and guide the caller to JWT auth.
 
@@ -85,10 +87,13 @@ for everything else.
 ### Partial updates
 
 The generated models are plain TypeScript interfaces, and the generated serializers drop a property
-you never set while sending one you set to `null` as `null`. On the API's `PATCH` operations, where
-the contract documents `null` as "clear this", that is exactly the distinction that matters:
+you never set while sending one you set to `null` as `null`. On the API's `PATCH` operations an
+omitted or null member keeps its value, because most generated servers cannot tell the two apart:
 `updateConsumer({ ..., updateConsumerRequest: { name: 'Billing' } })` renames the consumer and
-touches nothing else; `{ name: 'Billing', description: null }` also clears the description.
+touches nothing else, and so does `{ name: 'Billing', description: null }`. To remove a value, send
+an empty string for an optional text member (`{ description: '' }`), an empty array or object to
+replace a list or a map with nothing, or the member's explicit flag (`{ clearExpiresAt: true }`,
+`clearDefaultTheme`, `clearCodeListBinding`).
 
 ### Binary downloads
 
@@ -104,7 +109,7 @@ carries a name and a type:
 import { readFile } from 'node:fs/promises'
 
 const file = new File([await readFile('logo.png')], 'logo.png', { type: 'image/png' })
-const image = await new ImagesApi(client).uploadImage({ tenantId: 'acme-corp', catalogId: 'main', file, name: 'Logo' })
+const image = await new ImagesApi(client).uploadImage({ tenantKey: 'acme-corp', registry: '~', namespace: 'acme-corp', catalogKey: 'main', release: 'k7m2x9qa', file, name: 'Logo' })
 ```
 
 A plain `Blob` is always sent with the filename `blob`, and as `application/octet-stream` unless it
@@ -120,7 +125,7 @@ Catch `ProblemDetailException` and switch on `typeSlug` against `KnownProblemSlu
 import { KnownProblemSlugs, ProblemDetailException, ResponseError, TenantsApi } from '@epistola.app/epistola-client'
 
 try {
-  await new TenantsApi(client).getTenant({ tenantId: 'acme' })
+  await new TenantsApi(client).getTenant({ tenantKey: 'acme' })
 } catch (e) {
   if (e instanceof ProblemDetailException) {
     switch (e.typeSlug) {
@@ -137,8 +142,63 @@ try {
           for (const f of failures) log.warn(`${example} ${f.path}: ${f.message}`)
         }
         break
+      case KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING:
+        for (const d of e.missingDependencies) {                                 // 409 from deployCatalogRelease
+          log.warn(`${d.registry}/${d.namespace}/${d.catalogKey}@${d.version}: ${d.reason}`)
+        }
+        break
+      case KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED:
+        for (const d of e.unreleasedDependencies) {                              // 409 from releaseCatalogDraft
+          log.warn(`${d.registry}/${d.namespace}/${d.catalogKey}: draft ${d.releaseName} (${d.releaseId})`)
+        }
+        break
+      case KnownProblemSlugs.CATALOG_READ_ONLY:
+        // any write to a catalog that cannot be changed here
+        log.warn(`catalog cannot be changed here: ${e.readOnlyReason}`)
+        break
+      case KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED:
+        for (const conflict of e.unresolvedConflicts) log.warn(`needs ours or theirs: ${conflict}`)  // mergeIntoCatalogDraft (alpha)
+        break
+      case KnownProblemSlugs.MERGE_PREVIEW_OUTDATED:
+        log.warn('the draft or the release changed since the preview: preview again')  // expectedToken (alpha)
+        break
+      case KnownProblemSlugs.MERGE_BASE_MISSING:
+        // the merge base is not installed here: install it first, then merge again
+        log.warn(`install ${e.missingBaseVersion} (${e.missingBaseFingerprint}) first`)
+        break
+      case KnownProblemSlugs.CATALOG_VERSION_BEHIND:
+        log.warn(`the draft is behind ${e.behind.join(', ')}`)                  // releaseCatalogDraft: name them in acknowledgedBehind
+        break
+      case KnownProblemSlugs.RELEASE_IN_USE:
+        // deleteCatalogRelease: undeploy it, and release the catalogs that pin it without it
+        log.warn(`deployed to ${e.environments.join(', ')}; pinned by ${e.pinnedBy.map((r) => `${r.catalogKey}@${r.version}`).join(', ')}`)
+        break
+      case KnownProblemSlugs.AMBIGUOUS_VARIANT:
+        log.warn(`several variants match: ${e.tiedVariants.join(', ')}`)        // generateDocument, previewDocument: name one by variantKey
+        break
+      case KnownProblemSlugs.FORBIDDEN:
+        // any refused authorization: a permission in a tenant, access to a tenant, a platform role,
+        // or a policy (refusalReason), each read from this problem only
+        log.warn(`refused: missing ${e.requiredPermission} in ${e.refusedTenantKey}`)
+        break
+      case KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW:
+        // importCatalog / installCatalogRelease: the release renders with rendering defaults this
+        // installation does not have
+        log.warn(`upgrade Epistola: the release needs ${e.extensions.renderingDefaultsVersion}, this has up to ${e.extensions.supportedVersion}`)
+        break
+      case KnownProblemSlugs.RELEASE_NUMBER_TAKEN:
+        // publishReleaseToRegistry (alpha): the registry has this version with other content;
+        // importCatalog, installCatalogRelease, installRegistryRelease: the tenant has this version
+        // with another fingerprint, or this release id as another release
+        log.warn('release the changes under a new version')
+        break
+      case KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE:
+        // installCatalogRelease / listAvailableCatalogReleases: 503 when the catalog's source could
+        // not be reached (Retry-After may say when), 502 when it answered badly
+        log.warn(`catalog source unavailable (${e.problemStatus}): ${e.detail}`)
+        break
       default:
-        throw e                                                                  // unknown / framework error — fall back to e.statusCode
+        throw e                                                                  // a type this client does not know: handle it by e.problemStatus
     }
   } else if (e instanceof ResponseError) {
     // an error response without a problem document
@@ -146,10 +206,45 @@ try {
 }
 ```
 
+Each field error's `code` says why the field failed (`min-length`, `stencil-recursion`,
+`catalog-resources-not-ready`, ...), or is `undefined` when the server sent none. Compare it against
+`KnownValidationCodes`, generated from the contract's registry, and keep a `default` branch: new
+codes may come in a minor version.
+
 `ProblemDetailException` extends the generated `ResponseError`, so existing `instanceof
 ResponseError` sites keep working. It exposes `type`, `typeSlug`, `title`, `problemStatus`,
-`detail`, `instance`, `errors`, `validationErrors`, `extensions` (every member outside the RFC 9457
-base five), `statusCode`, `rawBody`, `isValidationProblem`, and `isDataModelValidationProblem`.
+`detail`, `instance`, `help` (the type's page with this request's context, such as
+`?operation=getTemplate`, or `undefined`: switch on the type, not on this, and open it for hints),
+`errors`, `validationErrors`, `missingFields`, `invalidFields`,
+`missingDependencies`, `unreleasedDependencies`, `readOnlyReason`, `unresolvedConflicts`,
+`isMergeConflictsUnresolvedProblem`, `missingBaseVersion`, `missingBaseFingerprint`,
+`isMergeBaseMissingProblem`, `behind`, `isCatalogVersionBehindProblem`, `environments`,
+`pinnedBy`, `isReleaseInUseProblem`, `tiedVariants`, `isAmbiguousVariantProblem`,
+`requiredPermission`, `refusedTenantKey`, `requiredPlatformRole`, `refusalReason`,
+`isForbiddenProblem`, `extensions` (every member
+outside the base members, RFC 9457's five and `help`), `statusCode`, `rawBody`, `isValidationProblem`,
+`isDataModelValidationProblem`, `isTemplateDataProblem`, `isReleaseDependenciesMissingProblem`,
+`isReleaseDependenciesUnreleasedProblem`, and `isCatalogReadOnlyProblem`.
+
+A `release-dependencies-unreleased` problem (409) means `releaseCatalogDraft` was refused because
+the draft's dependency declarations name drafts of other catalogs, and a release pins only
+releases. `unreleasedDependencies` lists each such draft (`registry`, `namespace`, `catalogKey`,
+`releaseId`, `releaseName`); release them first, or send `releaseDependencies: true` to release them
+along with the draft.
+
+A `release-dependencies-missing` problem (409) means `deployCatalogRelease` was refused because releases
+of other catalogs the release pins cannot be had: the tenant does not have them and they could not
+be fetched or verified. `missingDependencies` lists each, with a `reason` kept as the string the
+server sent (compare it against `MissingReleaseDependencyReason`). The dependency releases are used
+implicitly; pass `includeDependencies: true` to deploy them explicitly as well:
+
+```ts
+await new EnvironmentsApi(client).deployCatalogRelease({
+  tenantKey: 'acme', environmentKey: 'production',
+  registry: '~', namespace: 'acme', catalogKey: 'invoices', release: '1.4.0',
+  includeDependencies: true,
+})
+```
 
 ## Result collection
 
@@ -158,7 +253,7 @@ import { ResultCollector } from '@epistola.app/epistola-client'
 
 const collector = ResultCollector.builder()
   .client(client)
-  .tenantId('acme')
+  .tenantKey('acme')
   .handler(async (result) => console.log(result.requestId, result.status))
   .build()
 
@@ -176,19 +271,25 @@ whose result comes back to this node.
 Template data is checked by **Epistola**, through `validateTemplateData`. Nothing is compiled here,
 so there is no schema compiler to install, and the verdict cannot disagree with what generation will
 do — the server validates the same data when a job is submitted, and it also knows which optional
-fields the version being rendered actually reads.
+fields the release being rendered actually reads.
 
 ```ts
-import { TemplateSchemaValidator, ValidatingGenerationApi, validateCreateTenantRequest } from '@epistola.app/epistola-client'
+import { ServerTemplateDataValidator, TemplateSchemaValidator, ValidatingGenerationApi, validateCreateTenantRequest } from '@epistola.app/epistola-client'
 
 const validator = new TemplateSchemaValidator(templatesApi)
-await validator.validate('acme', 'invoices', 'invoice', data)   // throws TemplateDataValidationException
+// tenant, catalog registry (`~` for the server's default, or in full: 'acme.com'), namespace, catalog key, template
+await validator.validate('acme', '~', 'acme', 'invoices', 'invoice', data)   // throws TemplateDataValidationException
+
+// Against a particular release: a version range, an environment, or both together
+const pinned = new TemplateSchemaValidator(
+  new ServerTemplateDataValidator(templatesApi, { versionRange: '^1.4.0', environmentKey: 'production' }),
+)
 
 // Or around generation, which turns the server's `template-data-invalid` problem into the same error:
 const generation = new ValidatingGenerationApi(new GenerationApi(client), templatesApi)
 
-// A request model against the constraints the contract declares on it (slug patterns, lengths, ranges):
-validateCreateTenantRequest({ id: 'Acme Corp', name: 'Acme' })  // throws ModelValidationException
+// A request model against the constraints the contract declares on it (key patterns, lengths, ranges):
+validateCreateTenantRequest({ key: 'Acme Corp', name: 'Acme' })  // throws ModelValidationException
 ```
 
 Each failure carries a **JSON Pointer** into the data (`/customer/email`), the JSON Schema `keyword`
@@ -203,14 +304,16 @@ To avoid a request per check — pre-flighting a large batch, say — implement 
 over the compiler of your choice and pass it instead of the API:
 
 ```ts
-const validator = new TemplateSchemaValidator(new MyAjvValidator(templatesApi))
-const generation = new ValidatingGenerationApi(new GenerationApi(client), new MyAjvValidator(templatesApi))
+const validator = new TemplateSchemaValidator(new MyAjvValidator(templatesApi, '1.4.0'))
+const generation = new ValidatingGenerationApi(new GenerationApi(client), new MyAjvValidator(templatesApi, '1.4.0'))
 ```
 
 A validator that answers in-process declares `preflightsGeneration = true` (the default), so
 `ValidatingGenerationApi` checks before submitting and reports every item of a batch at once, each
 path prefixed `items[<index>]`. `TtlSchemaCache` is still exported for caching the fetched schema;
-without it a "local" validator costs a round trip per call anyway.
+without it a "local" validator costs a round trip per call anyway. Templates live in releases of
+their catalog, so a local validator fetches its schema from a release you name (`1.4.0` above): name
+the release you will render, since the server validates against that release, not against a draft.
 
 Two things an implementation owes its callers, both described on `TemplateDataValidator`: an empty
 array means the data is acceptable, and `path` is a JSON Pointer. Compilers do not agree on that

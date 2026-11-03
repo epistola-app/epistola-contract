@@ -84,14 +84,22 @@
           "type": "object",
           "properties": {
             "type": { "const": "override" },
-            "themeId": { "type": "string", "minLength": 1 },
+            "themeKey": {
+              "type": "string",
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "minLength": 3,
+              "maxLength": 50,
+              "description": "Key of the theme resource: the same rule as every resource key."
+            },
             "catalogKey": {
               "type": "string",
-              "minLength": 1,
-              "description": "Catalog containing the theme. Omitted means the same catalog as the owning template."
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+              "minLength": 3,
+              "maxLength": 50,
+              "description": "The alias of the catalog containing the theme, as the owning catalog's dependency list (catalogDependencies) declares it: the catalog key rule. Omitted means the same catalog as the owning template, which a reference never names by its own key."
             }
           },
-          "required": ["type", "themeId"],
+          "required": ["type", "themeKey"],
           "additionalProperties": false
         }
       ]

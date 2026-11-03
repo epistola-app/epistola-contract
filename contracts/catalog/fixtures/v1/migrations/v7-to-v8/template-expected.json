@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 8,
+  "resource": {
+    "type": "template",
+    "key": "letter",
+    "name": "Letter",
+    "themeKey": "corporate",
+    "themeCatalogKey": "shared",
+    "pdfaEnabled": true,
+    "dataExamples": [
+      {
+        "key": "standaard-brief",
+        "name": "Standaard brief",
+        "data": {
+          "name": "Jan"
+        }
+      },
+      {
+        "key": "standaard-brief-2",
+        "name": "standaard-brief",
+        "data": {
+          "name": "Piet"
+        }
+      },
+      {
+        "key": "arger-co",
+        "name": "Ärger & Co.",
+        "data": {
+          "name": "Klaas"
+        }
+      },
+      {
+        "key": "example",
+        "name": "!!!",
+        "data": {}
+      }
+    ],
+    "templateModel": {
+      "modelVersion": 1,
+      "root": "root",
+      "nodes": {
+        "root": {
+          "id": "root",
+          "type": "root",
+          "slots": [
+            "children"
+          ]
+        },
+        "address": {
+          "id": "address",
+          "type": "stencil",
+          "slots": [
+            "address-children"
+          ],
+          "props": {
+            "stencilKey": "address"
+          }
+        },
+        "logo": {
+          "id": "logo",
+          "type": "image",
+          "slots": [],
+          "props": {
+            "imageKey": "logo",
+            "alt": "Logo"
+          }
+        }
+      },
+      "slots": {
+        "children": {
+          "id": "children",
+          "nodeId": "root",
+          "name": "children",
+          "children": [
+            "address",
+            "logo"
+          ]
+        },
+        "address-children": {
+          "id": "address-children",
+          "nodeId": "address",
+          "name": "children",
+          "children": []
+        }
+      },
+      "themeRef": {
+        "type": "override",
+        "themeKey": "corporate",
+        "catalogKey": "shared"
+      }
+    },
+    "variants": [
+      {
+        "key": "english",
+        "name": "English",
+        "attributes": {},
+        "isDefault": true,
+        "templateModel": {
+          "modelVersion": 1,
+          "root": "root",
+          "nodes": {
+            "root": {
+              "id": "root",
+              "type": "root",
+              "slots": []
+            }
+          },
+          "slots": {},
+          "themeRef": {
+            "type": "override",
+            "themeKey": "corporate",
+            "catalogKey": "shared"
+          }
+        }
+      }
+    ]
+  }
+}

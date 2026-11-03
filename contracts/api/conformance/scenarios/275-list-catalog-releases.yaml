@@ -1,0 +1,62 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: list-catalog-releases
+title: Listing a catalog's drafts filters by status, and reads each draft's name, base and origin
+why: >
+  Drafts and released releases share one collection, told apart by `status`. The filter is a query
+  parameter with an enum value; a client that sends it in another case, or drops it, lists the
+  wrong releases. This is the only way to list a catalog's drafts: a catalog (`CatalogDto`) does
+  not list them.
+
+  A draft has no version until it is released (ADR 0002), so every `version` here is null, and a
+  draft is told apart by its `releaseId` and named. A client that cannot read a null `version` cannot
+  list a catalog's drafts at all. Nor has a draft a content hash, its content still changing, so
+  `contentHash` is null too, and no `contentHash` filter goes out that the caller did not give.
+
+  "Spring fixes" was started from release 1.5.0, its base, and is behind nothing. "Redesign 2027"
+  was copied from another draft (`createdFrom`, that draft's id) while 1.4.0 was its base, and is
+  behind release `1.5.0`: nothing is merged into a draft, so it holds 1.5.0's changes only if an
+  author applied them by hand.
+
+action:
+  name: list-catalog-releases
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    status: draft
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      items:
+        - { version: null, releaseId: k7m2x9qa, name: Spring fixes, status: draft, base: 1.5.0, createdFrom: null, behind: [], fingerprint: null, contentHash: null, dependencies: [], deployedTo: [] }
+        - { version: null, releaseId: r4t8w2nc, name: Redesign 2027, status: draft, base: 1.4.0, createdFrom: w6n4c8ze, behind: [{ version: 1.5.0, changes: [{ type: template, key: invoice, change: modified }] }], fingerprint: null, contentHash: null, dependencies: [], deployedTo: [] }
+      page: { number: 0, size: 20, total: 2, totalPages: 1 }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases
+      queryParams:
+        status: draft
+        contentHash: { absent: true }
+        page: { whenPresent: '0' }
+        size: { whenPresent: '20' }
+  report:
+    versions: null,null
+    releaseIds: k7m2x9qa,r4t8w2nc
+    # Names are free text, so they are joined with `|`.
+    names: Spring fixes|Redesign 2027
+    statuses: draft,draft
+    bases: 1.5.0,1.4.0
+    createdFrom: null,w6n4c8ze
+    # How many releases each draft is behind: "Redesign 2027" does not contain release 1.5.0.
+    behindCounts: 0,1
+    contentHashes: null,null

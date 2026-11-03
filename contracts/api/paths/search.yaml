@@ -1,0 +1,136 @@
+# Searching a tenant (alpha): its catalogs and their resources, by name.
+
+search:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+
+  get:
+    operationId: searchTenant
+    x-experimental: true
+    summary: Search the tenant's catalogs and resources by name (alpha)
+    description: |
+      **Alpha** (`x-experimental`): may still change in a minor release. Epistola Suite may not
+      implement it yet.
+
+      Finds catalogs, by name, key and description, and the resources in them, of every type, by
+      name and key (a match on the description ranks lower). Case is ignored. A resource is
+      searched in the release its catalog shows by default, never in older releases or other
+      drafts; each hit names the release it was found in, so it can be opened there.
+
+      Results are **grouped before they are paged**, so a page and its `total` count hits, not
+      rows:
+
+      - A variant is found under its template: the template is the hit, and the variants that
+        matched are listed with it (`variants`). There is no `variant` kind.
+      - One resource in several catalogs, the same type and key, is one hit that lists every
+        catalog it was found in (`catalogs`).
+
+      With `q`, hits are ordered best match first: an exact name or key, then one that starts with
+      the text, then one with a word that starts with it, one that contains it, and one that has
+      its characters in order (`invce` finds "Invoice"); the tenant's own catalogs before those the
+      server supplies, then the most recently changed. A server may also rank near matches, such as
+      a typo, which is why the order within those tiers is not fixed. Without `q`, everything the
+      filters allow, most recently changed first.
+
+      `counts` gives the number of hits of each kind under every filter but `kind`, for showing
+      the kinds a search could narrow to.
+
+      Searching needs `CATALOG_VIEW`. Each hit also needs the permission that reads its kind
+      (`TEMPLATE_VIEW` for a template or an image, `STENCIL_VIEW`, `THEME_VIEW`, `REFERENCE_VIEW`
+      for reference data and quality profiles). A hit the caller may not read is left out, and is
+      not counted in `total` or `counts`; the search is not refused for it.
+    tags:
+      - Search
+    x-required-permissions: [CATALOG_VIEW]
+    parameters:
+      - name: q
+        in: query
+        required: false
+        description: |
+          The text to search for, matched against names and keys, ignoring case. Omitted or empty:
+          no text, every hit the filters allow. It is matched as text only: a prefix such as
+          `type:template` is not a filter here (use `kind`).
+        schema:
+          type: string
+          maxLength: 200
+        example: invoice
+      - name: kind
+        in: query
+        required: false
+        description: |
+          Only hits of this kind: `catalog`, or a resource type as the portable catalog format names
+          it (`template`, `stencil`, `theme`, `attribute`, `code-list`, `font`, `image`, …). A
+          string, not an enum, as `SearchHit.kind` is: a server searches every resource type it
+          stores, so a kind added later needs no contract change. A kind the server does not know
+          matches nothing.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[a-z][a-z-]*$'
+        example: template
+      - name: registry
+        in: query
+        required: false
+        description: |
+          Only in this catalog, by its registry, together with `namespace` and `catalogKey`.
+          Omitted or `~`: the default registry. Given without `namespace` and `catalogKey`, the
+          request is refused with 400.
+        schema:
+          $ref: '../components/schemas/identifiers.yaml#/RegistryOrDefault'
+      - name: namespace
+        in: query
+        required: false
+        description: |
+          Only in this catalog, by its namespace, given with `catalogKey`; or alone, in every
+          catalog in that namespace.
+        schema:
+          $ref: '../components/schemas/identifiers.yaml#/Namespace'
+      - name: catalogKey
+        in: query
+        required: false
+        description: |
+          Only in this catalog, by its key. Requires `namespace`; without it the request is refused
+          with 400.
+        schema:
+          $ref: '../components/schemas/identifiers.yaml#/CatalogKey'
+      - name: supplied
+        in: query
+        required: false
+        description: |
+          `true`: only the catalogs the server supplies (`readOnlyReason` `supplied-by-epistola`)
+          and their resources. `false`: only the tenant's own. Omitted: both.
+        schema:
+          type: boolean
+      - name: changed
+        in: query
+        required: false
+        description: |
+          `true`: only resources that differ from the base of the release they are found in
+          (`status` `new`, `modified` or `ready`), and no catalogs. Omitted or `false`: changed or
+          not.
+        schema:
+          type: boolean
+      - $ref: '../components/parameters/sorting.yaml#/SearchSort'
+      - $ref: '../components/parameters/pagination.yaml#/Page'
+      - $ref: '../components/parameters/pagination.yaml#/Size'
+    responses:
+      '200':
+        description: A page of hits, grouped, with the number of hits of each kind
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/search.yaml#/SearchResults'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'

@@ -28,7 +28,14 @@ from epistola_client_generated import (
     ValidationError,
 )
 
-from epistola_client.error.problem_detail_exception import ProblemDetailException
+from epistola_client._generated.known_problem_slugs import KnownProblemSlugs
+from epistola_client.error import problem_types
+from epistola_client.error.problem_detail_exception import (
+    CatalogReleaseRef,
+    MissingDependency,
+    ProblemDetailException,
+    UnreleasedDependency,
+)
 
 #: The RFC 9457 problem media type.
 PROBLEM_JSON = "application/problem+json"
@@ -45,7 +52,12 @@ def parse_problem(
     Parses the base :class:`ProblemDetail` plus the field-level ``errors`` array
     (``ValidationProblemDetail``), the per-example ``validationErrors`` map
     (``DataModelValidationProblemDetail``), and the ``missingFields`` / ``invalidFields``
-    arrays (``TemplateDataValidationProblemDetail``). The generated models are independent,
+    arrays (``TemplateDataValidationProblemDetail``), the ``missingDependencies`` array
+    (``ReleaseDependenciesMissingProblemDetail``), the ``unreleasedDependencies`` array
+    (``ReleaseDependenciesUnreleasedProblemDetail``), the ``readOnlyReason`` string
+    (``CatalogReadOnlyProblemDetail``), and the ``unresolvedConflicts`` array
+    (``MergeConflictsUnresolvedProblemDetail``), and, for a ``merge-base-missing`` problem only,
+    the ``version`` and ``fingerprint`` strings (``MergeBaseMissingProblemDetail``). The generated models are independent,
     so the base fields and each extension are carried separately.
     """
     try:
@@ -83,6 +95,9 @@ def parse_problem(
         except Exception:
             validation_errors = {}
 
+    merge_base_missing = problem_types.slug_for(problem.type) == KnownProblemSlugs.MERGE_BASE_MISSING
+    # `tenantKey` and `reason` are generic names too: the refusal's members come from `forbidden` only.
+    forbidden = problem_types.slug_for(problem.type) == KnownProblemSlugs.FORBIDDEN
     return ProblemDetailException(
         problem=problem,
         errors=errors,
@@ -92,7 +107,105 @@ def parse_problem(
         headers=headers,
         missing_fields=_members(tree, "missingFields", MissingDataField),
         invalid_fields=_members(tree, "invalidFields", InvalidDataField),
+        missing_dependencies=_missing_dependencies(tree),
+        unreleased_dependencies=_unreleased_dependencies(tree),
+        read_only_reason=_string(tree, "readOnlyReason"),
+        unresolved_conflicts=_strings(tree, "unresolvedConflicts"),
+        # `version` and `fingerprint` are generic names, so they are read for this problem only.
+        missing_base_version=_string(tree, "version") if merge_base_missing else None,
+        missing_base_fingerprint=_string(tree, "fingerprint") if merge_base_missing else None,
+        behind=_strings(tree, "behind"),
+        environments=_strings(tree, "environments"),
+        pinned_by=_release_refs(tree, "pinnedBy"),
+        tied_variants=_strings(tree, "tiedVariants"),
+        required_permission=_string(tree, "requiredPermission") if forbidden else None,
+        refused_tenant_key=_string(tree, "tenantKey") if forbidden else None,
+        required_platform_role=_string(tree, "requiredPlatformRole") if forbidden else None,
+        refusal_reason=_string(tree, "reason") if forbidden else None,
     )
+
+
+def _strings(tree: Dict[str, Any], member: str) -> List[str]:
+    """An extension member that is an array of strings, skipping entries that are not; ``[]`` when
+    absent or not an array."""
+    value = tree.get(member)
+    return [entry for entry in value if isinstance(entry, str)] if isinstance(value, list) else []
+
+
+def _string(tree: Dict[str, Any], member: str) -> Optional[str]:
+    """A string extension member, or ``None`` when absent or not a string."""
+    value = tree.get(member)
+    return value if isinstance(value, str) else None
+
+
+def _missing_dependencies(tree: Dict[str, Any]) -> List[MissingDependency]:
+    """The ``missingDependencies`` member, or ``[]`` when absent or malformed.
+
+    Read by hand rather than through the generated model: that model types ``reason`` as a closed
+    enum, so a reason a later contract adds would fail the whole member. Here it stays a string.
+    As with :func:`_members`, an entry missing one of its members makes the member yield nothing.
+    """
+    raw = tree.get("missingDependencies")
+    if not isinstance(raw, list):
+        return []
+    dependencies: List[MissingDependency] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        values = [
+            entry.get(name)
+            for name in ("registry", "namespace", "catalogKey", "version", "reason")
+        ]
+        if not all(isinstance(value, str) for value in values):
+            return []
+        dependencies.append(MissingDependency(*values))
+    return dependencies
+
+
+def _release_refs(tree: Dict[str, Any], member: str) -> List[CatalogReleaseRef]:
+    """A member listing releases named in full, or ``[]`` when absent or malformed.
+
+    As with :func:`_missing_dependencies`, an entry missing one of its members makes the member
+    yield nothing.
+    """
+    raw = tree.get(member)
+    if not isinstance(raw, list):
+        return []
+    releases: List[CatalogReleaseRef] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        values = [
+            entry.get(name)
+            for name in ("registry", "namespace", "catalogKey", "version", "releaseId")
+        ]
+        if not all(isinstance(value, str) for value in values):
+            return []
+        releases.append(CatalogReleaseRef(*values))
+    return releases
+
+
+def _unreleased_dependencies(tree: Dict[str, Any]) -> List[UnreleasedDependency]:
+    """The ``unreleasedDependencies`` member, or ``[]`` when absent or malformed.
+
+    As with :func:`_missing_dependencies`, an entry missing one of its members makes the member
+    yield nothing.
+    """
+    raw = tree.get("unreleasedDependencies")
+    if not isinstance(raw, list):
+        return []
+    dependencies: List[UnreleasedDependency] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        values = [
+            entry.get(name)
+            for name in ("registry", "namespace", "catalogKey", "releaseId", "releaseName")
+        ]
+        if not all(isinstance(value, str) for value in values):
+            return []
+        dependencies.append(UnreleasedDependency(*values))
+    return dependencies
 
 
 def _members(tree: Dict[str, Any], member: str, model: Any) -> List[Any]:

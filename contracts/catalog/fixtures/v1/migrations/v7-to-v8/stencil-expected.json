@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 8,
+  "resource": {
+    "type": "stencil",
+    "key": "letter",
+    "name": "Letter",
+    "tags": [],
+    "content": {
+      "modelVersion": 1,
+      "root": "root",
+      "nodes": {
+        "root": {
+          "id": "root",
+          "type": "root",
+          "slots": [
+            "children"
+          ]
+        },
+        "nested": {
+          "id": "nested",
+          "type": "stencil",
+          "slots": [],
+          "props": {
+            "stencilKey": "address"
+          }
+        },
+        "shared-footer": {
+          "id": "shared-footer",
+          "type": "stencil",
+          "slots": [],
+          "props": {
+            "stencilKey": "footer",
+            "catalogKey": "shared"
+          }
+        },
+        "greeting": {
+          "id": "greeting",
+          "type": "placeholder",
+          "slots": [
+            "greeting-default"
+          ],
+          "props": {
+            "name": "greeting",
+            "kind": "block",
+            "passParameters": true
+          }
+        }
+      },
+      "slots": {
+        "children": {
+          "id": "children",
+          "nodeId": "root",
+          "name": "children",
+          "children": [
+            "nested",
+            "shared-footer",
+            "greeting"
+          ]
+        },
+        "greeting-default": {
+          "id": "greeting-default",
+          "nodeId": "greeting",
+          "name": "default",
+          "children": []
+        }
+      },
+      "themeRef": {
+        "type": "inherit"
+      }
+    },
+    "readsTemplateData": true
+  }
+}

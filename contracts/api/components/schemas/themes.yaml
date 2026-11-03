@@ -2,49 +2,31 @@ ThemeDto:
   type: object
   description: A theme defines reusable styling that can be applied across multiple templates
   required:
-    - id
-    - tenantId
+    - key
+    - tenantKey
     - name
     - documentStyles
     - createdAt
     - lastModified
   properties:
-    slug:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 20
+    key:
+      $ref: './identifiers.yaml#/ResourceKey'
       description: |
-        Slug identifier of the theme (e.g., "corporate")
-
-        Sent by every server on contract 1.3.0 or later. Not required, because a server on an
-        older 1.x contract omits it and a client must still read its responses: when it is
-        absent, read `id`, which carries the same value. Required from 2.0.0, which removes
-        `id` (epistola-app/epistola-contract#84).
+        Key of the theme (e.g., "corporate")
       example: corporate
-    id:
-      type: string
-      deprecated: true
-      description: |
-        **Deprecated — use `slug`.** The same value, under the name the portable catalog
-        format already uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 20
-      example: corporate
-    tenantId:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
-      description: Slug identifier of the tenant this theme belongs to
+    tenantKey:
+      $ref: './identifiers.yaml#/TenantKey'
+      description: Key of the tenant this theme belongs to
       example: acme-corp
     name:
       type: string
+      minLength: 1
+      maxLength: 255
       description: Name of the theme
       example: Corporate Theme
     description:
       type: string
+      maxLength: 2000
       description: Optional description of the theme
       example: Default corporate branding with Acme colors and fonts
     documentStyles:
@@ -55,7 +37,9 @@ ThemeDto:
       type: object
       additionalProperties:
         $ref: '../../../catalog/schemas/theme.schema.json#/$defs/BlockStylePreset'
-      description: Named block style presets (like CSS classes). Key is the preset name.
+      description: |
+        Named block style presets (like CSS classes). Key is the preset name, which the catalog's
+        declared presets name (`CatalogReleaseDto.presets`). Absent when the theme styles none.
       example:
         heading:
           label: Heading
@@ -69,14 +53,23 @@ ThemeDto:
           styles:
             fontSize: "9pt"
             color: "#666666"
+    defaultBlockStyles:
+      $ref: '../../../catalog/schemas/theme.schema.json#/$defs/DefaultBlockStyles'
+      description: |
+        The theme's baseline block spacing: the margin a flow block gets when nothing more specific
+        sets one. Margin keys only. Absent when the theme sets none; the renderer then uses its own
+        fallback.
+      example:
+        marginBottom: "6pt"
     spacingUnit:
       type: number
-      minimum: 1
+      minimum: 0.5
       maximum: 16
       description: |
         Base spacing unit in points for the spacing scale system. All sp values
         are multiples of this value (e.g., with spacingUnit=4, 2sp resolves
-        to 8pt). Null means default (4pt).
+        to 8pt). Absent when the theme sets none; the rendering
+        default (4pt) then applies.
       example: 4
     createdAt:
       type: string
@@ -89,9 +82,8 @@ ThemeDto:
       description: Timestamp when the theme was last modified
       example: "2026-01-18T14:30:00Z"
   example:
-    slug: corporate
-    id: corporate
-    tenantId: acme-corp
+    key: corporate
+    tenantKey: acme-corp
     name: Corporate Theme
     description: Default corporate branding with Acme colors and fonts
     documentStyles:
@@ -132,15 +124,12 @@ CreateThemeRequest:
   type: object
   description: Request body for creating a new theme
   required:
-    - id
+    - key
     - name
   properties:
-    id:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 20
-      description: Client-provided slug identifier for the theme
+    key:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: Client-chosen key for the theme
       example: corporate
     name:
       type: string
@@ -150,6 +139,7 @@ CreateThemeRequest:
       example: Corporate Theme
     description:
       type: string
+      maxLength: 2000
       description: Optional description of the theme
       example: Default corporate branding with Acme colors and fonts
     documentStyles:
@@ -167,16 +157,22 @@ CreateThemeRequest:
           styles:
             fontSize: "18pt"
             fontWeight: bold
+    defaultBlockStyles:
+      $ref: '../../../catalog/schemas/theme.schema.json#/$defs/DefaultBlockStyles'
+      description: The theme's baseline block spacing, margin keys only. Omitted for none.
     spacingUnit:
       type: number
-      minimum: 1
+      minimum: 0.5
       maximum: 16
-      description: Base spacing unit in points. Null means default (4pt).
+      description: Base spacing unit in points. Omitted, the theme sets none and the rendering default (4pt) applies.
       example: 4
 
 UpdateThemeRequest:
   type: object
-  description: Request body for updating a theme (partial update)
+  description: |
+    Request body for updating a theme (partial update). An omitted or null member keeps its
+    current value: generated servers and clients cannot tell an omitted member from a null one, so
+    null never means "remove".
   properties:
     name:
       type: string
@@ -188,7 +184,10 @@ UpdateThemeRequest:
       type:
         - string
         - 'null'
-      description: New description for the theme (null to clear)
+      maxLength: 2000
+      description: |
+        New description for the theme. Omitted or null keeps it; an empty string (or one of only
+        whitespace) removes it.
       example: Updated corporate branding for 2026
     documentStyles:
       $ref: '../../../catalog/schemas/template-shared.schema.json#/$defs/DocumentStyles'
@@ -200,14 +199,26 @@ UpdateThemeRequest:
         - 'null'
       additionalProperties:
         $ref: '../../../catalog/schemas/theme.schema.json#/$defs/BlockStylePreset'
-      description: Named block style presets (null to clear). Key is the preset name.
+      description: |
+        Named block style presets, replacing the current ones as a whole. Key is the preset name.
+        Omitted or null keeps them; an empty object removes every preset.
+    defaultBlockStyles:
+      type:
+        - object
+        - 'null'
+      additionalProperties: true
+      description: |
+        The theme's baseline block spacing, margin keys only, replacing the current one as a whole.
+        Omitted or null keeps it; an empty object removes it.
     spacingUnit:
       type:
         - number
         - 'null'
-      minimum: 1
+      minimum: 0.5
       maximum: 16
-      description: Base spacing unit in points (null to reset to default 4pt).
+      description: |
+        Base spacing unit in points. Omitted or null keeps it; send 4, the default, to go back to
+        it.
       example: 4
 
 ThemeListResponse:
@@ -226,9 +237,8 @@ ThemeListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - slug: corporate
-        id: corporate
-        tenantId: acme-corp
+      - key: corporate
+        tenantKey: acme-corp
         name: Corporate Theme
         description: Default corporate branding with Acme colors and fonts
         documentStyles:
@@ -266,5 +276,5 @@ ThemeListResponse:
     page:
       number: 0
       size: 20
-      totalElements: 1
+      total: 1
       totalPages: 1

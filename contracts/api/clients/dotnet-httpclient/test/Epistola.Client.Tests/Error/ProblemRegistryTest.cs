@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: EUPL-1.2
 
+using System.Linq;
 using Epistola.Client.Error;
 using Xunit;
 
@@ -25,12 +26,42 @@ public class ProblemRegistryTest
     {
         Assert.Equal("validation-error", KnownProblemSlugs.VALIDATION_ERROR);
         Assert.Equal("bad-request", KnownProblemSlugs.BAD_REQUEST);
+        Assert.Equal("catalog-rendering-defaults-too-new", KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW);
         Assert.Equal("unauthorized", KnownProblemSlugs.UNAUTHORIZED);
         Assert.Equal("api-key-auth-disabled", KnownProblemSlugs.API_KEY_AUTH_DISABLED);
         Assert.Equal("forbidden", KnownProblemSlugs.FORBIDDEN);
         Assert.Equal("not-found", KnownProblemSlugs.NOT_FOUND);
         Assert.Equal("conflict", KnownProblemSlugs.CONFLICT);
+        Assert.Equal("release-registry-not-found", KnownProblemSlugs.RELEASE_REGISTRY_NOT_FOUND);
+        Assert.Equal("release-number-taken", KnownProblemSlugs.RELEASE_NUMBER_TAKEN);
+        Assert.Equal("namespace-not-granted", KnownProblemSlugs.NAMESPACE_NOT_GRANTED);
         Assert.Equal("data-model-validation-error", KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR);
         Assert.Equal("rate-limited", KnownProblemSlugs.RATE_LIMITED);
+        Assert.Equal("method-not-allowed", KnownProblemSlugs.METHOD_NOT_ALLOWED);
+        Assert.Equal("not-acceptable", KnownProblemSlugs.NOT_ACCEPTABLE);
+        Assert.Equal("content-too-large", KnownProblemSlugs.CONTENT_TOO_LARGE);
+        Assert.Equal("unsupported-media-type", KnownProblemSlugs.UNSUPPORTED_MEDIA_TYPE);
+        Assert.Equal("internal-error", KnownProblemSlugs.INTERNAL_ERROR);
+        Assert.Equal("release-dependencies-missing", KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING);
+        Assert.Equal("release-dependencies-unreleased", KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED);
+        Assert.Equal("catalog-read-only", KnownProblemSlugs.CATALOG_READ_ONLY);
+        Assert.Equal("merge-conflicts-unresolved", KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED);
+        Assert.Equal("merge-refused", KnownProblemSlugs.MERGE_REFUSED);
+        Assert.Equal("merge-preview-outdated", KnownProblemSlugs.MERGE_PREVIEW_OUTDATED);
+        Assert.Equal("merge-base-missing", KnownProblemSlugs.MERGE_BASE_MISSING);
+        Assert.Equal("merge-not-applicable", KnownProblemSlugs.MERGE_NOT_APPLICABLE);
+        Assert.Equal("environment-deployment-refused", KnownProblemSlugs.ENVIRONMENT_DEPLOYMENT_REFUSED);
+        Assert.Equal("resource-modified", KnownProblemSlugs.RESOURCE_MODIFIED);
+        Assert.Equal("catalog-source-unavailable", KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE);
+    }
+
+    [Fact]
+    public void ValidationCodesAreGeneratedWithTheirDocumentedValues()
+    {
+        Assert.Equal("pattern", KnownValidationCodes.PATTERN);
+        Assert.Equal("stencil-recursion", KnownValidationCodes.STENCIL_RECURSION);
+        Assert.Equal("catalog-resources-not-ready", KnownValidationCodes.CATALOG_RESOURCES_NOT_READY);
+        Assert.Equal(51, KnownValidationCodes.All.Count);
+        Assert.Equal(KnownValidationCodes.All.Count, KnownValidationCodes.All.Distinct().Count());
     }
 }

@@ -54,6 +54,10 @@
           "type": "string",
           "description": "Human-readable label."
         },
+        "description": {
+          "type": "string",
+          "description": "What the property does, for authors and tooling. Optional."
+        },
         "type": {
           "type": "string",
           "enum": ["text", "number", "boolean", "color", "select", "unit", "spacing", "border"],
@@ -80,6 +84,11 @@
           "type": "boolean",
           "default": false,
           "description": "Whether this property cascades from document styles to child nodes."
+        },
+        "includedInAll": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether a component whose applicableStyles is \"all\" accepts this property. False means the property applies only where it is listed by key: in a component's applicableStyles array or in a style map's applicableStyles (such as the table's cellStyles). Used for properties that only make sense on a few components, such as minHeight and verticalAlign."
         }
       },
       "required": ["key", "label", "type"],

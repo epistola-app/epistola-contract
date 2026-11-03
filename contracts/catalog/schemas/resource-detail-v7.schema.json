@@ -94,7 +94,7 @@
           ]
         },
         "templateModel": {
-          "$ref": "template-document.schema.json"
+          "$ref": "template-document-v7.schema.json"
         },
         "variants": {
           "type": "array",
@@ -207,7 +207,7 @@
           }
         },
         "content": {
-          "$ref": "template-document.schema.json"
+          "$ref": "template-document-v7.schema.json"
         },
         "parameterSchema": {
           "type": [
@@ -500,7 +500,7 @@
         "templateModel": {
           "oneOf": [
             {
-              "$ref": "template-document.schema.json"
+              "$ref": "template-document-v7.schema.json"
             },
             {
               "type": "null"

@@ -40,6 +40,20 @@ public class ProblemDetailExceptionTest
         Assert.Equal(404, ex.ProblemStatus);
         Assert.Equal("Tenant 'acme' was not found", ex.Detail);
         Assert.Equal("https://epistola.app/errors/not-found", ex.Type);
+        Assert.Null(ex.Help);
+    }
+
+    [Fact]
+    public void HelpIsTheBaseMemberBesideTheType()
+    {
+        var ex = Exception(new ProblemDetail(
+            type: "https://epistola.app/errors/not-found",
+            title: "Not Found",
+            status: 404,
+            help: "https://epistola.app/errors/not-found?operation=getTemplate"));
+
+        Assert.Equal("https://epistola.app/errors/not-found?operation=getTemplate", ex.Help);
+        Assert.Equal("not-found", ex.TypeSlug);
     }
 
     [Fact]
@@ -66,13 +80,13 @@ public class ProblemDetailExceptionTest
             new ProblemDetail(type: "https://epistola.app/errors/data-model-validation-error", title: "Data Model Validation Error", status: 422),
             validationErrors: new Dictionary<string, List<DataModelValidationError>>
             {
-                ["Example 1"] = new() { new DataModelValidationError(path: "/name", message: "required property 'name' not found") },
+                ["standard-invoice"] = new() { new DataModelValidationError(path: "/name", message: "required property 'name' not found") },
             });
 
         Assert.True(ex.IsDataModelValidationProblem);
         Assert.False(ex.IsValidationProblem);
         Assert.Equal(KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR, ex.TypeSlug);
-        Assert.Equal("/name", ex.ValidationErrors["Example 1"][0].Path);
+        Assert.Equal("/name", ex.ValidationErrors["standard-invoice"][0].Path);
     }
 
     [Fact]
@@ -83,7 +97,7 @@ public class ProblemDetailExceptionTest
             errors: new List<ValidationError>
             {
                 new(field: "name", message: "must not be blank"),
-                new(field: "slug", message: "invalid format", rejectedValue: "A B"),
+                new(field: "key", message: "invalid format", rejectedValue: "A B"),
             });
 
         Assert.True(ex.IsValidationProblem);
@@ -102,5 +116,57 @@ public class ProblemDetailExceptionTest
         ApiException asParent = ex;
         Assert.Equal(body, asParent.ErrorContent);
         Assert.Equal(409, asParent.ErrorCode);
+    }
+    [Fact]
+    public void ReleaseDependenciesMissingProblemExposesItsDependencies()
+    {
+        var ex = new ProblemDetailException(
+            new ProblemDetail(type: "https://epistola.app/errors/release-dependencies-missing", title: "Release dependencies missing", status: 409),
+            new List<ValidationError>(),
+            new Dictionary<string, List<DataModelValidationError>>(),
+            HttpStatusCode.Conflict,
+            "{}",
+            headers: null,
+            missingDependencies: new List<MissingDependency>
+            {
+                new("exchange.epistola.app", "epistola", "system", "3.2.0", MissingDependency.Reasons.Unavailable),
+            });
+
+        Assert.True(ex.IsReleaseDependenciesMissingProblem);
+        Assert.False(ex.IsTemplateDataProblem);
+        Assert.Equal(KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING, ex.TypeSlug);
+        Assert.Equal("system", ex.MissingDependencies[0].CatalogKey);
+    }
+
+    [Fact]
+    public void AnyOtherProblemHasNoMissingDependencies()
+    {
+        var ex = Exception(new ProblemDetail(type: "https://epistola.app/errors/conflict", title: "Conflict", status: 409));
+
+        Assert.False(ex.IsReleaseDependenciesMissingProblem);
+        Assert.Empty(ex.MissingDependencies);
+        Assert.False(ex.IsReleaseDependenciesUnreleasedProblem);
+        Assert.Empty(ex.UnreleasedDependencies);
+    }
+
+    [Fact]
+    public void ReleaseDependenciesUnreleasedProblemExposesItsDrafts()
+    {
+        var ex = new ProblemDetailException(
+            new ProblemDetail(type: "https://epistola.app/errors/release-dependencies-unreleased", title: "Release dependencies unreleased", status: 409),
+            new List<ValidationError>(),
+            new Dictionary<string, List<DataModelValidationError>>(),
+            HttpStatusCode.Conflict,
+            "{}",
+            headers: null,
+            unreleasedDependencies: new List<UnreleasedDependency>
+            {
+                new("exchange.epistola.app", "acme-corp", "branding", "r4t8w2nc", "House style 2027"),
+            });
+
+        Assert.True(ex.IsReleaseDependenciesUnreleasedProblem);
+        Assert.False(ex.IsReleaseDependenciesMissingProblem);
+        Assert.Equal(KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED, ex.TypeSlug);
+        Assert.Equal("House style 2027", ex.UnreleasedDependencies[0].ReleaseName);
     }
 }

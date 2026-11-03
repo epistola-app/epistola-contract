@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import app.epistola.client.jakarta.model.DataModelValidationError;
+import app.epistola.client.jakarta.model.MissingReleaseDependencyReason;
 import app.epistola.client.jakarta.model.ValidationError;
 import jakarta.ws.rs.core.MediaType;
 import java.util.List;
@@ -36,8 +37,32 @@ class ProblemDetailParserTest {
         assertEquals("Not Found", parsed.problem().getTitle());
         assertEquals(404, parsed.problem().getStatus());
         assertEquals("Template 'monthly-invoice' does not exist", parsed.problem().getDetail());
+        assertEquals(
+                "/api/tenants/acme-corp/catalogs/default/templates/monthly-invoice",
+                parsed.problem().getInstance());
+        assertNull(parsed.problem().getHelp());
         assertTrue(parsed.errors().isEmpty());
         assertTrue(parsed.validationErrors().isEmpty());
+    }
+
+    @Test
+    void reads_help_as_a_base_problem_member() {
+        var parsed = ProblemDetailParser.parse(
+                """
+                {
+                  "type": "https://epistola.app/errors/not-found",
+                  "title": "Not Found",
+                  "status": 404,
+                  "help": "https://epistola.app/errors/not-found?operation=getTemplate"
+                }
+                """);
+
+        assertNotNull(parsed);
+        assertEquals(
+                "https://epistola.app/errors/not-found?operation=getTemplate",
+                parsed.problem().getHelp().toString());
+        // Still the registered URI: the context is in help, never in type.
+        assertEquals("https://epistola.app/errors/not-found", parsed.problem().getType().toString());
     }
 
     @Test
@@ -63,6 +88,26 @@ class ProblemDetailParserTest {
         assertEquals("ACME", errors.get(0).getRejectedValue());
         assertEquals("name", errors.get(1).getField());
         assertTrue(parsed.validationErrors().isEmpty());
+    }
+
+    @Test
+    void a_field_error_carries_the_code_that_says_why_it_failed_or_null_without_one() {
+        var parsed = ProblemDetailParser.parse(
+                """
+                {
+                  "type": "https://epistola.app/errors/validation-error",
+                  "title": "Validation Failed",
+                  "status": 400,
+                  "errors": [
+                    {"field": "name", "message": "too short", "code": "min-length"},
+                    {"field": "key", "message": "must match a pattern"}
+                  ]
+                }
+                """);
+
+        assertNotNull(parsed);
+        assertEquals(KnownValidationCodes.MIN_LENGTH, parsed.errors().get(0).getCode());
+        assertNull(parsed.errors().get(1).getCode());
     }
 
     @Test
@@ -113,6 +158,165 @@ class ProblemDetailParserTest {
     }
 
     @Test
+    void reads_the_missing_dependencies_of_a_release_dependencies_problem_in_order() {
+        var parsed = ProblemDetailParser.parse(
+                """
+                {
+                  "type": "https://epistola.app/errors/release-dependencies-missing",
+                  "title": "Release dependencies missing",
+                  "status": 409,
+                  "missingDependencies": [
+                    {"registry": "exchange.epistola.app", "namespace": "acme-corp",
+                     "catalogKey": "shared", "version": "1.2.0", "reason": "unavailable"},
+                    {"registry": "acme.com", "namespace": "brand",
+                     "catalogKey": "styles", "version": "2.0.0", "reason": "unavailable"}
+                  ]
+                }
+                """);
+
+        assertNotNull(parsed);
+        List<MissingDependency> missing = parsed.missingDependencies();
+        assertEquals(2, missing.size());
+        MissingDependency first = missing.get(0);
+        assertEquals("exchange.epistola.app", first.getRegistry());
+        assertEquals("acme-corp", first.getNamespace());
+        assertEquals("shared", first.getCatalogKey());
+        assertEquals("1.2.0", first.getVersion());
+        assertEquals("unavailable", first.getReason());
+        assertEquals(MissingReleaseDependencyReason.UNAVAILABLE, first.getKnownReason());
+        assertEquals("acme.com/brand/styles@2.0.0:unavailable", missing.get(1).toString());
+    }
+
+    @Test
+    void keeps_a_missing_dependency_reason_this_client_does_not_know() {
+        var parsed = ProblemDetailParser.parse(
+                """
+                {
+                  "type": "https://epistola.app/errors/release-dependencies-missing",
+                  "title": "Release dependencies missing",
+                  "status": 409,
+                  "missingDependencies": [
+                    {"registry": "acme.com", "namespace": "brand", "catalogKey": "styles",
+                     "version": "2.0.0", "reason": "SOME_FUTURE_REASON"}
+                  ]
+                }
+                """);
+
+        assertNotNull(parsed);
+        assertEquals("SOME_FUTURE_REASON", parsed.missingDependencies().get(0).getReason());
+        assertNull(parsed.missingDependencies().get(0).getKnownReason());
+    }
+
+    @Test
+    void a_problem_without_missing_dependencies_reads_as_an_empty_list() {
+        var parsed = ProblemDetailParser.parse(
+                "{\"type\":\"https://epistola.app/errors/conflict\",\"title\":\"Conflict\",\"status\":409}");
+
+        assertNotNull(parsed);
+        assertTrue(parsed.missingDependencies().isEmpty());
+    }
+
+    @Test
+    void tolerates_malformed_missing_dependencies() {
+        var notAnArray = ProblemDetailParser.parse(
+                """
+                {"title": "Conflict", "status": 409, "missingDependencies": {"registry": "acme.com"}}
+                """);
+        assertNotNull(notAnArray);
+        assertTrue(notAnArray.missingDependencies().isEmpty());
+
+        var badEntries = ProblemDetailParser.parse(
+                """
+                {
+                  "title": "Conflict",
+                  "status": 409,
+                  "missingDependencies": [
+                    "acme.com/brand/styles@2.0.0",
+                    null,
+                    42,
+                    {"registry": "acme.com", "namespace": 7, "catalogKey": "styles", "reason": null}
+                  ]
+                }
+                """);
+        assertNotNull(badEntries);
+        assertEquals(
+                List.of(new MissingDependency("acme.com", null, "styles", null, null)),
+                badEntries.missingDependencies());
+        assertNull(badEntries.missingDependencies().get(0).getKnownReason());
+    }
+
+    @Test
+    void reads_the_unreleased_dependencies_of_a_release_dependencies_unreleased_problem_in_order() {
+        var parsed = ProblemDetailParser.parse(
+                """
+                {
+                  "type": "https://epistola.app/errors/release-dependencies-unreleased",
+                  "title": "Release dependencies unreleased",
+                  "status": 409,
+                  "unreleasedDependencies": [
+                    {"registry": "exchange.epistola.app", "namespace": "acme-corp", "catalogKey": "branding",
+                     "releaseId": "r4t8w2nc", "releaseName": "House style 2027"},
+                    {"registry": "acme.com", "namespace": "brand", "catalogKey": "fonts",
+                     "releaseId": "h3v9p6db", "releaseName": "New typefaces, round 2"}
+                  ]
+                }
+                """);
+
+        assertNotNull(parsed);
+        List<UnreleasedDependency> unreleased = parsed.unreleasedDependencies();
+        assertEquals(2, unreleased.size());
+        UnreleasedDependency first = unreleased.get(0);
+        assertEquals("exchange.epistola.app", first.getRegistry());
+        assertEquals("acme-corp", first.getNamespace());
+        assertEquals("branding", first.getCatalogKey());
+        assertEquals("r4t8w2nc", first.getReleaseId());
+        assertEquals("House style 2027", first.getReleaseName());
+        assertEquals(
+                "acme.com/brand/fonts#h3v9p6db=New typefaces, round 2",
+                unreleased.get(1).toString());
+        assertTrue(parsed.missingDependencies().isEmpty());
+    }
+
+    @Test
+    void reads_why_a_catalog_read_only_problem_refused_the_write() {
+        var parsed = ProblemDetailParser.parse(
+                """
+                {"type": "https://epistola.app/errors/catalog-read-only", "title": "Catalog Read Only",
+                 "status": 409, "readOnlyReason": "supplied-by-epistola"}
+                """);
+        assertNotNull(parsed);
+        assertEquals("supplied-by-epistola", parsed.readOnlyReason());
+
+        var notAString = ProblemDetailParser.parse(
+                "{\"title\": \"Catalog Read Only\", \"status\": 409, \"readOnlyReason\": 7}");
+        assertNotNull(notAString);
+        assertNull(notAString.readOnlyReason());
+    }
+
+    @Test
+    void tolerates_malformed_unreleased_dependencies() {
+        var notAnArray = ProblemDetailParser.parse(
+                """
+                {"title": "Conflict", "status": 409, "unreleasedDependencies": {"registry": "acme.com"}}
+                """);
+        assertNotNull(notAnArray);
+        assertTrue(notAnArray.unreleasedDependencies().isEmpty());
+
+        var badEntries = ProblemDetailParser.parse(
+                """
+                {
+                  "title": "Conflict",
+                  "status": 409,
+                  "unreleasedDependencies": ["acme.com/brand/fonts", null, {"registry": "acme.com", "releaseName": 3}]
+                }
+                """);
+        assertNotNull(badEntries);
+        assertEquals(
+                List.of(new UnreleasedDependency("acme.com", null, null, null, null)),
+                badEntries.unreleasedDependencies());
+    }
+
+    @Test
     void defaults_the_type_to_about_blank_when_absent() {
         var parsed = ProblemDetailParser.parse("{\"title\":\"Internal Server Error\",\"status\":500}");
 
@@ -139,7 +343,7 @@ class ProblemDetailParserTest {
 
         assertFalse(ProblemDetailParser.isProblemJson(null));
         assertFalse(ProblemDetailParser.isProblemJson(MediaType.APPLICATION_JSON_TYPE));
-        assertFalse(ProblemDetailParser.isProblemJson(MediaType.valueOf("application/vnd.epistola.v1+json")));
+        assertFalse(ProblemDetailParser.isProblemJson(MediaType.valueOf("application/vnd.epistola.v2+json")));
         assertFalse(ProblemDetailParser.isProblemJson(MediaType.TEXT_PLAIN_TYPE));
     }
 }

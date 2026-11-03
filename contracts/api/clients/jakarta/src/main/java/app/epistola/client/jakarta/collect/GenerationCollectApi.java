@@ -33,13 +33,13 @@ import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
  */
 @RegisterRestClient
 @RegisterProvider(ApiExceptionMapper.class)
-@Path("/tenants/{tenantId}")
+@Path("/tenants/{tenantKey}")
 public interface GenerationCollectApi {
 
     /**
      * Collects completed and failed generation results as a (possibly compressed) NDJSON stream.
      *
-     * @param tenantId       the tenant to collect for
+     * @param tenantKey      the tenant to collect for
      * @param acceptEncoding the compression the caller can decode, e.g. {@code "lz4, zstd, gzip"}
      * @param collectRequest the acknowledgement cursor and batch limit
      */
@@ -48,7 +48,7 @@ public interface GenerationCollectApi {
     @Consumes({ContractMediaTypes.VENDOR_JSON})
     @Produces({ContractMediaTypes.VENDOR_NDJSON, "application/problem+json"})
     Response collectGenerationResults(
-            @PathParam("tenantId") String tenantId,
+            @PathParam("tenantKey") String tenantKey,
             @HeaderParam("Accept-Encoding") String acceptEncoding,
             CollectRequest collectRequest);
 }

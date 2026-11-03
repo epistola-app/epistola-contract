@@ -1,0 +1,105 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: preview-catalog-draft-merge
+title: A merge preview names every resource a side changed, how, and what the merge does with it
+why: >
+  Merging a release into a draft is alpha (ADR 0005). Before merging, an author sees per resource
+  whether the draft's change stays (`ours`), the release's is taken (`theirs`), or both changed it
+  differently (`conflict`), with how each side changed it. A client that drops a null change, or
+  reports one side's change as the other's, shows a conflict as a clean take. Its `token` is opaque
+  and goes back unchanged as the merge's `expectedToken`, so a client must keep it exactly.
+
+  The release merged in is the query parameter `version`, because `{release}` in the path names the
+  draft. Resources neither side changed are only counted (`unchanged`).
+
+  A release's catalog settings (its default theme and presets) are merged like resources, as
+  entries of type `catalog` whose key names the setting: `defaultTheme` is not a resource key, and a
+  client that holds an entry's key to the resource-key rule rejects the preview. Each catalog the
+  release uses is an entry of its own, type `catalogDependency` keyed by the catalog's key.
+
+  Each entry names the other entries it goes with (`needs`), so a choice is made with them in view:
+  the default theme, a theme of catalog `shared`, needs the dependency on `shared`; the invoice
+  template needs the footer stencil it uses. An entry with none sends an empty array or nothing at
+  all, and a client reports both alike.
+
+action:
+  name: preview-catalog-draft-merge
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: k7m2x9qa
+    version: 1.5.0
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      draft: k7m2x9qa
+      base: 1.4.0
+      release: 1.5.0
+      alreadyMerged: false
+      resources:
+        - resourceType: catalog
+          resourceKey: defaultTheme
+          name: Default theme
+          outcome: conflict
+          draftChange: modified
+          releaseChange: modified
+          needs: [catalogDependency/shared]
+        - resourceType: catalog
+          resourceKey: presets
+          name: Presets
+          outcome: theirs
+          draftChange: null
+          releaseChange: modified
+        - resourceType: catalogDependency
+          resourceKey: shared
+          name: shared
+          outcome: theirs
+          draftChange: null
+          releaseChange: added
+        - resourceType: stencil
+          resourceKey: footer
+          name: Footer
+          outcome: ours
+          draftChange: modified
+          releaseChange: null
+          needs: []
+        - resourceType: template
+          resourceKey: invoice
+          name: Invoice
+          outcome: conflict
+          draftChange: modified
+          releaseChange: modified
+          needs: [stencil/footer, theme/winter]
+        - resourceType: theme
+          resourceKey: winter
+          name: null
+          outcome: theirs
+          draftChange: null
+          releaseChange: removed
+      unchanged: 12
+      token: m1.k7m2x9qa.42.1-5-0.9f3a1c2b
+    missingBase: 'null'
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/merge-preview
+      query: version=1.5.0
+  report:
+    draft: k7m2x9qa
+    base: 1.4.0
+    release: 1.5.0
+    alreadyMerged: 'false'
+    resources: catalog/defaultTheme:conflict:modified:modified,catalog/presets:theirs:null:modified,catalogDependency/shared:theirs:null:added,stencil/footer:ours:modified:null,template/invoice:conflict:modified:modified,theme/winter:theirs:null:removed
+    resourceNames: Default theme|Presets|shared|Footer|Invoice|null
+    resourceNeeds: catalog/defaultTheme=catalogDependency/shared;template/invoice=stencil/footer+theme/winter
+    unchanged: '12'
+    token: m1.k7m2x9qa.42.1-5-0.9f3a1c2b

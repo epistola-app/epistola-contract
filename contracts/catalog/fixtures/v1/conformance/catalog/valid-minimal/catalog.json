@@ -1,7 +1,9 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "catalog": {
-    "slug": "fixture",
+    "registry": "exchange.epistola.app",
+    "namespace": "epistola",
+    "key": "fixture",
     "name": "Fixture Catalog",
     "description": "Minimal valid conformance catalog"
   },
@@ -9,15 +11,17 @@
     "name": "Epistola"
   },
   "release": {
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "fingerprint": "v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb"
   },
   "resources": [
     {
       "type": "theme",
-      "slug": "default",
+      "key": "default",
       "name": "Default",
       "detailUrl": "./resources/theme/default.json"
     }
   ],
-  "dependencies": []
+  "dependencies": [],
+  "catalogDependencies": []
 }

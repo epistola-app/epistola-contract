@@ -34,9 +34,15 @@
  *   3. JSON Schema can infer the integer type from `const: 1`, while OpenAPI Generator cannot.
  *      Adding the redundant `type: integer` keeps generated client/server models strongly typed.
  *   4. The catalog's `ThemeRef` is an exact `oneOf`, but the Kotlin generators merge its inline
- *      branches and incorrectly require `themeId` for `inherit`. The bundle rewrites that union
+ *      branches and incorrectly require `themeKey` for `inherit`. The bundle rewrites that union
  *      to an equivalent object schema using `if`/`then`: validators retain the same accepted JSON,
  *      while generators see a required enum discriminator and optional override fields.
+ *   5. A key or number rule (`components/schemas/identifiers.yaml`) is a plain string schema that
+ *      everything references by name. The generators render such a `$ref` as a string, except in a
+ *      `multipart/form-data` body: there the Node.js and Python generators take it for a model, and
+ *      send the field as a JSON blob or type it `Any`. Inside multipart bodies, a reference to a
+ *      plain string schema is replaced by the schema's own type, pattern and lengths; the
+ *      property keeps its description. The authored files keep the reference.
  *
  * Every transformation checks for Redocly's expected input shape and fails loudly if that shape
  * changes, so an upstream tool update cannot silently produce a malformed contract bundle.
@@ -76,16 +82,21 @@ const generatedThemeRef = `    ThemeRef:
           properties:
             type:
               const: override
-            themeId:
+            themeKey:
               type: string
-              minLength: 1
+              pattern: ^[a-z0-9]+(-[a-z0-9]+)*$
+              minLength: 3
+              maxLength: 50
+              description: 'Key of the theme resource: the same rule as every resource key.'
             catalogKey:
               type: string
-              minLength: 1
-              description: Catalog containing the theme. Omitted means the same catalog as the owning template.
+              pattern: ^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$
+              minLength: 3
+              maxLength: 50
+              description: 'The alias of the catalog containing the theme, as the owning catalog''s dependency list (catalogDependencies) declares it: the catalog key rule. Omitted means the same catalog as the owning template, which a reference never names by its own key.'
           required:
             - type
-            - themeId
+            - themeKey
           additionalProperties: false`;
 const generatorCompatibleThemeRef = `    ThemeRef:
       type: object
@@ -97,13 +108,18 @@ const generatorCompatibleThemeRef = `    ThemeRef:
           enum:
             - inherit
             - override
-        themeId:
+        themeKey:
           type: string
-          minLength: 1
+          pattern: ^[a-z0-9]+(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: 'Key of the theme resource: the same rule as every resource key.'
         catalogKey:
           type: string
-          minLength: 1
-          description: Catalog containing the theme. Omitted means the same catalog as the owning template.
+          pattern: ^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: 'The alias of the catalog containing the theme, as the owning catalog''s dependency list (catalogDependencies) declares it: the catalog key rule. Omitted means the same catalog as the owning template, which a reference never names by its own key.'
       additionalProperties: false
       allOf:
         - if:
@@ -116,7 +132,7 @@ const generatorCompatibleThemeRef = `    ThemeRef:
             not:
               anyOf:
                 - required:
-                    - themeId
+                    - themeKey
                 - required:
                     - catalogKey
         - if:
@@ -127,7 +143,7 @@ const generatorCompatibleThemeRef = `    ThemeRef:
               - type
           then:
             required:
-              - themeId`;
+              - themeKey`;
 
 let bundle = await readFile(bundlePath, 'utf8');
 
@@ -164,5 +180,52 @@ if (
   process.exit(1);
 }
 
+bundle = inlineStringRulesInMultipartBodies(bundle);
+
 await writeFile(bundlePath, bundle);
 console.log(`Normalized catalog schemas in ${bundlePath}`);
+
+/**
+ * Replaces each `$ref` to a plain string schema inside a `multipart/form-data` body by that
+ * schema's `type`, `pattern`, `minLength` and `maxLength` (step 5 above).
+ */
+function inlineStringRulesInMultipartBodies(text) {
+  const lines = text.split('\n');
+  const indentOf = (line) => line.length - line.trimStart().length;
+
+  // The constraint lines of a component schema that is a plain string: no enum, no format.
+  const schemasStart = lines.indexOf('  schemas:');
+  if (schemasStart === -1) {
+    console.error(`error: ${bundlePath} has no components.schemas section`);
+    process.exit(1);
+  }
+  const stringRule = (name) => {
+    const start = lines.indexOf(`    ${name}:`, schemasStart);
+    if (start === -1) return undefined;
+    const members = [];
+    for (let i = start + 1; i < lines.length && (lines[i].trim() === '' || indentOf(lines[i]) > 4); i++) {
+      if (indentOf(lines[i]) === 6) members.push(lines[i].trim());
+    }
+    const keys = members.map((member) => member.slice(0, member.indexOf(':')));
+    if (!members.includes('type: string') || keys.includes('enum') || keys.includes('format')) return undefined;
+    return members.filter((member) => /^(type|pattern|minLength|maxLength):/.test(member));
+  };
+
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    out.push(lines[i]);
+    if (lines[i].trim() !== 'multipart/form-data:') continue;
+    const bodyIndent = indentOf(lines[i]);
+    for (i++; i < lines.length && (lines[i].trim() === '' || indentOf(lines[i]) > bodyIndent); i++) {
+      const ref = lines[i].match(/^(\s*)\$ref: '#\/components\/schemas\/([A-Za-z0-9]+)'$/);
+      const rule = ref && stringRule(ref[2]);
+      if (rule) {
+        out.push(...rule.map((member) => ref[1] + member));
+      } else {
+        out.push(lines[i]);
+      }
+    }
+    i--;
+  }
+  return out.join('\n');
+}

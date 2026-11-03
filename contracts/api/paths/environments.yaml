@@ -1,14 +1,11 @@
 environments:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
 
   get:
     operationId: listEnvironments
@@ -20,13 +17,11 @@ environments:
     parameters:
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
-      - $ref: '../components/parameters/sorting.yaml#/Sort'
-      - $ref: '../components/parameters/sorting.yaml#/Direction'
     responses:
       '200':
         description: List of environments
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/environments.yaml#/EnvironmentListResponse'
       '400':
@@ -41,21 +36,27 @@ environments:
   post:
     operationId: createEnvironment
     summary: Create a new environment
-    description: Create a new environment for the specified tenant.
+    description: |
+      Create a new environment for the specified tenant. `production` marks it as a production
+      environment, which serves only releases.
     tags:
       - Environments
     x-required-permissions: [TENANT_SETTINGS]
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/environments.yaml#/CreateEnvironmentRequest'
     responses:
       '201':
         description: Environment created successfully
+        headers:
+          Location:
+            $ref: '../components/headers/location.yaml#/Location'
+            description: The environment's address (`getEnvironment`)
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/environments.yaml#/EnvironmentDto'
       '400':
@@ -71,28 +72,22 @@ environments:
 
 environments-id:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: environmentId
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - name: environmentKey
       in: path
       required: true
-      description: Slug identifier of the environment (e.g., "production", "staging")
+      description: Key of the environment (e.g., "production", "staging")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 30
+        $ref: '../components/schemas/identifiers.yaml#/EnvironmentKey'
 
   get:
     operationId: getEnvironment
-    summary: Get environment by ID
+    summary: Get an environment by key
     description: Retrieve details of a specific environment.
     tags:
       - Environments
@@ -100,10 +95,15 @@ environments-id:
     responses:
       '200':
         description: Environment details
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/environments.yaml#/EnvironmentDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -114,21 +114,32 @@ environments-id:
   patch:
     operationId: updateEnvironment
     summary: Update an environment
-    description: Update an existing environment's name.
+    description: |
+      Update an existing environment's name, or whether it is a production environment. Marking it
+      production while it serves a draft of any catalog is refused with 409
+      (`environment-deployment-refused`): a production environment serves only releases. Undeploy
+      the draft first.
+      Send the `ETag` from a read as `If-Match` to have the update refused with 412
+      `resource-modified` if the resource changed since; without it, the last write wins.
     tags:
       - Environments
     x-required-permissions: [TENANT_SETTINGS]
+    parameters:
+      - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/environments.yaml#/UpdateEnvironmentRequest'
     responses:
       '200':
         description: Environment updated successfully
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/environments.yaml#/EnvironmentDto'
       '400':
@@ -140,18 +151,255 @@ environments-id:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+        $ref: '../components/responses/problem-responses.yaml#/EnvironmentDeploymentRefusedError'
+      '412':
+        $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
 
   delete:
     operationId: deleteEnvironment
     summary: Delete an environment
-    description: Delete an environment and all its activations.
+    description: Delete an environment. Refused while it serves any release of a catalog; undeploy them first.
     tags:
       - Environments
     x-required-permissions: [TENANT_SETTINGS]
     responses:
       '204':
         description: Environment deleted successfully
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+
+environment-deployments:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - name: environmentKey
+      in: path
+      required: true
+      description: Key of the environment
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/EnvironmentKey'
+
+  get:
+    operationId: listEnvironmentDeployments
+    summary: List what an environment serves
+    description: |
+      Every release of a catalog the environment serves: released ones, several of one catalog
+      possibly, and at most one draft per catalog. Generation naming the environment renders the catalog's
+      deployed draft when the request names no `versionRange`, and otherwise the highest served
+      release (that satisfies `versionRange`); see `deployCatalogRelease`.
+    tags:
+      - Environments
+    x-required-permissions: [TEMPLATE_VIEW]
+    responses:
+      '200':
+        description: The environment's deployments
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/environments.yaml#/DeploymentListResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+environment-deployment-release:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - name: environmentKey
+      in: path
+      required: true
+      description: Key of the environment
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/EnvironmentKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
+
+  put:
+    operationId: deployCatalogRelease
+    summary: Deploy a release of a catalog, released or a draft, to an environment
+    description: |
+      The environment serves this release of the catalog from now on: a **released** one, by its
+      version or its `releaseId`, beside any other releases of it the environment already serves
+      (unless `replace=true`, below); or a **draft**, by its `releaseId`, rendered live with no
+      version.
+
+      A generation or preview request through the environment (`environmentKey`) renders:
+
+      - when it names **no `versionRange`**: the catalog's deployed draft if there is one, else the
+        highest release the environment serves;
+      - when it names a **range or an exact version**: the highest served release that satisfies
+        it. A draft never matches a range or a version, as it has no version, so a breaking draft
+        based on `1.2.0` is never served to `^1.2.0`. A patch release matches as a SemVer
+        pre-release does (see "Versions and version ranges").
+
+      So deploying a higher release moves such requests to it, and undeploying it moves them back:
+      rollback is undeploying the newer release, and holding one back is not deploying it. Requests
+      already accepted keep the release they were bound to. Deploying a release the environment
+      already serves changes nothing, apart from what `replace=true` stops.
+
+      **A draft.** An environment serves at most one draft of a catalog: deploying a draft replaces
+      the one it served, which is logged as undeployed. A **production** environment serves only
+      releases, never a draft: deploying a draft there is refused with 409 (`environment-deployment-refused`). A
+      document rendered from a draft carries the draft's id and its name at render time
+      (`releaseId`, `releaseName`, with a null `version`), and its PDF a preview watermark.
+      The deployment follows the draft's lifecycle:
+
+      - when the draft is released (`releaseCatalogDraft`), it keeps its `releaseId`, so the
+        deployment stays, as an explicit deployment of the release, logged as `released`;
+      - when the draft is discarded (`deleteCatalogRelease`), the deployment ends, logged as
+        `undeployed`.
+
+      **Dependencies.** A release renders with the releases of other catalogs it was cut with (its
+      `dependencies`, direct and through other dependencies), from the tenant's copy whatever the
+      environment serves; so does a draft with the releases its declarations pin. Deploying it makes
+      the environment use them implicitly: they are not deployed, and nothing else the environment
+      serves changes. A declaration in a draft that names a draft of another catalog renders that
+      draft live. A dependency release the tenant does not have yet is installed first: fetched
+      from its registry, through the registry's configured mirrors, and checked against the
+      fingerprint it was recorded with. When one cannot be had (`unavailable`), the deployment is
+      refused with `release-dependencies-missing` (409), whose `missingDependencies` lists those.
+      Nothing is deployed.
+
+      With `includeDependencies=true`, the dependency releases the environment does not serve are
+      also deployed explicitly, in the same transaction, all or nothing. Drafts a declaration names
+      are never deployed along.
+
+      With `replace=true`, the environment also stops serving the catalog's other releases, its
+      deployed draft included, in the same transaction: each is undeployed, and logged as undeployed
+      in the deployment history, just as `undeployCatalogRelease` would. Without it, a release is
+      added beside the others.
+    tags:
+      - Environments
+    x-required-permissions: [ENVIRONMENT_DEPLOY]
+    parameters:
+      - name: includeDependencies
+        in: query
+        required: false
+        description: |
+          Also deploy, explicitly, the dependency releases the environment does not serve (never a
+          draft a declaration names). When false or omitted, the environment uses them implicitly,
+          without deploying them.
+        schema:
+          type: boolean
+          default: false
+      - name: replace
+        in: query
+        required: false
+        description: |
+          Also stop serving the catalog's other releases in this environment, its deployed draft
+          included, each undeployed (and logged as undeployed). When false or omitted, a release is
+          added beside the others the environment serves.
+        schema:
+          type: boolean
+          default: false
+    responses:
+      '200':
+        description: The deployment
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/environments.yaml#/DeploymentDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/EnvironmentDeploymentConflictError'
+
+  delete:
+    operationId: undeployCatalogRelease
+    summary: Stop an environment serving a release of a catalog
+    description: |
+      Removes an explicit deployment: the environment stops serving this release, released or a
+      draft, addressed by its version or its `releaseId`. Generation naming the environment then
+      renders the highest release of the catalog it still serves, and fails for the catalog's
+      templates when it serves none.
+
+      It is never refused because another release the environment serves renders with this one.
+      That release is pinned to it and renders it from the tenant's copy, so it keeps rendering it:
+      the release stays in use implicitly. Only the environment no longer serves this catalog's own
+      templates through it.
+
+      A release the environment uses only implicitly, as a dependency of a release it serves, is not
+      deployed and cannot be undeployed: 404, as for a release the environment does not use at all.
+    tags:
+      - Environments
+    x-required-permissions: [ENVIRONMENT_DEPLOY]
+    responses:
+      '204':
+        description: The environment no longer serves the release
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+environment-deployment-history:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - name: environmentKey
+      in: path
+      required: true
+      description: Key of the environment
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/EnvironmentKey'
+
+  get:
+    operationId: listDeploymentHistory
+    summary: List what an environment served over time
+    description: |
+      Every change to what the environment serves, newest first: each deployment and undeployment,
+      and each deployed draft that was released.
+    tags:
+      - Environments
+    x-required-permissions: [TEMPLATE_VIEW]
+    parameters:
+      - $ref: '../components/parameters/pagination.yaml#/Page'
+      - $ref: '../components/parameters/pagination.yaml#/Size'
+    responses:
+      '200':
+        description: The environment's deployment history
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/environments.yaml#/DeploymentHistoryResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

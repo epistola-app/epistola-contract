@@ -53,18 +53,31 @@ namespace Epistola.Client.Validation.Schema;
 public interface ITemplateDataValidator
 {
     /// <summary>
+    /// The <c>registry</c> path segment that addresses the server's default registry. A request
+    /// body that leaves its <c>registry</c> unset means the same catalog.
+    /// </summary>
+    public const string DefaultRegistry = "~";
+
+    /// <summary>
     /// Returns the findings for <paramref name="data"/> against the given template's data contract,
     /// empty when there are none.
     /// </summary>
-    /// <param name="tenantId">Tenant identifier.</param>
-    /// <param name="catalogId">
-    /// Catalog identifier. The same template id in two catalogs of one tenant is two different
-    /// templates with two different contracts.
+    /// <param name="tenantKey">The tenant's key.</param>
+    /// <param name="registry">
+    /// Registry of the template's catalog as a path writes it: <see cref="DefaultRegistry"/>
+    /// (<c>~</c>) for the server's default registry, or the registry in full (<c>acme.com</c>,
+    /// <c>exchange.example.org</c>).
     /// </param>
-    /// <param name="templateId">Template identifier.</param>
+    /// <param name="namespace">
+    /// Namespace of the template's catalog within its registry (<c>acme-corp</c>). A catalog is
+    /// identified by registry, namespace and key together: the same template id in two catalogs is
+    /// two different templates with two different contracts.
+    /// </param>
+    /// <param name="catalogKey">Key of the template's catalog within its registry and namespace.</param>
+    /// <param name="templateKey">The template's key within the catalog.</param>
     /// <param name="data">The data object to check.</param>
     IReadOnlyList<TemplateDataValidationException.ValidationError> Validate(
-        string tenantId, string catalogId, string templateId, object data);
+        string tenantKey, string registry, string @namespace, string catalogKey, string templateKey, object data);
 
     /// <summary>
     /// Whether <see cref="ValidatingGenerationApi"/> should check data with this validator

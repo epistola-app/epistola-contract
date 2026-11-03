@@ -10,9 +10,10 @@
 #      into build/openapi-generator/, and its src/ tree is copied to src/generated/api/
 #      (mirrors the Kotlin openApiGenerate task and the .NET / Python generator steps).
 #   2. The derived-source generator emits contractVersion, contractIdentity,
-#      contractMediaTypes, contractOperations, knownProblemSlugs and modelValidation into
-#      src/generated/ from the spec's info.version, x-client-identity, x-problem-types, the
-#      operations' media types, and the schema constraints (mirrors the Kotlin
+#      contractMediaTypes, contractOperations, knownProblemSlugs, knownValidationCodes and
+#      modelValidation into src/generated/ from the spec's info.version, x-client-identity,
+#      x-problem-types, x-validation-codes, the operations' media types, and the schema
+#      constraints (mirrors the Kotlin
 #      generateContractVersionResource / generateClientIdentityConstants /
 #      generateProblemSlugs / generateValidation tasks and the Python gen/generate_derived.py).
 #
@@ -62,7 +63,7 @@ echo "==> Copying the stock client into src/generated/api"
 mkdir -p "$GENERATED_SRC/api"
 cp -R "$GEN_OUT/apis" "$GEN_OUT/models" "$GEN_OUT/runtime.ts" "$GEN_OUT/index.ts" "$GENERATED_SRC/api/"
 
-echo "==> Generating derived sources (contractVersion, contractIdentity, contractMediaTypes, contractOperations, knownProblemSlugs, modelValidation)"
+echo "==> Generating derived sources (contractVersion, contractIdentity, contractMediaTypes, contractOperations, knownProblemSlugs, knownValidationCodes, modelValidation)"
 node "$SCRIPT_DIR/gen/generate-derived.mjs" "$SPEC" "$GENERATED_SRC"
 
 echo "==> Done. Build and test with: pnpm build && pnpm test"

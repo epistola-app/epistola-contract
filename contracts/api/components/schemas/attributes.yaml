@@ -8,68 +8,52 @@ AttributeDto:
       - **Inline values** — `allowedValues` is non-empty; `codeListBinding` is null.
       - **Bound to a code list** — `codeListBinding` is set; `allowedValues` is empty.
 
-    Attributes from a SUBSCRIBED catalog (e.g. the bundled `system` catalog)
-    are flagged `readOnly: true`. Writes to them via this API return 409.
+    Attributes of a catalog that cannot be changed in this installation (e.g. the bundled `system`
+    catalog) are flagged `readOnly: true`. Writes to them return 409 `catalog-read-only`.
   required:
     - key
-    - tenantId
-    - catalog
-    - displayName
-    - catalogType
+    - tenantKey
+    - registry
+    - namespace
+    - catalogKey
+    - name
     - readOnly
     - allowedValues
     - createdAt
     - lastModified
   properties:
-    slug:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 1
-      maxLength: 50
-      description: |
-        Slug identifier of the attribute (unique within `tenant + catalog`).
-
-        Sent by every server on contract 1.3.0 or later. Not required, because a server on an
-        older 1.x contract omits it and a client must still read its responses: when it is
-        absent, read `key`, which carries the same value. Required from 2.0.0, which removes
-        `key` (epistola-app/epistola-contract#84).
-      example: locale
     key:
-      type: string
-      deprecated: true
+      $ref: './identifiers.yaml#/ResourceKey'
       description: |
-        **Deprecated — use `slug`.** The same value, under the name the portable catalog
-        format already uses for an attribute definition. The wire's `key` is a different
-        thing: the key half of an attribute *assignment*. Removed in 2.0.0
-        (epistola-app/epistola-contract#84).
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 1
-      maxLength: 50
+        Key of the attribute (unique within `tenant + catalog`).
       example: locale
-    tenantId:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
-      description: Slug identifier of the tenant this attribute belongs to.
+    tenantKey:
+      $ref: './identifiers.yaml#/TenantKey'
+      description: Key of the tenant this attribute belongs to.
       example: acme-corp
-    catalog:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      description: Slug of the catalog this attribute lives in.
+    registry:
+      $ref: './identifiers.yaml#/Registry'
+      description: |
+        Registry of the catalog: the exchange or domain its namespace lives in. Always written in
+        full, the default registry by its name, never `~`.
+      example: exchange.epistola.app
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the catalog, within its registry
+      example: epistola
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the catalog this resource lives in, unique within its registry and namespace
       example: system
-    displayName:
+    name:
       type: string
+      minLength: 1
+      maxLength: 100
       description: Human-readable display name.
       example: Locale
-    description:
-      type:
-        - string
-        - 'null'
-      description: Human-readable description of the attribute.
-      example: BCP-47 language + region tag (e.g. en-US, nl-NL).
     allowedValues:
       type: array
+      maxItems: 1000
       items:
         type: string
       description: |
@@ -78,39 +62,21 @@ AttributeDto:
       default: []
       example: []
     codeListBinding:
-      type:
-        - object
-        - 'null'
+      oneOf:
+        - $ref: '#/CodeListBindingRef'
+        - type: 'null'
       description: |
-        Set when the attribute is bound to a code list. The bound list may live
-        in this same catalog or in another catalog of the same tenant (e.g. a
-        local attribute binding to `system/iso-639-1`).
-      required:
-        - catalog
-        - slug
-      properties:
-        catalog:
-          type: string
-          description: Catalog the bound code list belongs to.
-          example: system
-        slug:
-          type: string
-          description: Code list slug within `catalog`.
-          example: bcp-47
-    catalogType:
-      type: string
-      enum:
-        - AUTHORED
-        - SUBSCRIBED
-      description: |
-        Origin of the attribute's catalog. AUTHORED catalogs are tenant-managed;
-        SUBSCRIBED catalogs are read-only mirrors of an upstream source.
-      example: SUBSCRIBED
+        Set when the attribute is bound to a code list. The bound list may live in this same
+        catalog or in another catalog the attribute's release declares as a dependency (a local
+        attribute binding to `bcp-47` of `system`), named by the declaration's alias, as the
+        attribute's catalog content names it (catalog wire v8); `listCatalogDependencies` names
+        that catalog in full.
     readOnly:
       type: boolean
       description: |
-        True when `catalogType == SUBSCRIBED`. Clients should disable editing
-        affordances; PATCH and DELETE on these attributes return 409.
+        True when the attribute's catalog cannot be changed in this installation (its `CatalogDto.editable`
+        is false; `readOnlyReason` there says why). Clients disable editing affordances; writes to
+        it are refused with 409 `catalog-read-only`.
       example: true
     createdAt:
       type: string
@@ -121,17 +87,16 @@ AttributeDto:
       format: date-time
       example: "2026-05-11T12:00:00Z"
   example:
-    slug: locale
     key: locale
-    tenantId: acme-corp
-    catalog: system
-    displayName: Locale
-    description: BCP-47 language + region tag (e.g. en-US, nl-NL).
+    tenantKey: acme-corp
+    registry: exchange.epistola.app
+    namespace: epistola
+    catalogKey: system
+    name: Locale
     allowedValues: []
     codeListBinding:
-      catalog: system
-      slug: bcp-47
-    catalogType: SUBSCRIBED
+      catalogKey: null
+      key: bcp-47
     readOnly: true
     createdAt: "2026-01-16T10:00:00Z"
     lastModified: "2026-05-11T12:00:00Z"
@@ -145,76 +110,69 @@ CreateAttributeRequest:
       - Omit both `allowedValues` and `codeListBinding` for free-format.
       - Provide a non-empty `allowedValues` for inline values.
       - Provide `codeListBinding` for code-list-bound (and leave `allowedValues` empty).
-    Mixing the two is rejected with 422.
+    Mixing the two is refused with 400 `validation-error`.
   required:
     - key
-    - displayName
+    - name
   properties:
     key:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 1
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       example: priority
-    displayName:
+    name:
       type: string
+      minLength: 1
+      maxLength: 100
       example: Priority
-    description:
-      type:
-        - string
-        - 'null'
-      example: Customer-facing priority of the document.
     allowedValues:
       type: array
+      maxItems: 1000
       items:
         type: string
       default: []
       example: [low, normal, high]
     codeListBinding:
-      type:
-        - object
-        - 'null'
-      required:
-        - catalog
-        - slug
-      properties:
-        catalog:
-          type: string
-          example: system
-        slug:
-          type: string
-          example: iso-639-1
+      oneOf:
+        - $ref: '#/CodeListBindingRef'
+        - type: 'null'
+      description: |
+        The code list the attribute's values come from: in the attribute's own catalog, or in a
+        catalog its draft declares as a dependency, named by the declaration's alias. An alias the
+        draft does not declare is refused with 400.
 
 UpdateAttributeRequest:
   type: object
   description: |
     Request body for updating an attribute definition. All fields are optional
-    (PATCH semantics). Constraint kind may switch — e.g. unset `codeListBinding`
-    and provide `allowedValues` to move from bound to inline. Attempting to
-    update an attribute from a SUBSCRIBED catalog returns 409.
+    (PATCH semantics): an omitted or null member keeps its current value, since generated servers
+    and clients cannot tell an omitted member from a null one. Constraint kind may switch — send
+    `clearCodeListBinding: true` with `allowedValues` to move from bound to inline, or a
+    `codeListBinding` with an empty `allowedValues` to move from inline to bound. Attempting to
+    update an attribute of a catalog that cannot be changed returns 409 `catalog-read-only`.
   properties:
-    displayName:
+    name:
       type: string
-    description:
-      type:
-        - string
-        - 'null'
+      minLength: 1
+      maxLength: 100
     allowedValues:
       type: array
+      maxItems: 1000
       items:
         type: string
     codeListBinding:
-      type:
-        - object
-        - 'null'
-      required:
-        - catalog
-        - slug
-      properties:
-        catalog:
-          type: string
-        slug:
-          type: string
+      oneOf:
+        - $ref: '#/CodeListBindingRef'
+        - type: 'null'
+      description: |
+        The code list the attribute's values come from: in the attribute's own catalog, or in a
+        catalog its draft declares as a dependency, named by the declaration's alias (an alias the
+        draft does not declare is refused with 400). Omitted or null keeps the current binding;
+        `clearCodeListBinding` removes it.
+    clearCodeListBinding:
+      type: [boolean, 'null']
+      description: |
+        True removes the attribute's code list binding. Omitted, null or false keeps it. True
+        together with a `codeListBinding` is refused with 400.
+      example: true
 
 AttributeListResponse:
   description: List of attribute definitions
@@ -232,30 +190,49 @@ AttributeListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - slug: locale
-        key: locale
-        tenantId: acme-corp
-        catalog: system
-        displayName: Locale
+      - key: locale
+        tenantKey: acme-corp
+        registry: exchange.epistola.app
+        namespace: epistola
+        catalogKey: system
+        name: Locale
         allowedValues: []
-        codeListBinding: { catalog: system, slug: bcp-47 }
-        catalogType: SUBSCRIBED
+        codeListBinding: { catalogKey: null, key: bcp-47 }
         readOnly: true
         createdAt: "2026-01-16T10:00:00Z"
         lastModified: "2026-05-11T12:00:00Z"
-      - slug: priority
-        key: priority
-        tenantId: acme-corp
-        catalog: default
-        displayName: Priority
+      - key: priority
+        tenantKey: acme-corp
+        registry: exchange.epistola.app
+        namespace: acme-corp
+        catalogKey: default
+        name: Priority
         allowedValues: [low, normal, high]
         codeListBinding: null
-        catalogType: AUTHORED
         readOnly: false
         createdAt: "2026-01-16T10:30:00Z"
         lastModified: "2026-01-16T10:30:00Z"
     page:
       number: 0
       size: 20
-      totalElements: 2
+      total: 2
       totalPages: 1
+
+CodeListBindingRef:
+  type: object
+  description: The code list an attribute's values come from.
+  required:
+    - key
+  properties:
+    catalogKey:
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogAlias'
+        - type: 'null'
+      description: |
+        The alias of the catalog the code list belongs to, as the release's dependency declarations
+        give it. Omitted or null: the attribute's own catalog, which is never named by its own key.
+      example: system
+    key:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: Key of the code list within that catalog
+      example: bcp-47

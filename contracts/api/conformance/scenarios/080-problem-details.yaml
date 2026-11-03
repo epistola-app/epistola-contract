@@ -19,8 +19,11 @@ action:
   name: problem
   config:
     nodeId: conformance-node-1
-    tenantId: acme-corp
-    catalogId: main
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: main
+    release: 2.0.0
 
 script:
   - status: 400
@@ -30,12 +33,15 @@ script:
       title: Validation failed
       status: 400
       detail: The request body failed validation
-      instance: /api/tenants/acme-corp/catalogs/main/templates
+      instance: /api/tenants/acme-corp/catalogs/~/acme-corp/main/releases/2.0.0/templates
+      help: https://epistola.app/errors/validation-error?operation=listTemplates
       errors:
         - field: name
           message: must not be blank
-        - field: id
-          message: must match the slug pattern
+          code: min-length
+        # No code: a code is optional, and a client surfaces its absence rather than a guess.
+        - field: key
+          message: must match the key pattern
 
 expect:
   requestCount: 1
@@ -45,4 +51,8 @@ expect:
     problemStatus: 400
     problemTitle: Validation failed
     # The extension member survives parsing, in order, both fields intact.
-    problemFieldErrors: name:must not be blank,id:must match the slug pattern
+    problemFieldErrors: name:must not be blank,key:must match the key pattern
+    # Why each field failed, from the x-validation-codes registry; a missing code as `null`.
+    problemFieldCodes: name:min-length,key:null
+    # A base member like `type`, kept exactly as sent: the type's page with this request's context.
+    problemHelp: https://epistola.app/errors/validation-error?operation=listTemplates

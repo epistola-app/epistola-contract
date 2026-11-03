@@ -1,0 +1,337 @@
+QualityProfileDto:
+  type: object
+  description: |
+    A quality profile (alpha, `x-experimental`): rules an organisation records about how its
+    documents are written, independent of the systems that check them (catalog wire v8, contract
+    ADR 0010). The same content as the profile's `qualityProfile` resource in a catalog archive.
+  required:
+    - key
+    - tenantKey
+    - name
+    - rules
+    - createdAt
+    - lastModified
+  properties:
+    key:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: Key of the quality profile (e.g., "clear-language")
+      example: clear-language
+    tenantKey:
+      $ref: './identifiers.yaml#/TenantKey'
+      description: Key of the tenant this profile belongs to
+      example: acme-corp
+    name:
+      type: string
+      minLength: 1
+      maxLength: 255
+      description: Name of the profile
+      example: Clear language
+    description:
+      type: [string, 'null']
+      maxLength: 2000
+      description: Optional description of the profile. Null when it has none.
+      example: Plain, short writing for letters to citizens.
+    rules:
+      type: array
+      description: The profile's rules. Rule ids are unique within the profile.
+      items:
+        $ref: '#/QualityRule'
+    acceptedWords:
+      type: array
+      description: |
+        Words the organisation uses on purpose (names, product terms) that a spelling check must
+        not report. Empty when there are none.
+      items:
+        type: string
+      example: [Epistola, DigiD]
+    createdAt:
+      type: string
+      format: date-time
+      description: Timestamp when the profile was created
+      example: "2026-11-01T09:00:00Z"
+    lastModified:
+      type: string
+      format: date-time
+      description: Timestamp when the profile was last modified
+      example: "2026-11-01T10:30:00Z"
+  example:
+    key: clear-language
+    tenantKey: acme-corp
+    name: Clear language
+    description: Plain, short writing for letters to citizens.
+    rules:
+      - id: sentence-length
+        title: Short sentences
+        intent: "Keep sentences to at most 20 words: citizens read at language level B1."
+        severity: warning
+        blocking: true
+        scope:
+          roles: [prose]
+          languages: [nl]
+        examples:
+          good: [Wij sturen u de stukken.]
+          bad: [Middels deze brief, die u heden ontvangt, delen wij u mede dat de stukken zijn verzonden.]
+        extras:
+          builtin:
+            type: max-sentence-words
+            limit: 20
+          llm:
+            instruction: Count words as a reader would; a placeholder is one word.
+    acceptedWords: [Epistola]
+    createdAt: "2026-11-01T09:00:00Z"
+    lastModified: "2026-11-01T10:30:00Z"
+
+CreateQualityProfileRequest:
+  type: object
+  description: Request body for creating a quality profile (alpha, `x-experimental`)
+  required:
+    - key
+    - name
+    - rules
+  properties:
+    key:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: Client-chosen key for the profile
+      example: clear-language
+    name:
+      type: string
+      minLength: 1
+      maxLength: 255
+      description: Name of the profile
+      example: Clear language
+    description:
+      type: string
+      maxLength: 2000
+      description: Optional description of the profile
+      example: Plain, short writing for letters to citizens.
+    rules:
+      type: array
+      description: |
+        The profile's rules. A rule id used twice, an unknown severity or field role, and a
+        malformed `builtin` extra are refused with 400.
+      items:
+        $ref: '#/QualityRule'
+    acceptedWords:
+      type: array
+      description: Words a spelling check must not report. Omitted for none.
+      items:
+        type: string
+      example: [Epistola]
+
+UpdateQualityProfileRequest:
+  type: object
+  description: |
+    Request body for updating a quality profile (partial update, alpha, `x-experimental`). An
+    omitted or null member keeps its current value: generated servers and clients cannot tell an
+    omitted member from a null one, so null never means "remove".
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 255
+      description: New name for the profile
+      example: Clear language (2027)
+    description:
+      type: [string, 'null']
+      maxLength: 2000
+      description: |
+        New description for the profile. Omitted or null keeps it; an empty string (or one of only
+        whitespace) removes it.
+      example: Plain, short writing for letters to citizens and businesses.
+    rules:
+      type: [array, 'null']
+      description: |
+        The profile's rules, replacing the current ones as a whole. Omitted or null keeps them; an
+        empty array removes every rule. Refused with 400 as on create.
+      items:
+        $ref: '#/QualityRule'
+    acceptedWords:
+      type: [array, 'null']
+      description: |
+        Words a spelling check must not report, replacing the current list as a whole. Omitted or
+        null keeps it; an empty array removes every word.
+      items:
+        type: string
+
+QualityProfileListResponse:
+  description: List of quality profiles
+  type: object
+  required:
+    - items
+    - page
+  properties:
+    items:
+      type: array
+      description: List of quality profiles
+      items:
+        $ref: '#/QualityProfileDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
+
+QualityRule:
+  type: object
+  description: |
+    One rule of a quality profile, as the catalog wire format writes it (`QualityRule` in
+    `resource-detail-v8`): a generic core every checking system and author reads, and extras per
+    kind of checking system.
+  required:
+    - id
+    - title
+    - intent
+    - severity
+  properties:
+    id:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: The rule's address within its profile, unique there; findings and overrides name it.
+      example: sentence-length
+    title:
+      type: string
+      description: A short name
+      example: Short sentences
+    intent:
+      type: string
+      description: |
+        The rule in plain language: what and why. Shown to authors with every finding of the rule,
+        and what a language model is asked to apply.
+      example: "Keep sentences to at most 20 words: citizens read at language level B1."
+    severity:
+      $ref: '#/QualitySeverity'
+    blocking:
+      type: boolean
+      description: |
+        Whether an open finding of the rule stops a variant being marked ready and a release being
+        cut. Omitted when false.
+    scope:
+      $ref: '#/QualityRuleScope'
+    examples:
+      $ref: '#/QualityRuleExamples'
+    extras:
+      type: object
+      description: |
+        What a kind of checking system needs beyond the core, keyed by kind (`builtin`,
+        `languagetool`, `llm`, …), each a JSON object. Only `builtin` has a shape the contract fixes
+        (`QualityBuiltinExtra` in `resource-detail-v8`: `type` one of `repeated-word`,
+        `max-sentence-words`, `double-space`, `space-before-punctuation`, `word-list`, with that
+        type's parameters); a malformed one is refused with 400. Every other kind is kept as
+        written, by the server and by a client alike.
+      additionalProperties:
+        type: object
+        additionalProperties: true
+      example:
+        builtin:
+          type: max-sentence-words
+          limit: 20
+        llm:
+          instruction: Count words as a reader would; a placeholder is one word.
+
+QualitySeverity:
+  type: string
+  enum: [info, warning, error]
+  description: How serious a finding of a quality rule is
+  example: warning
+
+QualityRuleScope:
+  type: object
+  description: What a quality rule reads. Each list narrows; an absent or empty one does not.
+  properties:
+    roles:
+      type: array
+      description: |
+        Field roles the rule reads: `prose`, `identifier`, `expression`, `value` or `reference`.
+        Absent means `prose`. A string, not an enum, so a client keeps a role it does not know; a
+        role the server does not know is refused with 400.
+      items:
+        type: string
+      example: [prose]
+    components:
+      type: array
+      description: Component types the rule reads, such as `text` or `image`
+      items:
+        type: string
+    languages:
+      type: array
+      description: BCP 47 language tags the rule applies to, such as `nl` or `en-GB`
+      items:
+        type: string
+
+QualityRuleExamples:
+  type: object
+  description: Text that meets a quality rule (`good`) and text that does not (`bad`)
+  properties:
+    good:
+      type: array
+      items:
+        type: string
+    bad:
+      type: array
+      items:
+        type: string
+
+QualityBinding:
+  type: object
+  description: |
+    Which quality profiles apply, and this level's overrides of their rules (alpha,
+    `x-experimental`), as the catalog wire format writes it (`QualityBinding` in
+    `resource-detail-v8`). A release's binding applies to every template in it; a template's adds
+    to it, and its override of a rule replaces the release's. Neither list is ordered: every profile
+    applies and an override is known by its profile and rule, so a profile named twice, or a rule
+    overridden twice, in one binding is refused with 400. A profile that cannot be found, or an
+    alias the release does not declare, is refused with 400 too.
+  properties:
+    profiles:
+      type: array
+      items:
+        $ref: '#/QualityProfileRef'
+    overrides:
+      type: array
+      items:
+        $ref: '#/QualityRuleOverride'
+  example:
+    profiles:
+      - key: clear-language
+      - key: house-style
+        catalogKey: house
+    overrides:
+      - profile:
+          key: clear-language
+        ruleId: sentence-length
+        enabled: false
+
+QualityProfileRef:
+  type: object
+  description: |
+    A reference to a quality profile: in the release's own catalog, or in a catalog the release
+    declares as a dependency, named by the declaration's alias (`CatalogAlias`), like a theme
+    reference.
+  required:
+    - key
+  properties:
+    key:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: Key of the quality profile
+      example: clear-language
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogAlias'
+      description: The alias of the catalog holding the profile. Omitted means the release's own catalog.
+      example: house
+
+QualityRuleOverride:
+  type: object
+  description: |
+    A change to one rule of a profile at the level of a binding: switch it off (`enabled: false`)
+    or give it another `severity`. A member left out stays as the profile says.
+  required:
+    - profile
+    - ruleId
+  properties:
+    profile:
+      $ref: '#/QualityProfileRef'
+    ruleId:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: The rule's id in that profile
+      example: sentence-length
+    enabled:
+      type: boolean
+      description: False switches the rule off at this level
+    severity:
+      $ref: '#/QualitySeverity'

@@ -135,7 +135,7 @@ fun readSpec(spec: File): Map<String, Any> = specModel(org.yaml.snakeyaml.Yaml()
 val generatedProblemSlugsDir = layout.buildDirectory.dir("generated-problem-slugs/src/main/kotlin")
 
 val generateProblemSlugs by tasks.registering {
-    description = "Generates KnownProblemSlugs from the spec's x-problem-types extension"
+    description = "Generates KnownProblemSlugs and KnownValidationCodes from the spec's x-problem-types and x-validation-codes extensions"
 
     inputs.file(bundledSpec)
     outputs.dir(generatedProblemSlugsDir)
@@ -197,6 +197,44 @@ val generateProblemSlugs by tasks.registering {
             """.trimMargin() + "\n",
         )
         logger.lifecycle("Generated KnownProblemSlugs with ${types.size} slug(s) → ${outFile.relativeTo(project.projectDir)}")
+
+        val codes = model["validationCodes"] as List<Map<String, Any?>>
+        val codeConstants = codes.joinToString("\n\n") { entry ->
+            "    /** ${entry["kind"]} — ${entry["description"]} */\n" +
+                "    const val ${entry["constantName"]}: String = \"${entry["code"]}\""
+        }
+        val codeList = codes.joinToString(",\n") { "        ${it["constantName"]}" }
+        val codesFile = generatedProblemSlugsDir.get()
+            .file("app/epistola/api/error/KnownValidationCodes.kt").asFile
+        codesFile.writeText(
+            """
+            |// Generated from the bundled OpenAPI spec's x-validation-codes extension — do not edit.
+            |package app.epistola.api.error
+            |
+            |import app.epistola.api.model.ValidationError
+            |
+            |/**
+            | * The codes that say why a field of a `validation-error` failed ([ValidationError.code]), from the
+            | * contract's validation-code registry (the spec's `x-validation-codes` extension /
+            | * `docs/error-types.md`): `constraint` codes name the JSON Schema keyword a value broke,
+            | * `template` codes a finding in template or stencil content, `domain` codes a rule the server
+            | * applies beyond the schema.
+            | *
+            | * Generated, so it cannot drift from the contract. The published clients generate the same
+            | * constants from the same registry, so a code set here is one a client can switch on. Send
+            | * only codes listed here; a field error with no fitting code leaves `code` out.
+            | */
+            |object KnownValidationCodes {
+            |$codeConstants
+            |
+            |    /** Every code the registry lists, in registry order. */
+            |    val ALL: List<String> = listOf(
+            |$codeList,
+            |    )
+            |}
+            """.trimMargin() + "\n",
+        )
+        logger.lifecycle("Generated KnownValidationCodes with ${codes.size} code(s) → ${codesFile.relativeTo(project.projectDir)}")
     }
 }
 
@@ -316,9 +354,26 @@ openApiGenerate {
             "Orientation" to "app.epistola.template.model.Orientation",
             "DocumentStyles" to "app.epistola.template.model.DocumentStyles",
             "BlockStylePreset" to "app.epistola.template.model.BlockStylePreset",
+            // Quality profiles are the catalog's own types, so the server binds the wire shape exactly:
+            // a rule's extras of every kind survive, typed as the catalog model types them.
+            "QualityRule" to "app.epistola.catalog.protocol.QualityRule",
+            "QualityRuleScope" to "app.epistola.catalog.protocol.QualityRuleScope",
+            "QualityRuleExamples" to "app.epistola.catalog.protocol.QualityRuleExamples",
+            "QualityBinding" to "app.epistola.catalog.protocol.QualityBinding",
+            "QualityProfileRef" to "app.epistola.catalog.protocol.QualityProfileRef",
+            "QualityRuleOverride" to "app.epistola.catalog.protocol.QualityRuleOverride",
+            // The catalog model types a severity as a string; the enum would be dead code.
+            "QualitySeverity" to "kotlin.String",
             "ProblemDetail" to "org.springframework.http.ProblemDetail",
             "ValidationProblemDetail" to "org.springframework.http.ProblemDetail",
             "DataModelValidationProblemDetail" to "org.springframework.http.ProblemDetail",
+            "ReleaseDependenciesMissingProblemDetail" to "org.springframework.http.ProblemDetail",
+            "ReleaseDependenciesUnreleasedProblemDetail" to "org.springframework.http.ProblemDetail",
+            "CatalogReadOnlyProblemDetail" to "org.springframework.http.ProblemDetail",
+            "MergeConflictsUnresolvedProblemDetail" to "org.springframework.http.ProblemDetail",
+            "MergeBaseMissingProblemDetail" to "org.springframework.http.ProblemDetail",
+            "CatalogRenderingDefaultsTooNewProblemDetail" to "org.springframework.http.ProblemDetail",
+            "ForbiddenProblemDetail" to "org.springframework.http.ProblemDetail",
         ),
     )
 

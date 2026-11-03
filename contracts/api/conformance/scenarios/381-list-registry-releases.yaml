@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: list-registry-releases
+title: The releases of a catalog in a release registry are listed with what the registry says of them
+why: >
+  Release registries are alpha (ADR 0008). A catalog in a release registry is addressed by the
+  release registry's name and the catalog's full name, its authority (`registry`, here
+  `acme.com`) included: the release registry's name is the installation's, not part of the
+  catalog's name, and a container registry keeps catalogs that differ only in their authority in
+  different repositories (amendment of 2026-10-22). The response names both, the release registry
+  as `releaseRegistry` and the authority as `registry`. Each release comes with what the registry records of it, which
+  may be little: a fingerprint, a content hash, an id and a base when it has them, null when it
+  does not. A client that drops a null, or reads the base's members as the release's, misreports
+  what is there.
+
+action:
+  name: list-registry-releases
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    name: acme
+    registry: acme.com
+    namespace: acme-corp
+    catalogKey: letters
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      releaseRegistry: acme
+      registry: acme.com
+      namespace: acme-corp
+      catalogKey: letters
+      items:
+        - version: 1.5.0
+          fingerprint: v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
+          contentHash: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
+          releaseId: k7m2x9qa
+          base:
+            version: 1.4.0
+            fingerprint: v5:1111111111111111111111111111111111111111111111111111111111111111
+            contentHash: v6:332102ae9816ed0d53b0657b25f4b6a96ce09bb995b159c594154b49cd0b1818
+        - version: 1.4.0
+          fingerprint: null
+          contentHash: null
+          releaseId: null
+          base: null
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/release-registries/acme/catalogs/acme.com/acme-corp/letters/releases
+      query: ""
+  report:
+    releaseRegistry: acme
+    registry: acme.com
+    namespace: acme-corp
+    catalogKey: letters
+    releases: 1.5.0:v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70:k7m2x9qa:1.4.0@v5:1111111111111111111111111111111111111111111111111111111111111111,1.4.0:null:null:null
+    contentHashes: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb,null
+    baseContentHashes: v6:332102ae9816ed0d53b0657b25f4b6a96ce09bb995b159c594154b49cd0b1818,null

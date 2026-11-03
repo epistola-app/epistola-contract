@@ -6,3 +6,10 @@
 # unreferenced) model class for allOf-composed schemas — skip it here so dead
 # code doesn't ship in the artifact.
 src/main/kotlin/app/epistola/api/model/DataModelValidationProblemDetail.kt
+src/main/kotlin/app/epistola/api/model/ReleaseDependenciesMissingProblemDetail.kt
+src/main/kotlin/app/epistola/api/model/ReleaseDependenciesUnreleasedProblemDetail.kt
+src/main/kotlin/app/epistola/api/model/CatalogReadOnlyProblemDetail.kt
+src/main/kotlin/app/epistola/api/model/MergeConflictsUnresolvedProblemDetail.kt
+src/main/kotlin/app/epistola/api/model/MergeBaseMissingProblemDetail.kt
+src/main/kotlin/app/epistola/api/model/CatalogRenderingDefaultsTooNewProblemDetail.kt
+src/main/kotlin/app/epistola/api/model/ForbiddenProblemDetail.kt

@@ -52,11 +52,19 @@ http = (
 )
 
 templates = TemplatesApi(http)
-template = templates.get_template("acme", "invoices", "invoice")
+# tenant, catalog registry ("~" = the server's default), namespace, key, release, template
+template = templates.get_template("acme", "~", "acme", "invoices", "1.4.0", "invoice")
 ```
 
-`.api_key(...)` sends `Authorization: ApiKey <key>`. The legacy `X-API-Key` header remains
-supported for existing integrations, but is deprecated. Some Epistola Suite deployments may disable
+Everything in a catalog is addressed through one of its releases, by its `release_id` or, once
+released, by its exact version: a release keeps its id and its name when it is released. A catalog
+can have any number of drafts, and a draft gets its version when it is released. `CatalogsApi`
+lists and reads those releases (`list_catalog_releases`, `get_catalog_release`), starts drafts
+(`create_catalog_release`, from a release or another draft), updates (`update_catalog_release`) and
+discards (`delete_catalog_release`) them, and previews and releases any of them
+(`preview_catalog_draft_release`, `release_catalog_draft`).
+
+`.api_key(...)` sends `Authorization: ApiKey <key>`. Some Epistola Suite deployments may disable
 API-key authentication entirely; with `.install_problem_detail_handler()`, switch on
 `e.type_slug == KnownProblemSlugs.API_KEY_AUTH_DISABLED` and guide the caller to JWT auth.
 
@@ -102,14 +110,80 @@ except ProblemDetailException as e:
             for example, failures in e.validation_errors.items():  # 422 data-model failures
                 for f in failures:
                     log.warning("%s %s: %s", example, f.path, f.message)
+        case KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING:
+            for d in e.missing_dependencies:   # 409 from deploy_catalog_release
+                log.warning("%s/%s/%s@%s: %s", d.registry, d.namespace,
+                            d.catalog_key, d.version, d.reason)
+        case KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED:
+            for d in e.unreleased_dependencies:  # 409 from release_catalog_draft
+                log.warning("%s/%s/%s uses draft %s (%s)", d.registry, d.namespace,
+                            d.catalog_key, d.release_name, d.release_id)
+        case KnownProblemSlugs.CATALOG_READ_ONLY:
+            # any write to a catalog that cannot be changed here
+            log.warning("catalog cannot be changed here: %s", e.read_only_reason)
+        case KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED:
+            for conflict in e.unresolved_conflicts:  # merge_into_catalog_draft (alpha)
+                log.warning("needs ours or theirs: %s", conflict)
+        case KnownProblemSlugs.MERGE_PREVIEW_OUTDATED:
+            # expected_token named a preview, and the draft or the release changed since
+            log.warning("preview the merge again")
+        case KnownProblemSlugs.MERGE_BASE_MISSING:
+            # the merge base is not installed here: install that release first
+            log.warning("install %s (%s) first", e.missing_base_version, e.missing_base_fingerprint)
+        case KnownProblemSlugs.CATALOG_VERSION_BEHIND:
+            # release_catalog_draft: name these in acknowledged_behind to release anyway
+            log.warning("the draft is behind %s", ", ".join(e.behind))
+        case KnownProblemSlugs.RELEASE_IN_USE:
+            # delete_catalog_release: undeploy it, and release the catalogs that pin it without it
+            log.warning("deployed to %s; pinned by %s", e.environments, [f"{r.catalog_key}@{r.version}" for r in e.pinned_by])
+        case KnownProblemSlugs.AMBIGUOUS_VARIANT:
+            # generate_document, preview_document: name one by variant_key
+            log.warning("several variants match: %s", ", ".join(e.tied_variants))
+        case KnownProblemSlugs.FORBIDDEN:
+            # any refused authorization: a permission in a tenant, access to a tenant, a platform
+            # role, or a policy (refusal_reason), each read from this problem only
+            log.warning("refused: missing %s in %s", e.required_permission, e.refused_tenant_key)
+        case KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW:
+            # import_catalog / install_catalog_release: the release renders with rendering
+            # defaults this installation does not have (renderingDefaultsVersion, supportedVersion)
+            log.warning("upgrade Epistola to receive this release")
+        case KnownProblemSlugs.RELEASE_NUMBER_TAKEN:
+            # publish_release_to_registry (alpha): the registry has this version with other content;
+            # import_catalog, install_catalog_release, install_registry_release: the tenant has this
+            # version with another fingerprint, or this release id as another release
+            log.warning("release the changes under a new version")
+        case KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE:
+            # install_catalog_release / list_available_catalog_releases: 503 when the catalog's
+            # source could not be reached (Retry-After may say when), 502 when it answered badly
+            log.warning("catalog source unavailable (%s): %s", e.problem_status, e.detail)
         case _:
-            raise                              # unknown / framework error — fall back to status
+            raise                              # a type this client does not know: handle it by e.problem_status
 ```
+
+Each field error's `code` says why the field failed (`min-length`, `stencil-recursion`,
+`catalog-resources-not-ready`, ...), or is `None` when the server sent none. Compare it against
+`KnownValidationCodes`, generated from the contract's registry, and keep a fallback branch: new
+codes may come in a minor version.
 
 `ProblemDetailException` extends the generated `ApiException`, so existing
 `except ApiException` sites keep working. It exposes `type`, `type_slug`, `title`,
-`problem_status`, `detail`, `errors`, `validation_errors`, `is_validation_problem`, and
-`is_data_model_validation_problem`.
+`problem_status`, `detail`, `help` (the type's page with this request's context, such as
+`?operation=getTemplate`, or `None`: switch on the type, not on this, and open it for hints),
+`errors`, `validation_errors`, `missing_fields`, `invalid_fields`,
+`missing_dependencies`, `unreleased_dependencies`, `read_only_reason`, `unresolved_conflicts`,
+`missing_base_version`, `missing_base_fingerprint`, `behind`, `environments`, `pinned_by`,
+`tied_variants`, `required_permission`, `refused_tenant_key`, `required_platform_role`,
+`refusal_reason`, `is_validation_problem`, `is_data_model_validation_problem`,
+`is_template_data_problem`, `is_release_dependencies_missing_problem`,
+`is_release_dependencies_unreleased_problem`, `is_catalog_read_only_problem`,
+`is_merge_conflicts_unresolved_problem`, `is_merge_base_missing_problem`,
+`is_catalog_version_behind_problem`, `is_release_in_use_problem`,
+`is_ambiguous_variant_problem` and `is_forbidden_problem`. Each `pinned_by` entry is a
+`CatalogReleaseRef(registry, namespace, catalog_key, version, release_id)`. Each
+`missing_dependencies` entry is a `MissingDependency` whose `reason` is the wire string, so a
+reason a later contract adds is reported rather than lost. Each `unreleased_dependencies` entry is
+an `UnreleasedDependency(registry, namespace, catalog_key, release_id, release_name)`: a draft of
+another catalog to release first, or along with the release (`releaseDependencies`).
 
 ## Result collection
 
@@ -119,11 +193,34 @@ from epistola_client import ResultCollector
 collector = (
     ResultCollector.builder()
     .api_client(http)
-    .tenant_id("acme")
-    .handler(lambda result: print(result.request_id, result.status))
+    .tenant_key("acme")
+    .handler(lambda result: print(
+        result.request_id,
+        result.status,  # "completed" or "failed", as sent
+        # The catalog it was generated from; version is None when rendered from a draft.
+        f"{result.registry}/{result.namespace}/{result.catalog_key}@{result.version}",
+    ))
     .build()
 )
 collector.start()   # blocks; adaptive polling until collector.stop()
+```
+
+## Response headers
+
+Each operation has a `…_with_http_info` variant that returns the response headers next to the
+parsed body. Updates that take `if_match` answer with the new `ETag`, and a stale one is refused
+with `412` (`KnownProblemSlugs.RESOURCE_MODIFIED`); a create answers with the `Location` of what
+it made:
+
+```python
+from epistola_client import EnvironmentsApi, UpdateEnvironmentRequest
+
+environments = EnvironmentsApi(http)
+current = environments.get_environment_with_http_info("acme", "staging")
+updated = environments.update_environment_with_http_info(
+    "acme", "staging", UpdateEnvironmentRequest(name="Staging"),
+    if_match=current.headers["ETag"],
+)
 ```
 
 ## Uploading files
@@ -135,8 +232,17 @@ Multipart operations such as `upload_image` and `import_catalog` take the file a
 from epistola_client import ImagesApi
 
 with open("logo.png", "rb") as f:
-    image = ImagesApi(http).upload_image("acme-corp", "main", ("logo.png", f.read()), name="Logo")
+    image = ImagesApi(http).upload_image(
+        "acme-corp", "~", "acme-corp", "main", "k7m2x9qa",
+        ("logo.png", f.read()), name="Logo"
+    )
 ```
+
+A catalog is addressed by its registry, namespace and key — here the server's default registry
+`~`, namespace `acme-corp`, key `main` — and an image belongs to one of its releases, here the
+draft with that id. A registry other than the default is named in full (`exchange.example.org`,
+`acme.com`). In a request body, leave `registry` unset for the default registry; responses always
+name it in full.
 
 Bare `bytes` are sent with the field name, `file`, as their filename and with type
 `application/octet-stream`. The server then names the image `file`, and rejects it as not an image

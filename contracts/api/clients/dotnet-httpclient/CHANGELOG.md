@@ -9,7 +9,119 @@ records contract changes; this file records changes to the hand-written library 
 
 ## [Unreleased]
 
+### Added
+
+- `KnownValidationCodes`, generated from the contract's `x-validation-codes` registry: one
+  constant per code that says why a field of a `validation-error` failed, and `All`. Compare a field
+  error's `Code` (`null` when the server sent none) against them, keeping a `default` branch.
+- `ProblemDetailException.Help`: the problem type's page with this request's context in its query
+  (`?operation=getTemplate`), the contract's new optional base member `help`, or `null` when the
+  server sent none. Switch on the type, not on this; open it for hints.
+- `ProblemDetailException.RequiredPermission`, `RefusedTenantKey`, `RequiredPlatformRole`,
+  `RefusalReason` and `IsForbiddenProblem`: what a `forbidden` problem says was refused (a
+  permission in a tenant, access to a tenant, a platform role, or a policy's reason), read from that
+  problem only.
+- `ProblemDetailException.Behind` and `IsCatalogVersionBehindProblem` (a `catalog-version-behind`
+  problem's versions to acknowledge), `Environments`, `PinnedBy` (each a `CatalogReleaseRef`) and
+  `IsReleaseInUseProblem` (what a `release-in-use` problem says uses the release), and
+  `TiedVariants` and `IsAmbiguousVariantProblem` (an `ambiguous-variant` problem's variants).
+- **BREAKING:** `GenerationResult` carries `ReleaseId` and `ReleaseName`, after `Version`. The
+  collector parsed result lines by hand and dropped both, so a consumer could not tell which
+  draft rendered a document. The record is positional: code constructing one passes the two new
+  arguments.
+- `ProblemDetailException.MissingBaseVersion`, `MissingBaseFingerprint` and
+  `IsMergeBaseMissingProblem` surface the `version` and `fingerprint` members of a
+  `merge-base-missing` problem (409, from `MergeIntoCatalogDraft`, alpha): the release to install
+  first. They are read from that problem only, since other problems use `version` for other things;
+  the constructor takes them as new optional parameters.
+- `ProblemDetailException.UnresolvedConflicts` and `IsMergeConflictsUnresolvedProblem` surface the
+  `unresolvedConflicts` member of a `merge-conflicts-unresolved` problem (409, from
+  `MergeIntoCatalogDraft`, alpha): each conflict without a resolution, as
+  `resourceType/resourceKey`. Entries that are not strings are skipped; the constructor takes it as
+  a new optional `unresolvedConflicts` parameter.
+- `ProblemDetailException.ReadOnlyReason` and `IsCatalogReadOnlyProblem` surface the
+  `readOnlyReason` member of a `catalog-read-only` problem (409, from any write to a catalog that
+  cannot be changed): `editing-disabled` or `supplied-by-epistola`, kept as the string the server
+  sent. A member that is not a string reads as `null`. The constructor takes it as a new optional
+  `readOnlyReason` parameter.
+- `ProblemDetailException.MissingDependencies` and `IsReleaseDependenciesMissingProblem` surface the
+  `missingDependencies` member of a `release-dependencies-missing` problem (409 from
+  `DeployCatalogRelease`): each dependency release that cannot be had, as a hand-written
+  `Epistola.Client.Error.MissingDependency` (`Registry`, `Namespace`, `CatalogKey`,
+  `Version`, `Reason`). `Reason` is the string the server sent, so a reason a later contract
+  adds is not lost; `MissingDependency.Reasons` holds the one named today, `Unavailable`. A malformed entry is
+  skipped on its own; an absent member is an empty list. The exception's constructor takes it as a
+  new optional `missingDependencies` parameter, so existing call sites compile unchanged.
+- `ProblemDetailException.UnreleasedDependencies` and `IsReleaseDependenciesUnreleasedProblem`
+  surface the `unreleasedDependencies` member of a `release-dependencies-unreleased` problem (409
+  from `ReleaseCatalogDraft`): each draft of another catalog the released draft's dependency
+  declarations name, as a hand-written `Epistola.Client.Error.UnreleasedDependency` (`Registry`,
+  `Namespace`, `CatalogKey`, `ReleaseId`, `ReleaseName`). A malformed entry is skipped on its own; an
+  absent member is an empty list. The constructor takes it as a new optional
+  `unreleasedDependencies` parameter.
+- The generated `Validate()` extensions check a member that references a plain string schema, such
+  as `CatalogDependencyRequirement.Version` (`ReleaseVersion`), as if its constraints were
+  written inline. Before, every referenced member was skipped.
+
 ### Changed
+
+- **BREAKING:** generated members and parameters carry their plain name, never a `Var`/`var`
+  prefix. A `version` member is `Version`, renamed from 1.4's `VarVersion` (constructor argument
+  `version`, from `varVersion`); 1.4 had it on `ReleaseCatalogResponse`, `ImportTemplateDto` and
+  `ImportTemplateResultDto`. The `base` and `namespace` members, new in 2.0, are `Base` and
+  `Namespace`; their parameters, in model constructors and API operations alike, are `@base` and
+  `@namespace`, since both are C# keywords. Only code that passes them as named arguments sees the
+  `@`. JSON names are unchanged. `generate.sh` maps the parameters (`--parameter-name-mappings`),
+  renames the `Var`-prefixed properties the generator's reserved-word escaping leaves, and fails
+  when any `Var`-prefixed identifier remains.
+- **BREAKING:** the result collector's `GenerationResult.Registry`, `Namespace` and `CatalogKey`
+  are non-nullable `string`s: every result line names its catalog. A line without one of them is
+  malformed and `CollectOnce()` throws a `FormatException`. `Version` stays nullable (null
+  for a document rendered from a draft). `Status` carries the lowercase wire value, `completed` or
+  `failed`; compare against those, not `COMPLETED` / `FAILED`.
+- **BREAKING:** `MissingDependency.Reasons.Unavailable` is `"unavailable"`, the lowercase wire
+  value, in place of `"UNAVAILABLE"`.
+- The README no longer mentions the `X-API-Key` header, which the contract no longer defines; the
+  client never sent it. API keys go out as `Authorization: ApiKey <key>`, as before.
+- The README documents the `…WithHttpInfo` variants for reading the `Location` and `ETag` response
+  headers, and conditional updates with `ifMatch`, using `UpdateCatalogRelease`.
+- **BREAKING:** `EpistolaMediaTypeHandler.VendorJson` and the result collector send
+  `application/vnd.epistola.v2+json` and `application/vnd.epistola.v2+ndjson`, the contract 2.x media
+  types. A 2.x server refuses the 1.x ones.
+- **BREAKING:** a resource's address is its `key` (epistola-app/epistola-contract#84), so the
+  hand-written API follows the generated one: `ResultCollector.Builder().TenantId(…)` is
+  `TenantKey(…)`; the result collector's `GenerationResult.TemplateId` / `VariantId` are
+  `TemplateKey` / `VariantKey`, read from the stream's `templateKey` / `variantKey`;
+  `ServerTemplateDataValidator`'s `variantId` / `environmentId` parameters are `variantKey` /
+  `environmentKey`; and the `Validate` methods of `ITemplateDataValidator`,
+  `TemplateSchemaValidator` and `ServerTemplateDataValidator` take `(tenantKey, registry,
+  namespace, catalogKey, templateKey, data)`. `ValidatingGenerationApi`'s parameter is `tenantKey`.
+  No deprecated aliases are kept.
+- **BREAKING:** a catalog is identified by registry, namespace and key.
+  `ITemplateDataValidator.Validate`, `TemplateSchemaValidator.Validate` and
+  `ServerTemplateDataValidator.Validate` take `(tenantId, registry, namespace, catalogKey,
+  templateId, data)` in place of `(tenantId, catalogId, templateId, data)`. The registry is the path segment: `~`
+  (`ITemplateDataValidator.DefaultRegistry`) for the server's default registry, or a name in full
+  (`acme.com`). The namespace is a plain slug. `ValidatingGenerationApi` hands a validator `~` for
+  a request whose `registry` is unset and passes a named registry on as given. It no longer
+  converts `host/name` namespaces to `host~name`, because neither form exists any more.
+- **BREAKING:** the result collector's `GenerationResult` gained `Registry`, before `Namespace`. `GenerationResult` is a positional record, so code
+  constructing it positionally must add the argument.
+
+- The reference in-process validator to copy, `NJsonSchemaTemplateDataValidator` under
+  `test/Epistola.Client.Tests/Validation/Schema/Local/`, takes the release whose template
+  schema it holds data to, because a template is now read from a release of its catalog. The shipped
+  validators are unchanged: `validateTemplateData` is not addressed by release.
+- **BREAKING:** `ServerTemplateDataValidator`'s `releaseVersion` parameter is now `versionRange`,
+  a version range sent as the request's `versionRange`; it may be combined with `environmentKey`.
+- The result collector's `GenerationResult` gained `Namespace` and `CatalogKey`, next to
+  `Version`. `GenerationResult` is a positional record, so
+  code constructing it positionally must add the two arguments.
+
+- **BREAKING:** the server-side template data validator no longer takes a `versionId`, matching
+  contract 2.0's generation by release; without a version range or an environment, the catalog's
+  latest release is checked. The result collector reports `Version` (a string, the release's
+  version) in place of `VersionId`.
 
 - **Template data is validated by the server, not by a bundled library.** `TemplateSchemaValidator`
   and `ValidatingGenerationApi` now call `validateTemplateData` through a pluggable

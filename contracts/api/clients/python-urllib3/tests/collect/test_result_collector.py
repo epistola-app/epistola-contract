@@ -23,7 +23,7 @@ def _collector_with_assignment(assignment):
     collector = (
         ResultCollector.builder()
         .api_client(object())
-        .tenant_id("acme")
+        .tenant_key("acme")
         .handler(lambda r: None)
         .register_shutdown_hook(False)
         .build()
@@ -36,7 +36,7 @@ def test_partition_for_is_none_before_assignment_known():
     collector = (
         ResultCollector.builder()
         .api_client(object())
-        .tenant_id("acme")
+        .tenant_key("acme")
         .handler(lambda r: None)
         .build()
     )
@@ -92,7 +92,7 @@ def test_backoff_recovers_from_a_has_more_burst_instead_of_returning_zero():
     collector = (
         ResultCollector.builder()
         .api_client(object())
-        .tenant_id("acme")
+        .tenant_key("acme")
         .handler(lambda r: None)
         .min_interval(1.0)
         .max_interval(30.0)
@@ -106,7 +106,7 @@ def test_backoff_recovers_from_a_has_more_burst_instead_of_returning_zero():
 
 def test_builder_requires_api_client():
     with pytest.raises(ValueError):
-        ResultCollector.builder().tenant_id("t").handler(lambda r: None).build()
+        ResultCollector.builder().tenant_key("t").handler(lambda r: None).build()
 
 
 def test_builder_rejects_out_of_range_batch_size():

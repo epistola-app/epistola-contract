@@ -49,6 +49,20 @@ public class ApiExceptionMapper implements ResponseExceptionMapper<ApiException>
                 parsed.validationErrors(),
                 parsed.missingFields(),
                 parsed.invalidFields(),
+                parsed.missingDependencies(),
+                parsed.unreleasedDependencies(),
+                parsed.readOnlyReason(),
+                parsed.unresolvedConflicts(),
+                parsed.missingBaseVersion(),
+                parsed.missingBaseFingerprint(),
+                parsed.behind(),
+                parsed.environments(),
+                parsed.pinnedBy(),
+                parsed.tiedVariants(),
+                parsed.requiredPermission(),
+                parsed.refusedTenantKey(),
+                parsed.requiredPlatformRole(),
+                parsed.refusalReason(),
                 body);
     }
 

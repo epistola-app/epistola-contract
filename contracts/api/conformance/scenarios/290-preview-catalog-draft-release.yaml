@@ -1,0 +1,55 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: preview-catalog-draft-release
+title: A release preview surfaces the version the changes need, the version the draft gets, and every reason
+why: >
+  A draft is numbered when it is released, from the kind of change it holds against its base
+  (ADR 0002). The preview is what an author sees before releasing: the base, the kind of change
+  (`none`, `additive` or `breaking`), each change that makes it more than a fix, breaking first,
+  the version those changes need, and the version the draft gets, which releasing without a
+  `version` uses. A client that drops a reason hides why the version is a major.
+
+  This draft started from `1.4.0` and breaks something, so it needs `2.0.0`; another draft was
+  already released as `2.0.0`, so it gets the next free major, `3.0.0`. A client that reports only
+  one of the two versions hides why the release skips one.
+
+  The preview takes no query parameters: the renumber preview it replaced took the target version
+  as `to`, and a client that still sends one sends a parameter the contract does not have.
+
+action:
+  name: preview-catalog-draft-release
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: k7m2x9qa
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      base: 1.4.0
+      changeKind: breaking
+      reasons:
+        - "template 'invoice': removed"
+        - "template 'reminder': added"
+      needed: 2.0.0
+      suggested: 3.0.0
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/release-preview
+      query: ""
+  report:
+    base: 1.4.0
+    changeKind: breaking
+    # Reasons are free text, so they are joined with `|`.
+    reasons: "template 'invoice': removed|template 'reminder': added"
+    needed: 2.0.0
+    suggested: 3.0.0

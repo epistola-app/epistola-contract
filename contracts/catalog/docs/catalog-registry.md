@@ -17,6 +17,41 @@ consumers can load the same data without depending on Suite internals.
 - The Gradle build packages both JSON files as
   `META-INF/epistola-catalog/*.json` for JVM consumers.
 
+## Where a style applies
+
+A component's `applicableStyles` is `"all"` or a list of style keys. A list entry also covers the
+keys it is a prefix of, so `padding` covers `paddingTop` and `border` covers `borderRadius`.
+
+`"all"` covers every style property except those marked `"includedInAll": false` in the style
+registry. Such a property makes sense on only a few components and applies only where a component,
+or a style map, lists it by key:
+
+| Property | Type | Applies to |
+| --- | --- | --- |
+| `minHeight` | `unit` (`sp`, `pt`) | `container`. The container is at least this tall and grows with its content; it never clips. There is no `height`. |
+| `verticalAlign` | `select`: `top`, `middle`, `bottom` | `datatable-column` (node styles), the table's `cellStyles`, the columns' `columnStyles` |
+
+The container therefore lists its styles instead of saying `"all"`: the same keys as before, plus
+`minHeight`.
+
+### Style maps
+
+Some parts of a node are not nodes and cannot carry `styles`: a table's cells and the columns of a
+columns node. A component declares a prop that styles them under `styleMaps`, with the keys each
+entry accepts:
+
+| Component | Prop | Shape | Parts | Accepted keys |
+| --- | --- | --- | --- | --- |
+| `table` | `cellStyles` | `keyed`: `{ "<row>-<col>": { ... } }`, keys match `^\d+-\d+$` | Cells, 0-based, inside the `rows` × `columns` props. A merged cell takes the styles of its top-left cell. | `backgroundColor`, `padding*`, `border*` (including `borderRadius`), `verticalAlign` |
+| `columns` | `columnStyles` | `indexed`: `[{ ... }, ...]`, entry *i* styles slot `column-i` | Columns, counted by the length of `columnSizes`. The array may be shorter, never longer; `{}` leaves a column unstyled. | The same |
+
+Equal height is the renderer's job. The columns of a row are meant to be equally tall, so a column's
+background, border and vertical alignment fill the height of the row, and a cell's fill the height
+of its table row. Epistola Suite may not render these properties yet, nor offer them in its editor.
+
+The npm registry facade exports `isStyleApplicable(key, applicableStyles)` and `optInStyleKeys`,
+which decide applicability as the validator does.
+
 ## Suite Integration
 
 `epistola-suite` still owns the editor implementation: Lit components,
@@ -92,5 +127,5 @@ node contracts/catalog/scripts/check-registry.mjs
 ```
 
 The validator checks the registry shape, duplicate component/style keys, style
-references, default style keys, allowed child references, and example fragment
-structure.
+references, default style keys, style maps (shape, key pattern, accepted keys, and no clash with
+another prop), allowed child references, and example fragment structure.

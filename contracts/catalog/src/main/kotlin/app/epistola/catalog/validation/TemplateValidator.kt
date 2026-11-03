@@ -4,6 +4,7 @@
 
 package app.epistola.catalog.validation
 
+import app.epistola.catalog.protocol.CatalogKeys
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BINDINGS_INVALID_SHAPE
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BINDING_EMPTY
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BINDING_MISSING_REQUIRED
@@ -30,6 +31,7 @@ import app.epistola.catalog.validation.TemplateValidationCodes.TEMPLATE_STYLE_NO
 import app.epistola.catalog.validation.TemplateValidationCodes.TEMPLATE_STYLE_PRESET_UNKNOWN
 import app.epistola.catalog.validation.TemplateValidationCodes.TEMPLATE_STYLE_UNKNOWN
 import app.epistola.catalog.validation.TemplateValidationCodes.TEMPLATE_THEME_NOT_FOUND
+import app.epistola.template.model.BlockStylePreset
 import app.epistola.template.model.Node
 import app.epistola.template.model.TemplateDocument
 import app.epistola.template.model.ThemeRefOverride
@@ -44,6 +46,13 @@ import tools.jackson.databind.JsonNode
  * placeholders, page header and footer placement, stencil references, parameter bindings, theme
  * references, recursion, and nesting depth. Consumer-owned resource lookups
  * enter only through [TemplateValidationContext].
+ *
+ * A style key that has no effect is a [ValidationSeverity.WARNING], never an error, wherever a
+ * style map appears: node `styles`, `documentStylesOverride`, the style maps a component declares
+ * (`cellStyles`, `columnStyles`), and a theme's styles ([validateThemeStyles]). The key is either
+ * not in the style registry ([TemplateValidationCodes.TEMPLATE_STYLE_UNKNOWN]) or not accepted
+ * where it is set ([TemplateValidationCodes.TEMPLATE_STYLE_NOT_APPLICABLE]). Renderers ignore such
+ * keys, so the document stays valid.
  *
  * Ordinary invalid content never throws. Findings are de-duplicated and sorted
  * by path, code, and message so JVM consumers and golden fixtures observe the
@@ -81,6 +90,11 @@ object TemplateValidator {
         }
         val safeGraph = validateGraph(document, findings)
         validateRegistryRules(document, findings)
+        document.documentStylesOverride?.let { styles ->
+            // Document styles cascade or apply at the document level, so only an unknown key is
+            // reported; there is no component to be applicable to.
+            findings.checkStyleKeys(styles.keys, "documentStylesOverride", target = null, applicable = null)
+        }
         validateBindings(document, context, findings)
         validateReferences(document, context, findings)
         if (safeGraph) {
@@ -264,25 +278,204 @@ object TemplateValidator {
                 }
             }
             validateProperties(node, component, findings)
-            node.styles.orEmpty().toSortedMap().forEach { (key, _) ->
-                if (key !in CatalogRegistries.styleKeys) {
-                    findings.error(TEMPLATE_STYLE_UNKNOWN, "nodes.${node.id}.styles.$key", "style '$key' is not defined by the catalog style registry")
-                } else if (!isStyleApplicable(key, component.applicableStyles)) {
-                    findings.error(TEMPLATE_STYLE_NOT_APPLICABLE, "nodes.${node.id}.styles.$key", "style '$key' is not applicable to component '${node.type}'")
+            validateStyleMaps(node, component, findings)
+            node.styles?.let { styles ->
+                findings.checkStyleKeys(styles.keys, "nodes.${node.id}.styles", "component '${node.type}'") { key ->
+                    isStyleApplicable(key, component.applicableStyles)
                 }
             }
         }
     }
 
     /**
+     * Validates the style maps of a theme: its `documentStyles`, its `defaultBlockStyles` and the
+     * `styles` of each block style preset. Every finding is a [ValidationSeverity.WARNING], so the
+     * report is always valid.
+     *
+     * A document style key is reported only when the style registry does not define it. A default
+     * block style key is also reported when it is not a margin (#59): only margins take effect
+     * there. A preset style key is also reported when no component the preset applies to accepts
+     * it: the components in its `applicableTo`, or every component when that is empty.
+     *
+     * Paths are relative to the theme: `documentStyles.<key>`, `defaultBlockStyles.<key>` and
+     * `blockStylePresets.<name>.styles.<key>`.
+     */
+    fun validateThemeStyles(
+        documentStyles: Map<String, Any?>?,
+        blockStylePresets: Map<String, BlockStylePreset>?,
+        defaultBlockStyles: Map<String, Any?>? = null,
+    ): TemplateValidationReport {
+        val findings = mutableListOf<TemplateValidationFinding>()
+        documentStyles?.let { findings.checkStyleKeys(it.keys, "documentStyles", target = null, applicable = null) }
+        defaultBlockStyles?.let {
+            findings.checkStyleKeys(it.keys, "defaultBlockStyles", "a theme's default block styles, which take margins only") { key -> key.startsWith("margin") }
+        }
+        blockStylePresets.orEmpty().toSortedMap().forEach { (name, preset) ->
+            val named = preset.applicableTo.orEmpty()
+            val candidates = if (named.isEmpty()) {
+                CatalogRegistries.components.values.toList()
+            } else {
+                named.mapNotNull(CatalogRegistries.components::get)
+            }
+            val target = if (named.isEmpty()) {
+                "any component"
+            } else {
+                "any component preset '$name' applies to (${named.joinToString()})"
+            }
+            findings.checkStyleKeys(
+                preset.styles.keys,
+                "blockStylePresets.$name.styles",
+                target,
+                applicable = if (candidates.isEmpty()) null else { key -> candidates.any { isStyleApplicable(key, it.applicableStyles) } },
+            )
+        }
+        return TemplateValidationReport(
+            findings.distinct().sortedWith(compareBy({ it.path }, { it.code }, { it.message })),
+        )
+    }
+
+    /**
      * Component style allowlists use family prefixes, matching the editor:
      * `padding` includes `paddingTop`, and `border` includes `borderRadius`.
-     * Unknown prefixed keys are still rejected by the style registry check above.
+     * `"all"` (null) includes every registry property except those marked
+     * `includedInAll: false`, which apply only where they are listed by key.
+     * Unknown keys are reported by the style registry check before this one.
      */
     private fun isStyleApplicable(
         key: String,
         applicableStyles: Set<String>?,
-    ): Boolean = applicableStyles == null || applicableStyles.any(key::startsWith)
+    ): Boolean = if (applicableStyles == null) {
+        key !in CatalogRegistries.optInStyleKeys
+    } else {
+        applicableStyles.any(key::startsWith)
+    }
+
+    /**
+     * Reports each style key that has no effect, as a warning: one the style registry does not
+     * define, or one [applicable] rejects. A null [applicable] checks only the registry.
+     */
+    private fun MutableList<TemplateValidationFinding>.checkStyleKeys(
+        keys: Collection<String>,
+        path: String,
+        target: String?,
+        applicable: ((String) -> Boolean)?,
+    ) {
+        keys.sorted().forEach { key ->
+            if (key !in CatalogRegistries.styleKeys) {
+                warning(TEMPLATE_STYLE_UNKNOWN, "$path.$key", "style '$key' is not defined by the catalog style registry")
+            } else if (applicable != null && !applicable(key)) {
+                warning(TEMPLATE_STYLE_NOT_APPLICABLE, "$path.$key", "style '$key' is not applicable to $target")
+            }
+        }
+    }
+
+    /**
+     * Validates the style maps a component declares (`styleMaps` in the component registry).
+     *
+     * The shape is an error: a keyed map that is not an object, an indexed map that is not an
+     * array, a part key that does not match the map's `keyPattern`, an entry that is not an
+     * object, and a part the node does not have (a cell outside the table's `rows` × `columns`, a
+     * column beyond the `columnSizes` count). The style keys inside an entry are warnings, like
+     * node styles, checked against the map's own `applicableStyles`.
+     */
+    private fun validateStyleMaps(
+        node: Node,
+        component: ComponentRule,
+        findings: MutableList<TemplateValidationFinding>,
+    ) {
+        val props = node.props ?: return
+        component.styleMaps.forEach { rule ->
+            val value = props[rule.key] ?: return@forEach
+            val path = "nodes.${node.id}.props.${rule.key}"
+            val parts: List<Pair<String, Any?>> = when (rule.shape) {
+                "keyed" -> objectEntries(value)?.sortedBy { it.first } ?: run {
+                    findings.error(TEMPLATE_NODE_PROPERTY_INVALID, path, "property '${rule.key}' must be an object of styles keyed by part")
+                    return@forEach
+                }
+                else -> arrayItems(value)?.mapIndexed { index, item -> index.toString() to item } ?: run {
+                    findings.error(TEMPLATE_NODE_PROPERTY_INVALID, path, "property '${rule.key}' must be an array of styles, one per part")
+                    return@forEach
+                }
+            }
+            parts.forEach { (part, styles) ->
+                val partPath = if (rule.shape == "keyed") "$path.$part" else "$path[$part]"
+                val partName = styleMapPartName(node, rule, part)
+                if (rule.keyPattern != null && !rule.keyPattern.matches(part)) {
+                    findings.error(TEMPLATE_NODE_PROPERTY_INVALID, partPath, "property '${rule.key}' key '$part' does not match ${rule.keyPattern.pattern}")
+                    return@forEach
+                }
+                styleMapPartMissing(node, rule, part)?.let { reason ->
+                    findings.error(TEMPLATE_NODE_PROPERTY_INVALID, partPath, "$partName does not exist: $reason")
+                }
+                val entry = objectEntries(styles)
+                if (entry == null) {
+                    findings.error(TEMPLATE_NODE_PROPERTY_INVALID, partPath, "styles for $partName must be an object")
+                    return@forEach
+                }
+                findings.checkStyleKeys(entry.map { it.first }, partPath, partName) { key ->
+                    rule.applicableStyles.any(key::startsWith)
+                }
+            }
+        }
+    }
+
+    private fun styleMapPartName(
+        node: Node,
+        rule: StyleMapRule,
+        part: String,
+    ): String = when (node.type) {
+        "table" -> "cell '$part' of table '${node.id}'"
+        "columns" -> "column $part of columns '${node.id}'"
+        else -> "'$part' in ${rule.key} of ${node.type} '${node.id}'"
+    }
+
+    /**
+     * Why the node has no part [part], or null when it has one or its size is not declared. A
+     * table counts its cells by its `rows` and `columns` props (0-based `<row>-<col>`); a columns
+     * node counts its columns by the length of `columnSizes`.
+     */
+    private fun styleMapPartMissing(
+        node: Node,
+        rule: StyleMapRule,
+        part: String,
+    ): String? {
+        val props = node.props ?: return null
+        return when (node.type to rule.key) {
+            "table" to "cellStyles" -> {
+                val rows = intValue(props["rows"]) ?: return null
+                val columns = intValue(props["columns"]) ?: return null
+                val (row, column) = part.split('-').map(String::toIntOrNull)
+                if (row == null || column == null || row >= rows || column >= columns) {
+                    "the table has $rows rows and $columns columns, counted from 0"
+                } else {
+                    null
+                }
+            }
+            "columns" to "columnStyles" -> {
+                val count = arrayItems(props["columnSizes"] ?: return null)?.size ?: return null
+                if (part.toInt() >= count) "columnSizes declares $count columns, counted from 0" else null
+            }
+            else -> null
+        }
+    }
+
+    private fun objectEntries(value: Any?): List<Pair<String, Any?>>? = when {
+        value is Map<*, *> -> value.entries.map { (key, item) -> key.toString() to item }
+        value is JsonNode && value.isObject -> value.properties().map { (key, item) -> key to item }
+        else -> null
+    }
+
+    private fun arrayItems(value: Any?): List<Any?>? = when {
+        value is List<*> -> value
+        value is JsonNode && value.isArray -> value.toList()
+        else -> null
+    }
+
+    private fun intValue(value: Any?): Int? = when {
+        value is Number -> value.toInt()
+        value is JsonNode && value.isNumber -> value.asInt()
+        else -> null
+    }
 
     private fun expectedDynamicSlots(
         node: Node,
@@ -308,16 +501,22 @@ object TemplateValidator {
     ) {
         val props = node.props ?: return
         val allowedTopLevel = component.properties.map { it.path.substringBefore('.') }.toMutableSet()
+        allowedTopLevel += component.styleMaps.map(StyleMapRule::key)
         if (component.type == "stencil") {
             allowedTopLevel += setOf(
-                "stencilId",
+                "stencilKey",
                 "catalogKey",
-                "version",
-                "draftVersion",
                 "parameterBindings",
                 "paramsAlias",
                 "parameterSchemaSnapshot",
+                // Carried on an expanded instance from its stencil (ADR 0006, part 5).
+                "readsTemplateData",
             )
+        }
+        if (component.type == "placeholder") {
+            // ADR 0006, part 4: a stencil's placeholder may pass the stencil's parameters to its fill,
+            // under a default name; a fill may choose its own name.
+            allowedTopLevel += setOf("passParameters", "parametersAs")
         }
         props.keys.sorted().filterNot(allowedTopLevel::contains).forEach { key ->
             findings.error(TEMPLATE_NODE_PROPERTY_INVALID, "nodes.${node.id}.props.$key", "property '$key' is not declared by component '${node.type}'")
@@ -354,69 +553,34 @@ object TemplateValidator {
         else -> false
     }
 
-    private fun positiveIntValue(value: Any?): Int? = when (value) {
-        is Number -> value.toInt().takeIf { value.toDouble() == it.toDouble() && it > 0 }
-        is JsonNode -> if (value.isIntegralNumber) value.asInt().takeIf { it > 0 } else null
-        else -> null
-    }
-
     private fun validateReferences(
         document: TemplateDocument,
         context: TemplateValidationContext,
         findings: MutableList<TemplateValidationFinding>,
     ) {
         (document.themeRef as? ThemeRefOverride)?.let { theme ->
-            val reference = CatalogResourceReference("theme", theme.themeId, theme.catalogKey)
+            val reference = CatalogResourceReference("theme", theme.themeKey, theme.catalogKey)
             if (context.resolveResource(reference) == ResourceResolution.MISSING) {
-                findings.error(TEMPLATE_THEME_NOT_FOUND, "themeRef.themeId", "theme '${theme.themeId}' does not exist in the catalog context")
+                findings.error(TEMPLATE_THEME_NOT_FOUND, "themeRef.themeKey", "theme '${theme.themeKey}' does not exist in the catalog context")
             }
         }
         document.nodes.values.filter { it.type == "stencil" }.sortedBy(Node::id).forEach { node ->
-            val stencilId = node.props?.get("stencilId") as? String
-            val catalogKey = node.props?.get("catalogKey") as? String
-            val version = positiveIntValue(node.props?.get("version"))
-            val draftVersion = positiveIntValue(node.props?.get("draftVersion"))
-            val hasVersion = node.props?.containsKey("version") == true
-            val hasDraftVersion = node.props?.containsKey("draftVersion") == true
+            val stencilKey = stringValue(node.props?.get("stencilKey"))
+            // The alias of the catalog holding the stencil (contract ADR 0003); null means the document's own.
+            val catalogKey = stringValue(node.props?.get("catalogKey"))
             when {
-                node.props?.containsKey("isDraft") == true -> findings.error(
+                stencilKey == null || !CatalogKeys.isValid(stencilKey) -> findings.error(
                     STENCIL_REFERENCE_INVALID,
-                    "nodes.${node.id}.props.isDraft",
-                    "stencil reference isDraft is not supported in catalog v5; use draftVersion",
-                )
-                stencilId == null || !slugRegex.matches(stencilId) -> findings.error(
-                    STENCIL_REFERENCE_INVALID,
-                    "nodes.${node.id}.props.stencilId",
-                    "stencil reference requires a valid stencilId",
-                )
-                (hasVersion && version == null) || (hasDraftVersion && draftVersion == null) -> findings.error(
-                    STENCIL_REFERENCE_INVALID,
-                    "nodes.${node.id}.props",
-                    "stencil reference version and draftVersion must be positive integers when present",
-                )
-                version == null && draftVersion == null -> findings.error(
-                    STENCIL_REFERENCE_INVALID,
-                    "nodes.${node.id}.props",
-                    "stencil reference requires a positive version or draftVersion",
-                )
-                draftVersion != null && !context.allowDraftStencilReferences -> findings.error(
-                    STENCIL_REFERENCE_INVALID,
-                    "nodes.${node.id}.props.draftVersion",
-                    "portable catalog content cannot reference draft stencil versions",
-                )
-                !context.allowDraftStencilReferences && version == null -> findings.error(
-                    STENCIL_REFERENCE_INVALID,
-                    "nodes.${node.id}.props.version",
-                    "portable catalog content must reference a positive published version",
+                    "nodes.${node.id}.props.stencilKey",
+                    "stencil reference requires a valid stencilKey",
                 )
                 else -> {
-                    val reference = CatalogResourceReference("stencil", stencilId, catalogKey, version, draftVersion)
+                    val reference = CatalogResourceReference("stencil", stencilKey, catalogKey)
                     if (context.resolveResource(reference) == ResourceResolution.MISSING) {
-                        val exactVersion = draftVersion ?: version
                         findings.error(
                             STENCIL_REFERENCE_NOT_FOUND,
-                            "nodes.${node.id}.props.stencilId",
-                            "stencil '$stencilId' version $exactVersion does not exist in the catalog context",
+                            "nodes.${node.id}.props.stencilKey",
+                            "stencil '$stencilKey' does not exist in the catalog context",
                         )
                     }
                 }
@@ -463,51 +627,64 @@ object TemplateValidator {
             }
         }
 
-        fun recurse(
-            nodeId: String,
-            stencilIds: Set<StencilIdentity>,
-            stencilDepth: Int,
-        ) {
+        /**
+         * The stencils a place is lexically inside (ADR 0006): [outer] is the scope outside the
+         * innermost of them, where a fill of that stencil's placeholders is written.
+         */
+        class Scope(val stencilIds: Set<StencilIdentity>, val stencilDepth: Int, val outer: Scope?)
+
+        fun recurse(nodeId: String, scope: Scope) {
+            val stencilIds = scope.stencilIds
+            val stencilDepth = scope.stencilDepth
             val node = document.nodes[nodeId] ?: return
             val nextDepth = if (node.type == "stencil") stencilDepth + 1 else stencilDepth
             if (nextDepth > TemplateValidationLimits.MAX_STENCIL_NESTING_DEPTH) {
                 findings.error(
                     STENCIL_NESTING_DEPTH_EXCEEDED,
-                    "nodes.${node.id}.props.stencilId",
+                    "nodes.${node.id}.props.stencilKey",
                     "stencil nesting depth $nextDepth exceeds maximum ${TemplateValidationLimits.MAX_STENCIL_NESTING_DEPTH}",
                 )
             }
             val nextIds = if (node.type == "stencil") {
-                val id = node.props?.get("stencilId") as? String
+                val id = node.props?.get("stencilKey") as? String
                 val identity = id?.let {
                     StencilIdentity(
                         catalogKey = node.props["catalogKey"] as? String ?: context.currentCatalogKey,
-                        slug = it,
+                        key = it,
                     )
                 }
                 if (identity != null && identity in stencilIds) {
-                    findings.error(STENCIL_RECURSION, "nodes.${node.id}.props.stencilId", "stencil '$id' would contain itself transitively")
+                    findings.error(STENCIL_RECURSION, "nodes.${node.id}.props.stencilKey", "stencil '$id' would contain itself transitively")
                 }
                 if (identity == null) stencilIds else stencilIds + identity
             } else {
                 stencilIds
             }
+            val inner = if (node.type == "stencil") Scope(nextIds, nextDepth, scope) else scope
             node.slots
                 .mapNotNull(document.slots::get)
-                .flatMap { it.children }
-                .forEach { recurse(it, nextIds, nextDepth) }
+                .forEach { slot ->
+                    // A placeholder's fill is written outside the stencil that owns the placeholder:
+                    // that stencil is not its ancestor and does not count towards its depth.
+                    val slotScope = if (node.type == "placeholder" && slot.name == "fill") scope.outer ?: scope else inner
+                    slot.children.forEach { recurse(it, slotScope) }
+                }
         }
         val containingStencil = context.containingStencil
         val initialIdentities = containingStencil?.let {
-            setOf(StencilIdentity(it.catalogKey ?: context.currentCatalogKey, it.slug))
+            setOf(StencilIdentity(it.catalogKey ?: context.currentCatalogKey, it.key))
         }.orEmpty()
         val initialDepth = if (kind == TemplateDocumentKind.STENCIL) 1 else 0
-        recurse(document.root, initialIdentities, initialDepth)
+        recurse(document.root, Scope(initialIdentities, initialDepth, outer = null))
     }
 
+    /**
+     * A stencil as a document names it: the alias of its catalog (the current catalog's key when it
+     * names none) and its key. Recursion is detected among the stencils one catalog's content names.
+     */
     private data class StencilIdentity(
         val catalogKey: String?,
-        val slug: String,
+        val key: String,
     )
 
     /**
@@ -532,6 +709,36 @@ object TemplateValidator {
         walk(document.root, false)
     }
 
+    /**
+     * ADR 0006: `readsTemplateData` and `passParameters` are booleans; `parametersAs` names the
+     * passed parameters like a `paramsAlias`, so it follows the same rules.
+     */
+    private fun validatePassedParameters(
+        node: Node,
+        props: Map<String, Any?>,
+        findings: MutableList<TemplateValidationFinding>,
+    ) {
+        for (flag in listOf("readsTemplateData", "passParameters")) {
+            val value = props[flag]
+            if (value != null && value !is Boolean) {
+                findings.error(TEMPLATE_NODE_PROPERTY_INVALID, "nodes.${node.id}.props.$flag", "$flag must be a boolean")
+            }
+        }
+        val name = props["parametersAs"] ?: return
+        when {
+            name !is String || !parameterNameRegex.matches(name) -> findings.error(
+                NODE_PARAMETER_BINDINGS_INVALID_SHAPE,
+                "nodes.${node.id}.props.parametersAs",
+                "parametersAs must match ^[a-z][a-zA-Z0-9_]{0,63}$",
+            )
+            name in reservedAliases -> findings.error(
+                NODE_PARAMS_ALIAS_RESERVED,
+                "nodes.${node.id}.props.parametersAs",
+                "parametersAs '$name' collides with a reserved scope name",
+            )
+        }
+    }
+
     private fun validateBindings(
         document: TemplateDocument,
         context: TemplateValidationContext,
@@ -545,6 +752,7 @@ object TemplateValidator {
             } else if (alias in reservedAliases) {
                 findings.error(NODE_PARAMS_ALIAS_RESERVED, "nodes.${node.id}.props.paramsAlias", "paramsAlias '$alias' collides with a reserved scope name")
             }
+            validatePassedParameters(node, props, findings)
             val raw = props["parameterBindings"]
             if (raw != null && raw !is Map<*, *>) {
                 findings.error(NODE_PARAMETER_BINDINGS_INVALID_SHAPE, "nodes.${node.id}.props.parameterBindings", "parameterBindings must be an object of paramName to expression entries")
@@ -617,5 +825,13 @@ object TemplateValidator {
         message: String,
     ) {
         add(TemplateValidationFinding(code, ValidationSeverity.ERROR, path, message))
+    }
+
+    private fun MutableList<TemplateValidationFinding>.warning(
+        code: String,
+        path: String,
+        message: String,
+    ) {
+        add(TemplateValidationFinding(code, ValidationSeverity.WARNING, path, message))
     }
 }

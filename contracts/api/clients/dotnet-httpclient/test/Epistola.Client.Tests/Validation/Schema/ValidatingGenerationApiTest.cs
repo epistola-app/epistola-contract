@@ -23,18 +23,18 @@ namespace Epistola.Client.Tests.Validation.Schema;
 public class ValidatingGenerationApiTest
 {
     private static readonly GenerateDocumentRequest Request =
-        new(catalogId: "default", templateId: "invoice", data: new Dictionary<string, object>());
+        new(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", data: new Dictionary<string, object>());
 
     private static readonly GenerateBatchRequest Batch = new(items: new List<BatchGenerationItem>
     {
-        new(catalogId: "default", templateId: "invoice", data: new Dictionary<string, object>()),
-        new(catalogId: "default", templateId: "reminder", data: new Dictionary<string, object>()),
+        new(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", data: new Dictionary<string, object>()),
+        new(@namespace: "acme-corp", catalogKey: "default", templateKey: "reminder", data: new Dictionary<string, object>()),
     });
 
     private static ITemplatesApi RefusingTemplatesApi()
     {
         var api = Substitute.For<ITemplatesApi>();
-        api.ValidateTemplateData(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<ValidateTemplateDataRequest>())
+        api.ValidateTemplateData(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<ValidateTemplateDataRequest>())
             .Returns(new TemplateDataValidationResult(valid: true));
         return api;
     }
@@ -66,7 +66,7 @@ public class ValidatingGenerationApiTest
 
         // The server validates what it is given, so asking it first would be a second round trip
         // for the same verdict.
-        templates.DidNotReceive().ValidateTemplateData(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<ValidateTemplateDataRequest>());
+        templates.DidNotReceive().ValidateTemplateData(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<ValidateTemplateDataRequest>());
         generation.Received(1).GenerateDocument("acme", Request);
     }
 
@@ -163,7 +163,38 @@ public class ValidatingGenerationApiTest
 
         new ValidatingGenerationApi(generation, templates).GenerateDocumentBatch("acme", Batch);
 
-        templates.DidNotReceive().ValidateTemplateData(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<ValidateTemplateDataRequest>());
+        templates.DidNotReceive().ValidateTemplateData(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<ValidateTemplateDataRequest>());
         generation.Received(1).GenerateDocumentBatch("acme", Batch);
+    }
+
+    [Fact]
+    public void ALocalValidatorAddressesAnUnnamedRegistryAsTheDefault()
+    {
+        var generation = Substitute.For<IGenerationApi>();
+        var local = new TemplateSchemaValidatorTest.StubValidator(new List<TemplateDataValidationException.ValidationError>());
+        var request = new GenerateDocumentRequest(
+            @namespace: "team-a", catalogKey: "letters", templateKey: "invoice",
+            data: new Dictionary<string, object>());
+
+        new ValidatingGenerationApi(generation, local).GenerateDocument("acme", request);
+
+        // A body without a registry means the server's default registry, which a path writes as `~`.
+        Assert.Equal(new[] { "~|team-a|letters" }, local.Catalogs);
+    }
+
+    [Fact]
+    public void ALocalValidatorAddressesANamedRegistryAsGiven()
+    {
+        var generation = Substitute.For<IGenerationApi>();
+        var local = new TemplateSchemaValidatorTest.StubValidator(new List<TemplateDataValidationException.ValidationError>());
+        var batch = new GenerateBatchRequest(items: new List<BatchGenerationItem>
+        {
+            new(registry: "exchange.example.org", @namespace: "team-a", catalogKey: "letters", templateKey: "invoice", data: new Dictionary<string, object>()),
+            new(@namespace: "team-b", catalogKey: "letters", templateKey: "reminder", data: new Dictionary<string, object>()),
+        });
+
+        new ValidatingGenerationApi(generation, local).GenerateDocumentBatch("acme", batch);
+
+        Assert.Equal(new[] { "exchange.example.org|team-a|letters", "~|team-b|letters" }, local.Catalogs);
     }
 }

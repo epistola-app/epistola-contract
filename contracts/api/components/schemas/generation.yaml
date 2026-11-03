@@ -11,50 +11,78 @@ PreviewDocumentRequest:
     - There are **no guarantees on latency or throughput**
     - Generated documents are **not stored** — use the async generation endpoint for production use
 
-    Specify either variantId (explicit) or attributes (auto-select) but not both.
+    Specify either variantKey (explicit) or attributes (auto-select) but not both.
   required:
-    - catalogId
-    - templateId
+    - namespace
+    - catalogKey
+    - templateKey
     - data
   properties:
-    catalogId:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
-      description: Slug identifier of the catalog containing the template
-      example: default
-    templateId:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
-      description: Slug identifier of template to use for preview
+    registry:
+      oneOf:
+        - $ref: './identifiers.yaml#/Registry'
+        - type: 'null'
+      description: |
+        Registry of the catalog containing the template: the exchange or domain its namespace lives
+        in. Omitted or null: the default registry, which the server configures. A response always
+        names it in full.
+      example: null
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the catalog containing the template, within its registry
+      example: acme-corp
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the catalog containing the template, unique within its registry and namespace
+      example: letters
+    templateKey:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: Key of the template to use for preview
       example: invoice
-    variantId:
-      type: [string, "null"]
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
-      description: Slug identifier of the variant to use (mutually exclusive with attributes)
+    variantKey:
+      oneOf:
+        - $ref: './identifiers.yaml#/ResourceKey'
+        - type: 'null'
+      description: Key of the variant to use (mutually exclusive with attributes)
       example: english
     attributes:
       type: array
       items:
         $ref: '#/VariantSelectionAttribute'
-      description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantId)
-    versionId:
-      type: [integer, "null"]
-      minimum: 1
-      maximum: 200
-      description: Explicit version ID (version number, 1-200, mutually exclusive with environmentId). If neither versionId nor environmentId is provided, the latest published version is used.
-      example: 1
-    environmentId:
+      description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantKey)
+    versionRange:
       type: [string, "null"]
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 30
-      description: Slug identifier of environment to determine version from (mutually exclusive with versionId). If neither versionId nor environmentId is provided, the latest published version is used.
+      minLength: 1
+      maxLength: 256
+      description: |
+        Which release of the template's catalog to render, as a version range (see "Version
+        ranges" in the API description); the highest release that satisfies it is rendered.
+        With `environmentKey`, only the releases that environment serves are considered (see
+        "Deploying"); a draft deployed there never matches a range. Omitted: the highest release,
+        or with `environmentKey` the catalog's draft deployed to that environment if there is one,
+        else the highest release it serves.
+      example: null
+    environmentKey:
+      oneOf:
+        - $ref: './identifiers.yaml#/EnvironmentKey'
+        - type: 'null'
+      description: |
+        Key of an environment. With no `versionRange`, the catalog's draft deployed to the
+        environment is rendered live if there is one (the document then carries `releaseId` and
+        `releaseName`), else the highest release of the template's catalog the environment serves.
+        With a `versionRange`, the highest served release that satisfies it; a draft never matches
+        a range (`deployCatalogRelease`). The request is refused with 404 `not-found` when the
+        environment serves no such release.
+      example: null
+    draft:
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogReleaseId'
+        - type: 'null'
+      description: |
+        Render a draft of the template's catalog, including changes not yet released, by its
+        `releaseId` (a `CatalogReleaseId`; mutually exclusive with versionRange and environmentKey). A
+        version range never matches a draft; a generated document renders one only through an
+        environment it is deployed to (`deployCatalogRelease`).
       example: null
     data:
       type: object
@@ -91,32 +119,29 @@ PreviewDocumentRequest:
 VariantSelectionAttribute:
   type: object
   description: |
-    Attribute criterion for variant selection.
+    An attribute criterion for variant selection: the attribute, by its key and the catalog that
+    defines it, and the value a variant must have for it.
 
-    `key` may take three forms (server resolves in this order):
-      1. Explicit qualifier: provide `catalog` + a bare `key`. Recommended.
-      2. Dotted form: `key = "<catalog>.<slug>"`. The catalog slug grammar
-         excludes `.`, so the split is unambiguous.
-      3. Bare slug: tenant-wide lookup (legacy). If the same slug exists in
-         multiple catalogs of the tenant, the validator silently picks one.
+    Without `catalogKey`, `key` names an attribute of the template's own catalog. With `catalogKey`,
+    it names an attribute of the catalog with that alias in the dependency declarations of the
+    release that renders (`listCatalogDependencies`), as the template's content names that catalog
+    (see "Catalog identity"); the template's own catalog key names its own catalog. An alias the
+    release does not declare names no attribute, so no variant has a value for it.
   required:
     - key
     - value
   properties:
-    catalog:
-      type:
-        - string
-        - 'null'
+    catalogKey:
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogAlias'
+        - type: 'null'
       description: |
-        Optional catalog qualifier. When set, the server resolves the attribute
-        as `(catalog, key)`. When omitted, `key` may be dotted (`"system.locale"`)
-        or a bare slug (legacy).
+        The alias of the catalog that defines the attribute, as the dependency declarations of the
+        release that renders give it. Omitted or null: the template's own catalog.
       example: system
     key:
-      type: string
-      description: |
-        Attribute key. May be a bare slug (`locale`) or a dotted qualifier
-        (`system.locale`). Must match an attribute definition for the tenant.
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: Key of the attribute, in the catalog that defines it.
       example: locale
     value:
       type: string
@@ -129,50 +154,68 @@ VariantSelectionAttribute:
 
 GenerateDocumentRequest:
   type: object
-  description: Request to generate a single document. Specify either variantId (explicit) or attributes (auto-select) but not both.
+  description: Request to generate a single document. Specify either variantKey (explicit) or attributes (auto-select) but not both.
   required:
-    - catalogId
-    - templateId
+    - namespace
+    - catalogKey
+    - templateKey
     - data
   properties:
-    catalogId:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
-      description: Slug identifier of the catalog containing the template
-      example: default
-    templateId:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
-      description: Slug identifier of template to use for generation
+    registry:
+      oneOf:
+        - $ref: './identifiers.yaml#/Registry'
+        - type: 'null'
+      description: |
+        Registry of the catalog containing the template: the exchange or domain its namespace lives
+        in. Omitted or null: the default registry, which the server configures. A response always
+        names it in full.
+      example: null
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the catalog containing the template, within its registry
+      example: acme-corp
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the catalog containing the template, unique within its registry and namespace
+      example: letters
+    templateKey:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: Key of the template to use for generation
       example: invoice
-    variantId:
-      type: [string, "null"]
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
-      description: Slug identifier of the variant to use (mutually exclusive with attributes)
+    variantKey:
+      oneOf:
+        - $ref: './identifiers.yaml#/ResourceKey'
+        - type: 'null'
+      description: Key of the variant to use (mutually exclusive with attributes)
       example: english
     attributes:
       type: array
       items:
         $ref: '#/VariantSelectionAttribute'
-      description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantId)
-    versionId:
-      type: [integer, "null"]
-      minimum: 1
-      maximum: 200
-      description: Explicit version ID (version number, 1-200, mutually exclusive with environmentId). If neither versionId nor environmentId is provided, the latest published version is used.
-      example: 1
-    environmentId:
+      description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantKey)
+    versionRange:
       type: [string, "null"]
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 30
-      description: Slug identifier of environment to determine version from (mutually exclusive with versionId). If neither versionId nor environmentId is provided, the latest published version is used.
+      minLength: 1
+      maxLength: 256
+      description: |
+        Which release of the template's catalog to render, as a version range (see "Version
+        ranges" in the API description); the highest release that satisfies it is rendered.
+        With `environmentKey`, only the releases that environment serves are considered (see
+        "Deploying"); a draft deployed there never matches a range. Omitted: the highest release,
+        or with `environmentKey` the catalog's draft deployed to that environment if there is one,
+        else the highest release it serves.
+      example: null
+    environmentKey:
+      oneOf:
+        - $ref: './identifiers.yaml#/EnvironmentKey'
+        - type: 'null'
+      description: |
+        Key of an environment. With no `versionRange`, the catalog's draft deployed to the
+        environment is rendered live if there is one (the document then carries `releaseId` and
+        `releaseName`), else the highest release of the template's catalog the environment serves.
+        With a `versionRange`, the highest served release that satisfies it; a draft never matches
+        a range (`deployCatalogRelease`). The request is refused with 404 `not-found` when the
+        environment serves no such release.
       example: null
     data:
       type: object
@@ -235,50 +278,68 @@ GenerateDocumentRequest:
 
 BatchGenerationItem:
   type: object
-  description: Single item in a batch generation request. Specify either variantId (explicit) or attributes (auto-select) but not both. Both correlationId and filename must be unique within a batch (null values are excluded from uniqueness checks).
+  description: Single item in a batch generation request. Specify either variantKey (explicit) or attributes (auto-select) but not both. Both correlationId and filename must be unique within a batch (null values are excluded from uniqueness checks).
   required:
-    - catalogId
-    - templateId
+    - namespace
+    - catalogKey
+    - templateKey
     - data
   properties:
-    catalogId:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
-      description: Slug identifier of the catalog containing the template
-      example: default
-    templateId:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
-      description: Slug identifier of template to use for generation
+    registry:
+      oneOf:
+        - $ref: './identifiers.yaml#/Registry'
+        - type: 'null'
+      description: |
+        Registry of the catalog containing the template: the exchange or domain its namespace lives
+        in. Omitted or null: the default registry, which the server configures. A response always
+        names it in full.
+      example: null
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the catalog containing the template, within its registry
+      example: acme-corp
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the catalog containing the template, unique within its registry and namespace
+      example: letters
+    templateKey:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: Key of the template to use for generation
       example: invoice
-    variantId:
-      type: [string, "null"]
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
-      description: Slug identifier of the variant to use (mutually exclusive with attributes)
+    variantKey:
+      oneOf:
+        - $ref: './identifiers.yaml#/ResourceKey'
+        - type: 'null'
+      description: Key of the variant to use (mutually exclusive with attributes)
       example: english
     attributes:
       type: array
       items:
         $ref: '#/VariantSelectionAttribute'
-      description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantId)
-    versionId:
-      type: [integer, "null"]
-      minimum: 1
-      maximum: 200
-      description: Explicit version ID (version number, 1-200, mutually exclusive with environmentId). If neither versionId nor environmentId is provided, the latest published version is used.
-      example: 1
-    environmentId:
+      description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantKey)
+    versionRange:
       type: [string, "null"]
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 30
-      description: Slug identifier of environment to determine version from (mutually exclusive with versionId). If neither versionId nor environmentId is provided, the latest published version is used.
+      minLength: 1
+      maxLength: 256
+      description: |
+        Which release of the template's catalog to render, as a version range (see "Version
+        ranges" in the API description); the highest release that satisfies it is rendered.
+        With `environmentKey`, only the releases that environment serves are considered (see
+        "Deploying"); a draft deployed there never matches a range. Omitted: the highest release,
+        or with `environmentKey` the catalog's draft deployed to that environment if there is one,
+        else the highest release it serves.
+      example: null
+    environmentKey:
+      oneOf:
+        - $ref: './identifiers.yaml#/EnvironmentKey'
+        - type: 'null'
+      description: |
+        Key of an environment. With no `versionRange`, the catalog's draft deployed to the
+        environment is rendered live if there is one (the document then carries `releaseId` and
+        `releaseName`), else the highest release of the template's catalog the environment serves.
+        With a `versionRange`, the highest served release that satisfies it; a draft never matches
+        a range (`deployCatalogRelease`). The request is refused with 404 `not-found` when the
+        environment serves no such release.
       example: null
     data:
       type: object
@@ -353,8 +414,13 @@ GenerateBatchRequest:
       example: "order-7890"
     items:
       type: array
-      description: List of items to generate
+      description: |
+        The items to generate, at most 10000. A larger run, such as a mailing to every resident, is
+        sent as several batches, each a job of its own: their results all arrive through
+        `collectGenerationResults`, and each item's `correlationId` ties a document back to the
+        caller's record.
       minItems: 1
+      maxItems: 10000
       items:
         $ref: '#/BatchGenerationItem'
 
@@ -365,7 +431,7 @@ GenerationJobResponse:
     - requestId
     - status
     - jobType
-    - totalCount
+    - total
     - createdAt
   properties:
     requestId:
@@ -374,16 +440,14 @@ GenerationJobResponse:
       description: Unique identifier for tracking this generation request
       example: "550e8400-e29b-41d4-a716-446655440000"
     status:
-      type: string
-      enum: [PENDING, IN_PROGRESS, COMPLETED, FAILED, CANCELLED]
+      $ref: '#/GenerationJobStatus'
       description: Current status of the request
-      example: PENDING
+      example: pending
     jobType:
-      type: string
-      enum: [SINGLE, BATCH]
+      $ref: '#/GenerationJobType'
       description: Type of generation job
-      example: SINGLE
-    totalCount:
+      example: single
+    total:
       type: integer
       description: Total number of items to generate
       example: 1
@@ -394,85 +458,83 @@ GenerationJobResponse:
       example: "2026-02-01T08:00:00Z"
   example:
     requestId: "550e8400-e29b-41d4-a716-446655440000"
-    status: PENDING
-    jobType: SINGLE
-    totalCount: 1
+    status: pending
+    jobType: single
+    total: 1
     createdAt: "2026-02-01T08:00:00Z"
 
 DocumentGenerationItemDto:
   type: object
   description: Individual item in a generation batch
   required:
-    - id
-    - templateId
-    - variantId
-    - data
+    - itemId
+    - registry
+    - namespace
+    - catalogKey
+    - templateKey
+    - variantKey
     - status
     - createdAt
   properties:
-    id:
+    itemId:
       type: string
       format: uuid
       description: Unique identifier of this item
       example: "660e8400-e29b-41d4-a716-446655440001"
-    templateId:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
-      description: Slug identifier of template used for generation
+    registry:
+      $ref: './identifiers.yaml#/Registry'
+      description: |
+        Registry of the template's catalog, written in full (the default registry by its name, never
+        `~`)
+      example: exchange.epistola.app
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the template's catalog, within its registry
+      example: acme-corp
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the template's catalog, unique within its registry and namespace
+      example: letters
+    templateKey:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: Key of the template used for generation
       example: invoice
-    variantId:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
-      description: Slug identifier of the variant used for generation
+    variantKey:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: Key of the variant used for generation
       example: english
-    versionId:
-      type: [integer, "null"]
-      minimum: 1
-      maximum: 200
-      description: Explicit version ID (version number, 1-200, if specified)
-      example: 1
-    environmentId:
+    version:
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
+      description: |
+        Version of the release of the template's catalog this item renders, bound when the request
+        was accepted. Null when it renders a draft.
+      example: "1.4.0"
+    releaseId:
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogReleaseId'
+        - type: 'null'
+      description: |
+        The id of the release rendered (`CatalogReleaseId`), always given from 2.0 on:
+        a released release's, which it had as a draft, or a draft's, when an
+        environment renders one live (`deployCatalogRelease`; `version` is then null).
+        Null only for one made before 2.0, which no release made.
+      example: k3x9q2ab
+    releaseName:
       type: [string, "null"]
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 30
-      description: Slug identifier of environment (if specified)
+      maxLength: 100
+      description: |
+        The name of the release rendered, at render time: a draft's, or a released release's, which
+        keeps the name it had as a draft. Null for a release that has none, as one installed by
+        import or from its source.
+      example: Redesign 2027
+    environmentKey:
+      oneOf:
+        - $ref: './identifiers.yaml#/EnvironmentKey'
+        - type: 'null'
+      description: Key of the environment (if specified)
       example: null
-    data:
-      type: object
-      description: JSON data used for generation
-      example:
-        customer:
-          name: "Jane Smith"
-          email: "jane.smith@example.com"
-          taxId: "US123456789"
-          address:
-            street: "123 Main Street"
-            city: "Springfield"
-            postalCode: "62704"
-            country: US
-        invoiceNumber: "INV-2026-001"
-        issueDate: "2026-02-01"
-        dueDate: "2026-03-01"
-        lineItems:
-          - description: "Consulting Services (40h)"
-            quantity: 40
-            unitPrice: 150.00
-            taxRate: 21
-          - description: "Software License - Enterprise"
-            quantity: 1
-            unitPrice: 2500.00
-            taxRate: 21
-          - description: "Travel Expenses"
-            quantity: 1
-            unitPrice: 384.50
-            taxRate: 0
-        notes: "Payment due within 30 days. Please reference invoice number on transfer."
-        currency: EUR
     filename:
       type: [string, "null"]
       description: Requested filename
@@ -482,10 +544,9 @@ DocumentGenerationItemDto:
       description: Client-provided ID for tracking documents across systems
       example: "order-7890"
     status:
-      type: string
-      enum: [PENDING, IN_PROGRESS, COMPLETED, FAILED]
+      $ref: '#/GenerationItemStatus'
       description: Status of this item
-      example: COMPLETED
+      example: completed
     errorMessage:
       type: [string, "null"]
       description: Error message if processing failed
@@ -511,42 +572,17 @@ DocumentGenerationItemDto:
       description: When processing completed
       example: "2026-02-01T08:00:03Z"
   example:
-    id: "660e8400-e29b-41d4-a716-446655440001"
-    templateId: invoice
-    variantId: english
-    versionId: 1
-    environmentId: null
-    data:
-      customer:
-        name: "Jane Smith"
-        email: "jane.smith@example.com"
-        taxId: "US123456789"
-        address:
-          street: "123 Main Street"
-          city: "Springfield"
-          postalCode: "62704"
-          country: US
-      invoiceNumber: "INV-2026-001"
-      issueDate: "2026-02-01"
-      dueDate: "2026-03-01"
-      lineItems:
-        - description: "Consulting Services (40h)"
-          quantity: 40
-          unitPrice: 150.00
-          taxRate: 21
-        - description: "Software License - Enterprise"
-          quantity: 1
-          unitPrice: 2500.00
-          taxRate: 21
-        - description: "Travel Expenses"
-          quantity: 1
-          unitPrice: 384.50
-          taxRate: 0
-      notes: "Payment due within 30 days. Please reference invoice number on transfer."
-      currency: EUR
+    itemId: "660e8400-e29b-41d4-a716-446655440001"
+    registry: exchange.epistola.app
+    namespace: acme-corp
+    catalogKey: letters
+    templateKey: invoice
+    variantKey: english
+    version: "1.4.0"
+    environmentKey: null
     filename: "invoice-2026-001.pdf"
     correlationId: "order-7890"
-    status: COMPLETED
+    status: completed
     errorMessage: null
     documentId: "770e8400-e29b-41d4-a716-446655440002"
     createdAt: "2026-02-01T08:00:00Z"
@@ -557,30 +593,28 @@ DocumentGenerationJobDto:
   type: object
   description: Generation job summary
   required:
-    - id
+    - requestId
     - jobType
     - status
-    - totalCount
+    - total
     - completedCount
     - failedCount
     - createdAt
   properties:
-    id:
+    requestId:
       type: string
       format: uuid
-      description: Unique identifier of the request
+      description: Id of the generation request, as `GenerationJobResponse.requestId` gives it
       example: "550e8400-e29b-41d4-a716-446655440000"
     jobType:
-      type: string
-      enum: [SINGLE, BATCH]
+      $ref: '#/GenerationJobType'
       description: Type of generation job
-      example: SINGLE
+      example: single
     status:
-      type: string
-      enum: [PENDING, IN_PROGRESS, COMPLETED, FAILED, CANCELLED]
+      $ref: '#/GenerationJobStatus'
       description: Current status of the request
-      example: COMPLETED
-    totalCount:
+      example: completed
+    total:
       type: integer
       description: Total number of items to generate
       example: 1
@@ -617,10 +651,10 @@ DocumentGenerationJobDto:
       description: Progress percentage (0-100)
       example: 100.0
   example:
-    id: "550e8400-e29b-41d4-a716-446655440000"
-    jobType: SINGLE
-    status: COMPLETED
-    totalCount: 1
+    requestId: "550e8400-e29b-41d4-a716-446655440000"
+    jobType: single
+    status: completed
+    total: 1
     completedCount: 1
     failedCount: 0
     errorMessage: null
@@ -629,68 +663,43 @@ DocumentGenerationJobDto:
     completedAt: "2026-02-01T08:00:03Z"
     progressPercentage: 100.0
 
-GenerationJobDetail:
+GenerationJobItemListResponse:
   type: object
-  description: Detailed generation job with all items
+  description: One page of a generation job's items
   required:
-    - request
     - items
+    - page
   properties:
-    request:
-      $ref: '#/DocumentGenerationJobDto'
     items:
       type: array
-      description: List of items in this batch
+      description: The job's items on this page, in the order they were submitted
       items:
         $ref: '#/DocumentGenerationItemDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
   example:
-    request:
-      id: "550e8400-e29b-41d4-a716-446655440000"
-      jobType: SINGLE
-      status: COMPLETED
-      totalCount: 1
-      completedCount: 1
-      failedCount: 0
-      errorMessage: null
-      createdAt: "2026-02-01T08:00:00Z"
-      startedAt: "2026-02-01T08:00:01Z"
-      completedAt: "2026-02-01T08:00:03Z"
-      progressPercentage: 100.0
     items:
-      - id: "660e8400-e29b-41d4-a716-446655440001"
-        templateId: invoice
-        variantId: english
-        versionId: 1
-        environmentId: null
-        data:
-          customer:
-            name: "Jane Smith"
-            email: "jane.smith@example.com"
-            address:
-              street: "123 Main Street"
-              city: "Springfield"
-              postalCode: "62704"
-              country: US
-          invoiceNumber: "INV-2026-001"
-          issueDate: "2026-02-01"
-          lineItems:
-            - description: "Consulting Services (40h)"
-              quantity: 40
-              unitPrice: 150.00
-              taxRate: 21
-            - description: "Software License - Enterprise"
-              quantity: 1
-              unitPrice: 2500.00
-              taxRate: 21
-          currency: EUR
-        filename: "invoice-2026-001.pdf"
-        correlationId: "order-7890"
-        status: COMPLETED
+      - itemId: "660e8400-e29b-41d4-a716-446655440001"
+        registry: exchange.epistola.app
+        namespace: acme-corp
+        catalogKey: letters
+        templateKey: invoice
+        variantKey: english
+        version: "1.4.0"
+        environmentKey: null
+        filename: invoice-2026-001.pdf
+        correlationId: order-7890
+        status: completed
         errorMessage: null
         documentId: "770e8400-e29b-41d4-a716-446655440002"
         createdAt: "2026-02-01T08:00:00Z"
         startedAt: "2026-02-01T08:00:01Z"
         completedAt: "2026-02-01T08:00:03Z"
+    page:
+      number: 0
+      size: 20
+      total: 1
+      totalPages: 1
 
 GenerationJobListResponse:
   description: Paginated list of generation jobs
@@ -708,10 +717,10 @@ GenerationJobListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - id: "550e8400-e29b-41d4-a716-446655440000"
-        jobType: SINGLE
-        status: COMPLETED
-        totalCount: 1
+      - requestId: "550e8400-e29b-41d4-a716-446655440000"
+        jobType: single
+        status: completed
+        total: 1
         completedCount: 1
         failedCount: 0
         errorMessage: null
@@ -722,55 +731,83 @@ GenerationJobListResponse:
     page:
       number: 0
       size: 20
-      totalElements: 1
+      total: 1
       totalPages: 1
 
 DocumentDto:
   type: object
   description: Generated document metadata
   required:
-    - id
-    - tenantId
-    - templateId
-    - variantId
-    - versionId
+    - documentId
+    - tenantKey
+    - registry
+    - namespace
+    - catalogKey
+    - templateKey
+    - variantKey
+    - version
     - filename
     - contentType
     - sizeBytes
     - createdAt
   properties:
-    id:
+    documentId:
       type: string
       format: uuid
       description: Unique identifier of the document
       example: "770e8400-e29b-41d4-a716-446655440002"
-    tenantId:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
-      description: Slug identifier of the tenant that owns this document
+    tenantKey:
+      $ref: './identifiers.yaml#/TenantKey'
+      description: Key of the tenant that owns this document
       example: acme-corp
-    templateId:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
-      description: Slug identifier of template used to generate this document
+    registry:
+      $ref: './identifiers.yaml#/Registry'
+      description: |
+        Registry of the template's catalog, written in full (the default registry by its name, never
+        `~`)
+      example: exchange.epistola.app
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the template's catalog, within its registry
+      example: acme-corp
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the template's catalog, unique within its registry and namespace
+      example: letters
+    templateKey:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: Key of the template used to generate this document
       example: invoice
-    variantId:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
-      description: Slug identifier of the variant used to generate this document
+    variantKey:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: Key of the variant used to generate this document
       example: english
-    versionId:
-      type: integer
-      minimum: 1
-      maximum: 200
-      description: Version used to generate this document (version number, 1-200)
-      example: 1
+    version:
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
+      description: |
+        Release of the template's catalog this document was generated from. Null when it was
+        rendered from a draft.
+      example: "1.4.0"
+    releaseId:
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogReleaseId'
+        - type: 'null'
+      description: |
+        The id of the release rendered (`CatalogReleaseId`), always given from 2.0 on:
+        a released release's, which it had as a draft, or a draft's, when an
+        environment renders one live (`deployCatalogRelease`; `version` is then null).
+        Null only for one made before 2.0, which no release made.
+      example: k3x9q2ab
+    releaseName:
+      type: [string, "null"]
+      maxLength: 100
+      description: |
+        The name of the release rendered, at render time: a draft's, or a released release's, which
+        keeps the name it had as a draft. Null for a release that has none, as one installed by
+        import or from its source.
+      example: Redesign 2027
     filename:
       type: string
       description: Filename of the document
@@ -795,14 +832,20 @@ DocumentDto:
       example: "2026-02-01T08:00:03Z"
     createdBy:
       type: [string, "null"]
-      description: User who generated the document (future feature)
+      description: |
+        Who requested the document: the `id` of the consumer whose request generated it (see the
+        Consumers API, experimental). It is kept when that consumer is deleted. Null when the
+        server records none.
       example: null
   example:
-    id: "770e8400-e29b-41d4-a716-446655440002"
-    tenantId: acme-corp
-    templateId: invoice
-    variantId: english
-    versionId: 1
+    documentId: "770e8400-e29b-41d4-a716-446655440002"
+    tenantKey: acme-corp
+    registry: exchange.epistola.app
+    namespace: acme-corp
+    catalogKey: letters
+    templateKey: invoice
+    variantKey: english
+    version: "1.4.0"
     filename: "invoice-2026-001.pdf"
     correlationId: "order-7890"
     contentType: "application/pdf"
@@ -826,11 +869,14 @@ DocumentListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - id: "770e8400-e29b-41d4-a716-446655440002"
-        tenantId: acme-corp
-        templateId: invoice
-        variantId: english
-        versionId: 1
+      - documentId: "770e8400-e29b-41d4-a716-446655440002"
+        tenantKey: acme-corp
+        registry: exchange.epistola.app
+        namespace: acme-corp
+        catalogKey: letters
+        templateKey: invoice
+        variantKey: english
+        version: "1.4.0"
         filename: "invoice-2026-001.pdf"
         correlationId: "order-7890"
         contentType: "application/pdf"
@@ -840,5 +886,25 @@ DocumentListResponse:
     page:
       number: 0
       size: 20
-      totalElements: 1
+      total: 1
       totalPages: 1
+
+GenerationJobStatus:
+  type: string
+  description: |
+    Where a generation job stands: `pending` until a worker takes it, `in-progress` while its items
+    render, then `completed` (every item done; some may have failed), `failed` (the job itself
+    could not run) or `cancelled` (`cancelGenerationJob`).
+  enum: [pending, in-progress, completed, failed, cancelled]
+
+GenerationJobType:
+  type: string
+  description: A job of one document (`generateDocument`) or of several (`generateDocumentBatch`).
+  enum: [single, batch]
+
+GenerationItemStatus:
+  type: string
+  description: |
+    Where one item of a generation job stands: `pending`, `in-progress`, then `completed` or
+    `failed`, or `cancelled` when its job was cancelled before the item rendered.
+  enum: [pending, in-progress, completed, failed, cancelled]
