@@ -109,6 +109,8 @@ code-lists-key:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/code-lists.yaml#/CodeListDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -170,6 +172,8 @@ code-lists-key:
     responses:
       '204':
         description: Code list deleted.
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -266,6 +270,8 @@ code-list-entries:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/code-lists.yaml#/CodeListEntriesResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

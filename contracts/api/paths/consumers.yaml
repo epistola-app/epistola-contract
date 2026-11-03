@@ -141,6 +141,8 @@ consumer-resource:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -213,6 +215,8 @@ consumer-resource:
     responses:
       '204':
         description: Consumer deleted
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

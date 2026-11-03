@@ -39,6 +39,29 @@ class ProblemDetailsTest {
     }
 
     @Test
+    fun `genericSlugFor gives each status its generic registered type`() {
+        assertEquals("bad-request", ProblemDetails.genericSlugFor(400))
+        assertEquals("not-found", ProblemDetails.genericSlugFor(404))
+        assertEquals("method-not-allowed", ProblemDetails.genericSlugFor(405))
+        assertEquals("not-acceptable", ProblemDetails.genericSlugFor(406))
+        assertEquals("content-too-large", ProblemDetails.genericSlugFor(413))
+        assertEquals("unsupported-media-type", ProblemDetails.genericSlugFor(415))
+        assertEquals("internal-error", ProblemDetails.genericSlugFor(500))
+        assertEquals("operation-not-implemented", ProblemDetails.genericSlugFor(501))
+        // No generic type: every 422 and 503 the registry has is specific.
+        assertEquals(null, ProblemDetails.genericSlugFor(422))
+        assertEquals(null, ProblemDetails.genericSlugFor(503))
+        val registered = KnownProblemSlugs::class.java.declaredFields
+            .filter { it.type == String::class.java }
+            .map { it.also { field -> field.isAccessible = true }.get(null) as String }
+            .toSet()
+        for (status in 100..599) {
+            val slug = ProblemDetails.genericSlugFor(status) ?: continue
+            assertEquals(true, slug in registered, "$status maps to $slug, which is not registered")
+        }
+    }
+
+    @Test
     fun `validation carries field level errors`() {
         val errors = listOf(ValidationError(field = "name", message = "must not be blank"))
         val problem = ProblemDetails.validation(

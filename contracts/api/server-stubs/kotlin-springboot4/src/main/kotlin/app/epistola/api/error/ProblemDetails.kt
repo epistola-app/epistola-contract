@@ -152,6 +152,31 @@ object ProblemDetails {
     fun slugFor(type: URI?): String? = uris.slugFor(type)
 
     /**
+     * The generic problem type of HTTP [status], as a slug for [typeFor]: what a server answers with
+     * for a problem that has no more specific registered type, such as a framework's own rejection
+     * of a malformed request or an unexpected failure. The contract allows registered types only,
+     * so a problem Spring creates with `about:blank` is given this type. Null for a status the
+     * registry has no generic type for (422, 502, 503).
+     */
+    fun genericSlugFor(status: Int): String? = GENERIC_SLUGS[status]
+
+    private val GENERIC_SLUGS: Map<Int, String> = mapOf(
+        400 to KnownProblemSlugs.BAD_REQUEST,
+        401 to KnownProblemSlugs.UNAUTHORIZED,
+        403 to KnownProblemSlugs.FORBIDDEN,
+        404 to KnownProblemSlugs.NOT_FOUND,
+        405 to KnownProblemSlugs.METHOD_NOT_ALLOWED,
+        406 to KnownProblemSlugs.NOT_ACCEPTABLE,
+        409 to KnownProblemSlugs.CONFLICT,
+        412 to KnownProblemSlugs.RESOURCE_MODIFIED,
+        413 to KnownProblemSlugs.CONTENT_TOO_LARGE,
+        415 to KnownProblemSlugs.UNSUPPORTED_MEDIA_TYPE,
+        429 to KnownProblemSlugs.RATE_LIMITED,
+        500 to KnownProblemSlugs.INTERNAL_ERROR,
+        501 to KnownProblemSlugs.OPERATION_NOT_IMPLEMENTED,
+    )
+
+    /**
      * The canonical problem `type` slugs from the contract's error-type registry, for use with
      * [typeFor].
      *
@@ -207,6 +232,12 @@ object ProblemDetails {
          * configured or is connected to.
          */
         const val RELEASE_REGISTRY_NOT_FOUND: String = KnownProblemSlugs.RELEASE_REGISTRY_NOT_FOUND
+
+        /** 405 — the operation does not accept this HTTP method; any operation may answer it. */
+        const val METHOD_NOT_ALLOWED: String = KnownProblemSlugs.METHOD_NOT_ALLOWED
+
+        /** 406 — no media type the `Accept` header accepts is available; any operation may answer it. */
+        const val NOT_ACCEPTABLE: String = KnownProblemSlugs.NOT_ACCEPTABLE
 
         /** 409 — the request conflicts with the current state of the resource. */
         const val CONFLICT: String = KnownProblemSlugs.CONFLICT
@@ -296,11 +327,20 @@ object ProblemDetails {
          */
         const val RESOURCE_MODIFIED: String = KnownProblemSlugs.RESOURCE_MODIFIED
 
+        /** 413 — the request body is larger than the server accepts. */
+        const val CONTENT_TOO_LARGE: String = KnownProblemSlugs.CONTENT_TOO_LARGE
+
+        /** 415 — the request body's `Content-Type` is not one the operation accepts. */
+        const val UNSUPPORTED_MEDIA_TYPE: String = KnownProblemSlugs.UNSUPPORTED_MEDIA_TYPE
+
         /** 422 — data examples do not validate against the data model (use [dataModelValidation]). */
         const val DATA_MODEL_VALIDATION_ERROR: String = KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR
 
         /** 429 — too many requests; the client is being rate limited. */
         const val RATE_LIMITED: String = KnownProblemSlugs.RATE_LIMITED
+
+        /** 500 — the server failed to answer the request; any operation may answer it. */
+        const val INTERNAL_ERROR: String = KnownProblemSlugs.INTERNAL_ERROR
 
         /** 501 — the operation is part of the contract, but this server does not implement it yet. */
         const val OPERATION_NOT_IMPLEMENTED: String = KnownProblemSlugs.OPERATION_NOT_IMPLEMENTED

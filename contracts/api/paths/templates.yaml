@@ -122,6 +122,8 @@ templates-id:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/templates.yaml#/TemplateDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -188,6 +190,8 @@ templates-id:
     responses:
       '204':
         description: Template deleted successfully
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -288,6 +292,8 @@ template-mark-ready:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/templates.yaml#/TemplateDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

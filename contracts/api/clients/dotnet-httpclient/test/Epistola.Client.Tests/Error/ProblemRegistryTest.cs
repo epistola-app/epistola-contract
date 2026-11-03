@@ -36,6 +36,11 @@ public class ProblemRegistryTest
         Assert.Equal("namespace-not-granted", KnownProblemSlugs.NAMESPACE_NOT_GRANTED);
         Assert.Equal("data-model-validation-error", KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR);
         Assert.Equal("rate-limited", KnownProblemSlugs.RATE_LIMITED);
+        Assert.Equal("method-not-allowed", KnownProblemSlugs.METHOD_NOT_ALLOWED);
+        Assert.Equal("not-acceptable", KnownProblemSlugs.NOT_ACCEPTABLE);
+        Assert.Equal("content-too-large", KnownProblemSlugs.CONTENT_TOO_LARGE);
+        Assert.Equal("unsupported-media-type", KnownProblemSlugs.UNSUPPORTED_MEDIA_TYPE);
+        Assert.Equal("internal-error", KnownProblemSlugs.INTERNAL_ERROR);
         Assert.Equal("release-dependencies-missing", KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING);
         Assert.Equal("release-dependencies-unreleased", KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED);
         Assert.Equal("catalog-read-only", KnownProblemSlugs.CATALOG_READ_ONLY);

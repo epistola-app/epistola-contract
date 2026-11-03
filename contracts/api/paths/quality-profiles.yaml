@@ -131,6 +131,8 @@ quality-profiles-key:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/quality-profiles.yaml#/QualityProfileDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -208,6 +210,8 @@ quality-profiles-key:
     responses:
       '204':
         description: Quality profile deleted successfully
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

@@ -202,7 +202,7 @@ export function checkFixtures(scenario, specPath) {
   for (const [index, entry] of (scenario.script ?? []).entries()) {
     const where = `${scenario.id}: script entry #${index + 1}`
     const status = String(entry.status ?? 200)
-    const declared = responses[status]
+    const declared = responses[status] ?? anyOperationResponse(document, status)
 
     if (!declared) {
       problems.push(`${where} answers ${status}, which ${operation.path} does not declare`)
@@ -234,6 +234,16 @@ export function checkFixtures(scenario, specPath) {
   }
 
   return problems
+}
+
+/**
+ * The response any operation may give with [status] although it does not list it: the registry's
+ * `anyOperation` types (405, 406, 413, 415, 500, 501), each a plain `ProblemDetail`.
+ */
+function anyOperationResponse(document, status) {
+  const types = document['x-problem-types']?.types ?? []
+  if (!types.some((type) => type.anyOperation && String(type.status) === status)) return undefined
+  return { content: { 'application/problem+json': { schema: { $ref: '#/components/schemas/ProblemDetail' } } } }
 }
 
 function report(problems, where, validate, value) {
