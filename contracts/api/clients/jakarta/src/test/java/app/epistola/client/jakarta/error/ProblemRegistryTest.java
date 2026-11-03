@@ -56,6 +56,18 @@ class ProblemRegistryTest {
     }
 
     @Test
+    void the_validation_codes_are_generated_from_the_contract_with_their_documented_values() {
+        assertEquals("pattern", KnownValidationCodes.PATTERN);
+        assertEquals("stencil-recursion", KnownValidationCodes.STENCIL_RECURSION);
+        assertEquals("catalog-resources-not-ready", KnownValidationCodes.CATALOG_RESOURCES_NOT_READY);
+        assertEquals(51, KnownValidationCodes.ALL.size());
+        assertEquals(
+                KnownValidationCodes.ALL.size(),
+                new java.util.LinkedHashSet<>(KnownValidationCodes.ALL).size(),
+                "x-validation-codes should not register a code twice");
+    }
+
+    @Test
     void every_registered_slug_round_trips_through_the_type_uri() {
         assertTrue(KnownProblemSlugs.ALL.size() >= 9, "the registry should list every problem type");
         for (String slug : KnownProblemSlugs.ALL) {

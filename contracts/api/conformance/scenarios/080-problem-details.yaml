@@ -38,6 +38,8 @@ script:
       errors:
         - field: name
           message: must not be blank
+          code: min-length
+        # No code: a code is optional, and a client surfaces its absence rather than a guess.
         - field: key
           message: must match the key pattern
 
@@ -50,5 +52,7 @@ expect:
     problemTitle: Validation failed
     # The extension member survives parsing, in order, both fields intact.
     problemFieldErrors: name:must not be blank,key:must match the key pattern
+    # Why each field failed, from the x-validation-codes registry; a missing code as `null`.
+    problemFieldCodes: name:min-length,key:null
     # A base member like `type`, kept exactly as sent: the type's page with this request's context.
     problemHelp: https://epistola.app/errors/validation-error?operation=listTemplates

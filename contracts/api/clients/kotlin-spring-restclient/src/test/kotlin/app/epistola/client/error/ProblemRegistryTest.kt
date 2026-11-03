@@ -54,6 +54,15 @@ class ProblemRegistryTest {
     }
 
     @Test
+    fun `the validation codes are generated from the contract with their documented values`() {
+        assertEquals("pattern", KnownValidationCodes.PATTERN)
+        assertEquals("stencil-recursion", KnownValidationCodes.STENCIL_RECURSION)
+        assertEquals("catalog-resources-not-ready", KnownValidationCodes.CATALOG_RESOURCES_NOT_READY)
+        assertEquals(51, KnownValidationCodes.ALL.size)
+        assertEquals(KnownValidationCodes.ALL.size, KnownValidationCodes.ALL.toSet().size)
+    }
+
+    @Test
     fun `the missingDependencies member name is generated from the contract`() {
         assertEquals("missingDependencies", ProblemExtensionMembers.MISSING_DEPENDENCIES)
     }

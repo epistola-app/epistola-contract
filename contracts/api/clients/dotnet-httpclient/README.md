@@ -234,6 +234,11 @@ sites keep working. Non-problem errors fall through to the generated `ApiExcepti
 `https://epistola.app/errors/not-found?operation=getTemplate`, or `null` when the server sent none.
 Switch on the type, not on this; open it, or log it, for hints on what to do.
 
+Each field error's `Code` says why the field failed (`min-length`, `stencil-recursion`,
+`catalog-resources-not-ready`, ...), or is `null` when the server sent none. Compare it against
+`KnownValidationCodes`, generated from the contract's registry, and keep a `default` branch: new
+codes may come in a minor version.
+
 ## Document generation & result collection
 
 Poll completed/failed generation results with `ResultCollector` — NDJSON streaming (constant memory),
