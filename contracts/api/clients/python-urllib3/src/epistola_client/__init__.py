@@ -37,7 +37,7 @@ from epistola_client_generated import *  # noqa: F401,F403
 from epistola_client_generated import __all__ as _generated_all
 
 # Derived sources.
-from epistola_client._generated import CONTRACT_VERSION, KnownProblemSlugs
+from epistola_client._generated import CONTRACT_VERSION, KnownProblemSlugs, KnownValidationCodes
 from epistola_client._generated import validate as validate_model
 
 # Hand-written glue.
@@ -76,6 +76,7 @@ _epistola_exports = [
     "CONTRACT_VERSION",
     "__version__",
     "KnownProblemSlugs",
+    "KnownValidationCodes",
     "validate_model",
     "JwtSigner",
     "ClientIdentity",

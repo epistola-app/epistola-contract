@@ -160,6 +160,11 @@ except ProblemDetailException as e:
             raise                              # a type this client does not know: handle it by e.problem_status
 ```
 
+Each field error's `code` says why the field failed (`min-length`, `stencil-recursion`,
+`catalog-resources-not-ready`, ...), or is `None` when the server sent none. Compare it against
+`KnownValidationCodes`, generated from the contract's registry, and keep a fallback branch: new
+codes may come in a minor version.
+
 `ProblemDetailException` extends the generated `ApiException`, so existing
 `except ApiException` sites keep working. It exposes `type`, `type_slug`, `title`,
 `problem_status`, `detail`, `help` (the type's page with this request's context, such as

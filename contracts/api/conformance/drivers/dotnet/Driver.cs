@@ -163,6 +163,7 @@ public static class Driver
                 ["problemStatus"] = (int)e.StatusCode,
                 ["problemTitle"] = e.Title ?? "<null>",
                 ["problemFieldErrors"] = string.Join(",", e.Errors.Select(error => $"{error.Field}:{error.Message}")),
+                ["problemFieldCodes"] = string.Join(",", e.Errors.Select(error => $"{error.Field}:{Show(error.Code)}")),
                 ["problemMissingFields"] = string.Join(",", e.MissingFields.Select(f => $"{f.Path}:{(f.Required ? "true" : "false")}")),
                 ["problemInvalidFields"] = string.Join(",", e.InvalidFields.Select(f => $"{f.Path}:{f.Keyword}")),
                 ["problemRequiredPermission"] = Show(e.RequiredPermission),

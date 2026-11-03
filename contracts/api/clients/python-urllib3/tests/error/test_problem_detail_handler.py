@@ -6,7 +6,13 @@
 
 import json
 
-from epistola_client import CatalogReleaseRef, KnownProblemSlugs, MissingDependency, UnreleasedDependency
+from epistola_client import (
+    CatalogReleaseRef,
+    KnownProblemSlugs,
+    KnownValidationCodes,
+    MissingDependency,
+    UnreleasedDependency,
+)
 from epistola_client.error.problem_detail_handler import parse_problem
 
 
@@ -82,6 +88,24 @@ def test_parses_validation_problem_with_errors_array():
     assert exc.is_validation_problem
     assert [e.var_field for e in exc.errors] == ["name", "key"]
     assert exc.errors[1].rejected_value == "BAD"
+
+
+def test_a_field_error_carries_the_code_that_says_why_it_failed_or_none_without_one():
+    body = json.dumps(
+        {
+            "type": "https://epistola.app/errors/validation-error",
+            "title": "Validation Failed",
+            "status": 400,
+            "errors": [
+                {"field": "name", "message": "too short", "code": "min-length"},
+                {"field": "key", "message": "must match a pattern"},
+            ],
+        }
+    )
+    exc = parse_problem(body, 400)
+    assert exc is not None
+    assert exc.errors[0].code == KnownValidationCodes.MIN_LENGTH
+    assert exc.errors[1].code is None
 
 
 def test_parses_data_model_validation_problem_with_validation_errors_map():

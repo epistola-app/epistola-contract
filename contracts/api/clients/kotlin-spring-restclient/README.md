@@ -344,6 +344,11 @@ try {
 }
 ```
 
+Each field error's `code` says why the field failed (`min-length`, `stencil-recursion`,
+`catalog-resources-not-ready`, ...), or is `null` when the server sent none. Compare it against
+`KnownValidationCodes`, generated from the contract's registry, and keep an `else` branch: new
+codes may come in a minor version.
+
 `ProblemDetailException` exposes `type`, `typeSlug`, `title`, `problemStatus`, `detail`,
 `help` (the type's page with this request's context, such as `?operation=getTemplate`, or `null`;
 switch on the type, not on this, and open it for hints), `errors` (field-level validation errors, empty unless it's a validation problem),

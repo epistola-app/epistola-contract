@@ -19,7 +19,7 @@ dotnet_diagnostic.CS8669.severity = none
 dotnet_diagnostic.CS0472.severity = none
 dotnet_diagnostic.CS0219.severity = none
 
-# Build-time derived sources (KnownProblemSlugs / ModelValidation / ContractVersion),
+# Build-time derived sources (KnownProblemSlugs / KnownValidationCodes / ModelValidation / ContractVersion),
 # emitted as *.g.cs into src/Epistola.Client/Generated/ by Epistola.Client.Gen.
 [**/*.g.cs]
 generated_code = true

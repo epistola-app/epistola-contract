@@ -217,6 +217,7 @@ object Driver {
                     "problemStatus" to e.statusCode.value(),
                     "problemTitle" to (e.problem.title ?: "<null>"),
                     "problemFieldErrors" to e.errors.joinToString(",") { "${it.field}:${it.message}" },
+                    "problemFieldCodes" to e.errors.joinToString(",") { "${it.field}:${it.code ?: "null"}" },
                     "problemMissingFields" to e.missingFields.joinToString(",") { "${it.path}:${it.required}" },
                     "problemInvalidFields" to e.invalidFields.joinToString(",") { "${it.path}:${it.keyword}" },
                     "problemRequiredPermission" to (e.requiredPermission ?: "null"),

@@ -11,6 +11,21 @@ libraries.
 
 ### Added
 
+- **A validation error says why a field failed.** Each entry of a `validation-error` problem's
+  `errors[]` gains an optional `code`, from a new machine-readable registry, `x-validation-codes`,
+  held in step with a table in `error-types.md` by `check-error-registry.sh`. It registers 51 codes
+  of three kinds: 11 `constraint` codes, the JSON Schema keyword a value broke (`required`,
+  `pattern`, `max-length`, ...); 30 `template` codes, the portable template validator's error codes
+  in kebab-case (a server-stub test holds them equal to the catalog contract's
+  `TemplateValidationCodes` minus its warnings); and 10 `domain` codes for rules beyond the schema
+  that a caller can act on (`catalog-resources-not-ready`, `catalog-namespace-not-held`,
+  `data-example-required`, ...). A code is optional, and new ones may come in a minor version, so
+  switch on it with a default branch. Every client and the server stubs generate
+  `KnownValidationCodes` from the registry, one constant per code, and every client surfaces the
+  member on its field errors: `code` on the Kotlin, Python and Node.js clients' `ValidationError`,
+  `getCode()` on the Jakarta client's and `Code` on the .NET client's. Conformance scenario
+  `problem-details` holds every client to surfacing each field's code in order, and a missing one
+  as absent (`problemFieldCodes`).
 - **A problem may link its type's page with this request's context.** The base `ProblemDetail`
   gains an optional member, `help`: the type's page with the request's context in its query, such
   as `https://epistola.app/errors/not-found?operation=getTemplate`, so the page can give the hints

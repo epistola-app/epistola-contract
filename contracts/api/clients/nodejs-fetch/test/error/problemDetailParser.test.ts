@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { KnownProblemSlugs, MissingReleaseDependencyReason, ProblemDetailException, ResponseError, isProblemJson, parseProblem } from '../../src/index.js'
+import { KnownProblemSlugs, KnownValidationCodes, MissingReleaseDependencyReason, ProblemDetailException, ResponseError, isProblemJson, parseProblem } from '../../src/index.js'
 
 function parse(body: unknown, status: number): ProblemDetailException | undefined {
   const text = typeof body === 'string' ? body : JSON.stringify(body)
@@ -75,6 +75,20 @@ test('parses a validation problem with its errors array', () => {
   assert.equal(problem.errors[1].rejectedValue, 'BAD')
   // The raw extension member is also reachable by name.
   assert.ok(Array.isArray(problem.extensions.errors))
+})
+
+test('a field error carries the code that says why it failed, or undefined without one', () => {
+  const problem = parse({
+    type: 'https://epistola.app/errors/validation-error',
+    title: 'Validation Failed',
+    status: 400,
+    errors: [
+      { field: 'name', message: 'too short', code: 'min-length' },
+      { field: 'key', message: 'must match a pattern' },
+    ],
+  }, 400)!
+  assert.equal(problem.errors[0].code, KnownValidationCodes.MIN_LENGTH)
+  assert.equal(problem.errors[1].code, undefined)
 })
 
 test('parses a data-model validation problem with its validationErrors map', () => {

@@ -34,6 +34,10 @@
  * - `problemTypes`: `List<Map<String, Any?>>` — one entry per registered problem type, with
  *   `slug`, `status`, `description` (whitespace collapsed) and `constantName` (the slug in
  *   MACRO_CASE, which every target language happens to agree on).
+ * - `validationCodes`: `List<Map<String, Any?>>` — one entry per code `x-validation-codes`
+ *   registers (why a field of a `validation-error` failed), with `code`, `kind` (`constraint`,
+ *   `template` or `domain`), `description` (whitespace collapsed) and `constantName` (the code in
+ *   MACRO_CASE).
  * - `constrainedSchemas`: `List<Map<String, Any?>>` — one entry per object schema that declares
  *   at least one constraint, with `name` and `fields`. Each field carries `property`, `nullable`
  *   (not required, or explicitly nullable) and `constraints` — a list of maps naming the
@@ -83,6 +87,35 @@ val epistolaSpecModel: (Map<String, Any>) -> Map<String, Any> = { document ->
             "description" to (entry["description"] as? String).orEmpty().replace(Regex("\\s+"), " ").trim(),
             "constantName" to slug.uppercase().replace('-', '_'),
         )
+    }
+
+    val validationRegistry = document["x-validation-codes"] as? Map<String, Any>
+        ?: throw GradleException(
+            "bundled spec has no x-validation-codes extension — the validation-code constants cannot be generated",
+        )
+    val rawCodes = (validationRegistry["codes"] as? List<Map<String, Any>>).orEmpty()
+    if (rawCodes.size < 20) {
+        throw GradleException(
+            "x-validation-codes lists only ${rawCodes.size} codes (expected at least 20) — " +
+                "was the registry truncated?",
+        )
+    }
+    val validationCodes = rawCodes.map { entry ->
+        val code = entry["code"] as? String
+            ?: throw GradleException("an x-validation-codes entry has no code: $entry")
+        val kind = entry["kind"] as? String
+        if (kind !in setOf("constraint", "template", "domain")) {
+            throw GradleException("x-validation-codes entry '$code' has kind '$kind' (expected constraint, template or domain)")
+        }
+        mapOf(
+            "code" to code,
+            "kind" to kind,
+            "description" to (entry["description"] as? String).orEmpty().replace(Regex("\\s+"), " ").trim(),
+            "constantName" to code.uppercase().replace('-', '_'),
+        )
+    }
+    if (validationCodes.map { it["code"] }.toSet().size != validationCodes.size) {
+        throw GradleException("x-validation-codes registers a code twice")
     }
 
     val identity = document["x-client-identity"] as? Map<String, Any>
@@ -272,6 +305,7 @@ val epistolaSpecModel: (Map<String, Any>) -> Map<String, Any> = { document ->
         "version" to version,
         "problemTypeBase" to problemTypeBase,
         "problemTypes" to problemTypes.toList(),
+        "validationCodes" to validationCodes,
         "clientIdentity" to clientIdentity,
         "problemExtensionMembers" to problemExtensionMembers,
         "vendorMediaTypes" to vendorMediaTypes,
