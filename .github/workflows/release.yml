@@ -163,6 +163,26 @@ jobs:
             "${{ needs.validate-and-bundle.outputs.release_version }}" \
             "$PWD/$TARBALL"
 
+      # A clean consumer installs and imports the very tarball that will be published, so a
+      # packaging or exports mistake fails here, before anything is published.
+      - name: Consume the packed catalog npm artifact
+        if: matrix.module == 'contracts/catalog'
+        working-directory: contracts/catalog
+        run: |
+          TARBALL="$PWD/$(find release/npm -maxdepth 1 -name '*.tgz' -print -quit)"
+          CONSUMER=$(mktemp -d)
+          cd "$CONSUMER"
+          npm init --yes > /dev/null
+          npm install --ignore-scripts --no-audit --no-fund "$TARBALL"
+          node --input-type=module <<'NODE'
+          import { MAX_STENCIL_NESTING_DEPTH } from '@epistola.app/epistola-catalog'
+          import { componentRegistry, styleRegistry } from '@epistola.app/epistola-catalog/registry'
+
+          if (MAX_STENCIL_NESTING_DEPTH !== 5) throw new Error('unexpected stencil nesting limit')
+          if (!componentRegistry?.components?.length) throw new Error('component registry is empty')
+          if (!styleRegistry?.groups?.length) throw new Error('style registry is empty')
+          NODE
+
       - name: Upload tested catalog npm artifact
         if: matrix.module == 'contracts/catalog'
         uses: actions/upload-artifact@v7
@@ -484,82 +504,17 @@ jobs:
         working-directory: contracts/api/clients/nodejs-fetch
         run: npm publish release/npm/*.tgz --provenance --access public --tag ${{ needs.validate-and-bundle.outputs.npm_tag }}
 
-  # Verify the public catalog artifacts from clean consumers before finalizing the release.
-  verify-catalog-release:
-    needs: [validate-and-bundle, publish]
-    # always(): without a status function GitHub implies success(), which also fails when an
-    # upstream job was skipped.
-    if: |
-      always() &&
-      needs.publish.result == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Node and Java
-        uses: ./.github/actions/setup-build-tools
-
-      - name: Wait for Maven Central catalog artifacts
-        env:
-          VERSION: ${{ needs.validate-and-bundle.outputs.release_version }}
-        run: |
-          BASE="https://repo1.maven.org/maven2/app/epistola/contract/epistola-catalog/$VERSION"
-          for attempt in $(seq 1 20); do
-            if curl --fail --silent --show-error "$BASE/epistola-catalog-$VERSION.pom" --output catalog.pom &&
-               curl --fail --silent --show-error "$BASE/epistola-catalog-$VERSION.jar" --output catalog.jar &&
-               curl --fail --silent --show-error "$BASE/epistola-catalog-$VERSION-javadoc.jar" --output catalog-javadoc.jar; then
-              break
-            fi
-            if [ "$attempt" -eq 20 ]; then
-              echo "::error::Catalog $VERSION did not become available from Maven Central"
-              exit 1
-            fi
-            sleep 30
-          done
-          grep -F '<artifactId>epistola-catalog</artifactId>' catalog.pom
-          unzip -Z1 catalog.jar | grep -Fx 'app/epistola/catalog/validation/CatalogValidator.class'
-          unzip -Z1 catalog.jar | grep -Fx 'META-INF/epistola-catalog/component-registry.json'
-          unzip -Z1 catalog-javadoc.jar | grep -Fx 'index.html'
-
-      - name: Wait for and consume npm catalog artifact
-        env:
-          VERSION: ${{ needs.validate-and-bundle.outputs.release_version }}
-        run: |
-          for attempt in $(seq 1 20); do
-            PUBLISHED=$(npm view "@epistola.app/epistola-catalog@$VERSION" version 2>/dev/null || true)
-            if [ "$PUBLISHED" = "$VERSION" ]; then
-              break
-            fi
-            if [ "$attempt" -eq 20 ]; then
-              echo "::error::Catalog $VERSION did not become available from npm"
-              exit 1
-            fi
-            sleep 30
-          done
-          CONSUMER=$(mktemp -d)
-          cd "$CONSUMER"
-          npm init --yes
-          npm install --ignore-scripts --no-audit --no-fund "@epistola.app/epistola-catalog@$VERSION"
-          node --input-type=module <<'NODE'
-          import { MAX_STENCIL_NESTING_DEPTH } from '@epistola.app/epistola-catalog'
-          import { componentRegistry, styleRegistry } from '@epistola.app/epistola-catalog/registry'
-
-          if (MAX_STENCIL_NESTING_DEPTH !== 5) throw new Error('unexpected stencil nesting limit')
-          if (!componentRegistry?.components?.length) throw new Error('component registry is empty')
-          if (!styleRegistry?.groups?.length) throw new Error('style registry is empty')
-          NODE
-
   # Upload release assets and create GitHub release for release branch pushes
   finalize-release:
-    needs: [validate-and-bundle, publish, publish-dotnet, publish-python, publish-node, verify-catalog-release]
+    # It does not wait for the artifacts to appear on Maven Central, which can take hours; the
+    # verify-published-release workflow checks that separately.
+    needs: [validate-and-bundle, publish, publish-dotnet, publish-python, publish-node]
     if: |
       always() &&
       needs.publish.result == 'success' &&
       needs.publish-dotnet.result == 'success' &&
       needs.publish-python.result == 'success' &&
-      needs.publish-node.result == 'success' &&
-      needs.verify-catalog-release.result == 'success'
+      needs.publish-node.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
