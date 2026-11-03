@@ -169,6 +169,7 @@ public static class Driver
                 ["problemRefusedTenantKey"] = Show(e.RefusedTenantKey),
                 ["problemRequiredPlatformRole"] = Show(e.RequiredPlatformRole),
                 ["problemRefusalReason"] = Show(e.RefusalReason),
+                ["problemHelp"] = Show(e.Help),
             });
         }
     }

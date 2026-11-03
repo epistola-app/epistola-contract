@@ -34,6 +34,7 @@ script:
       status: 400
       detail: The request body failed validation
       instance: /api/tenants/acme-corp/catalogs/~/acme-corp/main/releases/2.0.0/templates
+      help: https://epistola.app/errors/validation-error?operation=listTemplates
       errors:
         - field: name
           message: must not be blank
@@ -49,3 +50,5 @@ expect:
     problemTitle: Validation failed
     # The extension member survives parsing, in order, both fields intact.
     problemFieldErrors: name:must not be blank,key:must match the key pattern
+    # A base member like `type`, kept exactly as sent: the type's page with this request's context.
+    problemHelp: https://epistola.app/errors/validation-error?operation=listTemplates

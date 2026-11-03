@@ -338,6 +338,16 @@ public class ProblemDetailException extends ApiException {
         return problem.getDetail();
     }
 
+    /**
+     * The problem type's page with this request's context in its query, such as
+     * {@code https://epistola.app/errors/not-found?operation=getTemplate}, or {@code null} when the
+     * server sent none. Switch on the type ({@link #getTypeSlug()}), not on this; open it for hints
+     * on what to do. It names contract terms only, never a value, so it can be logged or shared.
+     */
+    public String getHelp() {
+        return problem.getHelp() == null ? null : problem.getHelp().toString();
+    }
+
     /** Field-level validation errors when the body was a {@code ValidationProblemDetail}, else empty. */
     public List<ValidationError> getErrors() {
         return errors;

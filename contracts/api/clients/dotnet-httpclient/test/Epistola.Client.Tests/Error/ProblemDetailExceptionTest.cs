@@ -40,6 +40,20 @@ public class ProblemDetailExceptionTest
         Assert.Equal(404, ex.ProblemStatus);
         Assert.Equal("Tenant 'acme' was not found", ex.Detail);
         Assert.Equal("https://epistola.app/errors/not-found", ex.Type);
+        Assert.Null(ex.Help);
+    }
+
+    [Fact]
+    public void HelpIsTheBaseMemberBesideTheType()
+    {
+        var ex = Exception(new ProblemDetail(
+            type: "https://epistola.app/errors/not-found",
+            title: "Not Found",
+            status: 404,
+            help: "https://epistola.app/errors/not-found?operation=getTemplate"));
+
+        Assert.Equal("https://epistola.app/errors/not-found?operation=getTemplate", ex.Help);
+        Assert.Equal("not-found", ex.TypeSlug);
     }
 
     [Fact]
