@@ -8,9 +8,10 @@
 #
 #   1. The OpenAPI Generator (csharp / httpclient) emits Api/Model/Client sources
 #      into Generated/  (mirrors the Kotlin openApiGenerate task).
-#   2. The derived-source generator emits KnownProblemSlugs, ModelValidation, and
-#      ContractVersion into src/Epistola.Client/Generated/ from the spec's
-#      x-problem-types registry, schema constraints, and info.version
+#   2. The derived-source generator emits KnownProblemSlugs, KnownValidationCodes,
+#      ModelValidation, and ContractVersion into src/Epistola.Client/Generated/ from
+#      the spec's x-problem-types and x-validation-codes registries, schema
+#      constraints, and info.version
 #      (mirrors the Kotlin generateProblemSlugs / generateValidation /
 #       generateContractVersionResource tasks).
 #
@@ -71,7 +72,7 @@ if leftovers="$(grep -rnoE '\b[Vv]ar[A-Z][A-Za-z0-9]*\b' --include='*.cs' "$GEN_
   exit 1
 fi
 
-echo "==> Generating derived sources (KnownProblemSlugs, ModelValidation, ContractVersion)"
+echo "==> Generating derived sources (KnownProblemSlugs, KnownValidationCodes, ModelValidation, ContractVersion)"
 mkdir -p "$DERIVED_OUT"
 dotnet run --project "$SCRIPT_DIR/src/Epistola.Client.Gen" -c Release -- "$SPEC" "$DERIVED_OUT"
 

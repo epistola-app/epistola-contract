@@ -1,8 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    Build-time generator that reads the bundled OpenAPI spec and emits the three
-    derived source files (KnownProblemSlugs, ModelValidation, ContractVersion) into
+    Build-time generator that reads the bundled OpenAPI spec and emits the four
+    derived source files (KnownProblemSlugs, KnownValidationCodes, ModelValidation,
+    ContractVersion) into
     the main project's Generated/ folder. Invoked by generate.sh. This is the .NET
     analogue of the Kotlin build's generateProblemSlugs / generateValidation /
     generateContractVersionResource Gradle tasks.

@@ -10,7 +10,7 @@
 
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { GENERATED_PROBLEM_TYPE_BASE, KnownProblemSlugs, ProblemExtensionMembers, TYPE_BASE, slugFor, typeFor } from '../../src/index.js'
+import { GENERATED_PROBLEM_TYPE_BASE, KnownProblemSlugs, KnownValidationCodes, ProblemExtensionMembers, TYPE_BASE, slugFor, typeFor } from '../../src/index.js'
 
 // The canonical slugs and their documented string values (docs/error-types.md / the spec's
 // x-problem-types registry). If the registry changes, this test — and the generated
@@ -55,6 +55,15 @@ test('every canonical slug constant has its documented value', () => {
   for (const [constant, slug] of Object.entries(EXPECTED_SLUGS)) {
     assert.equal((KnownProblemSlugs as Record<string, string>)[constant], slug, `missing or wrong slug constant: ${constant}`)
   }
+})
+
+test('the validation codes are generated with their documented values', () => {
+  assert.equal(KnownValidationCodes.PATTERN, 'pattern')
+  assert.equal(KnownValidationCodes.STENCIL_RECURSION, 'stencil-recursion')
+  assert.equal(KnownValidationCodes.CATALOG_RESOURCES_NOT_READY, 'catalog-resources-not-ready')
+  const all = Object.values(KnownValidationCodes)
+  assert.equal(all.length, 51)
+  assert.equal(new Set(all).size, all.length)
 })
 
 test('the extension members the client reads by name are the ones the registry declares', () => {

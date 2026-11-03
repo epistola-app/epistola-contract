@@ -342,7 +342,7 @@ fun readSpec(spec: File): Map<String, Any> =
 val generatedProblemSlugsDir = layout.buildDirectory.dir("generated-problem-slugs/src/main/java")
 
 val generateProblemSlugs by tasks.registering {
-    description = "Generates KnownProblemSlugs from the spec's x-problem-types extension"
+    description = "Generates KnownProblemSlugs and KnownValidationCodes from the spec's x-problem-types and x-validation-codes extensions"
     group = "openapi tools"
 
     inputs.file(bundledSpec)
@@ -435,6 +435,50 @@ val generateProblemSlugs by tasks.registering {
             """.trimMargin() + "\n",
         )
         logger.lifecycle("Generated KnownProblemSlugs with ${types.size} slug(s) → ${outFile.relativeTo(project.projectDir)}")
+
+        val codes = model["validationCodes"] as List<Map<String, Any?>>
+        val codeConstants = codes.joinToString("\n\n") { entry ->
+            "    /** ${entry["kind"]} — ${entry["description"]} */\n" +
+                "    public static final String ${entry["constantName"]} = \"${entry["code"]}\";"
+        }
+        val allCodes = codes.joinToString(",\n") { "            ${it["constantName"]}" }
+        val codesFile = outDir.get().file("app/epistola/client/jakarta/error/KnownValidationCodes.java").asFile
+        codesFile.writeText(
+            """
+            |// Generated from the bundled OpenAPI spec's x-validation-codes extension — do not edit.
+            |package app.epistola.client.jakarta.error;
+            |
+            |import java.util.Arrays;
+            |import java.util.Collections;
+            |import java.util.List;
+            |
+            |/**
+            | * The codes that say why a field of a {@code validation-error} failed
+            | * ({@link app.epistola.client.jakarta.model.ValidationError#getCode()}), from the contract's
+            | * validation-code registry (the spec's {@code x-validation-codes} extension /
+            | * {@code docs/error-types.md}): {@code constraint} codes name the JSON Schema keyword a value
+            | * broke, {@code template} codes a finding in template or stencil content, {@code domain}
+            | * codes a rule the server applies beyond the schema.
+            | *
+            | * <p>These are convenience constants for {@code switch (error.getCode())}. The code is
+            | * deliberately a plain {@code String} (not an enum) so the API can introduce new codes in a
+            | * minor version without forcing a client release — always keep a {@code default} branch.
+            | */
+            |public final class KnownValidationCodes {
+            |
+            |$codeConstants
+            |
+            |    /** Every code in the registry, in declaration order. */
+            |    public static final List<String> ALL = Collections.unmodifiableList(Arrays.asList(
+            |$allCodes
+            |    ));
+            |
+            |    private KnownValidationCodes() {
+            |    }
+            |}
+            """.trimMargin() + "\n",
+        )
+        logger.lifecycle("Generated KnownValidationCodes with ${codes.size} code(s) → ${codesFile.relativeTo(project.projectDir)}")
     }
 }
 

@@ -823,6 +823,217 @@ x-problem-types:
         502 when it answered with an error or with something that is not a
         valid answer.
 
+# Why a field failed validation: the `code` of a `validation-error`'s entries in `errors[]`. A
+# `constraint` code names the JSON Schema keyword the value broke; a `template` code is a finding of
+# the portable template validator (the catalog's TemplateValidationCodes, in kebab-case); a `domain`
+# code names a rule the server applies beyond the schema. Generated into every client as
+# KnownValidationCodes.
+x-validation-codes:
+  codes:
+    - code: required
+      kind: constraint
+      description: >-
+        A required member or parameter is missing, or null where the contract does not allow it.
+    - code: type
+      kind: constraint
+      description: >-
+        The value has another JSON type than the contract declares, such as text where a number is expected.
+    - code: enum
+      kind: constraint
+      description: >-
+        The value is not one of the values the contract lists.
+    - code: format
+      kind: constraint
+      description: >-
+        The value does not have the declared `format`, such as `date-time`, `uuid` or `uri`.
+    - code: pattern
+      kind: constraint
+      description: >-
+        A text value does not match the declared `pattern`, such as a key that is not a lowercase slug.
+    - code: min-length
+      kind: constraint
+      description: >-
+        A text value is shorter than its `minLength`.
+    - code: max-length
+      kind: constraint
+      description: >-
+        A text value is longer than its `maxLength`.
+    - code: minimum
+      kind: constraint
+      description: >-
+        A number is below its `minimum`.
+    - code: maximum
+      kind: constraint
+      description: >-
+        A number is above its `maximum`, such as a page `size` above 100.
+    - code: min-items
+      kind: constraint
+      description: >-
+        A list has fewer items than its `minItems`.
+    - code: max-items
+      kind: constraint
+      description: >-
+        A list has more items than its `maxItems`.
+    - code: template-graph-invalid
+      kind: template
+      description: >-
+        The template's node graph is malformed: a node or slot it refers to is missing, a node has two parents, or the graph has a cycle.
+    - code: template-node-type-unsupported
+      kind: template
+      description: >-
+        A node has a type this installation does not know.
+    - code: template-slot-invalid
+      kind: template
+      description: >-
+        A slot is malformed or not one the node's type has.
+    - code: template-child-type-not-allowed
+      kind: template
+      description: >-
+        A node holds a child of a type its slot does not allow.
+    - code: template-node-property-invalid
+      kind: template
+      description: >-
+        A node property does not have the shape its component declares.
+    - code: template-style-preset-unknown
+      kind: template
+      description: >-
+        A node uses a style preset the theme does not have.
+    - code: template-theme-not-found
+      kind: template
+      description: >-
+        The template names a theme that does not exist in the catalog or its dependencies.
+    - code: template-expression-invalid
+      kind: template
+      description: >-
+        An expression in the template does not parse or uses something the expression language does not have.
+    - code: placeholder-name-duplicate
+      kind: template
+      description: >-
+        Two placeholders in the stencil have the same name.
+    - code: placeholder-name-invalid
+      kind: template
+      description: >-
+        A placeholder's name is not a valid name.
+    - code: placeholder-nested-definition
+      kind: template
+      description: >-
+        A placeholder is defined inside another placeholder.
+    - code: placeholder-outside-stencil
+      kind: template
+      description: >-
+        A placeholder is used outside a stencil.
+    - code: stencil-nesting-depth-exceeded
+      kind: template
+      description: >-
+        Stencils are nested deeper than the contract allows.
+    - code: stencil-recursion
+      kind: template
+      description: >-
+        A stencil uses itself, directly or through other stencils.
+    - code: stencil-reference-invalid
+      kind: template
+      description: >-
+        A stencil instance does not fit the stencil it uses: it fills a placeholder or binds a parameter the stencil does not have, or with the wrong type.
+    - code: stencil-reference-not-found
+      kind: template
+      description: >-
+        A stencil instance uses a stencil that does not exist.
+    - code: node-parameter-binding-unknown
+      kind: template
+      description: >-
+        A node binds a parameter its stencil does not declare.
+    - code: node-parameter-binding-syntax-invalid
+      kind: template
+      description: >-
+        A parameter binding's expression does not parse.
+    - code: node-parameter-binding-missing-required
+      kind: template
+      description: >-
+        A node leaves a required parameter of its stencil unbound.
+    - code: node-parameter-bindings-invalid-shape
+      kind: template
+      description: >-
+        A node's parameter bindings are not a map of names to expressions.
+    - code: node-parameter-binding-name-invalid
+      kind: template
+      description: >-
+        A parameter binding names a parameter that is not a valid name.
+    - code: node-parameter-binding-empty
+      kind: template
+      description: >-
+        A parameter binding has an empty expression.
+    - code: node-params-alias-reserved
+      kind: template
+      description: >-
+        A node uses `params`, which is reserved, as an alias.
+    - code: parameter-schema-invalid-type
+      kind: template
+      description: >-
+        A stencil parameter's schema is not an object schema of supported types.
+    - code: parameter-required-unknown
+      kind: template
+      description: >-
+        A stencil marks a parameter as required that it does not declare.
+    - code: parameter-name-invalid
+      kind: template
+      description: >-
+        A stencil parameter's name is not a valid name.
+    - code: parameter-name-reserved
+      kind: template
+      description: >-
+        A stencil parameter uses a reserved name.
+    - code: parameter-type-unsupported
+      kind: template
+      description: >-
+        A stencil parameter has a type stencil parameters do not support.
+    - code: parameter-default-type-mismatch
+      kind: template
+      description: >-
+        A stencil parameter's default value does not have the parameter's type.
+    - code: pageband-nested
+      kind: template
+      description: >-
+        A page header or footer is placed inside another page header or footer.
+    - code: data-example-required
+      kind: domain
+      description: >-
+        The template's data contract needs at least one data example, and the request removes the last one or sends none.
+    - code: data-contract-schema-invalid
+      kind: domain
+      description: >-
+        The template's data contract is not a JSON Schema this installation can store and validate against.
+    - code: catalog-namespace-not-held
+      kind: domain
+      description: >-
+        The tenant does not hold the namespace the catalog is named or released in.
+    - code: catalog-namespace-local
+      kind: domain
+      description: >-
+        A catalog in the `local` namespace never leaves the organisation, so it cannot be published.
+    - code: catalog-key-ambiguous
+      kind: domain
+      description: >-
+        A catalog key names several catalogs of the tenant, and nothing says which namespace is meant.
+    - code: catalog-dependency-invalid
+      kind: domain
+      description: >-
+        A catalog dependency declaration is malformed, or the declarations would make catalogs depend on each other in a cycle.
+    - code: catalog-dependency-unresolved
+      kind: domain
+      description: >-
+        Something refers to a catalog through an alias the draft does not declare as a dependency.
+    - code: catalog-reference-unresolved
+      kind: domain
+      description: >-
+        The change would leave the draft referring to a resource that neither the draft nor its dependencies have.
+    - code: catalog-resources-not-ready
+      kind: domain
+      description: >-
+        The draft has resources that are not marked ready, so it cannot be released yet.
+    - code: source-url-not-allowed
+      kind: domain
+      description: >-
+        A code list's source URL is not one this installation allows fetching from.
 tags:
   - name: System
     description: |

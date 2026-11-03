@@ -22,6 +22,10 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Added
 
+- `KnownValidationCodes`, generated from the contract's `x-validation-codes` registry and exported
+  from `epistola_client`: one constant per code that says why a field of a `validation-error`
+  failed, and `ALL`. Compare a field error's `code` (`None` when the server sent none) against
+  them, keeping a fallback branch.
 - `ProblemDetailException.help`: the problem type's page with this request's context in its query
   (`?operation=getTemplate`), the contract's new optional base member `help`, or `None` when the
   server sent none. Switch on the type, not on this; open it for hints.

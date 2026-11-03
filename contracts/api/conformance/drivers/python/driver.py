@@ -200,6 +200,7 @@ def _problem(base_url: str, config: dict) -> None:
                 # The generated pydantic model exposes the JSON "field" member as var_field; the
                 # wire name is the same, so this is a naming difference, not a divergence.
                 "problemFieldErrors": ",".join(f"{e.var_field}:{e.message}" for e in exc.errors),
+                "problemFieldCodes": ",".join(f"{e.var_field}:{_show(e.code)}" for e in exc.errors),
                 "problemMissingFields": ",".join(
                     f"{f.path}:{str(f.required).lower()}" for f in exc.missing_fields
                 ),

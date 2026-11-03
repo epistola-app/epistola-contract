@@ -206,6 +206,11 @@ try {
 }
 ```
 
+Each field error's `code` says why the field failed (`min-length`, `stencil-recursion`,
+`catalog-resources-not-ready`, ...), or is `undefined` when the server sent none. Compare it against
+`KnownValidationCodes`, generated from the contract's registry, and keep a `default` branch: new
+codes may come in a minor version.
+
 `ProblemDetailException` extends the generated `ResponseError`, so existing `instanceof
 ResponseError` sites keep working. It exposes `type`, `typeSlug`, `title`, `problemStatus`,
 `detail`, `instance`, `help` (the type's page with this request's context, such as
