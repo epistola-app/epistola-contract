@@ -76,6 +76,17 @@ ValidationError:
       type: string
       description: Description of the validation failure
       example: must not be blank
+    code:
+      type: string
+      description: |
+        Why the field failed, machine-readably: one of the codes `x-validation-codes` registers.
+        A constraint code names the JSON Schema keyword of this contract that the value broke
+        (`required`, `pattern`, `max-length`, ...); a template code a finding in template or
+        stencil content (`stencil-recursion`); a domain code a rule the server applies beyond the
+        schema (`catalog-namespace-not-held`). Optional: a server may leave it out, and
+        new codes may be added in a minor version, so keep a default branch. Show `message` to a
+        person.
+      example: pattern
     rejectedValue:
       description: The value that was rejected (if applicable)
 
