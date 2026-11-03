@@ -301,6 +301,7 @@ are standalone artifacts, and the Jakarta client ships no runtime dependencies a
 | Extension | Generates | Into |
 | --- | --- | --- |
 | `x-problem-types` | `KnownProblemSlugs`, the problem-type base URI | Kotlin client, Jakarta client, server stubs |
+| `x-validation-codes` | `KnownValidationCodes` — why a field of a `validation-error` failed: constraint, template and domain codes; the template codes are held to the catalog's `TemplateValidationCodes` | every client, server stubs |
 | `x-client-identity` | `ContractIdentity` — the `X-EP-Node-Id` header name and the `User-Agent` product grammar | Kotlin client, Jakarta client, server stubs |
 | the registry's problem schemas | `ProblemExtensionMembers` — the members each problem body adds to the RFC 9457 base (`errors`, `validationErrors`) | Kotlin client, Jakarta client, server stubs |
 | the operations' content types | `ContractMediaTypes` — the versioned vendor media types, which carry the API major version | Kotlin client, Jakarta client (and the server build's `produces` rewrite) |
