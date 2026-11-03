@@ -16,9 +16,9 @@ ProblemDetail:
       default: about:blank
       description: |
         URI that identifies the problem type and is the stable, machine-readable
-        discriminator clients should switch on. Application-level errors use a
-        dereferenceable `https://epistola.app/errors/{slug}` URI; framework-level
-        errors with no specific type default to `about:blank`.
+        discriminator clients should switch on: `https://epistola.app/errors/{slug}`, one of
+        the types `x-problem-types` registers. It is always exactly that URI, so compare it
+        as a whole; the page it opens explains the type in general.
       example: https://epistola.app/errors/not-found
     title:
       type: string
@@ -37,6 +37,17 @@ ProblemDetail:
       format: uri-reference
       description: URI reference that identifies this specific occurrence of the problem
       example: /api/tenants/acme-corp/catalogs/default/templates?q=invoice
+    help:
+      type: string
+      format: uri
+      description: |
+        A page that explains this problem with the context of this request: the `type` URI
+        with query parameters naming, from this contract, what the request was, such as
+        `operation` (its `operationId`). The page gives the hints for that context, and the
+        general explanation of the type otherwise. It names the contract's terms only, never
+        a value from the request or the installation, so it can be shared or logged as it is.
+        Optional; a server may leave it out. Do not compare it: switch on `type`.
+      example: https://epistola.app/errors/not-found?operation=getTemplate
 
 # Extension for validation errors with field-level details
 ValidationProblemDetail:

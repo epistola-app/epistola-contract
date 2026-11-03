@@ -326,7 +326,9 @@ info:
     - `title`: a short summary;
     - `status`: the HTTP status code;
     - `detail` (optional): what happened this time;
-    - `instance` (optional): this occurrence.
+    - `instance` (optional): this occurrence;
+    - `help` (optional): the type's page with this request's context, such as the `operation`
+      that answered, for hints that fit it. It names this contract's terms only, never a value.
 
     A problem may add members of its own, such as the field-level `errors` of a `validation-error`;
     ignore members you do not recognize. The problem types are listed, machine-readably, in this
