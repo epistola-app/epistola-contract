@@ -39,6 +39,20 @@ class ProblemDetailsTest {
     }
 
     @Test
+    fun `helpFor links the type's page with the operation as its context`() {
+        assertEquals(URI.create("https://epistola.app/errors/not-found?operation=getTemplate"), ProblemDetails.helpFor("not-found", "getTemplate"))
+        assertEquals(URI.create("https://epistola.app/errors/not-found"), ProblemDetails.helpFor("not-found", null))
+    }
+
+    @Test
+    fun `helpFor never carries a value, only an operation id`() {
+        // Anything not shaped like an operationId is left out rather than escaped into the link.
+        assertEquals(URI.create("https://epistola.app/errors/not-found"), ProblemDetails.helpFor("not-found", "acme-corp/invoice"))
+        assertEquals(URI.create("https://epistola.app/errors/not-found"), ProblemDetails.helpFor("not-found", "getTemplate&templateKey=x"))
+        assertEquals(URI.create("https://epistola.app/errors/not-found"), ProblemDetails.helpFor("not-found", ""))
+    }
+
+    @Test
     fun `genericSlugFor gives each status its generic registered type`() {
         assertEquals("bad-request", ProblemDetails.genericSlugFor(400))
         assertEquals("not-found", ProblemDetails.genericSlugFor(404))
