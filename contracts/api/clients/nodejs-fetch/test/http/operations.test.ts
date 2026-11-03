@@ -55,8 +55,8 @@ test('a release is addressed by its id or by its version, and its sub-resources 
   assert.equal(findOperation('POST', '/tenants/acme/catalogs/~/acme-corp/letters/release'), undefined)
 })
 
-test('ping declares no error responses, so only the success type is asked for', () => {
-  assert.equal(findOperation('POST', '/ping')!.accept, 'application/vnd.epistola.v2+json')
+test('ping asks for the problem document too: every operation declares a 400', () => {
+  assert.equal(findOperation('POST', '/ping')!.accept, 'application/vnd.epistola.v2+json, application/problem+json')
 })
 
 test('a literal segment beats a parameter where both templates match', () => {

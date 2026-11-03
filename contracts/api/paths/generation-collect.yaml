@@ -121,6 +121,8 @@ generation-collect:
                 Newline-delimited JSON stream. Each line is a self-contained JSON object.
                 Result lines conform to the GenerationResult schema. The last line conforms
                 to the CollectMeta schema (identified by `_meta: true`).
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

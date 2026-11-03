@@ -33,7 +33,7 @@ def test_keeps_the_order_the_operation_declares(client):
 
 
 def test_a_single_declared_type_is_sent_alone(client):
-    # ping declares no error responses, so asking only for the success type is correct there.
+    # An operation that declared only its success type would ask for that alone.
     assert client.select_header_accept([VENDOR_JSON]) == VENDOR_JSON
 
 

@@ -73,6 +73,8 @@ fonts-key:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/fonts.yaml#/FontDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

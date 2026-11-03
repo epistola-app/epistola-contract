@@ -16,8 +16,6 @@ why: >
   Nothing caught it, because the conformance server and most real ones return the problem body
   regardless of what was asked for.
 
-  This is asserted on listTemplates rather than ping because ping declares no error responses at
-  all, so asking only for the success type is correct there.
 
 action:
   name: list-templates

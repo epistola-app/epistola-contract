@@ -11,9 +11,9 @@ with `Content-Type: application/problem+json`. Every problem body carries:
 | `detail` | string (optional) | explanation specific to this occurrence |
 | `instance` | string (URI reference, optional) | identifies this specific occurrence |
 
-Application-level problems use a `type` in the `https://epistola.app/errors/{slug}` namespace.
-Framework-level problems (e.g. a malformed request the framework rejects before it reaches
-application code) keep RFC 9457's default `about:blank`.
+Every problem uses a `type` in the `https://epistola.app/errors/{slug}` namespace, including one the
+server's framework raises before the request reaches application code, such as a malformed request
+(`bad-request`) or a method the operation does not take (`method-not-allowed`).
 
 A response may carry additional domain-specific **extension members** as top-level fields.
 Clients must ignore members they do not recognize.
@@ -41,6 +41,8 @@ of that status.
 | `https://epistola.app/errors/not-found` | `not-found` | 404 | `ProblemDetail` | the addressed resource (tenant, catalog, template, …) does not exist |
 | `https://epistola.app/errors/no-matching-variant` | `no-matching-variant` | 404 | `ProblemDetail` | the template exists, but none of its variants matches the attributes the request requires (`generateDocument`, `generateDocumentBatch`, `previewDocument`) |
 | `https://epistola.app/errors/release-registry-not-found` | `release-registry-not-found` | 404 | `ProblemDetail` | the release registry the request names (alpha, ADR 0008) is not one this installation has configured or is connected to; `listReleaseRegistries` lists those it has. Nothing was published or installed |
+| `https://epistola.app/errors/method-not-allowed` | `method-not-allowed` | 405 | `ProblemDetail` | the operation does not accept this HTTP method; the `Allow` header lists those it does. Any operation may answer it; it is not listed on each |
+| `https://epistola.app/errors/not-acceptable` | `not-acceptable` | 406 | `ProblemDetail` | the operation cannot answer in any media type the `Accept` header accepts. Any operation may answer it; it is not listed on each |
 | `https://epistola.app/errors/conflict` | `conflict` | 409 | `ProblemDetail` | the request conflicts with the current state of the resource (e.g. publishing a backwards-incompatible data-model change without confirmation) |
 | `https://epistola.app/errors/catalog-version-behind` | `catalog-version-behind` | 409 | `ProblemDetail` + `behind` | the draft is behind releases the request did not acknowledge (`releaseCatalogDraft`); `behind` lists their versions, to name in `acknowledgedBehind` |
 | `https://epistola.app/errors/release-in-use` | `release-in-use` | 409 | `ProblemDetail` + `environments`, `pinnedBy` | the release cannot be deleted while something uses it (`deleteCatalogRelease`): `environments` deploy it, `pinnedBy` lists the releases of other catalogs that render with it |
@@ -58,9 +60,12 @@ of that status.
 | `https://epistola.app/errors/namespace-not-granted` | `namespace-not-granted` | 409 | `ProblemDetail` | publishing a release to a release registry that grants namespaces (the Exchange, alpha) was refused because it does not grant this installation the catalog's namespace. Nothing was sent |
 | `https://epistola.app/errors/environment-deployment-refused` | `environment-deployment-refused` | 409 | `ProblemDetail` | a production environment serves only releases: a draft is deployed to it, or it is marked production while it serves a draft |
 | `https://epistola.app/errors/resource-modified` | `resource-modified` | 412 | `ProblemDetail` | an update sent `If-Match` with an `ETag` that is no longer current: the resource changed since it was read, and nothing changed. Read it again, reapply the change and retry with the new `ETag` |
+| `https://epistola.app/errors/content-too-large` | `content-too-large` | 413 | `ProblemDetail` | the request body is larger than this server accepts. Any operation that takes a body may answer it; it is not listed on each |
+| `https://epistola.app/errors/unsupported-media-type` | `unsupported-media-type` | 415 | `ProblemDetail` | the request body's `Content-Type` is not one the operation accepts. Any operation that takes a body may answer it; it is not listed on each |
 | `https://epistola.app/errors/data-model-validation-error` | `data-model-validation-error` | 422 | `ProblemDetail` + `validationErrors` | the request is well-formed but semantically invalid: supplied data examples do not validate against the data model; the `validationErrors` member maps each example's key to its failures |
 | `https://epistola.app/errors/merge-not-applicable` | `merge-not-applicable` | 422 | `ProblemDetail` | merging a release into a draft (alpha) does not apply: the draft already contains the release (its base, or merged before), or a resolution names a resource that is not a conflict of the merge |
 | `https://epistola.app/errors/rate-limited` | `rate-limited` | 429 | `ProblemDetail` | too many requests; a `Retry-After` header indicates how long to wait |
+| `https://epistola.app/errors/internal-error` | `internal-error` | 500 | `ProblemDetail` | the server failed to answer the request. Retrying may succeed; report it when it does not. Any operation may answer it; it is not listed on each |
 | `https://epistola.app/errors/operation-not-implemented` | `operation-not-implemented` | 501 | `ProblemDetail` | the operation is part of the contract, but this server does not implement it yet; any operation may answer it |
 | `https://epistola.app/errors/catalog-source-unavailable` | `catalog-source-unavailable` | 503 | `ProblemDetail` | a catalog's source (its registry, through the mirrors configured for it) could not be used, so `listAvailableCatalogReleases` or `installCatalogRelease` could not be carried out and nothing was installed; also a release registry (alpha: `listRegistryReleases`, `installRegistryRelease`, `publishReleaseToRegistry`), with nothing installed or published. **503** when the source could not be reached or did not answer in time, possibly with a `Retry-After` header; **502** when it answered with an error or with something that is not a valid answer. The registry lists 503; the same type is sent with either status |
 

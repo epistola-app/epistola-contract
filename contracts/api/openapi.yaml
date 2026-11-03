@@ -339,6 +339,11 @@ info:
     added in a minor version: handle a type you do not recognize by its `status`, as the generic
     type of that status, and keep a fallback when switching on them.
 
+    Six statuses are not listed on each operation, because any operation may answer them:
+    405 `method-not-allowed`, 406 `not-acceptable`, 413 `content-too-large` and 415
+    `unsupported-media-type` (the last two where it takes a body), 500 `internal-error`, and 501
+    `operation-not-implemented`. `x-problem-types` marks them `anyOperation: true`.
+
     ## Experimental parts and server support
 
     Operations and members marked `x-experimental: true`, the consumer model (Bearer JWT and the
@@ -525,6 +530,8 @@ x-authorization:
       outsideApi: true
       description: Read a tenant's audit trail.
 
+# Every problem type a server may answer with. `anyOperation: true` marks a type any operation may
+# answer, which is therefore not listed on each operation's responses.
 x-problem-types:
   base: https://epistola.app/errors/
   types:
@@ -612,6 +619,20 @@ x-problem-types:
         The release registry the request names (alpha, ADR 0008) is not one
         this installation has configured or is connected to; nothing was
         published or installed. `listReleaseRegistries` lists those it has.
+    - slug: method-not-allowed
+      status: 405
+      anyOperation: true
+      schema: ProblemDetail
+      description: >-
+        The operation does not accept this HTTP method; the `Allow` header lists
+        those it does. Any operation may answer it; it is not listed on each.
+    - slug: not-acceptable
+      status: 406
+      anyOperation: true
+      schema: ProblemDetail
+      description: >-
+        The operation cannot answer in any media type the `Accept` header
+        accepts. Any operation may answer it; it is not listed on each.
     - slug: conflict
       status: 409
       schema: ProblemDetail
@@ -741,6 +762,20 @@ x-problem-types:
         An update sent `If-Match` with an `ETag` that is no longer current: the
         resource changed since it was read. Nothing changed; read it again and
         reapply the change.
+    - slug: content-too-large
+      status: 413
+      anyOperation: true
+      schema: ProblemDetail
+      description: >-
+        The request body is larger than this server accepts. Any operation
+        that takes a body may answer it; it is not listed on each.
+    - slug: unsupported-media-type
+      status: 415
+      anyOperation: true
+      schema: ProblemDetail
+      description: >-
+        The request body's `Content-Type` is not one the operation accepts.
+        Any operation that takes a body may answer it; it is not listed on each.
     - slug: data-model-validation-error
       status: 422
       schema: DataModelValidationProblemDetail
@@ -760,8 +795,16 @@ x-problem-types:
       description: >-
         Too many requests; the `Retry-After` header indicates how long to
         wait.
+    - slug: internal-error
+      status: 500
+      anyOperation: true
+      schema: ProblemDetail
+      description: >-
+        The server failed to answer the request. Retrying may succeed; report it
+        when it does not. Any operation may answer it; it is not listed on each.
     - slug: operation-not-implemented
       status: 501
+      anyOperation: true
       schema: ProblemDetail
       description: >-
         The operation is part of the contract, but this server does not implement it yet. Any

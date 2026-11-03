@@ -11,6 +11,23 @@ libraries.
 
 ### Added
 
+- **Every status a server answers has a registered problem type.** The registry gains the generic
+  types of five statuses it had none for: `method-not-allowed` (405), `not-acceptable` (406),
+  `content-too-large` (413), `unsupported-media-type` (415) and `internal-error` (500). Like 501
+  `operation-not-implemented`, any operation may answer them, so they are not listed on each;
+  `x-problem-types` marks all six `anyOperation: true`, and the conformance harness accepts them on
+  any operation. The
+  contract already said a server answers only with registered types; a server had no registered
+  type to answer these statuses with, and `error-types.md` still sent a framework's rejections to
+  `about:blank`. Every problem now uses an `https://epistola.app/errors/` type. Clients generate the
+  new slugs; conformance scenarios `unlisted-status-internal-error` and
+  `unlisted-status-not-acceptable` hold every client to surfacing a problem whose status the
+  operation does not list, by its slug.
+- **Every operation documents 400.** 47 operations validated their input (a key in the path, a
+  query, a body) without listing the 400 they answer when it is invalid; a lint rule,
+  `operation-documents-400`, now requires it of every operation. Its response,
+  `ValidationFailedError`, is `validation-error` with `errors[]` per field, or `bad-request` for a
+  request that cannot be read.
 - **The authorization vocabulary is data.** A new `x-authorization` extension lists Epistola
   Suite's tenant roles (with the name an identity provider emits for each), its platform roles, and
   every permission with the roles that grant it; a permission no operation requires is marked

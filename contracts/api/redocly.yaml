@@ -15,3 +15,13 @@ rules:
   security-defined: error
   # Disable 4xx response requirement for listing endpoints
   operation-4xx-response: warn
+  # Every operation takes input the server validates (a key in its path, a query or a body), so
+  # every operation documents the 400 it answers when that input is invalid.
+  rule/operation-documents-400:
+    subject:
+      type: Responses
+    assertions:
+      required:
+        - '400'
+    message: Document '400' (ValidationFailedError) — every operation validates its input.
+    severity: error

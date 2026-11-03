@@ -121,6 +121,8 @@ stencils-id:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/stencils.yaml#/StencilDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -183,6 +185,8 @@ stencils-id:
     responses:
       '204':
         description: Stencil deleted successfully
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -228,6 +232,8 @@ stencil-content:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/stencils.yaml#/StencilContentDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -316,6 +322,8 @@ stencil-mark-ready:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/stencils.yaml#/MarkStencilReadyResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
