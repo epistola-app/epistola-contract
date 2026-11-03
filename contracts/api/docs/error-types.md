@@ -94,7 +94,8 @@ A `validation-error` problem extends the base shape with an `errors` array. Each
 | field | type | notes |
 | --- | --- | --- |
 | `field` | string | the field that failed validation |
-| `message` | string | description of the failure |
+| `message` | string | description of the failure, for a person |
+| `code` | string (optional) | why it failed, machine-readably: a code from [Validation codes](#validation-codes) |
 | `rejectedValue` | any (optional) | the value that was rejected |
 
 ```json
@@ -104,11 +105,78 @@ A `validation-error` problem extends the base shape with an `errors` array. Each
   "status": 400,
   "detail": "The request body failed validation",
   "errors": [
-    { "field": "name", "message": "must not be blank" },
-    { "field": "key", "message": "must match ^[a-z][a-z0-9-]*$", "rejectedValue": "A B" }
+    { "field": "name", "code": "min-length", "message": "must not be blank" },
+    { "field": "key", "code": "pattern", "message": "must match ^[a-z][a-z0-9-]*$", "rejectedValue": "A B" }
   ]
 }
 ```
+
+### Validation codes
+
+`code` says why a field failed, so a client can react without parsing `message`. It is optional,
+and new codes may be added in a minor version: keep a default branch, and show `message` to a
+person. The codes are listed, machine-readably, in the spec's `x-validation-codes` extension, and
+generated into every client as `KnownValidationCodes`.
+
+- A **constraint** code names the JSON Schema keyword of this contract that the value broke. The
+  operation's schema says what the keyword asks for.
+- A **template** code is a finding of the portable template validator (the catalog contract's
+  `TemplateValidationCodes`, in kebab-case): what is wrong in template or stencil content.
+- A **domain** code names a rule the server applies beyond the schema.
+
+| code | kind | when |
+| --- | --- | --- |
+| `required` | constraint | A required member or parameter is missing, or null where the contract does not allow it |
+| `type` | constraint | The value has another JSON type than the contract declares, such as text where a number is expected |
+| `enum` | constraint | The value is not one of the values the contract lists |
+| `format` | constraint | The value does not have the declared `format`, such as `date-time`, `uuid` or `uri` |
+| `pattern` | constraint | A text value does not match the declared `pattern`, such as a key that is not a lowercase slug |
+| `min-length` | constraint | A text value is shorter than its `minLength` |
+| `max-length` | constraint | A text value is longer than its `maxLength` |
+| `minimum` | constraint | A number is below its `minimum` |
+| `maximum` | constraint | A number is above its `maximum`, such as a page `size` above 100 |
+| `min-items` | constraint | A list has fewer items than its `minItems` |
+| `max-items` | constraint | A list has more items than its `maxItems` |
+| `template-graph-invalid` | template | the template's node graph is malformed: a node or slot it refers to is missing, a node has two parents, or the graph has a cycle |
+| `template-node-type-unsupported` | template | a node has a type this installation does not know |
+| `template-slot-invalid` | template | a slot is malformed or not one the node's type has |
+| `template-child-type-not-allowed` | template | a node holds a child of a type its slot does not allow |
+| `template-node-property-invalid` | template | a node property does not have the shape its component declares |
+| `template-style-preset-unknown` | template | a node uses a style preset the theme does not have |
+| `template-theme-not-found` | template | the template names a theme that does not exist in the catalog or its dependencies |
+| `template-expression-invalid` | template | an expression in the template does not parse or uses something the expression language does not have |
+| `placeholder-name-duplicate` | template | two placeholders in the stencil have the same name |
+| `placeholder-name-invalid` | template | a placeholder's name is not a valid name |
+| `placeholder-nested-definition` | template | a placeholder is defined inside another placeholder |
+| `placeholder-outside-stencil` | template | a placeholder is used outside a stencil |
+| `stencil-nesting-depth-exceeded` | template | stencils are nested deeper than the contract allows |
+| `stencil-recursion` | template | a stencil uses itself, directly or through other stencils |
+| `stencil-reference-invalid` | template | a stencil instance does not fit the stencil it uses: it fills a placeholder or binds a parameter the stencil does not have, or with the wrong type |
+| `stencil-reference-not-found` | template | a stencil instance uses a stencil that does not exist |
+| `node-parameter-binding-unknown` | template | a node binds a parameter its stencil does not declare |
+| `node-parameter-binding-syntax-invalid` | template | a parameter binding's expression does not parse |
+| `node-parameter-binding-missing-required` | template | a node leaves a required parameter of its stencil unbound |
+| `node-parameter-bindings-invalid-shape` | template | a node's parameter bindings are not a map of names to expressions |
+| `node-parameter-binding-name-invalid` | template | a parameter binding names a parameter that is not a valid name |
+| `node-parameter-binding-empty` | template | a parameter binding has an empty expression |
+| `node-params-alias-reserved` | template | a node uses `params`, which is reserved, as an alias |
+| `parameter-schema-invalid-type` | template | a stencil parameter's schema is not an object schema of supported types |
+| `parameter-required-unknown` | template | a stencil marks a parameter as required that it does not declare |
+| `parameter-name-invalid` | template | a stencil parameter's name is not a valid name |
+| `parameter-name-reserved` | template | a stencil parameter uses a reserved name |
+| `parameter-type-unsupported` | template | a stencil parameter has a type stencil parameters do not support |
+| `parameter-default-type-mismatch` | template | a stencil parameter's default value does not have the parameter's type |
+| `pageband-nested` | template | a page header or footer is placed inside another page header or footer |
+| `data-example-required` | domain | the template's data contract needs at least one data example, and the request removes the last one or sends none |
+| `data-contract-schema-invalid` | domain | the template's data contract is not a JSON Schema this installation can store and validate against |
+| `catalog-namespace-not-held` | domain | the tenant does not hold the namespace the catalog is named or released in |
+| `catalog-namespace-local` | domain | a catalog in the `local` namespace never leaves the organisation, so it cannot be published |
+| `catalog-key-ambiguous` | domain | a catalog key names several catalogs of the tenant, and nothing says which namespace is meant |
+| `catalog-dependency-invalid` | domain | a catalog dependency declaration is malformed, or the declarations would make catalogs depend on each other in a cycle |
+| `catalog-dependency-unresolved` | domain | something refers to a catalog through an alias the draft does not declare as a dependency |
+| `catalog-reference-unresolved` | domain | the change would leave the draft referring to a resource that neither the draft nor its dependencies have |
+| `catalog-resources-not-ready` | domain | the draft has resources that are not marked ready, so it cannot be released yet |
+| `source-url-not-allowed` | domain | a code list's source URL is not one this installation allows fetching from |
 
 ## Resource modified (optimistic locking)
 
