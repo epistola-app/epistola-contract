@@ -87,7 +87,10 @@ class ProblemRegistryTest {
         // Reasons are strings so an unknown one survives; the named constants must still be the
         // contract's values, which the generated enum carries.
         assertEquals(
-            MissingReleaseDependencyReason.entries.map { it.value }.sorted(),
+            MissingReleaseDependencyReason.entries
+                .filter { it != MissingReleaseDependencyReason.unknown_default_open_api }
+                .map { it.value }
+                .sorted(),
             listOf(MissingReleaseDependency.Reasons.UNAVAILABLE),
         )
     }

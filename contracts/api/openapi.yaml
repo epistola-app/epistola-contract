@@ -346,6 +346,26 @@ info:
     `unsupported-media-type` (the last two where it takes a body), 500 `internal-error`, and 501
     `operation-not-implemented`. `x-problem-types` marks them `anyOperation: true`.
 
+    ## Compatibility within 2.x
+
+    A minor version adds and never takes away, so a client built against an earlier 2.x keeps
+    working against a later 2.x server. A minor version may add:
+
+    - operations, and optional request members and query parameters;
+    - **response members**: ignore a member you do not recognize;
+    - **enum values in responses**: a status, kind or reason may gain a value. Treat one you do
+      not recognize as unknown rather than failing, and keep a default branch when switching on
+      an enum. The client libraries read it without failing: the Kotlin, Jakarta and .NET enums
+      as their `unknown_default_open_api` member (`UNKNOWN_DEFAULT_OPEN_API` in Jakarta,
+      `UnknownDefaultOpenApi` in .NET), the Python client as an unknown member that keeps the
+      value, and the Node.js client as the string received;
+    - problem types and validation codes (see "Errors").
+
+    It never removes or renames a member or an enum value, makes an optional request member
+    required, or narrows what a request may send. A server refuses a request enum value it does
+    not know with 400, so never send `unknown_default_open_api`. Operations and members marked
+    `x-experimental` are outside these rules.
+
     ## Experimental parts and server support
 
     Operations and members marked `x-experimental: true`, the consumer model (Bearer JWT and the

@@ -222,14 +222,14 @@ export function checkFixtures(scenario, specPath) {
     }
 
     if (entry.body !== undefined) {
-      report(problems, where, validatorFor(schema, `${operation.path}|${operation.method}|${status}`), entry.body)
+      report(problems, where, validatorFor(schema, `${operation.path}|${operation.method}|${status}`), entry.body, scenario)
     }
     for (const [line, value] of (entry.ndjson ?? []).entries()) {
       // The collect stream is one schema per line rather than one for the body: result lines, then
       // a trailing meta line. Getting a result line wrong is exactly the mistake this catches.
       const name = value._meta ? 'CollectMeta' : 'GenerationResult'
       const lineSchema = document.components.schemas[name]
-      report(problems, `${where} ndjson line ${line + 1} (${name})`, validatorFor(lineSchema, name), value)
+      report(problems, `${where} ndjson line ${line + 1} (${name})`, validatorFor(lineSchema, name), value, scenario)
     }
   }
 
@@ -246,9 +246,16 @@ function anyOperationResponse(document, status) {
   return { content: { 'application/problem+json': { schema: { $ref: '#/components/schemas/ProblemDetail' } } } }
 }
 
-function report(problems, where, validate, value) {
+/**
+ * A scenario with `newerServer` (a reason) plays a 2.x server newer than the clients: a minor
+ * version may add an enum value, so its fixtures may carry one the spec does not list yet. Only
+ * that is let through; every other error in the same fixture is still reported. (A member the spec
+ * does not declare needs no exception: response schemas leave `additionalProperties` open.)
+ */
+function report(problems, where, validate, value, scenario) {
   if (!validate(value)) {
     for (const error of validate.errors ?? []) {
+      if (scenario?.newerServer && error.keyword === 'enum') continue
       problems.push(`${where}${error.instancePath || ''} ${error.message}`)
     }
   }

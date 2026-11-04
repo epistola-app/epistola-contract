@@ -54,6 +54,11 @@ find "$GEN_OUT" -mindepth 1 -maxdepth 1 \
   ! -name '.openapi-generator' \
   -exec rm -rf {} +
 
+# A minor version may add an enum value; the generated models would refuse it and the whole
+# response with it. Keep such a value as received instead (see the script's docstring).
+echo "==> Reading unknown enum values as received"
+python3 "$SCRIPT_DIR/gen/tolerate_unknown_enums.py" "$GEN_OUT/epistola_client_generated/models"
+
 echo "==> Generating derived sources (contract_version, known_problem_slugs, known_validation_codes, model_validation)"
 mkdir -p "$DERIVED_OUT"
 # Run the generator in an isolated uv environment. Do not run it as the project:

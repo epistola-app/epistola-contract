@@ -82,6 +82,23 @@ signer = (
 )
 ```
 
+## Newer servers
+
+A minor version of the contract may add response members and enum values ("Compatibility within
+2.x" in the API description), so this client keeps working against a later 2.x server: a response
+member it does not know is ignored, and an enum value it does not know is kept as received. A named
+enum gives an unknown member that equals the received string and no known member:
+
+```python
+job = api.get_generation_job_status(tenant_key, request_id)
+if job.status == GenerationJobStatus.COMPLETED:
+    collect(job)
+elif job.status in (GenerationJobStatus.FAILED, GenerationJobStatus.CANCELLED):
+    report(job)
+else:
+    retry_later(job)  # pending, in-progress, and any status added later, e.g. job.status.value
+```
+
 ## Error handling
 
 Install the opt-in problem-detail handler on the client

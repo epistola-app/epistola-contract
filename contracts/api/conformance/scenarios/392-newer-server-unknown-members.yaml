@@ -1,0 +1,52 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: newer-server-unknown-members
+title: A response member the client does not know is ignored, at the top and nested
+why: >
+  A minor version may add response members ("Compatibility within 2.x" in the API description),
+  so a 2.0.0 client meets members it was not generated with as soon as a server runs 2.1. Ignoring
+  them is the only behaviour that lets the contract grow without a major version: a client that
+  fails on one fails on every response of every operation that gained one. The Kotlin client did,
+  through the recommended `epistolaMessageConverters()`, until 2.0.0.
+
+  The job carries an unknown scalar, an unknown object and an unknown array. The client must read
+  every member it does know exactly as without them.
+
+action:
+  name: get-generation-job-status
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantKey: acme-corp
+    requestId: 550e8400-e29b-41d4-a716-446655440000
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      requestId: 550e8400-e29b-41d4-a716-446655440000
+      jobType: batch
+      status: in-progress
+      total: 10000
+      completedCount: 6210
+      failedCount: 12
+      errorMessage: null
+      createdAt: "2026-10-29T08:00:00Z"
+      startedAt: "2026-10-29T08:00:01Z"
+      completedAt: null
+      priority: high
+      estimate: { remainingSeconds: 340, confidence: 0.8 }
+      tags: [monthly, invoices]
+
+expect:
+  requestCount: 1
+  report:
+    requestId: 550e8400-e29b-41d4-a716-446655440000
+    status: in-progress
+    jobType: batch
+    total: 10000
+    completedCount: 6210
+    failedCount: 12

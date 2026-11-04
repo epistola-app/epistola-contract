@@ -168,6 +168,13 @@ For OAuth 2.0 client credentials (also experimental on the server side), or any 
 register a `ClientRequestFilter` of your own and configure neither `epistola.client.api-key` nor
 `epistola.client.jwt.consumer-id`.
 
+## Newer servers
+
+A minor version of the contract may add response members and enum values ("Compatibility within
+2.x" in the API description), so this client keeps working against a later 2.x server: JSON-B
+ignores a response member it does not know, and an enum value it does not know reads as that
+enum's `UNKNOWN_DEFAULT_OPEN_API` constant. Keep a `default` branch when switching on an enum.
+
 ## Error handling
 
 `application/problem+json` responses arrive as a typed `ProblemDetailException`, with no

@@ -268,6 +268,27 @@ val restClient = RestClient.builder()
     .build()
 ```
 
+## Newer servers
+
+A minor version of the contract may add response members and enum values ("Compatibility within
+2.x" in the API description), so this client keeps working against a later 2.x server:
+
+- a response member it does not know is ignored;
+- an enum value it does not know reads as that enum's `unknown_default_open_api` constant.
+
+Both depend on the mapper: `EpistolaJson.objectMapper` (what `epistolaMessageConverters()`
+installs) disables `FAIL_ON_UNKNOWN_PROPERTIES` and enables
+`READ_UNKNOWN_ENUM_VALUES_USING_DEFAULT_VALUE`. A plain `jacksonObjectMapper()` fails on an unknown
+member, and Spring Boot's mapper on an unknown value of an enum declared inline on a model.
+
+```kotlin
+when (job.status) {
+    GenerationJobStatus.completed -> collect(job)
+    GenerationJobStatus.failed, GenerationJobStatus.cancelled -> report(job)
+    else -> retryLater(job) // pending, in-progress, and any status added later
+}
+```
+
 ## Error Handling
 
 The API reports errors as [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457)

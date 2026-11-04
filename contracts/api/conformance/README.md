@@ -240,6 +240,12 @@ A status the operation does not list is refused, unless the registry marks a pro
 status `anyOperation` (405, 406, 413, 415, 500, 501): any operation may answer it, so it is checked
 as a plain `ProblemDetail`.
 
+A scenario that plays a **newer 2.x server** sets `newerServer:` to say what that server adds. A
+minor version may add an enum value, so such a fixture may carry one the spec does not list; only
+that error is let through, and every other one in the fixture is still reported. A member the spec
+does not declare needs no exception, since no response schema closes `additionalProperties`. The
+`newer-server-*` scenarios use it to hold every client to reading what a later minor version sends.
+
 ## What it has caught
 
 All four of these were live in released clients, and all four were invisible to those clients' own

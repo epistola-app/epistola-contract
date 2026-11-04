@@ -87,6 +87,14 @@ may still change. For OAuth 2.0 client-credentials (also experimental on the ser
 your own bearer handler via `EpistolaHttpClientBuilder.PrimaryHandler(...)` or add a
 `DelegatingHandler` around the chain.
 
+## Newer servers
+
+A minor version of the contract may add response members and enum values ("Compatibility within
+2.x" in the API description), so this client keeps working against a later 2.x server: a response
+member it does not know is ignored, and an enum value it does not know reads as that enum's
+`UnknownDefaultOpenApi` member (`Epistola.Client.Json.TolerantStringEnumConverter`). Keep a
+`default` arm when switching on an enum.
+
 ## Error handling
 
 With `InstallProblemDetailHandler()`, `application/problem+json` error responses raise a typed
