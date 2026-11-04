@@ -112,6 +112,7 @@ TemplateDto:
             default: USD
     dataExamples:
       type: array
+      maxItems: 100
       description: Example data sets for testing template rendering
       items:
         $ref: '#/DataExampleDto'
@@ -333,6 +334,7 @@ DataExampleDto:
       example: standard-invoice
     name:
       type: string
+      maxLength: 255
       description: Display name of the data example
       example: Standard Invoice
     data:
@@ -446,6 +448,7 @@ CreateTemplateRequest:
             pattern: "^INV-\\d{4}-\\d{3}$"
     dataExamples:
       type: array
+      maxItems: 100
       description: |
         The template's data examples, each satisfying `dataModel` (422 otherwise). Omitted: none.
       items:
@@ -569,6 +572,7 @@ UpdateTemplateRequest:
             default: USD
     dataExamples:
       type: array
+      maxItems: 100
       description: Updated data examples
       items:
         $ref: '#/DataExampleDto'

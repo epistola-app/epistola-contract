@@ -75,7 +75,13 @@ not implement every part of 2.0 yet.
   string, array or object removes it, and an explicit flag covers the rest (`clearDefaultTheme`,
   `clearCodeListBinding`, `clearExpiresAt`).
 - **Bounds and paging.** Code lists, attributes, variants and themes have length limits, a code
-  list's `sourceUrl` is HTTPS only, and `listCodeListEntries` is paged. `listTemplates` sorts by an
+  list's `sourceUrl` is HTTPS only, and `listCodeListEntries` is paged. Every request input outside
+  the alpha parts and the catalog's own documents is now bounded: a variant has at most 50
+  attributes and a request at most 50 attribute criteria, each value at most 255 characters, as
+  are attribute `allowedValues` and a data example's `name`; a template at most 100 data examples;
+  a draft at most 50 dependencies (as many as an archive may carry) and 100 declared presets; a
+  theme at most 100 block style presets; `acknowledgedBehind` at most 1000 versions; and an
+  image's `mediaType` at most 255 characters. `listTemplates` sorts by an
   enum, and the other lists lose a `sort` that sorted by nothing. `listDocuments` filters by
   catalog.
 - **Portable catalog wire v8**, which reads and migrates every earlier archive:

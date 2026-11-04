@@ -35,6 +35,7 @@ ThemeDto:
       $ref: '../../../catalog/schemas/template-shared.schema.json#/$defs/PageSettings'
     blockStylePresets:
       type: object
+      maxProperties: 100
       additionalProperties:
         $ref: '../../../catalog/schemas/theme.schema.json#/$defs/BlockStylePreset'
       description: |
@@ -148,6 +149,7 @@ CreateThemeRequest:
       $ref: '../../../catalog/schemas/template-shared.schema.json#/$defs/PageSettings'
     blockStylePresets:
       type: object
+      maxProperties: 100
       additionalProperties:
         $ref: '../../../catalog/schemas/theme.schema.json#/$defs/BlockStylePreset'
       description: Named block style presets. Key is the preset name.
@@ -197,6 +199,7 @@ UpdateThemeRequest:
       type:
         - object
         - 'null'
+      maxProperties: 100
       additionalProperties:
         $ref: '../../../catalog/schemas/theme.schema.json#/$defs/BlockStylePreset'
       description: |

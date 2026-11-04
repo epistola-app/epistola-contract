@@ -82,6 +82,7 @@ images:
                 description: Optional display name; defaults to the uploaded filename.
               mediaType:
                 type: string
+                maxLength: 255
                 description: Optional MIME override; defaults to the part content type.
     responses:
       '201':

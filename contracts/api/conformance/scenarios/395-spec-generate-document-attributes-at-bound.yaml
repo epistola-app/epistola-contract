@@ -1,0 +1,239 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: spec-generate-document-attributes-at-bound
+title: A generation request at its bounds, 50 attribute criteria and a 255-character value, goes out whole
+why: >
+  Contract 2.0 bounds variant selection: a request carries at most 50 attribute criteria, and a
+  criterion's value is at most 255 characters, as a variant's attribute values are. Inputs at the
+  bound are valid, and a client must send them as given: neither refuse them before sending, nor
+  truncate a value or drop criteria. Prism holds the request to the spec, so one over a bound would
+  fail here too; the body check holds each client to sending all 50 criteria, in order, the long
+  value included.
+
+backend: prism
+
+action:
+  name: generate-document
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantKey: acme-corp
+    namespace: acme-corp
+    catalogKey: letters
+    templateKey: invoice
+    attributes:
+      - key: attr-01
+        value: nl-NL-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+      - key: attr-02
+        value: value-02
+      - key: attr-03
+        value: value-03
+      - key: attr-04
+        value: value-04
+      - key: attr-05
+        value: value-05
+      - key: attr-06
+        value: value-06
+      - key: attr-07
+        value: value-07
+      - key: attr-08
+        value: value-08
+      - key: attr-09
+        value: value-09
+      - key: attr-10
+        value: value-10
+      - key: attr-11
+        value: value-11
+      - key: attr-12
+        value: value-12
+      - key: attr-13
+        value: value-13
+      - key: attr-14
+        value: value-14
+      - key: attr-15
+        value: value-15
+      - key: attr-16
+        value: value-16
+      - key: attr-17
+        value: value-17
+      - key: attr-18
+        value: value-18
+      - key: attr-19
+        value: value-19
+      - key: attr-20
+        value: value-20
+      - key: attr-21
+        value: value-21
+      - key: attr-22
+        value: value-22
+      - key: attr-23
+        value: value-23
+      - key: attr-24
+        value: value-24
+      - key: attr-25
+        value: value-25
+      - key: attr-26
+        value: value-26
+      - key: attr-27
+        value: value-27
+      - key: attr-28
+        value: value-28
+      - key: attr-29
+        value: value-29
+      - key: attr-30
+        value: value-30
+      - key: attr-31
+        value: value-31
+      - key: attr-32
+        value: value-32
+      - key: attr-33
+        value: value-33
+      - key: attr-34
+        value: value-34
+      - key: attr-35
+        value: value-35
+      - key: attr-36
+        value: value-36
+      - key: attr-37
+        value: value-37
+      - key: attr-38
+        value: value-38
+      - key: attr-39
+        value: value-39
+      - key: attr-40
+        value: value-40
+      - key: attr-41
+        value: value-41
+      - key: attr-42
+        value: value-42
+      - key: attr-43
+        value: value-43
+      - key: attr-44
+        value: value-44
+      - key: attr-45
+        value: value-45
+      - key: attr-46
+        value: value-46
+      - key: attr-47
+        value: value-47
+      - key: attr-48
+        value: value-48
+      - key: attr-49
+        value: value-49
+      - key: attr-50
+        value: value-50
+    data:
+      customerName: Acme B.V.
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/documents/generate
+      body:
+        json:
+          templateKey: invoice
+          attributes:
+            - key: attr-01
+              value: nl-NL-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+            - key: attr-02
+              value: value-02
+            - key: attr-03
+              value: value-03
+            - key: attr-04
+              value: value-04
+            - key: attr-05
+              value: value-05
+            - key: attr-06
+              value: value-06
+            - key: attr-07
+              value: value-07
+            - key: attr-08
+              value: value-08
+            - key: attr-09
+              value: value-09
+            - key: attr-10
+              value: value-10
+            - key: attr-11
+              value: value-11
+            - key: attr-12
+              value: value-12
+            - key: attr-13
+              value: value-13
+            - key: attr-14
+              value: value-14
+            - key: attr-15
+              value: value-15
+            - key: attr-16
+              value: value-16
+            - key: attr-17
+              value: value-17
+            - key: attr-18
+              value: value-18
+            - key: attr-19
+              value: value-19
+            - key: attr-20
+              value: value-20
+            - key: attr-21
+              value: value-21
+            - key: attr-22
+              value: value-22
+            - key: attr-23
+              value: value-23
+            - key: attr-24
+              value: value-24
+            - key: attr-25
+              value: value-25
+            - key: attr-26
+              value: value-26
+            - key: attr-27
+              value: value-27
+            - key: attr-28
+              value: value-28
+            - key: attr-29
+              value: value-29
+            - key: attr-30
+              value: value-30
+            - key: attr-31
+              value: value-31
+            - key: attr-32
+              value: value-32
+            - key: attr-33
+              value: value-33
+            - key: attr-34
+              value: value-34
+            - key: attr-35
+              value: value-35
+            - key: attr-36
+              value: value-36
+            - key: attr-37
+              value: value-37
+            - key: attr-38
+              value: value-38
+            - key: attr-39
+              value: value-39
+            - key: attr-40
+              value: value-40
+            - key: attr-41
+              value: value-41
+            - key: attr-42
+              value: value-42
+            - key: attr-43
+              value: value-43
+            - key: attr-44
+              value: value-44
+            - key: attr-45
+              value: value-45
+            - key: attr-46
+              value: value-46
+            - key: attr-47
+              value: value-47
+            - key: attr-48
+              value: value-48
+            - key: attr-49
+              value: value-49
+            - key: attr-50
+              value: value-50
