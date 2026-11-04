@@ -642,9 +642,11 @@ UpdateCatalogDependenciesRequest:
   properties:
     dependencies:
       type: array
+      maxItems: 50
       description: |
-        Each catalog depended on, at most once. The catalog cannot depend on itself, and a draft
-        named must be a draft of the catalog the entry names.
+        Each catalog depended on, at most once, and at most 50, as many as a catalog archive may
+        carry. The catalog cannot depend on itself, and a draft named must be a draft of the
+        catalog the entry names.
       items:
         $ref: '#/CatalogDependencyRequirement'
 
@@ -945,8 +947,9 @@ UpdateCatalogReleaseRequest:
       example: true
     presets:
       type: [array, 'null']
+      maxItems: 100
       description: |
-        The draft's declared presets, replacing the current list as a whole. Omitted or null keeps
+        The draft's declared presets, at most 100, replacing the current list as a whole. Omitted or null keeps
         the current list; an empty array removes every preset. Keys are unique within the list,
         which is refused with 400 otherwise.
       items:
@@ -1078,6 +1081,7 @@ ReleaseCatalogDraftRequest:
       example: Compatibility updates for the municipality catalog.
     acknowledgedBehind:
       type: array
+      maxItems: 1000
       description: |
         The versions of the releases the author confirms this draft may be behind: their changes
         were applied by hand, or left out on purpose. Releasing a draft that is behind is refused

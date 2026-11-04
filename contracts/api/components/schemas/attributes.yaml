@@ -56,6 +56,7 @@ AttributeDto:
       maxItems: 1000
       items:
         type: string
+        maxLength: 255
       description: |
         Allowed values when the attribute uses the inline-values constraint.
         Empty for free-format and code-list-bound attributes.
@@ -128,6 +129,7 @@ CreateAttributeRequest:
       maxItems: 1000
       items:
         type: string
+        maxLength: 255
       default: []
       example: [low, normal, high]
     codeListBinding:
@@ -158,6 +160,7 @@ UpdateAttributeRequest:
       maxItems: 1000
       items:
         type: string
+        maxLength: 255
     codeListBinding:
       oneOf:
         - $ref: '#/CodeListBindingRef'

@@ -47,6 +47,7 @@ PreviewDocumentRequest:
       example: english
     attributes:
       type: array
+      maxItems: 50
       items:
         $ref: '#/VariantSelectionAttribute'
       description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantKey)
@@ -145,7 +146,8 @@ VariantSelectionAttribute:
       example: locale
     value:
       type: string
-      description: Attribute value to match.
+      maxLength: 255
+      description: Attribute value to match, at most 255 characters, as a variant's values are.
       example: en-US
     required:
       type: boolean
@@ -190,6 +192,7 @@ GenerateDocumentRequest:
       example: english
     attributes:
       type: array
+      maxItems: 50
       items:
         $ref: '#/VariantSelectionAttribute'
       description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantKey)
@@ -314,6 +317,7 @@ BatchGenerationItem:
       example: english
     attributes:
       type: array
+      maxItems: 50
       items:
         $ref: '#/VariantSelectionAttribute'
       description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantKey)

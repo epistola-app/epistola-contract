@@ -178,6 +178,14 @@ These limits are new in 2.0 and would have been a tightening later:
 - **Variants:** descriptions are at most 2000 characters, and attribute values at most 255.
 - **Themes:** names are 1–255 characters and descriptions at most 2000. `spacingUnit` is 0.5–16.
 - **Version ranges:** at most 256 characters.
+- **Variant selection:** a variant has at most 50 attributes, a generation or preview request at
+  most 50 attribute criteria, and each value at most 255 characters.
+- **Templates:** at most 100 data examples, each `name` at most 255 characters.
+- **Drafts:** at most 50 dependencies and 100 declared presets, and `acknowledgedBehind` at most
+  1000 versions.
+- **Themes:** at most 100 block style presets.
+- **Attributes:** each `allowedValues` entry at most 255 characters.
+- **Images:** `mediaType` at most 255 characters.
 
 ## 10. Catalog archives (wire v8)
 
