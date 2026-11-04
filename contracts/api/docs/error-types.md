@@ -136,7 +136,7 @@ generated into every client as `KnownValidationCodes`.
 | `minimum` | constraint | A number is below its `minimum` |
 | `maximum` | constraint | A number is above its `maximum`, such as a page `size` above 100 |
 | `min-items` | constraint | A list has fewer items than its `minItems` |
-| `max-items` | constraint | A list has more items than its `maxItems` |
+| `max-items` | constraint | A list has more items than its `maxItems`, or an object more members than its `maxProperties` |
 | `template-graph-invalid` | template | the template's node graph is malformed: a node or slot it refers to is missing, a node has two parents, or the graph has a cycle |
 | `template-node-type-unsupported` | template | a node has a type this installation does not know |
 | `template-slot-invalid` | template | a slot is malformed or not one the node's type has |
