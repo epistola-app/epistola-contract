@@ -88,6 +88,15 @@ not implement every part of 2.0 yet.
   - Archives may carry the releases they pin.
   - A theme owns the default block spacing (`defaultBlockStyles`). The registry no longer adds
     `marginBottom: 1.5sp`.
+- **The clients read what a newer 2.x server sends.** The API description gains "Compatibility
+  within 2.x": a minor version may add response members and response enum values, and a client
+  must ignore the one and treat the other as unknown. Four clients failed the whole response on an
+  unknown enum value and the Kotlin client on an unknown member, which would have frozen every
+  response for the life of 2.x. The Kotlin, Jakarta and .NET enums gain `unknown_default_open_api`
+  (an exhaustive `when` or `switch` needs a branch for it), the Python client keeps an unknown value
+  as received, and the Node.js client already did. `EpistolaJson.objectMapper` ignores unknown
+  members. Conformance scenarios `newer-server-unknown-members`, `newer-server-unknown-enum-values`
+  and `newer-server-unknown-values-in-a-list` hold all five to it.
 - **The clients validate template data through the server** (`validateTemplateData`) behind a
   pluggable `TemplateDataValidator`, rather than each bundling its own JSON Schema library. That
   library was never published for the JVM clients, which threw `NoClassDefFoundError`. A failure's

@@ -11,6 +11,10 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Added
 
+- An enum value this client does not know, from a newer 2.x server, reads as the enum's
+  `UnknownDefaultOpenApi` member instead of failing the response:
+  `Epistola.Client.Json.TolerantStringEnumConverter`, which every generated enum now uses. Every
+  generated enum gains that member, so an exhaustive `switch` over one needs an arm for it.
 - `KnownValidationCodes`, generated from the contract's `x-validation-codes` registry: one
   constant per code that says why a field of a `validation-error` failed, and `All`. Compare a field
   error's `Code` (`null` when the server sent none) against them, keeping a `default` branch.

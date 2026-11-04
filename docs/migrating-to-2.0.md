@@ -224,4 +224,8 @@ for example). `contracts/catalog/docs/catalog-compatibility.md` has the details.
   each language's spelling.
 - **Result collectors** type `registry`, `namespace` and `catalogKey` as non-null, and surface
   `releaseId` and `releaseName`.
+- **Newer servers.** A later 2.x may add response members and enum values. The clients ignore an
+  unknown member. The Kotlin, Jakarta and .NET enums read an unknown value as
+  `unknown_default_open_api`, so an exhaustive `when` or `switch` over one needs a branch for it.
+  The Python client keeps the value as received, and so does the Node.js client.
 - See the .NET, Python and Node.js client changelogs for the per-language details.

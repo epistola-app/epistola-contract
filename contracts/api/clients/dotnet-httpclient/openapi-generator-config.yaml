@@ -14,3 +14,7 @@ useDateTimeOffset: true
 netCoreProjectFile: true
 # Keep enum member casing predictable for switch statements.
 # (The C# generator uses PascalCase enum members by default.)
+# A minor version may add an enum value. Every generated enum gains UnknownDefaultOpenApi;
+# generate.sh points the enums at TolerantStringEnumConverter, which reads a value the client
+# does not know as that member (Newtonsoft's StringEnumConverter would throw).
+enumUnknownDefaultCase: true

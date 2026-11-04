@@ -109,6 +109,11 @@ openApiGenerate {
             "useSpringBoot3" to "true",
         ),
     )
+    // A minor version may add an enum value. Without this a response carrying one fails to parse;
+    // with it every generated enum gains `unknown_default_open_api`, which `decode` returns for a
+    // value the client does not know. The kotlin generator reads it as an additional property
+    // only: in configOptions it is silently ignored.
+    additionalProperties.set(mapOf("enumUnknownDefaultCase" to "true"))
 }
 
 // A multipart form field typed by a shared enum schema (importCatalog's former `catalogType` was

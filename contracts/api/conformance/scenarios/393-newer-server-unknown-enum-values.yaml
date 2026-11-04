@@ -1,0 +1,49 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: newer-server-unknown-enum-values
+title: An enum value the client does not know does not fail the response
+why: >
+  A minor version may add an enum value ("Compatibility within 2.x" in the API description): a
+  job may one day be `paused`, or of a new kind. Four of the five clients failed the whole
+  response on such a value until 2.0.0, which would have frozen every response enum until 3.0.
+
+  How a client represents the value is its own: the Kotlin, Jakarta and .NET enums read it as
+  their `unknown_default_open_api` member, the Python client keeps it as an unknown member holding
+  the value, and the Node.js client keeps the string. So the report checks the rest of the job,
+  which a client that failed on the value could not read at all.
+
+newerServer: the server's 2.x adds a job status and a job type the client was not generated with
+
+action:
+  name: get-generation-job-status
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantKey: acme-corp
+    requestId: 550e8400-e29b-41d4-a716-446655440000
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      requestId: 550e8400-e29b-41d4-a716-446655440000
+      jobType: scheduled
+      status: paused
+      total: 10000
+      completedCount: 6210
+      failedCount: 12
+      errorMessage: null
+      createdAt: "2026-10-29T08:00:00Z"
+      startedAt: "2026-10-29T08:00:01Z"
+      completedAt: null
+
+expect:
+  requestCount: 1
+  report:
+    requestId: 550e8400-e29b-41d4-a716-446655440000
+    total: 10000
+    completedCount: 6210
+    failedCount: 12

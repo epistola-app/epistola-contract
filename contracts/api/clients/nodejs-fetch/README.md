@@ -115,6 +115,14 @@ const image = await new ImagesApi(client).uploadImage({ tenantKey: 'acme-corp', 
 A plain `Blob` is always sent with the filename `blob`, and as `application/octet-stream` unless it
 was given a type. The server then names the image `blob`.
 
+## Newer servers
+
+A minor version of the contract may add response members and enum values ("Compatibility within
+2.x" in the API description), so this client keeps working against a later 2.x server: a response
+member it does not know is ignored, and an enum value it does not know is kept as the string
+received, though the generated type does not list it. Keep a `default` branch when switching on an
+enum.
+
 ## Error handling
 
 Catch `ProblemDetailException` and switch on `typeSlug` against `KnownProblemSlugs`. The slug list is

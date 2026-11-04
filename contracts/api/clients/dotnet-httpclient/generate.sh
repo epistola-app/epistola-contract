@@ -72,6 +72,23 @@ if leftovers="$(grep -rnoE '\b[Vv]ar[A-Z][A-Za-z0-9]*\b' --include='*.cs' "$GEN_
   exit 1
 fi
 
+# A minor version may add an enum value. The generated enums carry UnknownDefaultOpenApi
+# (enumUnknownDefaultCase), but Newtonsoft's StringEnumConverter still throws on a value it does not
+# know, failing the whole response. Point every generated enum at the hand-written converter that
+# reads such a value as UnknownDefaultOpenApi.
+echo "==> Reading unknown enum values as UnknownDefaultOpenApi"
+find "$GEN_OUT/src" -name '*.cs' -print0 \
+  | xargs -0 perl -pi -e 's/\[JsonConverter\(typeof\(StringEnumConverter\)\)\]/[JsonConverter(typeof(Epistola.Client.Json.TolerantStringEnumConverter))]/g'
+if leftovers="$(grep -rnE 'typeof\(StringEnumConverter\)' "$GEN_OUT/src/Epistola.Client")"; then
+  echo "Generated enums still use StringEnumConverter; extend the rewrite in generate.sh:" >&2
+  echo "$leftovers" >&2
+  exit 1
+fi
+if ! grep -rqE 'TolerantStringEnumConverter' "$GEN_OUT/src/Epistola.Client"; then
+  echo "The enum converter rewrite matched nothing: the generator no longer emits StringEnumConverter" >&2
+  exit 1
+fi
+
 echo "==> Generating derived sources (KnownProblemSlugs, KnownValidationCodes, ModelValidation, ContractVersion)"
 mkdir -p "$DERIVED_OUT"
 dotnet run --project "$SCRIPT_DIR/src/Epistola.Client.Gen" -c Release -- "$SPEC" "$DERIVED_OUT"

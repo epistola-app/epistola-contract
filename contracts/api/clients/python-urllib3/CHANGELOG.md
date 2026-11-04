@@ -11,6 +11,9 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Fixed
 
+- An enum value this client does not know, from a newer 2.x server, no longer fails the
+  response. A named enum reads it as an unknown member that keeps the value (`.value`, and equal
+  to the received string), and an enum declared inline keeps the string.
 - `GenerationResult` carries `release_id` and `release_name`, after `version`. The collector
   parsed result lines by hand and dropped both, so a consumer could not tell which draft rendered
   a document.

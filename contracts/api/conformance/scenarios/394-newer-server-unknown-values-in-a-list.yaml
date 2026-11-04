@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: newer-server-unknown-values-in-a-list
+title: In a list, an unknown enum value or member leaves every entry readable
+why: >
+  The same rule as `newer-server-unknown-enum-values` and `newer-server-unknown-members`, on a
+  list and on both kinds of enum: `action` is declared inline on the entry and `status` is a named
+  schema (`CatalogReleaseStatus`), and generators treat the two differently. A newer 2.x server
+  here records an `action` and a `status` this client was not generated with, and adds a member to
+  each entry and to the page. Every entry must still be read, the unknown values included, so the
+  report checks the members around them.
+
+newerServer: the server's 2.x adds a deployment action and a release status
+
+action:
+  name: list-deployment-history
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    environmentKey: acceptance
+    page: 0
+    size: 50
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      items:
+        - registry: exchange.epistola.app
+          namespace: acme-corp
+          catalogKey: letters
+          action: rolled-back
+          releaseId: k7m2x9qa
+          status: superseded
+          version: 1.5.0
+          releaseName: Spring fixes
+          changedAt: "2026-10-18T09:00:00Z"
+          changedBy: Jane Smith
+          reason: { code: incident, ticket: INC-4711 }
+        - registry: exchange.epistola.app
+          namespace: acme-corp
+          catalogKey: letters
+          action: deployed
+          releaseId: m3q8v5tw
+          status: released
+          version: 1.4.0
+          releaseName: null
+          changedAt: "2026-10-02T07:30:00Z"
+          changedBy: null
+          reason: null
+      page: { number: 0, size: 50, total: 2, totalPages: 1, cursor: abc }
+
+expect:
+  requestCount: 1
+  report:
+    catalogKeys: letters,letters
+    releaseIds: k7m2x9qa,m3q8v5tw
+    versions: 1.5.0,1.4.0
+    releaseNames: Spring fixes|null
+    changedAt: 2026-10-18T09:00:00Z,2026-10-02T07:30:00Z
+    changedBy: Jane Smith|null
+    total: "2"

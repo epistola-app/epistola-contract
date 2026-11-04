@@ -92,6 +92,10 @@ openApiGenerate {
             "microprofileGlobalExceptionMapper" to "false",
             "hideGenerationTimestamp" to "true",
             "openApiNullable" to "false",
+            // A minor version may add an enum value. Without this a response carrying one fails to
+            // parse; with it every generated enum gains UNKNOWN_DEFAULT_OPEN_API, which `fromValue`
+            // returns for a value the client does not know.
+            "enumUnknownDefaultCase" to "true",
         ),
     )
 }
@@ -189,12 +193,22 @@ tasks.openApiGenerate {
     // (found by the `preview-catalog-draft-first-release` conformance scenario). A null now reads
     // as null, as it does for every other member type. `currentEvent()` is JSON-P 2.1, which
     // Jakarta EE 10 requires.
+    //
+    // An enum value the client does not know. enumUnknownDefaultCase gives every enum
+    // UNKNOWN_DEFAULT_OPEN_API and makes a top-level enum's `fromValue` return it, but the
+    // deserializer of an enum declared inline on a model still throws, failing the whole response
+    // (found by `newer-server-unknown-values-in-a-list`). It now returns UNKNOWN_DEFAULT_OPEN_API.
     val modelDir = generatedDir.map { it.dir("src/main/java/app/epistola/client/jakarta/model") }
     doLast {
         val deserialize = Regex(
             """( +)public \w+ deserialize\(JsonParser parser, DeserializationContext ctx, Type rtType\) \{\n""",
         )
+        val unknownThrow = Regex(
+            """(for \((\w+) b : \2\.values\(\)\) \{\n\s+if \(String\.valueOf\(b\.value\)\.equals\(parser\.getString\(\)\)\) \{\n""" +
+                """\s+return b;\n\s+}\n\s+}\n\s+)throw new IllegalArgumentException\("Unexpected value '" \+ parser\.getString\(\) \+ "'"\);""",
+        )
         var deserializers = 0
+        var unknownDefaults = 0
         fileTree(modelDir) { include("**/*.java") }.forEach { modelFile ->
             val source = modelFile.readText()
             if (!source.contains("implements JsonbDeserializer<")) {
@@ -206,15 +220,28 @@ tasks.openApiGenerate {
                 "${modelFile.name} has $declared enum deserializer(s) but the null rewrite matched " +
                     "$matched — the generator's emitted shape changed; update this rewrite"
             }
-            modelFile.writeText(
-                deserialize.replace(source) { match ->
-                    val indent = match.groupValues[1] + "    "
-                    match.value +
-                        "${indent}if (parser.currentEvent() == JsonParser.Event.VALUE_NULL) {\n" +
-                        "$indent    return null;\n" +
-                        "$indent}\n"
-                },
-            )
+            val nullSafe = deserialize.replace(source) { match ->
+                val indent = match.groupValues[1] + "    "
+                match.value +
+                    "${indent}if (parser.currentEvent() == JsonParser.Event.VALUE_NULL) {\n" +
+                    "$indent    return null;\n" +
+                    "$indent}\n"
+            }
+            unknownDefaults += unknownThrow.findAll(nullSafe).count()
+            val tolerant = unknownThrow.replace(nullSafe) { match ->
+                val enumName = match.groupValues[2]
+                // UNKNOWN_DEFAULT_OPEN_API, or NUMBER_unknown_default_open_api for an integer enum.
+                val unknown = Regex(
+                    """enum $enumName \{\s*[^;]*?\b(\w*(?:UNKNOWN_DEFAULT_OPEN_API|unknown_default_open_api))\(""",
+                ).find(nullSafe)?.groupValues?.get(1)
+                    ?: throw GradleException("${modelFile.name}: $enumName has no unknown-default constant")
+                "${match.groupValues[1]}return $enumName.$unknown;"
+            }
+            check(!tolerant.contains("""throw new IllegalArgumentException("Unexpected value '" + parser.getString()""")) {
+                "${modelFile.name} has an enum deserializer that still throws on an unknown value — " +
+                    "the generator's emitted shape changed; update the unknown-value rewrite"
+            }
+            modelFile.writeText(tolerant)
             deserializers += matched
         }
         if (deserializers == 0) {
@@ -224,6 +251,7 @@ tasks.openApiGenerate {
             )
         }
         logger.lifecycle("Taught $deserializers enum deserializer(s) to read a JSON null as null")
+        logger.lifecycle("Taught $unknownDefaults inline enum deserializer(s) to read an unknown value as UNKNOWN_DEFAULT_OPEN_API")
     }
 
     // The response headers of an operation that answers with an `ETag` or a `Location`. A
