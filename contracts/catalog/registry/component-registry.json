@@ -1256,6 +1256,17 @@
           "type": "expression"
         },
         {
+          "key": "alt",
+          "label": "Alt Text",
+          "type": "text"
+        },
+        {
+          "key": "decorative",
+          "label": "Decorative",
+          "type": "boolean",
+          "defaultValue": false
+        },
+        {
           "key": "size",
           "label": "Size",
           "type": "unit",
@@ -1271,12 +1282,14 @@
           "raw": "",
           "language": "jsonata"
         },
+        "alt": "",
+        "decorative": false,
         "size": "120pt"
       },
       "examples": [
         {
           "name": "data-bound-link",
-          "description": "QR code whose value is taken from a data field — e.g. a payment URL. The value prop is an expression, not a literal string.",
+          "description": "QR code whose value is taken from a data field — e.g. a payment URL. The value prop is an expression, not a literal string. alt says what scanning it does, for screen readers; without alt a renderer falls back to a text of its own. Set decorative instead when the same information is printed next to the code.",
           "fragment": {
             "rootNodeId": "n-qr-link",
             "nodes": {
@@ -1289,6 +1302,7 @@
                     "raw": "paymentLink",
                     "language": "jsonata"
                   },
+                  "alt": "Pay this invoice online",
                   "size": "80pt"
                 }
               }
