@@ -427,6 +427,78 @@ tasks.openApiGenerate {
             )
         }
     }
+
+    // The kotlin-spring generator writes no Bean Validation constraints on a multipart/form-data
+    // field: its form-parameter template has none, where the query, path and body ones do. Without
+    // this, a server built on the stubs accepts an `uploadImage` `mediaType` of any length and an
+    // `importCatalog` `registry` or `namespace` of any shape. Annotate each constrained text field
+    // the way the generator annotates a query parameter, so it fails as `validation-error` too.
+    val multipartFields = multipartFieldConstraints(org.yaml.snakeyaml.Yaml().load<Map<String, Any>>(bundledSpec.readText()))
+
+    doLast {
+        val apiFiles = fileTree(generatedDir.get().dir("src/main/kotlin/app/epistola/api")) { include("*Api.kt") }.files
+        multipartFields.groupBy { it.operationId }.forEach { (operationId, fields) ->
+            val declaration = "fun $operationId("
+            val apiFile = apiFiles.singleOrNull { declaration in it.readText() }
+                ?: throw GradleException("multipart constraints: no generated Api.kt declares `$declaration`")
+            val source = apiFile.readText()
+            val start = source.indexOf(declaration)
+            val end = source.indexOf("): ", start)
+            var signature = source.substring(start, end)
+            fields.forEach { field ->
+                val param = "@Valid @RequestParam(value = \"${field.name}\""
+                val line = signature.lines().singleOrNull { param in it }
+                    ?: throw GradleException("multipart constraints: `$operationId` has no single parameter `$param`")
+                if (line.substringBefore(param).isNotBlank()) {
+                    throw GradleException(
+                        "multipart constraints: the generator now annotates `$operationId` `${field.name}` itself " +
+                            "(`${line.trim()}`); remove this rewrite",
+                    )
+                }
+                signature = signature.replace(param, "${field.annotations} $param")
+            }
+            apiFile.writeText(source.substring(0, start) + signature + source.substring(end))
+        }
+        logger.lifecycle("Annotated ${multipartFields.size} constrained multipart field(s) the generator left bare")
+    }
+}
+
+/** A text field of a multipart/form-data request body that has constraints, and their annotations. */
+data class MultipartFieldConstraint(val operationId: String, val name: String, val annotations: String)
+
+/**
+ * The constrained text fields of every multipart request body in [spec], with the annotations the
+ * generator writes for the same keywords on a query parameter. A keyword this does not translate
+ * fails the build rather than going unenforced.
+ */
+@Suppress("UNCHECKED_CAST")
+fun multipartFieldConstraints(spec: Map<String, Any>): List<MultipartFieldConstraint> {
+    val translated = setOf("type", "description", "example", "pattern", "minLength", "maxLength")
+    fun kotlinString(value: String) = value.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$")
+    return (spec["paths"] as Map<String, Map<String, Any>>).values.flatMap { item ->
+        item.values.filterIsInstance<Map<String, Any>>().flatMap { operation ->
+            val content = (operation["requestBody"] as? Map<String, Any>)?.get("content") as? Map<String, Map<String, Any>>
+            val schema = content?.get("multipart/form-data")?.get("schema") as? Map<String, Any>
+            val properties = schema?.get("properties") as? Map<String, Map<String, Any>> ?: emptyMap()
+            properties.filterValues { it["format"] != "binary" }.mapNotNull { (name, property) ->
+                val operationId = operation["operationId"] as String
+                val untranslated = property.keys - translated
+                if (untranslated.isNotEmpty() || property["type"] != "string") {
+                    throw GradleException(
+                        "multipart constraints: `$operationId` field `$name` uses ${untranslated.ifEmpty { setOf("type ${property["type"]}") }}, " +
+                            "which the multipart rewrite in this build does not translate to Bean Validation",
+                    )
+                }
+                val size = listOfNotNull(
+                    (property["minLength"] as? Number)?.let { "min=$it" },
+                    (property["maxLength"] as? Number)?.let { "max=$it" },
+                ).takeIf { it.isNotEmpty() }?.joinToString(",", "@Size(", ")")
+                val pattern = (property["pattern"] as? String)?.let { "@Pattern(regexp=\"${kotlinString(it)}\")" }
+                listOfNotNull(pattern, size).takeIf { it.isNotEmpty() }
+                    ?.let { MultipartFieldConstraint(operationId, name, it.joinToString(" ")) }
+            }
+        }
+    }
 }
 
 sourceSets {

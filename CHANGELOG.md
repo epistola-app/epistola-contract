@@ -81,9 +81,9 @@ not implement every part of 2.0 yet.
   are attribute `allowedValues` and a data example's `name`; a template at most 100 data examples;
   a draft at most 50 dependencies (as many as an archive may carry) and 100 declared presets; a
   theme at most 100 block style presets; `acknowledgedBehind` at most 1000 versions; and an
-  image's `mediaType` at most 255 characters. `listTemplates` sorts by an
-  enum, and the other lists lose a `sort` that sorted by nothing. `listDocuments` filters by
-  catalog.
+  image's `mediaType` at most 255 characters. A map over its limit fails as `max-items`.
+  `listTemplates` sorts by an enum, and the other lists lose a `sort` that sorted by nothing.
+  `listDocuments` filters by catalog.
 - **Portable catalog wire v8**, which reads and migrates every earlier archive:
   - Catalog identity: registry and namespace.
   - Pinned, aliased `catalogDependencies`.
@@ -164,6 +164,9 @@ not implement every part of 2.0 yet.
     Python client.
   - A JSON `null` in a result line is read as null, not `"null"`.
 - **Jakarta client:** a JSON `null` enum member no longer fails the whole response.
+- **Server stubs:** the text fields of a multipart request (`uploadImage`'s `name` and `mediaType`,
+  `importCatalog`'s `registry` and `namespace`) are validated like every other input. The
+  generator wrote no constraints on them.
 - **Catalog validation:**
   - Binary bytes are checked against their `contentHash`.
   - A data model `$ref` that resolves to nothing is reported as a finding.

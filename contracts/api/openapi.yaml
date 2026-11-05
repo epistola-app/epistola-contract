@@ -893,7 +893,7 @@ x-validation-codes:
     - code: max-items
       kind: constraint
       description: >-
-        A list has more items than its `maxItems`.
+        A list has more items than its `maxItems`, or an object more members than its `maxProperties`.
     - code: template-graph-invalid
       kind: template
       description: >-
