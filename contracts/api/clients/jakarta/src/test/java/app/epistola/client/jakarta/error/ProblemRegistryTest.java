@@ -53,6 +53,8 @@ class ProblemRegistryTest {
         assertEquals("environment-deployment-refused", KnownProblemSlugs.ENVIRONMENT_DEPLOYMENT_REFUSED);
         assertEquals("resource-modified", KnownProblemSlugs.RESOURCE_MODIFIED);
         assertEquals("catalog-source-unavailable", KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE);
+        assertEquals("release-in-use", KnownProblemSlugs.RELEASE_IN_USE);
+        assertEquals("catalog-draft-in-use", KnownProblemSlugs.CATALOG_DRAFT_IN_USE);
     }
 
     @Test

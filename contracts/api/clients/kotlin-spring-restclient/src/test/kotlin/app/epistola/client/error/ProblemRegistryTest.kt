@@ -51,6 +51,8 @@ class ProblemRegistryTest {
         assertEquals("environment-deployment-refused", KnownProblemSlugs.ENVIRONMENT_DEPLOYMENT_REFUSED)
         assertEquals("resource-modified", KnownProblemSlugs.RESOURCE_MODIFIED)
         assertEquals("catalog-source-unavailable", KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE)
+        assertEquals("release-in-use", KnownProblemSlugs.RELEASE_IN_USE)
+        assertEquals("catalog-draft-in-use", KnownProblemSlugs.CATALOG_DRAFT_IN_USE)
     }
 
     @Test
@@ -70,6 +72,12 @@ class ProblemRegistryTest {
     @Test
     fun `the unreleasedDependencies member name is generated from the contract`() {
         assertEquals("unreleasedDependencies", ProblemExtensionMembers.UNRELEASED_DEPENDENCIES)
+    }
+
+    @Test
+    fun `the catalog-draft-in-use member names are generated from the contract`() {
+        assertEquals("dependents", ProblemExtensionMembers.DEPENDENTS)
+        assertEquals("heldResources", ProblemExtensionMembers.HELD_RESOURCES)
     }
 
     @Test

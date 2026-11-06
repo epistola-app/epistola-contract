@@ -12,9 +12,10 @@ why: >
   a draft. It keeps its `releaseId`, which now addresses the release as its version does, and its name.
 
   Nothing is merged into other drafts, so what the author needs next is in the answer: the drafts
-  this release puts behind (`draftsBehind`), by name, which will not contain its changes unless
-  someone applies them by hand. A client that drops `draftsBehind` hides that a fix may be lost
-  from that work.
+  this release puts behind (`draftsBehind`), which will not contain its changes unless someone
+  applies them by hand. Each is named in full, by its catalog and its `releaseId`, because a draft
+  has no version and its name can change. A client that drops `draftsBehind`, or any member of its
+  entries, hides that a fix may be lost from that work.
 
   The draft is not behind anything, so the client sends no `acknowledgedBehind`, and it does not
   ask to release dependencies, so it sends no `releaseDependencies`, or `false`, its default.
@@ -49,7 +50,9 @@ script:
         dependencies: []
         deployedTo: []
       unchangedContent: false
-      draftsBehind: [Redesign 2027, Accessibility pass]
+      draftsBehind:
+        - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: letters, releaseId: d7k2m9px, releaseName: Redesign 2027 }
+        - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: letters, releaseId: a3c5e7g9, releaseName: Accessibility pass }
       releasedDependencies: []
 
 expect:
@@ -70,6 +73,7 @@ expect:
     # Released under V6, so its content hash is its fingerprint; the content is new to the catalog.
     contentHash: v6:332102ae9816ed0d53b0657b25f4b6a96ce09bb995b159c594154b49cd0b1818
     unchangedContent: 'false'
-    # Names are free text, so they are joined with `|`.
-    draftsBehind: Redesign 2027|Accessibility pass
+    # Each as registry/namespace/catalogKey#releaseId=releaseName; names are free text, so joined with `|`.
+    # The registry is written in full, never `~`, although the request addressed the catalog by it.
+    draftsBehind: exchange.epistola.app/acme-corp/letters#d7k2m9px=Redesign 2027|exchange.epistola.app/acme-corp/letters#a3c5e7g9=Accessibility pass
     releasedDependencies: ""

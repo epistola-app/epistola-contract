@@ -66,6 +66,25 @@ class UnreleasedDependency:
 
 
 @dataclass(frozen=True)
+class CatalogDraftRef:
+    """A draft a problem names in full, such as each draft of another catalog a
+    ``catalog-draft-in-use`` problem's ``dependents`` member says names the draft in its dependency
+    declarations. Change its declarations, or discard it, first.
+    """
+
+    #: Registry of the draft's catalog, written in full.
+    registry: str
+    #: Namespace of the draft's catalog, within its registry.
+    namespace: str
+    #: Key of the draft's catalog.
+    catalog_key: str
+    #: The draft's id.
+    release_id: str
+    #: The draft's name, as it is now.
+    release_name: str
+
+
+@dataclass(frozen=True)
 class CatalogReleaseRef:
     """A release a problem names in full, such as each release of another catalog a
     ``release-in-use`` problem's ``pinnedBy`` member says pins the release."""
@@ -127,6 +146,8 @@ class ProblemDetailException(ApiException):
         refused_tenant_key: Optional[str] = None,
         required_platform_role: Optional[str] = None,
         refusal_reason: Optional[str] = None,
+        dependents: Optional[List[CatalogDraftRef]] = None,
+        held_resources: Optional[List[str]] = None,
     ) -> None:
         super().__init__(
             status=status_code,
@@ -175,8 +196,9 @@ class ProblemDetailException(ApiException):
         #: ``release_catalog_draft``) says the draft is behind and the request did not acknowledge:
         #: name each in ``acknowledged_behind`` to release it anyway; else ``[]``.
         self.behind = behind or []
-        #: The environments a ``release-in-use`` problem (409, from ``delete_catalog_release``) says
-        #: deploy the release; else ``[]``.
+        #: The environments a ``release-in-use`` problem (409) says deploy the release; else ``[]``.
+        #: No operation deletes a released release yet; discarding a draft is refused with
+        #: ``catalog-draft-in-use`` (:attr:`dependents`, :attr:`held_resources`).
         self.environments = environments or []
         #: The releases of other catalogs a ``release-in-use`` problem says pin the release, and
         #: render with it; else ``[]``.
@@ -197,6 +219,15 @@ class ProblemDetailException(ApiException):
         #: Why a policy refused the request, from the ``reason`` member of a ``forbidden`` problem:
         #: text for a person, sent when there is no single permission to grant; else ``None``.
         self.refusal_reason = refusal_reason
+        #: The drafts of other catalogs a ``catalog-draft-in-use`` problem (409, from
+        #: ``delete_catalog_release``) says name the draft in their dependency declarations, in the
+        #: order the server listed them; else ``[]``. Change their declarations, or discard them,
+        #: first.
+        self.dependents = dependents or []
+        #: The resources a ``catalog-draft-in-use`` problem says only the draft holds while
+        #: something outside it still uses them, each as ``resourceType/resourceKey``
+        #: (``theme/house-style``); else ``[]``.
+        self.held_resources = held_resources or []
         #: The HTTP status of the error response.
         self.status_code = status_code
 
@@ -281,6 +312,11 @@ class ProblemDetailException(ApiException):
     def is_release_in_use_problem(self) -> bool:
         """True when this problem said the release cannot be deleted while something uses it."""
         return self.type_slug == KnownProblemSlugs.RELEASE_IN_USE
+
+    @property
+    def is_catalog_draft_in_use_problem(self) -> bool:
+        """True when this problem said the draft cannot be discarded while something relies on it."""
+        return self.type_slug == KnownProblemSlugs.CATALOG_DRAFT_IN_USE
 
     @property
     def is_ambiguous_variant_problem(self) -> bool:

@@ -29,26 +29,27 @@ import app.epistola.client.model.CatalogDependencyDto
 import app.epistola.client.model.CatalogDependencyRequirement
 import app.epistola.client.model.CatalogMergeSide
 import app.epistola.client.model.CatalogPresetDto
+import app.epistola.client.model.CatalogReleaseRefDto
 import app.epistola.client.model.CatalogReleaseStatus
 import app.epistola.client.model.CatalogThemeReference
+import app.epistola.client.model.CodeListBindingRef
 import app.epistola.client.model.CreateCatalogReleaseRequest
 import app.epistola.client.model.CreateEnvironmentRequest
 import app.epistola.client.model.CreateTemplateRequest
 import app.epistola.client.model.DataExampleDto
 import app.epistola.client.model.EnvironmentDto
 import app.epistola.client.model.GenerateDocumentRequest
+import app.epistola.client.model.GenerationItemStatus
 import app.epistola.client.model.MergeIntoCatalogDraftRequest
 import app.epistola.client.model.Node
 import app.epistola.client.model.PingRequest
+import app.epistola.client.model.PreviewDocumentRequest
 import app.epistola.client.model.PublishReleaseToRegistryRequest
 import app.epistola.client.model.ReleaseCatalogDraftRequest
-import app.epistola.client.model.CatalogReleaseRefDto
-import app.epistola.client.model.GenerationItemStatus
 import app.epistola.client.model.TemplateDocument
 import app.epistola.client.model.TemplateDto
 import app.epistola.client.model.ThemeRef
 import app.epistola.client.model.UpdateAttributeRequest
-import app.epistola.client.model.CodeListBindingRef
 import app.epistola.client.model.UpdateCatalogDependenciesRequest
 import app.epistola.client.model.UpdateCatalogReleaseRequest
 import app.epistola.client.model.UpdateCodeListEntryHiddenRequest
@@ -111,6 +112,7 @@ object Driver {
                 "generate-document" -> generateDocument(baseUrl, config)
                 "update-consumer" -> updateConsumer(baseUrl, config)
                 "download-document" -> downloadDocument(baseUrl, config)
+                "preview-document" -> previewDocument(baseUrl, config)
                 "list-documents" -> listDocuments(baseUrl, config)
                 "get-generation-job-status" -> getGenerationJobStatus(baseUrl, config)
                 "list-generation-job-items" -> listGenerationJobItems(baseUrl, config)
@@ -559,6 +561,25 @@ object Driver {
     private fun downloadDocument(baseUrl: String, config: ObjectNode) {
         val resource = GenerationApi(restClient(baseUrl, config))
             .downloadDocument(config["tenantKey"].asText(), UUID.fromString(config["documentId"].asText()))
+        reportBytes(baseUrl, resource.inputStream.use { it.readBytes() })
+    }
+
+    /**
+     * Previews a document of the release `config.releaseId` and reports what arrived, byte for byte.
+     * Only the members the scenario sets are sent.
+     */
+    private fun previewDocument(baseUrl: String, config: ObjectNode) {
+        val resource = GenerationApi(restClient(baseUrl, config)).previewDocument(
+            config["tenantKey"].asText(),
+            PreviewDocumentRequest(
+                namespace = config["namespace"].asText(),
+                catalogKey = config["catalogKey"].asText(),
+                templateKey = config["templateKey"].asText(),
+                registry = config.optionalText("registry"),
+                releaseId = config.optionalText("releaseId"),
+                data = mapper.convertValue(config["data"], Map::class.java),
+            ),
+        )
         reportBytes(baseUrl, resource.inputStream.use { it.readBytes() })
     }
 
@@ -1057,7 +1078,7 @@ object Driver {
         )
     }
 
-    /** Deletes a release. A refusal is reported by its problem, with what still uses the release. */
+    /** Discards a draft. A refusal is reported by its problem, with what still relies on the draft. */
     private fun deleteCatalogRelease(baseUrl: String, config: ObjectNode) {
         try {
             CatalogsApi(restClient(baseUrl, config)).deleteCatalogRelease(
@@ -1073,8 +1094,10 @@ object Driver {
                 mapOf(
                     "problemTypeSlug" to (e.typeSlug ?: "<null>"),
                     "problemStatus" to e.statusCode.value(),
-                    "problemEnvironments" to e.environments.joinToString(","),
-                    "problemPinnedBy" to e.pinnedBy.joinToString(",") { installedRelease(it) },
+                    "problemDependents" to e.dependents.joinToString("|") {
+                        "${it.registry}/${it.namespace}/${it.catalogKey}#${it.releaseId}=${it.releaseName}"
+                    },
+                    "problemHeldResources" to e.heldResources.joinToString(","),
                 ),
             )
         }
@@ -1121,7 +1144,9 @@ object Driver {
                 "releaseId" to response.release.releaseId,
                 "contentHash" to (response.release.contentHash ?: "null"),
                 "unchangedContent" to response.unchangedContent.toString(),
-                "draftsBehind" to response.draftsBehind.joinToString("|"),
+                "draftsBehind" to response.draftsBehind.joinToString("|") {
+                    "${it.registry}/${it.namespace}/${it.catalogKey}#${it.releaseId}=${it.releaseName}"
+                },
                 "releasedDependencies" to response.releasedDependencies.joinToString(",") {
                     "${it.registry}/${it.namespace}/${it.catalogKey}@${it.version}"
                 },

@@ -53,6 +53,7 @@ public static class Driver
                 case "update-consumer": UpdateConsumer(baseUrl, config); break;
                 case "update-attribute": UpdateAttribute(baseUrl, config); break;
                 case "download-document": DownloadDocument(baseUrl, config); break;
+                case "preview-document": PreviewDocument(baseUrl, config); break;
                 case "list-documents": ListDocuments(baseUrl, config); break;
                 case "get-generation-job-status": GetGenerationJobStatus(baseUrl, config); break;
                 case "list-generation-job-items": ListGenerationJobItems(baseUrl, config); break;
@@ -573,6 +574,27 @@ public static class Driver
     }
 
     /// <summary>
+    /// Previews a document of the release <c>config.releaseId</c> and reports what arrived, byte for
+    /// byte. Only the members the scenario sets are sent.
+    /// </summary>
+    private static void PreviewDocument(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var file = new GenerationApi(http, apiBase).PreviewDocument(
+            Str(config, "tenantKey"),
+            new PreviewDocumentRequest(
+                registry: OptStr(config, "registry")!,
+                @namespace: Str(config, "namespace"),
+                catalogKey: Str(config, "catalogKey"),
+                templateKey: Str(config, "templateKey"),
+                releaseId: OptStr(config, "releaseId")!,
+                // Parsed with Newtonsoft, as for generation: the generated models serialize through it.
+                data: Newtonsoft.Json.JsonConvert.DeserializeObject(config.GetProperty("data").GetRawText())));
+
+        ReportBytes(baseUrl, file);
+    }
+
+    /// <summary>
     /// Lists documents with the catalog and template filters the scenario sets, each sent only
     /// when set, and reports what the client made of the page.
     /// </summary>
@@ -1071,8 +1093,8 @@ public static class Driver
             {
                 ["problemTypeSlug"] = e.TypeSlug ?? "<null>",
                 ["problemStatus"] = (int)e.StatusCode,
-                ["problemEnvironments"] = string.Join(",", e.Environments),
-                ["problemPinnedBy"] = string.Join(",", e.PinnedBy.Select(r => r.ToString())),
+                ["problemDependents"] = string.Join("|", e.Dependents.Select(d => d.ToString())),
+                ["problemHeldResources"] = string.Join(",", e.HeldResources),
             });
         }
     }
@@ -1117,7 +1139,8 @@ public static class Driver
             ["releaseId"] = Show(response.Release?.ReleaseId),
             ["contentHash"] = Show(response.Release?.ContentHash),
             ["unchangedContent"] = response.UnchangedContent ? "true" : "false",
-            ["draftsBehind"] = string.Join("|", response.DraftsBehind ?? new List<string>()),
+            ["draftsBehind"] = string.Join("|", (response.DraftsBehind ?? new List<CatalogDraftRefDto>())
+                .Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}#{Show(d.ReleaseId)}={Show(d.ReleaseName)}")),
             ["releasedDependencies"] = string.Join(",", (response.ReleasedDependencies ?? new List<ReleasedDependencyDto>())
                 .Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}@{Show(d.Version)}")),
         });

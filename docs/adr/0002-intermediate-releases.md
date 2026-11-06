@@ -1,6 +1,7 @@
 # ADR 0002: Working on several catalog versions at once
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-11-06 (catalog types withdrawn, as in ADR 0003's amendment of
+  2026-10-21)
 - **Date:** 2026-10-19
 - **Scope:** API contract (`contracts/api`), contract 2.0
 - **Related:** [ADR 0001](0001-hotfixing-a-released-catalog.md) (hotfixing a subscribed release),
@@ -99,7 +100,10 @@ Adopt **option C**.
 
 ### Drafts
 
-- An authored catalog has **any number of drafts**, none special. A subscribed catalog has none.
+- A catalog has **any number of drafts**, none special. (Amended 2026-11-06: this said an authored
+  catalog does and a subscribed one has none. There are no catalog types, ADR 0003; a catalog the
+  installation cannot change, `CatalogDto.editable` false, refuses a new draft with
+  `catalog-read-only`.)
 - A draft has a `releaseId` (its address), a **name** unique among the catalog's drafts, kept when
   it is released, and a fixed
   **base**: the release it started from, which its changes are measured against and its number
@@ -317,8 +321,8 @@ Suite may not implement this yet. The contract does not prescribe a UI, but the 
 this one:
 
 - **The author picks catalog and draft once**, in the top navigation next to the tenant: "Letters ·
-  Spring fixes". Suite may show one draft as "Next version", a convention of its own. A subscribed
-  catalog shows its installed release, read-only.
+  Spring fixes". Suite may show one draft as "Next version", a convention of its own. A catalog
+  the installation cannot change shows its installed release, read-only.
 - **The authoring pages follow that choice.** Templates, stencils and themes list the resources of
   the chosen version; a create dialog no longer asks for a catalog. Resources from dependencies show
   read-only, with their version, or with the draft they follow.

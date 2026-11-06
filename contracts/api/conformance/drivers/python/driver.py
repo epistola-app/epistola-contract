@@ -43,6 +43,7 @@ from epistola_client import (
     JwtSigner,
     MergeIntoCatalogDraftRequest,
     PingRequest,
+    PreviewDocumentRequest,
     PublishReleaseToRegistryRequest,
     ProblemDetailException,
     ReleaseCatalogDraftRequest,
@@ -88,6 +89,7 @@ def main() -> int:
         "generate-document": _generate_document,
         "update-consumer": _update_consumer,
         "download-document": _download_document,
+        "preview-document": _preview_document,
         "list-documents": _list_documents,
         "get-generation-job-status": _get_generation_job_status,
         "list-generation-job-items": _list_generation_job_items,
@@ -371,6 +373,23 @@ def _download_document(base_url: str, config: dict) -> None:
     """
     content = GenerationApi(_client(base_url, config)).download_document(
         config["tenantKey"], config["documentId"]
+    )
+    _report_bytes(base_url, bytes(content))
+
+
+def _preview_document(base_url: str, config: dict) -> None:
+    """Previews a document of the release ``config.releaseId`` and reports what arrived, byte for
+    byte. Only the members the scenario sets are sent."""
+    optional = {name: config[name] for name in ("registry", "releaseId") if name in config}
+    content = GenerationApi(_client(base_url, config)).preview_document(
+        config["tenantKey"],
+        PreviewDocumentRequest(
+            namespace=config["namespace"],
+            catalogKey=config["catalogKey"],
+            templateKey=config["templateKey"],
+            data=config["data"],
+            **optional,
+        ),
     )
     _report_bytes(base_url, bytes(content))
 
@@ -882,7 +901,7 @@ def _preview_catalog_draft_release(base_url: str, config: dict) -> None:
 
 
 def _delete_catalog_release(base_url: str, config: dict) -> None:
-    """Deletes a release. A refusal is reported by its problem, with what still uses the release."""
+    """Discards a draft. A refusal is reported by its problem, with what still relies on the draft."""
     try:
         CatalogsApi(_client(base_url, config)).delete_catalog_release(*_release_address(config))
     except ProblemDetailException as exc:
@@ -891,10 +910,10 @@ def _delete_catalog_release(base_url: str, config: dict) -> None:
             {
                 "problemTypeSlug": exc.type_slug or "<null>",
                 "problemStatus": exc.status_code,
-                "problemEnvironments": ",".join(exc.environments),
-                "problemPinnedBy": ",".join(
-                    f"{r.registry}/{r.namespace}/{r.catalog_key}@{r.version}#{r.release_id}" for r in exc.pinned_by
+                "problemDependents": "|".join(
+                    f"{d.registry}/{d.namespace}/{d.catalog_key}#{d.release_id}={d.release_name}" for d in exc.dependents
                 ),
+                "problemHeldResources": ",".join(exc.held_resources),
             },
         )
 
@@ -934,7 +953,10 @@ def _release_catalog_draft(base_url: str, config: dict) -> None:
             "releaseId": _show(response.release.release_id),
             "contentHash": _show(response.release.content_hash),
             "unchangedContent": _show_bool(response.unchanged_content),
-            "draftsBehind": "|".join(response.drafts_behind),
+            "draftsBehind": "|".join(
+                f"{_show(d.registry)}/{_show(d.namespace)}/{_show(d.catalog_key)}#{_show(d.release_id)}={_show(d.release_name)}"
+                for d in response.drafts_behind
+            ),
             "releasedDependencies": ",".join(
                 f"{_show(d.registry)}/{_show(d.namespace)}/{_show(d.catalog_key)}@{_show(d.version)}"
                 for d in response.released_dependencies

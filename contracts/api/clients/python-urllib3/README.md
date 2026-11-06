@@ -118,8 +118,6 @@ except ProblemDetailException as e:
     match e.type_slug:
         case KnownProblemSlugs.NOT_FOUND:
             log.warning("tenant not found: %s", e.detail)
-        case KnownProblemSlugs.FORBIDDEN:
-            raise PermissionError(e.detail)
         case KnownProblemSlugs.VALIDATION_ERROR:
             for err in e.errors:               # field-level ValidationProblemDetail
                 log.warning("%s: %s", err.var_field, err.message)
@@ -150,9 +148,10 @@ except ProblemDetailException as e:
         case KnownProblemSlugs.CATALOG_VERSION_BEHIND:
             # release_catalog_draft: name these in acknowledged_behind to release anyway
             log.warning("the draft is behind %s", ", ".join(e.behind))
-        case KnownProblemSlugs.RELEASE_IN_USE:
-            # delete_catalog_release: undeploy it, and release the catalogs that pin it without it
-            log.warning("deployed to %s; pinned by %s", e.environments, [f"{r.catalog_key}@{r.version}" for r in e.pinned_by])
+        case KnownProblemSlugs.CATALOG_DRAFT_IN_USE:
+            # delete_catalog_release: drafts of other catalogs name the draft, or it alone holds
+            # resources something outside it uses (resourceType/resourceKey); change those first
+            log.warning("named by %s; holds %s", [f"{d.catalog_key}: {d.release_name}" for d in e.dependents], e.held_resources)
         case KnownProblemSlugs.AMBIGUOUS_VARIANT:
             # generate_document, preview_document: name one by variant_key
             log.warning("several variants match: %s", ", ".join(e.tied_variants))
@@ -189,18 +188,22 @@ codes may come in a minor version.
 `errors`, `validation_errors`, `missing_fields`, `invalid_fields`,
 `missing_dependencies`, `unreleased_dependencies`, `read_only_reason`, `unresolved_conflicts`,
 `missing_base_version`, `missing_base_fingerprint`, `behind`, `environments`, `pinned_by`,
-`tied_variants`, `required_permission`, `refused_tenant_key`, `required_platform_role`,
-`refusal_reason`, `is_validation_problem`, `is_data_model_validation_problem`,
-`is_template_data_problem`, `is_release_dependencies_missing_problem`,
-`is_release_dependencies_unreleased_problem`, `is_catalog_read_only_problem`,
-`is_merge_conflicts_unresolved_problem`, `is_merge_base_missing_problem`,
-`is_catalog_version_behind_problem`, `is_release_in_use_problem`,
-`is_ambiguous_variant_problem` and `is_forbidden_problem`. Each `pinned_by` entry is a
-`CatalogReleaseRef(registry, namespace, catalog_key, version, release_id)`. Each
+`dependents`, `held_resources`, `tied_variants`, `required_permission`, `refused_tenant_key`,
+`required_platform_role`, `refusal_reason`, `is_validation_problem`,
+`is_data_model_validation_problem`, `is_template_data_problem`,
+`is_release_dependencies_missing_problem`, `is_release_dependencies_unreleased_problem`,
+`is_catalog_read_only_problem`, `is_merge_conflicts_unresolved_problem`,
+`is_merge_base_missing_problem`, `is_catalog_version_behind_problem`, `is_release_in_use_problem`,
+`is_catalog_draft_in_use_problem`, `is_ambiguous_variant_problem` and `is_forbidden_problem`. Each
+`pinned_by` entry is a `CatalogReleaseRef(registry, namespace, catalog_key, version, release_id)`. Each
 `missing_dependencies` entry is a `MissingDependency` whose `reason` is the wire string, so a
 reason a later contract adds is reported rather than lost. Each `unreleased_dependencies` entry is
 an `UnreleasedDependency(registry, namespace, catalog_key, release_id, release_name)`: a draft of
-another catalog to release first, or along with the release (`releaseDependencies`).
+another catalog to release first, or along with the release (`releaseDependencies`). Each
+`dependents` entry is a `CatalogDraftRef(registry, namespace, catalog_key, release_id,
+release_name)`: a draft of another catalog whose dependency declarations name the draft
+`delete_catalog_release` would discard; each `held_resources` entry is a
+`resourceType/resourceKey` only that draft holds while something outside it uses it.
 
 ## Result collection
 

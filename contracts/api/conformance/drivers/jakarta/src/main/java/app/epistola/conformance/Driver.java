@@ -60,6 +60,7 @@ import app.epistola.client.jakarta.model.DeploymentEventDto;
 import app.epistola.client.jakarta.model.DeploymentHistoryResponse;
 import app.epistola.client.jakarta.model.DocumentDto;
 import app.epistola.client.jakarta.model.EnvironmentDto;
+import app.epistola.client.jakarta.model.CatalogDraftRefDto;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
 import app.epistola.client.jakarta.model.GenerationJobResponse;
 import app.epistola.client.jakarta.model.GenerationResult;
@@ -72,6 +73,7 @@ import app.epistola.client.jakarta.model.MergeIntoCatalogDraftResponse;
 import app.epistola.client.jakarta.model.Node;
 import app.epistola.client.jakarta.model.PartitionAssignment;
 import app.epistola.client.jakarta.model.PingRequest;
+import app.epistola.client.jakarta.model.PreviewDocumentRequest;
 import app.epistola.client.jakarta.model.PublishReleaseToRegistryRequest;
 import app.epistola.client.jakarta.model.RegistryReleaseDto;
 import app.epistola.client.jakarta.model.RegistryReleaseListResponse;
@@ -160,6 +162,7 @@ public final class Driver {
                 case "generate-document" -> generateDocument(baseUrl, config);
                 case "update-consumer" -> updateConsumer(baseUrl, config);
                 case "download-document" -> downloadDocument(baseUrl, config);
+                case "preview-document" -> previewDocument(baseUrl, config);
                 case "list-documents" -> listDocuments(baseUrl, config);
                 case "get-generation-job-status" -> getGenerationJobStatus(baseUrl, config);
                 case "list-generation-job-items" -> listGenerationJobItems(baseUrl, config);
@@ -536,6 +539,24 @@ public final class Driver {
         File file = clients(baseUrl, config)
                 .api(GenerationApi.class)
                 .downloadDocument(config.getString("tenantKey"), UUID.fromString(config.getString("documentId")));
+        reportBytes(baseUrl, Files.readAllBytes(file.toPath()));
+    }
+
+    /**
+     * Previews a document of the release {@code config.releaseId} and reports what arrived, byte for
+     * byte. Only the members the scenario sets are sent.
+     */
+    private static void previewDocument(String baseUrl, JsonObject config) throws Exception {
+        PreviewDocumentRequest request = new PreviewDocumentRequest()
+                .registry(optional(config, "registry"))
+                .namespace(config.getString("namespace"))
+                .catalogKey(config.getString("catalogKey"))
+                .templateKey(config.getString("templateKey"))
+                .releaseId(optional(config, "releaseId"))
+                .data(config.getJsonObject("data"));
+        File file = clients(baseUrl, config)
+                .api(GenerationApi.class)
+                .previewDocument(config.getString("tenantKey"), request);
         reportBytes(baseUrl, Files.readAllBytes(file.toPath()));
     }
 
@@ -1137,12 +1158,12 @@ public final class Driver {
                     Map.of(
                             "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
                             "problemStatus", e.getStatusCode(),
-                            "problemEnvironments", String.join(",", e.getEnvironments()),
-                            "problemPinnedBy", e.getPinnedBy().stream()
-                                    .map(release -> release.getRegistry() + "/" + release.getNamespace() + "/"
-                                            + release.getCatalogKey() + "@" + release.getVersion() + "#"
-                                            + release.getReleaseId())
-                                    .collect(Collectors.joining(","))));
+                            "problemDependents", e.getDependents().stream()
+                                    .map(draft -> draft.getRegistry() + "/" + draft.getNamespace() + "/"
+                                            + draft.getCatalogKey() + "#" + draft.getReleaseId() + "="
+                                            + draft.getReleaseName())
+                                    .collect(Collectors.joining("|")),
+                            "problemHeldResources", String.join(",", e.getHeldResources())));
         }
     }
 
@@ -1186,7 +1207,8 @@ public final class Driver {
                             "problemBehind", String.join(",", e.getBehind())));
             return;
         }
-        List<String> draftsBehind = response.getDraftsBehind() == null ? List.of() : response.getDraftsBehind();
+        List<CatalogDraftRefDto> draftsBehind =
+                response.getDraftsBehind() == null ? List.of() : response.getDraftsBehind();
         List<ReleasedDependencyDto> released =
                 response.getReleasedDependencies() == null ? List.of() : response.getReleasedDependencies();
         report(
@@ -1197,7 +1219,11 @@ public final class Driver {
                         "releaseId", String.valueOf(response.getRelease().getReleaseId()),
                         "contentHash", String.valueOf(response.getRelease().getContentHash()),
                         "unchangedContent", String.valueOf(response.getUnchangedContent()),
-                        "draftsBehind", String.join("|", draftsBehind),
+                        "draftsBehind", draftsBehind.stream()
+                                .map(draft -> draft.getRegistry() + "/" + draft.getNamespace() + "/"
+                                        + draft.getCatalogKey() + "#" + draft.getReleaseId() + "="
+                                        + draft.getReleaseName())
+                                .collect(Collectors.joining("|")),
                         "releasedDependencies",
                                 joined(
                                         released,

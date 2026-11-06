@@ -59,6 +59,8 @@ public class ProblemDetailException extends ApiException {
     private final String refusedTenantKey;
     private final String requiredPlatformRole;
     private final String refusalReason;
+    private final List<CatalogDraftRef> dependents;
+    private final List<String> heldResources;
     private final int statusCode;
     private final String responseBody;
     private final String message;
@@ -240,7 +242,44 @@ public class ProblemDetailException extends ApiException {
             String requiredPlatformRole,
             String refusalReason,
             String responseBody) {
+        this(response, problem, errors, validationErrors, missingFields, invalidFields, missingDependencies,
+                unreleasedDependencies, readOnlyReason, unresolvedConflicts, missingBaseVersion,
+                missingBaseFingerprint, behind, environments, pinnedBy, tiedVariants, requiredPermission,
+                refusedTenantKey, requiredPlatformRole, refusalReason, null, null, responseBody);
+    }
+
+    /**
+     * The same, for a problem that may also say what still relies on a draft that cannot be
+     * discarded ({@code catalog-draft-in-use}): the drafts of other catalogs that name it, and the
+     * resources only it holds that something outside it uses.
+     */
+    public ProblemDetailException(
+            Response response,
+            ProblemDetail problem,
+            List<ValidationError> errors,
+            Map<String, List<DataModelValidationError>> validationErrors,
+            List<MissingDataField> missingFields,
+            List<InvalidDataField> invalidFields,
+            List<MissingDependency> missingDependencies,
+            List<UnreleasedDependency> unreleasedDependencies,
+            String readOnlyReason,
+            List<String> unresolvedConflicts,
+            String missingBaseVersion,
+            String missingBaseFingerprint,
+            List<String> behind,
+            List<String> environments,
+            List<CatalogReleaseRef> pinnedBy,
+            List<String> tiedVariants,
+            String requiredPermission,
+            String refusedTenantKey,
+            String requiredPlatformRole,
+            String refusalReason,
+            List<CatalogDraftRef> dependents,
+            List<String> heldResources,
+            String responseBody) {
         super(response);
+        this.dependents = unmodifiable(dependents);
+        this.heldResources = unmodifiable(heldResources);
         this.requiredPermission = requiredPermission;
         this.refusedTenantKey = refusedTenantKey;
         this.requiredPlatformRole = requiredPlatformRole;
@@ -489,8 +528,10 @@ public class ProblemDetailException extends ApiException {
     }
 
     /**
-     * The environments a {@code release-in-use} problem (409, from {@code deleteCatalogRelease})
-     * says deploy the release; empty for any other problem, and when none does.
+     * The environments a {@code release-in-use} problem (409) says deploy the release; empty for any
+     * other problem, and when none does. No operation deletes a released release yet; discarding a
+     * draft is refused with {@code catalog-draft-in-use} ({@link #getDependents()},
+     * {@link #getHeldResources()}).
      */
     public List<String> getEnvironments() {
         return environments;
@@ -507,6 +548,30 @@ public class ProblemDetailException extends ApiException {
     /** True when this problem said the release cannot be deleted while something uses it. */
     public boolean isReleaseInUseProblem() {
         return KnownProblemSlugs.RELEASE_IN_USE.equals(getTypeSlug());
+    }
+
+    /**
+     * The drafts of other catalogs a {@code catalog-draft-in-use} problem (409, from
+     * {@code deleteCatalogRelease}) says name the draft in their dependency declarations, in the
+     * order the server listed them; empty for any other problem, and when none does. Change their
+     * declarations, or discard them, first.
+     */
+    public List<CatalogDraftRef> getDependents() {
+        return dependents;
+    }
+
+    /**
+     * The resources a {@code catalog-draft-in-use} problem says only the draft holds while
+     * something outside it still uses them, each as {@code resourceType/resourceKey}
+     * ({@code theme/house-style}); empty for any other problem, and when none.
+     */
+    public List<String> getHeldResources() {
+        return heldResources;
+    }
+
+    /** True when this problem said the draft cannot be discarded while something relies on it. */
+    public boolean isCatalogDraftInUseProblem() {
+        return KnownProblemSlugs.CATALOG_DRAFT_IN_USE.equals(getTypeSlug());
     }
 
     /**

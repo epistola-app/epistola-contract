@@ -317,6 +317,62 @@ class ProblemDetailParserTest {
     }
 
     @Test
+    void reads_what_a_catalog_draft_in_use_problem_says_relies_on_the_draft_in_order() {
+        var parsed = ProblemDetailParser.parse(
+                """
+                {
+                  "type": "https://epistola.app/errors/catalog-draft-in-use",
+                  "title": "Catalog Draft In Use",
+                  "status": 409,
+                  "dependents": [
+                    {"registry": "exchange.epistola.app", "namespace": "acme-corp", "catalogKey": "invoices",
+                     "releaseId": "q8w2e4rt", "releaseName": "Invoices 2027"},
+                    {"registry": "acme.com", "namespace": "brand", "catalogKey": "letters",
+                     "releaseId": "h3v9p6db", "releaseName": "Letters, round 2"}
+                  ],
+                  "heldResources": ["code-list/countries", "theme/house-style"]
+                }
+                """);
+
+        assertNotNull(parsed);
+        List<CatalogDraftRef> dependents = parsed.dependents();
+        assertEquals(2, dependents.size());
+        CatalogDraftRef first = dependents.get(0);
+        assertEquals("exchange.epistola.app", first.getRegistry());
+        assertEquals("acme-corp", first.getNamespace());
+        assertEquals("invoices", first.getCatalogKey());
+        assertEquals("q8w2e4rt", first.getReleaseId());
+        assertEquals("Invoices 2027", first.getReleaseName());
+        assertEquals("acme.com/brand/letters#h3v9p6db=Letters, round 2", dependents.get(1).toString());
+        assertEquals(List.of("code-list/countries", "theme/house-style"), parsed.heldResources());
+        assertTrue(parsed.unreleasedDependencies().isEmpty());
+    }
+
+    @Test
+    void tolerates_malformed_catalog_draft_in_use_members() {
+        var notArrays = ProblemDetailParser.parse(
+                """
+                {"title": "Conflict", "status": 409, "dependents": {"registry": "acme.com"}, "heldResources": "theme/x"}
+                """);
+        assertNotNull(notArrays);
+        assertTrue(notArrays.dependents().isEmpty());
+        assertTrue(notArrays.heldResources().isEmpty());
+
+        var badEntries = ProblemDetailParser.parse(
+                """
+                {
+                  "title": "Conflict",
+                  "status": 409,
+                  "dependents": ["acme.com/brand/letters", null, {"registry": "acme.com", "releaseName": 3}],
+                  "heldResources": [7, "theme/house-style", null]
+                }
+                """);
+        assertNotNull(badEntries);
+        assertEquals(List.of(new CatalogDraftRef("acme.com", null, null, null, null)), badEntries.dependents());
+        assertEquals(List.of("theme/house-style"), badEntries.heldResources());
+    }
+
+    @Test
     void defaults_the_type_to_about_blank_when_absent() {
         var parsed = ProblemDetailParser.parse("{\"title\":\"Internal Server Error\",\"status\":500}");
 

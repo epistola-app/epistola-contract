@@ -8,6 +8,7 @@
 src/main/kotlin/app/epistola/api/model/DataModelValidationProblemDetail.kt
 src/main/kotlin/app/epistola/api/model/ReleaseDependenciesMissingProblemDetail.kt
 src/main/kotlin/app/epistola/api/model/ReleaseDependenciesUnreleasedProblemDetail.kt
+src/main/kotlin/app/epistola/api/model/CatalogDraftInUseProblemDetail.kt
 src/main/kotlin/app/epistola/api/model/CatalogReadOnlyProblemDetail.kt
 src/main/kotlin/app/epistola/api/model/MergeConflictsUnresolvedProblemDetail.kt
 src/main/kotlin/app/epistola/api/model/MergeBaseMissingProblemDetail.kt

@@ -294,6 +294,47 @@ class ProblemDetailErrorHandlerTest {
     }
 
     @Test
+    fun `surfaces what a catalog-draft-in-use problem says relies on the draft, in order`() {
+        val body = """
+            {"type":"https://epistola.app/errors/catalog-draft-in-use","title":"Catalog Draft In Use","status":409,
+             "dependents":[
+               {"registry":"exchange.epistola.app","namespace":"acme-corp","catalogKey":"invoices",
+                "releaseId":"q8w2e4rt","releaseName":"Invoices 2027"},
+               "not an object",
+               {"registry":"exchange.epistola.app","namespace":"acme-corp","catalogKey":"letters","releaseId":"x"},
+               {"registry":"registry.gemeente-x.nl","namespace":"huisstijl","catalogKey":"brieven",
+                "releaseId":"h3v9p6db","releaseName":"Brieven 2027"}],
+             "heldResources":["code-list/countries",7,"theme/house-style"]}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> { handleErrorResponse(response(HttpStatus.CONFLICT, body)) }
+        assertEquals(KnownProblemSlugs.CATALOG_DRAFT_IN_USE, ex.typeSlug)
+        assertTrue(ex.isCatalogDraftInUseProblem)
+        assertFalse(ex.isReleaseInUseProblem)
+        assertEquals(
+            listOf(
+                CatalogDraftRef("exchange.epistola.app", "acme-corp", "invoices", "q8w2e4rt", "Invoices 2027"),
+                CatalogDraftRef("registry.gemeente-x.nl", "huisstijl", "brieven", "h3v9p6db", "Brieven 2027"),
+            ),
+            ex.dependents,
+        )
+        assertEquals(listOf("code-list/countries", "theme/house-style"), ex.heldResources)
+    }
+
+    @Test
+    fun `a problem without dependents or heldResources reports none`() {
+        val plain = """{"type":"https://epistola.app/errors/conflict","title":"Conflict","status":409}"""
+        val notArrays = """{"type":"https://epistola.app/errors/conflict","title":"Conflict","status":409,"dependents":{},"heldResources":"theme/x"}"""
+
+        for (body in listOf(plain, notArrays)) {
+            val ex = assertFailsWith<ProblemDetailException> { handleErrorResponse(response(HttpStatus.CONFLICT, body)) }
+            assertTrue(ex.dependents.isEmpty())
+            assertTrue(ex.heldResources.isEmpty())
+            assertFalse(ex.isCatalogDraftInUseProblem)
+        }
+    }
+
+    @Test
     fun `surfaces the tied variants of an ambiguous-variant problem`() {
         val body = """
             {"type":"https://epistola.app/errors/ambiguous-variant","title":"Ambiguous Variant","status":409,

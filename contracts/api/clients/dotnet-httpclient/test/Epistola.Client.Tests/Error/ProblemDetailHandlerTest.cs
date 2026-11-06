@@ -408,6 +408,50 @@ public class ProblemDetailHandlerTest
     }
 
     [Fact]
+    public async Task ThrowsWithWhatACatalogDraftInUseProblemSaysReliesOnTheDraft()
+    {
+        const string body = """
+            {"type": "https://epistola.app/errors/catalog-draft-in-use", "title": "Catalog Draft In Use", "status": 409,
+             "dependents": [
+               {"registry": "exchange.epistola.app", "namespace": "acme-corp", "catalogKey": "invoices",
+                "releaseId": "q8w2e4rt", "releaseName": "Invoices 2027"},
+               "not an object",
+               {"registry": "exchange.epistola.app", "namespace": "acme-corp", "catalogKey": "letters", "releaseId": 1, "releaseName": "x"},
+               {"registry": "registry.gemeente-x.nl", "namespace": "huisstijl", "catalogKey": "brieven",
+                "releaseId": "h3v9p6db", "releaseName": "Brieven 2027"}],
+             "heldResources": ["code-list/countries", 7, "theme/house-style"]}
+            """;
+        var client = ClientReturning(HttpStatusCode.Conflict, "application/problem+json", body);
+
+        var ex = await Assert.ThrowsAsync<ProblemDetailException>(() => client.DeleteAsync("release"));
+        Assert.Equal(KnownProblemSlugs.CATALOG_DRAFT_IN_USE, ex.TypeSlug);
+        Assert.True(ex.IsCatalogDraftInUseProblem);
+        Assert.False(ex.IsReleaseInUseProblem);
+        Assert.Equal(2, ex.Dependents.Count);
+        var first = ex.Dependents[0];
+        Assert.Equal("exchange.epistola.app", first.Registry);
+        Assert.Equal("acme-corp", first.Namespace);
+        Assert.Equal("invoices", first.CatalogKey);
+        Assert.Equal("q8w2e4rt", first.ReleaseId);
+        Assert.Equal("Invoices 2027", first.ReleaseName);
+        Assert.Equal("registry.gemeente-x.nl/huisstijl/brieven#h3v9p6db=Brieven 2027", ex.Dependents[1].ToString());
+        Assert.Equal(new[] { "code-list/countries", "theme/house-style" }, ex.HeldResources);
+    }
+
+    [Fact]
+    public void ParseProblemReportsNoCatalogDraftInUseMembersWhenTheyAreNotArrays()
+    {
+        var parsed = ProblemDetailHandler.ParseProblem("""
+            {"type": "https://epistola.app/errors/conflict", "title": "Conflict", "status": 409,
+             "dependents": {"registry": "r.example"}, "heldResources": "theme/x"}
+            """);
+
+        Assert.NotNull(parsed);
+        Assert.Empty(parsed!.Dependents);
+        Assert.Empty(parsed.HeldResources);
+    }
+
+    [Fact]
     public async Task ThrowsWithTheTiedVariantsOfAnAmbiguousVariantProblem()
     {
         const string body = """

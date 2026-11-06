@@ -155,6 +155,7 @@ test('a binary download arrives byte for byte', async () => {
   try {
     const blob = await new GenerationApi(client(server)).downloadDocument({ tenantKey: 'acme-corp', documentId: '99999999-9999-4999-8999-000000000001' })
     assert.deepEqual(Buffer.from(await blob.arrayBuffer()), bytes)
+    assert.equal(server.requests[0].path, '/api/tenants/acme-corp/documents/99999999-9999-4999-8999-000000000001/content')
     assert.equal(server.requests[0].headers.accept, 'application/pdf, application/problem+json')
   } finally {
     await server.close()

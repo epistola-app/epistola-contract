@@ -528,6 +528,8 @@ jobs:
     uses: ./.github/workflows/mock-server.yml
     with:
       version: ${{ needs.spec-validation.outputs.snapshot_version }}
+      # `latest` is the newest release; a snapshot must not take it over.
+      tag-latest: false
     permissions:
       contents: read
       packages: write

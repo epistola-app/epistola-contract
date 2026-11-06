@@ -11,6 +11,14 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Added
 
+- `ProblemDetailException.Dependents`, `HeldResources` and `IsCatalogDraftInUseProblem` surface a
+  `catalog-draft-in-use` problem (409 from `DeleteCatalogRelease`, which refuses to discard a draft
+  something outside it relies on): the drafts of other catalogs whose dependency declarations name
+  it, each a hand-written `Epistola.Client.Error.CatalogDraftRef` (`Registry`, `Namespace`,
+  `CatalogKey`, `ReleaseId`, `ReleaseName`; a malformed entry is skipped on its own), and the
+  resources only it holds that something outside it still uses, as `resourceType/resourceKey`. The
+  constructor's `dependents` and `heldResources` parameters are optional. `Environments`,
+  `PinnedBy` and `IsReleaseInUseProblem` stay, for `release-in-use`, which no operation answers yet.
 - An enum value this client does not know, from a newer 2.x server, reads as the enum's
   `UnknownDefaultOpenApi` member instead of failing the response:
   `Epistola.Client.Json.TolerantStringEnumConverter`, which every generated enum now uses. Every
@@ -92,41 +100,28 @@ records contract changes; this file records changes to the hand-written library 
 - **BREAKING:** `EpistolaMediaTypeHandler.VendorJson` and the result collector send
   `application/vnd.epistola.v2+json` and `application/vnd.epistola.v2+ndjson`, the contract 2.x media
   types. A 2.x server refuses the 1.x ones.
-- **BREAKING:** a resource's address is its `key` (epistola-app/epistola-contract#84), so the
-  hand-written API follows the generated one: `ResultCollector.Builder().TenantId(…)` is
-  `TenantKey(…)`; the result collector's `GenerationResult.TemplateId` / `VariantId` are
-  `TemplateKey` / `VariantKey`, read from the stream's `templateKey` / `variantKey`;
-  `ServerTemplateDataValidator`'s `variantId` / `environmentId` parameters are `variantKey` /
-  `environmentKey`; and the `Validate` methods of `ITemplateDataValidator`,
-  `TemplateSchemaValidator` and `ServerTemplateDataValidator` take `(tenantKey, registry,
-  namespace, catalogKey, templateKey, data)`. `ValidatingGenerationApi`'s parameter is `tenantKey`.
-  No deprecated aliases are kept.
-- **BREAKING:** a catalog is identified by registry, namespace and key.
-  `ITemplateDataValidator.Validate`, `TemplateSchemaValidator.Validate` and
-  `ServerTemplateDataValidator.Validate` take `(tenantId, registry, namespace, catalogKey,
-  templateId, data)` in place of `(tenantId, catalogId, templateId, data)`. The registry is the path segment: `~`
-  (`ITemplateDataValidator.DefaultRegistry`) for the server's default registry, or a name in full
-  (`acme.com`). The namespace is a plain slug. `ValidatingGenerationApi` hands a validator `~` for
-  a request whose `registry` is unset and passes a named registry on as given. It no longer
-  converts `host/name` namespaces to `host~name`, because neither form exists any more.
-- **BREAKING:** the result collector's `GenerationResult` gained `Registry`, before `Namespace`. `GenerationResult` is a positional record, so code
-  constructing it positionally must add the argument.
-
+- **BREAKING:** contract 2.0 addresses a resource by its `key` (epistola-app/epistola-contract#84),
+  a catalog by registry, namespace and key, and renders a release rather than a template version.
+  Against 1.4, the hand-written library changes as follows, with no deprecated aliases kept:
+  - The `Validate` methods of `ITemplateDataValidator`, `TemplateSchemaValidator` and
+    `ServerTemplateDataValidator` take `(tenantKey, registry, namespace, catalogKey, templateKey,
+    data)` in place of `(tenantId, catalogId, templateId, data)`. The registry is the path segment:
+    `~` (`ITemplateDataValidator.DefaultRegistry`) for the server's default registry, or a name in
+    full (`acme.com`). `ValidatingGenerationApi` hands a validator `~` for a request whose
+    `registry` is unset, passes a named registry on as given, and takes `tenantKey`.
+  - `ServerTemplateDataValidator` no longer takes a version id. `versionRange` (sent as the
+    request's `versionRange`) and `environmentKey` select the release; with neither, the catalog's
+    highest release is checked. Its `variantId` and `environmentId` parameters are `variantKey` and
+    `environmentKey`.
+  - `ResultCollector.Builder().TenantId(…)` is `TenantKey(…)`.
+  - The result collector's `GenerationResult.TemplateId` / `VariantId` are `TemplateKey` /
+    `VariantKey`, and `VersionId` is `Version`, the release's version (null for a draft). It gains
+    `Registry`, `Namespace` and `CatalogKey`, then `ReleaseId` and `ReleaseName`. It is a
+    positional record, so code constructing it positionally must follow the new parameter list.
 - The reference in-process validator to copy, `NJsonSchemaTemplateDataValidator` under
   `test/Epistola.Client.Tests/Validation/Schema/Local/`, takes the release whose template
   schema it holds data to, because a template is now read from a release of its catalog. The shipped
   validators are unchanged: `validateTemplateData` is not addressed by release.
-- **BREAKING:** `ServerTemplateDataValidator`'s `releaseVersion` parameter is now `versionRange`,
-  a version range sent as the request's `versionRange`; it may be combined with `environmentKey`.
-- The result collector's `GenerationResult` gained `Namespace` and `CatalogKey`, next to
-  `Version`. `GenerationResult` is a positional record, so
-  code constructing it positionally must add the two arguments.
-
-- **BREAKING:** the server-side template data validator no longer takes a `versionId`, matching
-  contract 2.0's generation by release; without a version range or an environment, the catalog's
-  latest release is checked. The result collector reports `Version` (a string, the release's
-  version) in place of `VersionId`.
-
 - **Template data is validated by the server, not by a bundled library.** `TemplateSchemaValidator`
   and `ValidatingGenerationApi` now call `validateTemplateData` through a pluggable
   `ITemplateDataValidator`, whose only shipped implementation is `ServerTemplateDataValidator`.

@@ -69,7 +69,7 @@ Every request must carry `User-Agent` and `X-EP-Node-Id`. `ClientIdentity` build
 `User-Agent` token is always `epistola-contract/{contractVersion}`:
 
 ```
-User-Agent: epistola-contract/0.11.0 my-app/1.0.0
+User-Agent: epistola-contract/2.0.0 my-app/1.0.0
 X-EP-Node-Id: my-pod-123
 ```
 
@@ -121,8 +121,8 @@ catch (ProblemDetailException e)
         case KnownProblemSlugs.CATALOG_VERSION_BEHIND:   // ReleaseCatalogDraft: name these in AcknowledgedBehind
             Console.WriteLine($"the draft is behind {string.Join(", ", e.Behind)}");
             break;
-        case KnownProblemSlugs.RELEASE_IN_USE:           // DeleteCatalogRelease
-            Console.WriteLine($"deployed to {string.Join(", ", e.Environments)}; pinned by {string.Join(", ", e.PinnedBy)}");
+        case KnownProblemSlugs.CATALOG_DRAFT_IN_USE:     // DeleteCatalogRelease: the draft cannot be discarded yet
+            Console.WriteLine($"named by {string.Join(", ", e.Dependents)}; holds {string.Join(", ", e.HeldResources)}");
             break;
         case KnownProblemSlugs.AMBIGUOUS_VARIANT:        // GenerateDocument, PreviewDocument: name one by VariantKey
             Console.WriteLine($"several variants match: {string.Join(", ", e.TiedVariants)}");
@@ -166,6 +166,21 @@ catch (ProblemDetailException e) when (e.TypeSlug == KnownProblemSlugs.RELEASE_D
 {
     foreach (var d in e.UnreleasedDependencies)
         Console.WriteLine($"{d.Registry}/{d.Namespace}/{d.CatalogKey}: draft {d.ReleaseName} ({d.ReleaseId})");
+}
+```
+
+Discarding a draft (`DeleteCatalogRelease`) while something outside it relies on it is a
+`catalog-draft-in-use` problem. `Dependents` lists the drafts of other catalogs whose dependency
+declarations name it, and `HeldResources` the resources only it holds that something outside it
+still uses, as `resourceType/resourceKey`:
+
+```csharp
+catch (ProblemDetailException e) when (e.IsCatalogDraftInUseProblem)
+{
+    foreach (var d in e.Dependents)
+        Console.WriteLine($"named by {d.Registry}/{d.Namespace}/{d.CatalogKey}: draft {d.ReleaseName} ({d.ReleaseId})");
+    foreach (var resource in e.HeldResources)
+        Console.WriteLine($"still used elsewhere: {resource}");   // theme/house-style
 }
 ```
 
@@ -316,7 +331,7 @@ var released = catalogs.ReleaseCatalogDraft("my-tenant", "~", "acme-corp", "defa
 // Releasing never changes other drafts; the answer names those now behind it, and the releases
 // made along with it.
 foreach (var behind in released.DraftsBehind)
-    Console.WriteLine($"{behind} does not contain {released.Release.Version}");
+    Console.WriteLine($"{behind.ReleaseName} ({behind.ReleaseId}) does not contain {released.Release.Version}");
 foreach (var dependency in released.ReleasedDependencies)
     Console.WriteLine($"also released {dependency.CatalogKey} {dependency.Version}");
 ```
@@ -388,9 +403,6 @@ validating.GenerateDocument("my-tenant", request);
 
 Each error carries a **JSON Pointer** into the data (`/customer/email`), the JSON Schema `Keyword`
 that failed, and a human-readable `Message` — so a form can mark the field that is wrong.
-
-`validateTemplateData` arrived with contract **1.4.0**; against an older server the call fails like
-any other unknown operation rather than reporting unvalidated data as acceptable.
 
 ### Validating in-process instead
 

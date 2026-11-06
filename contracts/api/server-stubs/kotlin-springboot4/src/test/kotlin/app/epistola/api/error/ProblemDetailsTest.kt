@@ -4,6 +4,7 @@
 
 package app.epistola.api.error
 
+import app.epistola.api.model.CatalogDraftRefDto
 import app.epistola.api.model.CatalogReadOnlyReason
 import app.epistola.api.model.CatalogReleaseRefDto
 import app.epistola.api.model.DataModelValidationError
@@ -160,6 +161,29 @@ class ProblemDetailsTest {
         assertEquals(409, problem.status)
         assertEquals(listOf("production"), problem.properties?.get("environments"))
         assertEquals(listOf(pin), problem.properties?.get("pinnedBy"))
+    }
+
+    @Test
+    fun `catalogDraftInUse names the drafts that depend on it and the resources it holds as a 409`() {
+        val dependent = CatalogDraftRefDto(
+            registry = "exchange.epistola.app",
+            namespace = "acme-corp",
+            catalogKey = "invoices",
+            releaseId = "q8w2e4rt",
+            releaseName = "Invoices 2027",
+        )
+        val problem = ProblemDetails.catalogDraftInUse(listOf(dependent), listOf("theme/house-style"), detail = "Redesign 2027 is in use")
+        assertEquals(URI.create("https://epistola.app/errors/catalog-draft-in-use"), problem.type)
+        assertEquals(409, problem.status)
+        assertEquals(listOf(dependent), problem.properties?.get("dependents"))
+        assertEquals(listOf("theme/house-style"), problem.properties?.get("heldResources"))
+    }
+
+    @Test
+    fun `catalogDraftInUse writes both members even when one is empty`() {
+        val problem = ProblemDetails.catalogDraftInUse(emptyList(), listOf("code-list/countries"))
+        assertEquals(emptyList<CatalogDraftRefDto>(), problem.properties?.get("dependents"))
+        assertEquals(listOf("code-list/countries"), problem.properties?.get("heldResources"))
     }
 
     @Test

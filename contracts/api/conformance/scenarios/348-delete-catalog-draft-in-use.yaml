@@ -1,0 +1,51 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: delete-catalog-draft-in-use
+title: A draft that cannot be discarded says what still relies on it
+why: >
+  `deleteCatalogRelease` discards a draft, addressed by its `releaseId`. While something outside the
+  draft relies on it, the refusal is `catalog-draft-in-use`, and its members say what to do first:
+  `dependents`, each draft of another catalog whose dependency declarations name this draft, named
+  in full, because a catalog's key alone is not unique and a draft has no version; and
+  `heldResources`, each resource only this draft holds that something outside it still uses, as
+  `resourceType/resourceKey`.
+
+  A client's problem parser must surface both members, every entry in order, and a client that
+  treats any answer to a DELETE as success hides the refusal entirely.
+
+action:
+  name: delete-catalog-release
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: d7k2m9px
+
+script:
+  - status: 409
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/catalog-draft-in-use
+      title: Catalog Draft In Use
+      status: 409
+      detail: The draft Redesign 2027 of letters is named by two drafts and holds two resources in use
+      dependents:
+        - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: invoices, releaseId: q8w2e4rt, releaseName: Invoices 2027 }
+        - { registry: registry.gemeente-x.nl, namespace: huisstijl, catalogKey: brieven, releaseId: m5n7b9vc, releaseName: "Brieven, ronde 2" }
+      heldResources: [code-list/countries, theme/house-style]
+
+expect:
+  requestCount: 1
+  requests:
+    - method: DELETE
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/d7k2m9px
+  report:
+    problemTypeSlug: catalog-draft-in-use
+    problemStatus: 409
+    # Each as registry/namespace/catalogKey#releaseId=releaseName; names are free text, so joined with `|`.
+    problemDependents: exchange.epistola.app/acme-corp/invoices#q8w2e4rt=Invoices 2027|registry.gemeente-x.nl/huisstijl/brieven#m5n7b9vc=Brieven, ronde 2
+    problemHeldResources: code-list/countries,theme/house-style

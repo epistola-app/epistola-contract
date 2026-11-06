@@ -140,8 +140,6 @@ try {
       case KnownProblemSlugs.NOT_FOUND:
         log.warn(`tenant not found: ${e.detail}`)
         break
-      case KnownProblemSlugs.FORBIDDEN:
-        throw new PermissionError(e.detail)
       case KnownProblemSlugs.VALIDATION_ERROR:
         for (const err of e.errors) log.warn(`${err.field}: ${err.message}`)     // field-level ValidationProblemDetail
         break
@@ -177,9 +175,10 @@ try {
       case KnownProblemSlugs.CATALOG_VERSION_BEHIND:
         log.warn(`the draft is behind ${e.behind.join(', ')}`)                  // releaseCatalogDraft: name them in acknowledgedBehind
         break
-      case KnownProblemSlugs.RELEASE_IN_USE:
-        // deleteCatalogRelease: undeploy it, and release the catalogs that pin it without it
-        log.warn(`deployed to ${e.environments.join(', ')}; pinned by ${e.pinnedBy.map((r) => `${r.catalogKey}@${r.version}`).join(', ')}`)
+      case KnownProblemSlugs.CATALOG_DRAFT_IN_USE:
+        // deleteCatalogRelease: drafts of other catalogs name the draft, or it alone holds resources
+        // something outside it uses (resourceType/resourceKey); change those first
+        log.warn(`named by ${e.dependents.map((d) => `${d.catalogKey}: ${d.releaseName}`).join(', ')}; holds ${e.heldResources.join(', ')}`)
         break
       case KnownProblemSlugs.AMBIGUOUS_VARIANT:
         log.warn(`several variants match: ${e.tiedVariants.join(', ')}`)        // generateDocument, previewDocument: name one by variantKey
@@ -227,7 +226,8 @@ ResponseError` sites keep working. It exposes `type`, `typeSlug`, `title`, `prob
 `missingDependencies`, `unreleasedDependencies`, `readOnlyReason`, `unresolvedConflicts`,
 `isMergeConflictsUnresolvedProblem`, `missingBaseVersion`, `missingBaseFingerprint`,
 `isMergeBaseMissingProblem`, `behind`, `isCatalogVersionBehindProblem`, `environments`,
-`pinnedBy`, `isReleaseInUseProblem`, `tiedVariants`, `isAmbiguousVariantProblem`,
+`pinnedBy`, `isReleaseInUseProblem`, `dependents`, `heldResources`, `isCatalogDraftInUseProblem`,
+`tiedVariants`, `isAmbiguousVariantProblem`,
 `requiredPermission`, `refusedTenantKey`, `requiredPlatformRole`, `refusalReason`,
 `isForbiddenProblem`, `extensions` (every member
 outside the base members, RFC 9457's five and `help`), `statusCode`, `rawBody`, `isValidationProblem`,
@@ -239,6 +239,12 @@ the draft's dependency declarations name drafts of other catalogs, and a release
 releases. `unreleasedDependencies` lists each such draft (`registry`, `namespace`, `catalogKey`,
 `releaseId`, `releaseName`); release them first, or send `releaseDependencies: true` to release them
 along with the draft.
+
+A `catalog-draft-in-use` problem (409) means `deleteCatalogRelease` was refused because something
+outside the draft still relies on it. `dependents` lists the drafts of other catalogs whose
+dependency declarations name it (`registry`, `namespace`, `catalogKey`, `releaseId`, `releaseName`),
+and `heldResources` the resources only it holds that something outside it still uses, as
+`resourceType/resourceKey` (`theme/house-style`); change those first.
 
 A `release-dependencies-missing` problem (409) means `deployCatalogRelease` was refused because releases
 of other catalogs the release pins cannot be had: the tenant does not have them and they could not
@@ -302,9 +308,6 @@ validateCreateTenantRequest({ key: 'Acme Corp', name: 'Acme' })  // throws Model
 
 Each failure carries a **JSON Pointer** into the data (`/customer/email`), the JSON Schema `keyword`
 that failed, and a human-readable `message` — so a form can mark the field that is wrong.
-
-`validateTemplateData` arrived with contract **1.4.0**; against an older server the call fails like
-any other unknown operation rather than reporting unvalidated data as acceptable.
 
 ### Validating in-process instead
 

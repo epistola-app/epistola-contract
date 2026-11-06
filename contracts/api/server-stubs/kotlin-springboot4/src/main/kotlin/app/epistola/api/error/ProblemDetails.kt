@@ -4,6 +4,7 @@
 
 package app.epistola.api.error
 
+import app.epistola.api.model.CatalogDraftRefDto
 import app.epistola.api.model.CatalogReadOnlyReason
 import app.epistola.api.model.CatalogReleaseRefDto
 import app.epistola.api.model.DataModelValidationError
@@ -120,6 +121,18 @@ object ProblemDetails {
 
     /** Extension member listing the releases of other catalogs that pin a release (`ReleaseInUseProblemDetail`). */
     const val PINNED_BY_PROPERTY: String = ProblemExtensionMembers.PINNED_BY
+
+    /**
+     * Extension member listing the drafts of other catalogs whose dependency declarations name a
+     * draft (`CatalogDraftInUseProblemDetail`).
+     */
+    const val DEPENDENTS_PROPERTY: String = ProblemExtensionMembers.DEPENDENTS
+
+    /**
+     * Extension member listing the resources only a draft holds that something outside it still uses,
+     * as `resourceType/resourceKey` (`CatalogDraftInUseProblemDetail`).
+     */
+    const val HELD_RESOURCES_PROPERTY: String = ProblemExtensionMembers.HELD_RESOURCES
 
     /** Extension member listing the variants that match equally well (`AmbiguousVariantProblemDetail`). */
     const val TIED_VARIANTS_PROPERTY: String = ProblemExtensionMembers.TIED_VARIANTS
@@ -263,6 +276,12 @@ object ProblemDetails {
 
         /** 409 — the release is deployed or pinned, so it cannot be deleted (use [releaseInUse]). */
         const val RELEASE_IN_USE: String = KnownProblemSlugs.RELEASE_IN_USE
+
+        /**
+         * 409 — the draft cannot be discarded: a draft of another catalog names it, or it alone holds
+         * a resource something outside it uses (use [catalogDraftInUse]).
+         */
+        const val CATALOG_DRAFT_IN_USE: String = KnownProblemSlugs.CATALOG_DRAFT_IN_USE
 
         /** 409 — another draft of the catalog has this name. */
         const val CATALOG_DRAFT_NAME_IN_USE: String = KnownProblemSlugs.CATALOG_DRAFT_NAME_IN_USE
@@ -479,6 +498,25 @@ object ProblemDetails {
         val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.RELEASE_IN_USE), detail, instance)
         problem.setProperty(ENVIRONMENTS_PROPERTY, environments)
         problem.setProperty(PINNED_BY_PROPERTY, pinnedBy)
+        return problem
+    }
+
+    /**
+     * Builds a `catalog-draft-in-use` [ProblemDetail] (409, from `deleteCatalogRelease`): like [of]
+     * plus the drafts of other catalogs whose dependency declarations name the draft ([dependents])
+     * and the resources only it holds that something outside it still uses ([heldResources], each
+     * `resourceType/resourceKey`, ordered by type, then key) — the `CatalogDraftInUseProblemDetail`
+     * shape from the contract. Both members are always written, empty when there is none.
+     */
+    fun catalogDraftInUse(
+        dependents: List<CatalogDraftRefDto>,
+        heldResources: List<String>,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.CATALOG_DRAFT_IN_USE), detail, instance)
+        problem.setProperty(DEPENDENTS_PROPERTY, dependents)
+        problem.setProperty(HELD_RESOURCES_PROPERTY, heldResources)
         return problem
     }
 

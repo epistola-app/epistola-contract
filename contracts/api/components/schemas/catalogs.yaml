@@ -1124,13 +1124,17 @@ ReleaseCatalogDraftResponse:
     draftsBehind:
       type: array
       description: |
-        The catalog's drafts this release puts behind, by name: its version is below the version
-        each of them would be released as, so its changes do not reach them unless an author
-        applies them by hand. Empty when none.
+        The catalog's drafts this release puts behind: its version is below the version each of
+        them would be released as, so its changes do not reach them unless an author applies them
+        by hand. Empty when none.
       items:
-        type: string
-        maxLength: 100
-      example: ["Redesign 2027"]
+        $ref: '#/CatalogDraftRefDto'
+      example:
+        - registry: exchange.epistola.app
+          namespace: acme-corp
+          catalogKey: letters
+          releaseId: d7k2m9px
+          releaseName: Redesign 2027
     releasedDependencies:
       type: array
       description: |
@@ -1205,6 +1209,41 @@ UnreleasedCatalogDependency:
       maxLength: 100
       description: The draft's name
       example: House style 2027
+
+CatalogDraftRefDto:
+  type: object
+  description: |
+    A draft of a catalog, named in full: by its catalog, because a catalog's key alone is not
+    unique, and by its `releaseId`, because a draft has no version and its name can change.
+  required:
+    - registry
+    - namespace
+    - catalogKey
+    - releaseId
+    - releaseName
+  properties:
+    registry:
+      $ref: './identifiers.yaml#/Registry'
+      description: |
+        Registry of the draft's catalog. Always written in full, the default registry by its name,
+        never `~`.
+      example: exchange.epistola.app
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the draft's catalog, within its registry
+      example: acme-corp
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the draft's catalog, unique within its registry and namespace
+      example: letters
+    releaseId:
+      $ref: './identifiers.yaml#/CatalogReleaseId'
+      description: The draft
+    releaseName:
+      type: string
+      maxLength: 100
+      description: The draft's name, as it is now
+      example: Redesign 2027
 
 CatalogMergeOutcome:
   type: string

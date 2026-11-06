@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: EUPL-1.2
 
 import type {
+  CatalogDraftRefDto,
   CatalogReadOnlyReason,
   CatalogReleaseRefDto,
   DataModelValidationError,
@@ -251,8 +252,9 @@ export class ProblemDetailException extends ResponseError {
   }
 
   /**
-   * The environments a `release-in-use` problem (409, from `deleteCatalogRelease`) says deploy the
-   * release; empty for any other problem, and when none does.
+   * The environments a `release-in-use` problem (409) says deploy the release; empty for any other
+   * problem, and when none does. No operation deletes a released release yet; discarding a draft is
+   * refused with `catalog-draft-in-use` ({@link dependents}, {@link heldResources}).
    */
   get environments(): readonly string[] {
     return stringsAt(this.extensions, ProblemExtensionMembers.ENVIRONMENTS)
@@ -269,6 +271,30 @@ export class ProblemDetailException extends ResponseError {
   /** True when this problem said the release cannot be deleted while something uses it. */
   get isReleaseInUseProblem(): boolean {
     return this.typeSlug === KnownProblemSlugs.RELEASE_IN_USE
+  }
+
+  /**
+   * The drafts of other catalogs a `catalog-draft-in-use` problem (409, from `deleteCatalogRelease`)
+   * says name the draft in their dependency declarations, in the order the server listed them;
+   * empty for any other problem, and when none does. Change their declarations, or discard them,
+   * first. An entry that does not carry all five members as strings is dropped rather than guessed at.
+   */
+  get dependents(): readonly CatalogDraftRef[] {
+    return objectsAt(this.extensions, ProblemExtensionMembers.DEPENDENTS).filter(isCatalogDraftRef)
+  }
+
+  /**
+   * The resources a `catalog-draft-in-use` problem says only the draft holds while something outside
+   * it still uses them, each as `resourceType/resourceKey` (`theme/house-style`); empty for any
+   * other problem, and when none.
+   */
+  get heldResources(): readonly string[] {
+    return stringsAt(this.extensions, ProblemExtensionMembers.HELD_RESOURCES)
+  }
+
+  /** True when this problem said the draft cannot be discarded while something relies on it. */
+  get isCatalogDraftInUseProblem(): boolean {
+    return this.typeSlug === KnownProblemSlugs.CATALOG_DRAFT_IN_USE
   }
 
   /**
@@ -378,6 +404,19 @@ const CATALOG_RELEASE_REF_MEMBERS = ['registry', 'namespace', 'catalogKey', 'ver
 function isCatalogReleaseRef(entry: object): entry is CatalogReleaseRef {
   const record = entry as Record<string, unknown>
   return CATALOG_RELEASE_REF_MEMBERS.every((member) => typeof record[member] === 'string')
+}
+
+/**
+ * One draft a problem names in full, such as each entry of a `catalog-draft-in-use` problem's
+ * `dependents` member: the generated `CatalogDraftRefDto`.
+ */
+export type CatalogDraftRef = Readonly<CatalogDraftRefDto>
+
+const CATALOG_DRAFT_REF_MEMBERS = ['registry', 'namespace', 'catalogKey', 'releaseId', 'releaseName'] as const
+
+function isCatalogDraftRef(entry: object): entry is CatalogDraftRef {
+  const record = entry as Record<string, unknown>
+  return CATALOG_DRAFT_REF_MEMBERS.every((member) => typeof record[member] === 'string')
 }
 
 /** One extension member's array of strings, or empty when absent; entries that are not strings are dropped. */

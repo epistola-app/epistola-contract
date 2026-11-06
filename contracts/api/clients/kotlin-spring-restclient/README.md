@@ -7,7 +7,7 @@ Generated Kotlin client for the Epistola API using Spring RestClient, with addit
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("app.epistola.contract:client-spring3-restclient:0.3.0")
+    implementation("app.epistola.contract:client-spring3-restclient:2.0.0")
 
     // Optional: for lz4 compression support
     implementation("net.jpountz.lz4:lz4-java:1.8.0")
@@ -99,7 +99,7 @@ val shortCalls = builder.readTimeout(Duration.ofSeconds(30)).build()
 `readTimeout` defaults to 30 seconds; `connectTimeout` defaults to 10 seconds and applies to both
 profiles. The request factory underneath is `java.net.http.HttpClient`, not
 `SimpleClientHttpRequestFactory` — the latter wraps `java.net.HttpURLConnection`, which rejects
-`PATCH` outright (`ProtocolException: Invalid HTTP method: PATCH`), and the contract has thirteen
+`PATCH` outright (`ProtocolException: Invalid HTTP method: PATCH`), and the contract has twelve
 `PATCH` operations.
 
 ## JSON configuration
@@ -176,7 +176,7 @@ val identity = ClientIdentity.builder()
 // Access values
 identity.userAgent       // "epistola-contract/x.y.z ..."
 identity.nodeId          // "invoice-service-pod-7f8b9c"
-ClientIdentity.contractVersion  // "0.3.0" (from build)
+ClientIdentity.contractVersion  // "2.0.0" (from build)
 ```
 
 If `nodeId` is not set, it defaults to the local hostname.
@@ -222,7 +222,8 @@ curl -X POST https://epistola.example.com/api/tenants/acme-corp/consumers/regist
   -d '{
     "id": "invoice-service",
     "name": "Invoice Service",
-    "publicKey": "'"$(cat public.pem)"'"
+    "publicKey": '"$(jq -Rs . < public.pem)"',
+    "requestedPermissions": { "generation": "write", "catalogs": "read" }
   }'
 
 # Wait for tenant manager to approve your registration
@@ -322,7 +323,6 @@ try {
 } catch (e: ProblemDetailException) {
     when (e.typeSlug) {
         KnownProblemSlugs.NOT_FOUND                   -> log.warn("Tenant missing: ${e.detail}")
-        KnownProblemSlugs.FORBIDDEN                   -> throw AccessDeniedException(e.detail)
         KnownProblemSlugs.VALIDATION_ERROR            -> e.errors.forEach { println("${it.field}: ${it.message}") }
         KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR ->
             e.validationErrors.forEach { (example, failures) ->
@@ -346,8 +346,8 @@ try {
             println("install ${e.missingBaseVersion} (${e.missingBaseFingerprint}) first")
         KnownProblemSlugs.CATALOG_VERSION_BEHIND ->      // releaseCatalogDraft: name these in acknowledgedBehind
             println("the draft is behind ${e.behind}")
-        KnownProblemSlugs.RELEASE_IN_USE ->              // deleteCatalogRelease
-            println("undeploy from ${e.environments}; pinned by ${e.pinnedBy.map { "${it.catalogKey}@${it.version}" }}")
+        KnownProblemSlugs.CATALOG_DRAFT_IN_USE ->        // deleteCatalogRelease: the draft cannot be discarded yet
+            println("named by ${e.dependents.map { "${it.catalogKey}: ${it.releaseName}" }}; holds ${e.heldResources}")
         KnownProblemSlugs.AMBIGUOUS_VARIANT ->           // generateDocument, previewDocument: name one by variantKey
             println("several variants match: ${e.tiedVariants}")
         KnownProblemSlugs.FORBIDDEN ->                   // any refused authorization
@@ -387,6 +387,10 @@ release a `merge-base-missing` problem asks to install first, read from that pro
 `isMergeBaseMissingProblem`, `behind` and `isCatalogVersionBehindProblem` (the versions a
 `catalog-version-behind` problem asks to name in `acknowledgedBehind`), `environments`, `pinnedBy`
 and `isReleaseInUseProblem` (what a `release-in-use` problem says still uses the release),
+`dependents`, `heldResources` and `isCatalogDraftInUseProblem` (what a `catalog-draft-in-use`
+problem says still relies on a draft `deleteCatalogRelease` would discard: the drafts of other
+catalogs that name it, as `CatalogDraftRef`, and the resources only it holds, as
+`resourceType/resourceKey`),
 `tiedVariants` and `isAmbiguousVariantProblem` (the variants an `ambiguous-variant` problem says
 match equally well), `requiredPermission`, `requiredPlatformRole`, `refusedTenantKey`,
 `refusalReason` and `isForbiddenProblem` (what a `forbidden` problem says was refused: a permission

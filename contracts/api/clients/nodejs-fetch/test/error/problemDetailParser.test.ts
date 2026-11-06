@@ -281,6 +281,39 @@ test('a release-in-use problem names what uses the release', () => {
   assert.deepEqual(problem.pinnedBy.map((r) => `${r.catalogKey}@${r.version}#${r.releaseId}`), ['invoices@2.1.0#q8w2e4rt'])
 })
 
+test('a catalog-draft-in-use problem names what relies on the draft, in order', () => {
+  const problem = parse({
+    type: 'https://epistola.app/errors/catalog-draft-in-use',
+    title: 'Catalog Draft In Use',
+    status: 409,
+    dependents: [
+      { registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'invoices', releaseId: 'q8w2e4rt', releaseName: 'Invoices 2027' },
+      'not-an-object',
+      { registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'letters', releaseId: 'x' },
+      { registry: 'registry.gemeente-x.nl', namespace: 'huisstijl', catalogKey: 'brieven', releaseId: 'h3v9p6db', releaseName: 'Brieven 2027' },
+    ],
+    heldResources: ['code-list/countries', 7, 'theme/house-style'],
+  }, 409)!
+  assert.equal(problem.typeSlug, KnownProblemSlugs.CATALOG_DRAFT_IN_USE)
+  assert.equal(problem.isCatalogDraftInUseProblem, true)
+  assert.equal(problem.isReleaseInUseProblem, false)
+  assert.deepEqual(problem.dependents.map((d) => `${d.registry}/${d.namespace}/${d.catalogKey}#${d.releaseId}=${d.releaseName}`), [
+    'exchange.epistola.app/acme-corp/invoices#q8w2e4rt=Invoices 2027',
+    'registry.gemeente-x.nl/huisstijl/brieven#h3v9p6db=Brieven 2027',
+  ])
+  assert.deepEqual(problem.heldResources, ['code-list/countries', 'theme/house-style'])
+})
+
+test('malformed dependents and heldResources yield nothing, and other problems report none', () => {
+  const malformed = parse({ type: 'https://epistola.app/errors/catalog-draft-in-use', title: 'Catalog Draft In Use', status: 409, dependents: { registry: 'x' }, heldResources: 'theme/x' }, 409)!
+  assert.deepEqual(malformed.dependents, [])
+  assert.deepEqual(malformed.heldResources, [])
+  const other = parse({ type: 'https://epistola.app/errors/conflict', title: 'Conflict', status: 409 }, 409)!
+  assert.deepEqual(other.dependents, [])
+  assert.deepEqual(other.heldResources, [])
+  assert.equal(other.isCatalogDraftInUseProblem, false)
+})
+
 test('a forbidden problem says what was refused', () => {
   const problem = parse({ type: 'https://epistola.app/errors/forbidden', title: 'Forbidden', status: 403, requiredPermission: 'TEMPLATE_EDIT', tenantKey: 'acme-corp' }, 403)!
   assert.equal(problem.isForbiddenProblem, true)

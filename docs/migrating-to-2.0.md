@@ -51,11 +51,14 @@ releases that came out after it started, and releasing it needs `acknowledgedBeh
 | `AttributeDto.displayName`, `CodeListDto.displayName` | `name` |
 | `VariantDto.title` | `name` (`UpdateVariantRequest.name` is no longer required) |
 | `DocumentDto.id`, `DocumentGenerationJobDto.id`, `DocumentGenerationItemDto.id` | `documentId`, `requestId`, `itemId` |
-| `draftLabel` | `releaseName` |
 | `PageMeta.totalElements`, `totalCount` | `total` |
 | `CollectMeta.count` | `resultCount` |
 | `ConsumerDto.updatedAt` | `lastModified` (required) |
 | `CatalogDto.releasedVersion` | `highestVersion` |
+| `VariantDto.hasDraft`, `publishedVersions` (also on `VariantSummaryDto`) | `status`, the variant's state in the release read (`new`, `modified`, `ready`, `released`) |
+| `StencilSummaryDto.latestPublishedVersion` | `status`, as for variants |
+| `StencilUsageDto.versionId`, `stencilVersion` | `fits` (whether the instance fits the stencil's content; false blocks the release) and `problems` |
+| `ImportCatalogResponse.installed`, `updated`, `failed`, `aborted` | `version` (the release installed), `newlyInstalled`, `installedDependencies`, `presentDependencies` |
 | `listImages?search=` | `listImages?q=` |
 | Enum values `PENDING`, `IN_PROGRESS`, `SINGLE`, `API_KEY`, … | `pending`, `in-progress`, `single`, `api-key`, … (lowercase, kebab-case). `PageFormat` keeps `A4`, `Letter`, `Custom` |
 | Template content `ThemeRef.themeId`, stencil node `stencilId`, image node `assetId` | `themeKey`, `stencilKey`, `imageKey` |
@@ -87,9 +90,8 @@ Other removals:
   which is now always present (`{}` when unconstrained).
 - `UpdateTemplateRequest.forceUpdate`.
 - `uploadImage`'s `sensitive` field.
-- `importCatalog`'s `catalogVersion`, `authoredMode` and `catalogType`.
+- `importCatalog`'s `authoredMode` and `catalogType`.
 - `CatalogType`, along with `catalogType` on attribute, code list, font and image DTOs.
-- `DeployReleaseRequest`.
 - The list `sort`/`direction` parameters that sorted by nothing. Only `listTemplates` sorts, by an
   enum.
 
@@ -105,7 +107,7 @@ This is the change most integrations need.
     release the environment serves is rendered.
   - With neither, the catalog's highest release is rendered, never unreleased changes.
   - In an environment that serves a draft, a request without a range renders that draft.
-  - `previewDocument` can render a draft directly (`draft`: its `releaseId`).
+  - `previewDocument` can render any release directly by its `releaseId`, a draft included.
 - **Attribute criteria** (`VariantSelectionAttribute`) are `{catalogKey, key, value, required}`.
   `catalogKey` is the dependency's alias, or omitted for the template's own catalog. The 1.x dotted
   `<catalog>.<key>` form and the tenant-wide lookup of a bare key are gone.
@@ -116,14 +118,15 @@ This is the change most integrations need.
   `listGenerationJobItems` (paged, filterable by `status`). An item no longer echoes its `data`.
   A batch holds at most 10000 items.
 - **Documents.** To filter `listDocuments` by `templateKey`, you must also name `namespace` and
-  `catalogKey`.
+  `catalogKey`. The PDF is downloaded from `GET /tenants/{tenantKey}/documents/{documentId}/content`
+  (`downloadDocument`), no longer from the document's own path, which `deleteDocument` keeps.
 
 ## 6. Errors
 
-- **Every problem has a registered type** under `https://epistola.app/errors/`, and there are 30
+- **Every problem has a registered type** under `https://epistola.app/errors/`, and there are 31
   new ones. Switch on the type's slug and fall back to the status for a type you do not know: new
   types may come in minor versions. A generic `conflict` is now often a specific type, such as
-  `catalog-read-only`, `catalog-version-behind`, `release-in-use`, `release-number-taken`,
+  `catalog-read-only`, `catalog-version-behind`, `catalog-draft-in-use`, `release-number-taken`,
   `resource-modified` or `catalog-draft-name-in-use`.
 - **`forbidden` (403)** may say what was refused: `requiredPermission`, `tenantKey`,
   `requiredPlatformRole` or `reason`. Suite's own 403 types (`permission-denied`, `access-denied`,
@@ -173,18 +176,17 @@ These limits are new in 2.0 and would have been a tightening later:
   - names are 1–100 characters and descriptions at most 2000;
   - an entry's `code` is 1–64 characters and its `label` 1–200;
   - a list holds at most 10000 entries, and `listCodeListEntries` is paged.
-- **Attributes:** names are 1–100 characters, and `allowedValues` holds at most 1000.
-  `description` is gone.
+- **Attributes:** names are 1–100 characters, and `allowedValues` holds at most 1000 entries, each
+  at most 255 characters. `description` is gone.
 - **Variants:** descriptions are at most 2000 characters, and attribute values at most 255.
-- **Themes:** names are 1–255 characters and descriptions at most 2000. `spacingUnit` is 0.5–16.
+- **Themes:** names are 1–255 characters and descriptions at most 2000. `spacingUnit` is 0.5–16,
+  and a theme has at most 100 block style presets.
 - **Version ranges:** at most 256 characters.
 - **Variant selection:** a variant has at most 50 attributes, a generation or preview request at
   most 50 attribute criteria, and each value at most 255 characters.
 - **Templates:** at most 100 data examples, each `name` at most 255 characters.
 - **Drafts:** at most 50 dependencies and 100 declared presets, and `acknowledgedBehind` at most
   1000 versions.
-- **Themes:** at most 100 block style presets.
-- **Attributes:** each `allowedValues` entry at most 255 characters.
 - **Images:** `mediaType` at most 255 characters.
 
 ## 10. Catalog archives (wire v8)
@@ -233,7 +235,9 @@ for example). `contracts/catalog/docs/catalog-compatibility.md` has the details.
 - **Result collectors** type `registry`, `namespace` and `catalogKey` as non-null, and surface
   `releaseId` and `releaseName`.
 - **Newer servers.** A later 2.x may add response members and enum values. The clients ignore an
-  unknown member. The Kotlin, Jakarta and .NET enums read an unknown value as
-  `unknown_default_open_api`, so an exhaustive `when` or `switch` over one needs a branch for it.
+  unknown member. The Kotlin, Jakarta and .NET enums read an unknown value as their unknown
+  constant (`unknown_default_open_api` on the wire; `UNKNOWN_DEFAULT_OPEN_API` in Kotlin and Jakarta,
+  `UnknownDefaultOpenApi` in .NET), so an exhaustive `when` or `switch` over one needs a branch for
+  it.
   The Python client keeps the value as received, and so does the Node.js client.
 - See the .NET, Python and Node.js client changelogs for the per-language details.
