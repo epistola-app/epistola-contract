@@ -38,7 +38,10 @@ not implement every part of 2.0 yet.
 - **Generation selects a release by `versionRange` and `environmentKey`** instead of `versionId`.
   Jobs, documents and collected results name the release they rendered (`version`, `releaseId`,
   `releaseName`). `getGenerationJobStatus` returns counts, and the new `listGenerationJobItems`
-  pages the items. A batch holds at most 10000 items.
+  pages the items. A batch holds at most 10000 items. `previewDocument` renders any release by its
+  `releaseId`, which is how a draft is previewed. A document's PDF is downloaded from
+  `…/documents/{documentId}/content` (`downloadDocument`), leaving the document's own path free for
+  its metadata in a later 2.x.
 - **Catalogs are identified by `registry`, `namespace` and `catalogKey`** (ADR 0003), in paths
   (`~` is the default registry) and in every body that named a catalog. A registry is `local` or a
   DNS name. References into another catalog use the alias its dependency declaration gives it.
@@ -57,12 +60,11 @@ not implement every part of 2.0 yet.
   deprecated `id` and `slug` members are removed. Key and number rules are named once, in
   `components/schemas/identifiers.yaml`.
 - **Consistent names.** A resource's own name is `name` (was `displayName` or `title`), a count is
-  `total`, and a last change is `lastModified`. `draftLabel` becomes `releaseName`, and document and
-  job ids become `documentId`, `requestId` and `itemId`. Every enum value is lowercase kebab-case.
+  `total`, and a last change is `lastModified`. Document and job ids become `documentId`, `requestId` and `itemId`. Every enum value is lowercase kebab-case.
   Fingerprints name their algorithm (`v6:<hex>`). Release numbers may carry a patch label
   (`1.3.1-gemeente-x.1`).
-- **Every problem has a registered type**, with 30 new ones, such as `catalog-version-behind`,
-  `release-in-use`, `resource-modified`, `ambiguous-variant` and `operation-not-implemented`. A
+- **Every problem has a registered type**, with 31 new ones, such as `catalog-version-behind`,
+  `catalog-draft-in-use`, `resource-modified`, `ambiguous-variant` and `operation-not-implemented`. A
   server answers only with registered types; anything else gets its status's generic type.
   `forbidden` says what was refused (`requiredPermission`, `requiredPlatformRole`, `tenantKey`,
   `reason`).
@@ -114,8 +116,7 @@ not implement every part of 2.0 yet.
   what scanning it does for a screen reader ("Pay this invoice online"), and `decorative` marks a
   code whose information is printed next to it. Both are optional; without them a renderer falls
   back to a text of its own. The `data-bound-link` example shows `alt`. A catalog that sets either is
-  refused with `TEMPLATE_NODE_PROPERTY_INVALID` by a validator from before this change.
-
+  refused with `TEMPLATE_NODE_PROPERTY_INVALID` by a catalog validator older than 2.0.0.
 - **Optimistic locking.** Every update returns `ETag` and accepts `If-Match` (412
   `resource-modified`), and every create returns `Location`. In the Jakarta client, use the
   `…WithHttpInfo` siblings to read them.
@@ -125,7 +126,7 @@ not implement every part of 2.0 yet.
 - **`x-authorization`.** The roles and permissions, machine-readable, held to every operation's
   requirements.
 - **Content:**
-  - template and variant `description`s;
+  - a template `description`;
   - a template's data contract on `createTemplate`;
   - a catalog's `defaultTheme` and declared `presets` (ADR 0007);
   - `tags` and producer `metadata` on every catalog resource;

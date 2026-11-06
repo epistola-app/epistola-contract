@@ -387,7 +387,7 @@ documents:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
-document-detail:
+document-content:
   parameters:
     - name: tenantKey
       in: path
@@ -406,7 +406,9 @@ document-detail:
   get:
     operationId: downloadDocument
     summary: Download a generated document
-    description: Download the PDF content of a generated document
+    description: |
+      Download the PDF content of a generated document. A job's items name their `documentId`
+      (`listGenerationJobItems`), as do collected results (`collectGenerationResults`).
     tags:
       - Generation
     x-required-permissions: [DOCUMENT_VIEW]
@@ -435,6 +437,22 @@ document-detail:
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+document-detail:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant (e.g., "acme-corp")
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - name: documentId
+      in: path
+      required: true
+      description: Document ID
+      schema:
+        type: string
+        format: uuid
 
   delete:
     operationId: deleteDocument

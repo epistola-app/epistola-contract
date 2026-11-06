@@ -31,6 +31,7 @@ from epistola_client_generated import (
 from epistola_client._generated.known_problem_slugs import KnownProblemSlugs
 from epistola_client.error import problem_types
 from epistola_client.error.problem_detail_exception import (
+    CatalogDraftRef,
     CatalogReleaseRef,
     MissingDependency,
     ProblemDetailException,
@@ -56,7 +57,8 @@ def parse_problem(
     (``ReleaseDependenciesMissingProblemDetail``), the ``unreleasedDependencies`` array
     (``ReleaseDependenciesUnreleasedProblemDetail``), the ``readOnlyReason`` string
     (``CatalogReadOnlyProblemDetail``), and the ``unresolvedConflicts`` array
-    (``MergeConflictsUnresolvedProblemDetail``), and, for a ``merge-base-missing`` problem only,
+    (``MergeConflictsUnresolvedProblemDetail``), the ``dependents`` and ``heldResources`` arrays
+    (``CatalogDraftInUseProblemDetail``), and, for a ``merge-base-missing`` problem only,
     the ``version`` and ``fingerprint`` strings (``MergeBaseMissingProblemDetail``). The generated models are independent,
     so the base fields and each extension are carried separately.
     """
@@ -122,6 +124,8 @@ def parse_problem(
         refused_tenant_key=_string(tree, "tenantKey") if forbidden else None,
         required_platform_role=_string(tree, "requiredPlatformRole") if forbidden else None,
         refusal_reason=_string(tree, "reason") if forbidden else None,
+        dependents=_draft_refs(tree, "dependents"),
+        held_resources=_strings(tree, "heldResources"),
     )
 
 
@@ -183,6 +187,29 @@ def _release_refs(tree: Dict[str, Any], member: str) -> List[CatalogReleaseRef]:
             return []
         releases.append(CatalogReleaseRef(*values))
     return releases
+
+
+def _draft_refs(tree: Dict[str, Any], member: str) -> List[CatalogDraftRef]:
+    """A member listing drafts named in full, or ``[]`` when absent or malformed.
+
+    As with :func:`_missing_dependencies`, an entry missing one of its members makes the member
+    yield nothing.
+    """
+    raw = tree.get(member)
+    if not isinstance(raw, list):
+        return []
+    drafts: List[CatalogDraftRef] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        values = [
+            entry.get(name)
+            for name in ("registry", "namespace", "catalogKey", "releaseId", "releaseName")
+        ]
+        if not all(isinstance(value, str) for value in values):
+            return []
+        drafts.append(CatalogDraftRef(*values))
+    return drafts
 
 
 def _unreleased_dependencies(tree: Dict[str, Any]) -> List[UnreleasedDependency]:

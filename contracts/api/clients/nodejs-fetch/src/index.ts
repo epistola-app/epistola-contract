@@ -33,6 +33,7 @@ export { JwtSigner, JwtSignerBuilder, type JwtAlgorithm } from './auth/jwtSigner
 export { ClientIdentity, ClientIdentityBuilder } from './identity/clientIdentity.js'
 export {
   ProblemDetailException,
+  type CatalogDraftRef,
   type CatalogReleaseRef,
   type MissingDependency,
   type UnreleasedDependency,

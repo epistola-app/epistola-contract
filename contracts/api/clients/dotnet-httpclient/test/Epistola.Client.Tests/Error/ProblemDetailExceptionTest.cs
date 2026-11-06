@@ -147,6 +147,9 @@ public class ProblemDetailExceptionTest
         Assert.Empty(ex.MissingDependencies);
         Assert.False(ex.IsReleaseDependenciesUnreleasedProblem);
         Assert.Empty(ex.UnreleasedDependencies);
+        Assert.False(ex.IsCatalogDraftInUseProblem);
+        Assert.Empty(ex.Dependents);
+        Assert.Empty(ex.HeldResources);
     }
 
     [Fact]
@@ -168,5 +171,28 @@ public class ProblemDetailExceptionTest
         Assert.False(ex.IsReleaseDependenciesMissingProblem);
         Assert.Equal(KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED, ex.TypeSlug);
         Assert.Equal("House style 2027", ex.UnreleasedDependencies[0].ReleaseName);
+    }
+
+    [Fact]
+    public void CatalogDraftInUseProblemExposesWhatReliesOnTheDraft()
+    {
+        var ex = new ProblemDetailException(
+            new ProblemDetail(type: "https://epistola.app/errors/catalog-draft-in-use", title: "Catalog Draft In Use", status: 409),
+            new List<ValidationError>(),
+            new Dictionary<string, List<DataModelValidationError>>(),
+            HttpStatusCode.Conflict,
+            "{}",
+            headers: null,
+            dependents: new List<CatalogDraftRef>
+            {
+                new("exchange.epistola.app", "acme-corp", "invoices", "q8w2e4rt", "Invoices 2027"),
+            },
+            heldResources: new List<string> { "theme/house-style" });
+
+        Assert.True(ex.IsCatalogDraftInUseProblem);
+        Assert.False(ex.IsReleaseInUseProblem);
+        Assert.Equal(KnownProblemSlugs.CATALOG_DRAFT_IN_USE, ex.TypeSlug);
+        Assert.Equal("Invoices 2027", ex.Dependents[0].ReleaseName);
+        Assert.Equal(new[] { "theme/house-style" }, ex.HeldResources);
     }
 }

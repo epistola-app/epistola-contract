@@ -62,6 +62,8 @@ public final class ProblemDetailParser {
         private final String refusedTenantKey;
         private final String requiredPlatformRole;
         private final String refusalReason;
+        private final List<CatalogDraftRef> dependents;
+        private final List<String> heldResources;
 
         ParsedProblem(
                 ProblemDetail problem,
@@ -82,8 +84,12 @@ public final class ProblemDetailParser {
                 String requiredPermission,
                 String refusedTenantKey,
                 String requiredPlatformRole,
-                String refusalReason) {
+                String refusalReason,
+                List<CatalogDraftRef> dependents,
+                List<String> heldResources) {
             this.problem = problem;
+            this.dependents = dependents;
+            this.heldResources = heldResources;
             this.requiredPermission = requiredPermission;
             this.refusedTenantKey = refusedTenantKey;
             this.requiredPlatformRole = requiredPlatformRole;
@@ -219,6 +225,16 @@ public final class ProblemDetailParser {
         public String refusalReason() {
             return refusalReason;
         }
+
+        /** The drafts a {@code catalog-draft-in-use} problem says depend on the draft; empty when absent. */
+        public List<CatalogDraftRef> dependents() {
+            return dependents;
+        }
+
+        /** The resources a {@code catalog-draft-in-use} problem says the draft holds; empty when absent. */
+        public List<String> heldResources() {
+            return heldResources;
+        }
     }
 
     /**
@@ -279,7 +295,9 @@ public final class ProblemDetailParser {
                     forbidden ? stringMember(root, ProblemExtensionMembers.REQUIRED_PERMISSION) : null,
                     forbidden ? stringMember(root, ProblemExtensionMembers.TENANT_KEY) : null,
                     forbidden ? stringMember(root, ProblemExtensionMembers.REQUIRED_PLATFORM_ROLE) : null,
-                    forbidden ? stringMember(root, ProblemExtensionMembers.REASON) : null);
+                    forbidden ? stringMember(root, ProblemExtensionMembers.REASON) : null,
+                    readDraftRefs(root, ProblemExtensionMembers.DEPENDENTS),
+                    readStrings(root, ProblemExtensionMembers.HELD_RESOURCES));
         } catch (RuntimeException e) {
             return null;
         }
@@ -378,6 +396,32 @@ public final class ProblemDetailParser {
                     stringMember(release, "releaseId")));
         }
         return releases;
+    }
+
+    /**
+     * Read with JSON-P, as {@link #readMissingDependencies} is, so one malformed entry does not
+     * cost the whole problem. An entry that is not an object is skipped; a member that is not a
+     * string reads as {@code null}.
+     */
+    private static List<CatalogDraftRef> readDraftRefs(JsonObject root, String member) {
+        JsonValue value = root.get(member);
+        if (value == null || value.getValueType() != JsonValue.ValueType.ARRAY) {
+            return Collections.emptyList();
+        }
+        List<CatalogDraftRef> drafts = new ArrayList<>();
+        for (JsonValue entry : value.asJsonArray()) {
+            if (entry.getValueType() != JsonValue.ValueType.OBJECT) {
+                continue;
+            }
+            JsonObject draft = entry.asJsonObject();
+            drafts.add(new CatalogDraftRef(
+                    stringMember(draft, "registry"),
+                    stringMember(draft, "namespace"),
+                    stringMember(draft, "catalogKey"),
+                    stringMember(draft, "releaseId"),
+                    stringMember(draft, "releaseName")));
+        }
+        return drafts;
     }
 
     /** An extension member that is an array of strings; entries that are not strings are skipped. */

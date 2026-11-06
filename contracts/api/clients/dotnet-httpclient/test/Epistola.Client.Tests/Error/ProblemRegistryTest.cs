@@ -53,6 +53,8 @@ public class ProblemRegistryTest
         Assert.Equal("environment-deployment-refused", KnownProblemSlugs.ENVIRONMENT_DEPLOYMENT_REFUSED);
         Assert.Equal("resource-modified", KnownProblemSlugs.RESOURCE_MODIFIED);
         Assert.Equal("catalog-source-unavailable", KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE);
+        Assert.Equal("release-in-use", KnownProblemSlugs.RELEASE_IN_USE);
+        Assert.Equal("catalog-draft-in-use", KnownProblemSlugs.CATALOG_DRAFT_IN_USE);
     }
 
     [Fact]

@@ -48,6 +48,7 @@ const ACTIONS = {
   'generate-document': generateDocument,
   'update-consumer': updateConsumer,
   'download-document': downloadDocument,
+  'preview-document': previewDocument,
   'list-documents': listDocuments,
   'get-generation-job-status': getGenerationJobStatus,
   'list-generation-job-items': listGenerationJobItems,
@@ -295,6 +296,22 @@ async function downloadDocument(baseUrl, config) {
 }
 
 /**
+ * Previews a document of the release `config.releaseId` and reports what arrived, byte for byte.
+ * Only the members the scenario sets are sent.
+ */
+async function previewDocument(baseUrl, config) {
+  const request = {
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+    templateKey: config.templateKey,
+    data: config.data,
+    ...pick(config, ['registry', 'releaseId']),
+  }
+  const blob = await new GenerationApi(client(baseUrl, config)).previewDocument({ tenantKey: config.tenantKey, previewDocumentRequest: request })
+  await reportBytes(baseUrl, blob)
+}
+
+/**
  * Lists documents with the catalog and template filters the scenario sets, each sent only when set,
  * and reports what the client made of the page.
  */
@@ -473,6 +490,11 @@ async function installCatalogRelease(baseUrl, config) {
 }
 
 /** An installed release as `registry/namespace/catalogKey@version#releaseId`. */
+/** A draft named in full, as `registry/namespace/catalogKey#releaseId=releaseName`. */
+function draftRef(draft) {
+  return `${show(draft.registry)}/${show(draft.namespace)}/${show(draft.catalogKey)}#${show(draft.releaseId)}=${show(draft.releaseName)}`
+}
+
 function installedRelease(release) {
   return `${release.registry}/${release.namespace}/${release.catalogKey}@${release.version}#${release.releaseId}`
 }
@@ -739,8 +761,10 @@ async function previewCatalogDraftRelease(baseUrl, config) {
   })
 }
 
-/** Discards a draft; the 204 has no body to parse. */
-/** Deletes a release. A refusal is reported by its problem, with what still uses the release. */
+/**
+ * Discards a draft; the 204 has no body to parse. A refusal is reported by its problem, with what
+ * still relies on the draft.
+ */
 async function deleteCatalogRelease(baseUrl, config) {
   try {
     await new CatalogsApi(client(baseUrl, config)).deleteCatalogRelease({
@@ -755,8 +779,8 @@ async function deleteCatalogRelease(baseUrl, config) {
     await report(baseUrl, {
       problemTypeSlug: error.typeSlug ?? '<null>',
       problemStatus: error.statusCode,
-      problemEnvironments: error.environments.join(','),
-      problemPinnedBy: error.pinnedBy.map(installedRelease).join(','),
+      problemDependents: error.dependents.map(draftRef).join('|'),
+      problemHeldResources: error.heldResources.join(','),
     })
   }
 }
@@ -800,7 +824,7 @@ async function releaseCatalogDraft(baseUrl, config) {
     releaseId: show(response.release.releaseId),
     contentHash: show(response.release.contentHash),
     unchangedContent: show(response.unchangedContent),
-    draftsBehind: response.draftsBehind.map(show).join('|'),
+    draftsBehind: response.draftsBehind.map(draftRef).join('|'),
     releasedDependencies: response.releasedDependencies
       .map((d) => `${show(d.registry)}/${show(d.namespace)}/${show(d.catalogKey)}@${show(d.version)}`)
       .join(','),

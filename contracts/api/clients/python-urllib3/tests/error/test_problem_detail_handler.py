@@ -7,6 +7,7 @@
 import json
 
 from epistola_client import (
+    CatalogDraftRef,
     CatalogReleaseRef,
     KnownProblemSlugs,
     KnownValidationCodes,
@@ -441,6 +442,70 @@ def test_a_release_in_use_problem_names_what_uses_the_release():
     assert exc.is_release_in_use_problem
     assert exc.environments == ["production"]
     assert exc.pinned_by == [CatalogReleaseRef("exchange.epistola.app", "acme-corp", "invoices", "2.1.0", "q8w2e4rt")]
+
+
+def _catalog_draft_in_use(dependents, held_resources) -> str:
+    body = {
+        "type": "https://epistola.app/errors/catalog-draft-in-use",
+        "title": "Catalog Draft In Use",
+        "status": 409,
+    }
+    if dependents is not None:
+        body["dependents"] = dependents
+    if held_resources is not None:
+        body["heldResources"] = held_resources
+    return json.dumps(body)
+
+
+def test_a_catalog_draft_in_use_problem_names_what_relies_on_the_draft_in_order():
+    body = _catalog_draft_in_use(
+        [
+            {"registry": "exchange.epistola.app", "namespace": "acme-corp", "catalogKey": "invoices", "releaseId": "q8w2e4rt", "releaseName": "Invoices 2027"},
+            "not an object",
+            {"registry": "registry.gemeente-x.nl", "namespace": "huisstijl", "catalogKey": "brieven", "releaseId": "h3v9p6db", "releaseName": "Brieven 2027"},
+        ],
+        ["code-list/countries", 7, "theme/house-style"],
+    )
+    exc = parse_problem(body, 409)
+    assert exc is not None
+    assert exc.type_slug == KnownProblemSlugs.CATALOG_DRAFT_IN_USE
+    assert exc.is_catalog_draft_in_use_problem
+    assert not exc.is_release_in_use_problem
+    assert exc.dependents == [
+        CatalogDraftRef("exchange.epistola.app", "acme-corp", "invoices", "q8w2e4rt", "Invoices 2027"),
+        CatalogDraftRef("registry.gemeente-x.nl", "huisstijl", "brieven", "h3v9p6db", "Brieven 2027"),
+    ]
+    assert exc.dependents[0].catalog_key == "invoices"
+    assert exc.held_resources == ["code-list/countries", "theme/house-style"]
+
+
+def test_another_problem_reports_nothing_relying_on_a_draft():
+    exc = parse_problem(json.dumps({"type": "https://epistola.app/errors/conflict", "title": "Conflict", "status": 409}), 409)
+    assert exc is not None
+    assert exc.dependents == []
+    assert exc.held_resources == []
+    assert not exc.is_catalog_draft_in_use_problem
+
+
+def test_a_malformed_dependents_member_yields_nothing_rather_than_a_guess():
+    not_arrays = parse_problem(_catalog_draft_in_use({"registry": "acme.com"}, "theme/x"), 409)
+    assert not_arrays is not None
+    assert not_arrays.dependents == []
+    assert not_arrays.held_resources == []
+
+    incomplete_entry = parse_problem(
+        _catalog_draft_in_use(
+            [
+                {"registry": "exchange.epistola.app", "namespace": "acme-corp", "catalogKey": "invoices", "releaseId": "q8w2e4rt", "releaseName": "Invoices 2027"},
+                {"registry": "exchange.epistola.app", "namespace": "acme-corp", "catalogKey": "letters", "releaseId": "x"},
+            ],
+            [],
+        ),
+        409,
+    )
+    assert incomplete_entry is not None
+    assert incomplete_entry.is_catalog_draft_in_use_problem
+    assert incomplete_entry.dependents == []
 
 
 def test_an_ambiguous_variant_problem_lists_the_tied_variants():

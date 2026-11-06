@@ -1,0 +1,61 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: preview-document-release
+title: A preview names the release it renders by its releaseId, and arrives byte for byte
+why: >
+  `previewDocument` renders one document synchronously, and is how a draft is previewed: a version
+  range never matches a draft. It names the release to render in `releaseId`, a draft or a released
+  release alike. The 2.0 pre-releases called the member `draft` and allowed drafts only; a client still
+  sending `draft` has the server render the catalog's highest release instead of the one the author
+  is looking at, with a 200 and nothing to tell them apart.
+
+  So the body must carry `releaseId`, exactly as given, and no `draft`. Nothing selects a version
+  range or an environment, so neither is sent: they are mutually exclusive with `releaseId`. The
+  answer is a PDF, held to the same byte-for-byte rule as a downloaded document, since the fixture
+  carries bytes outside ASCII that a client decoding it as text would mangle.
+
+action:
+  name: preview-document
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantKey: acme-corp
+    namespace: acme-corp
+    catalogKey: letters
+    templateKey: invoice
+    releaseId: d7k2m9px
+    data:
+      customerName: Acme B.V.
+
+script:
+  - status: 200
+    contentType: application/pdf
+    # "%PDF-1.7\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<<>>\nendobj\n%%EOF\n"
+    bodyBase64: JVBERi0xLjcKJeLjz9MKMSAwIG9iago8PD4+CmVuZG9iagolJUVPRgo=
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/documents/preview
+      headers:
+        Content-Type:
+          matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
+        Accept:
+          matches: '^(?=.*(?:application/pdf|application/\*|\*/\*))(?=.*(?:application/problem\+json|\*/\*))'
+      body:
+        json:
+          namespace: acme-corp
+          catalogKey: letters
+          templateKey: invoice
+          releaseId: d7k2m9px
+          data:
+            customerName: Acme B.V.
+        jsonAbsent: [draft]
+        jsonNullOrAbsent: [versionRange, environmentKey, variantKey, registry]
+  report:
+    byteLength: 41
+    sha256: 5f402992d916d5e8f644a7881f81e4b0bfa9d78311b352bb96b8d9224a599990

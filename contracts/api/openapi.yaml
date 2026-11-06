@@ -54,8 +54,8 @@ info:
     ## Getting started
 
     1. **Get an API key** from a tenant manager. A key belongs to one tenant and carries the roles it
-       was issued with: `CONTENT_VIEWER` to find templates and read jobs and documents, and
-       `DOCUMENT_GENERATOR` to generate.
+       was issued with: `CONTENT_VIEWER` to find templates, and `DOCUMENT_GENERATOR` to generate
+       and to read jobs and documents (`DOCUMENT_READER` reads them without generating).
     2. **Send these headers** on every request (the client libraries set all but the key):
 
        ```
@@ -80,10 +80,10 @@ info:
 
        It answers `202` with a `requestId` and, in `Location`, the job's address. Without a
        `versionRange` or an `environmentKey`, the catalog's highest release renders.
-    5. **Poll the job**, `GET /tenants/{tenantKey}/documents/jobs/{requestId}`, until
-       `request.status` is `completed` (or `failed` or `cancelled`). Each item names its
-       `documentId`.
-    6. **Download** the PDF: `GET /tenants/{tenantKey}/documents/{documentId}`.
+    5. **Poll the job**, `GET /tenants/{tenantKey}/documents/jobs/{requestId}`, until its `status`
+       is `completed` (or `failed` or `cancelled`). Its items,
+       `GET /tenants/{tenantKey}/documents/jobs/{requestId}/items`, each name their `documentId`.
+    6. **Download** the PDF: `GET /tenants/{tenantKey}/documents/{documentId}/content`.
 
     `validateTemplateData` checks data against a template's contract before you submit it, and
     `previewDocument` renders one document synchronously, for previews only. For high volume, poll no
@@ -284,7 +284,7 @@ info:
     What a revision covers:
 
     - a template: its own properties, data contract and data examples;
-    - a variant: its title, description, attributes and template model, so `getVariant` and
+    - a variant: its name, description, attributes and template model, so `getVariant` and
       `getVariantContent` return the same `ETag`, and `updateVariant` and `updateVariantContent` take
       either;
     - a release: its name, default theme, presets and dependency declarations, so
@@ -311,7 +311,7 @@ info:
     Each operation names the permissions it requires (`x-required-permissions`), such as
     `TEMPLATE_VIEW`, `TEMPLATE_EDIT`, `DOCUMENT_GENERATE` and `CATALOG_MANAGE`. A caller has them
     through its tenant roles (`CONTENT_VIEWER`, `CONTENT_AUTHOR`, `DOCUMENT_GENERATOR`,
-    `CONTENT_PUBLISHER`, `TENANT_ADMINISTRATOR`), the roles stored on its API key. Managing tenants
+    `DOCUMENT_READER`, `CONTENT_PUBLISHER`, `TENANT_ADMINISTRATOR`), the roles stored on its API key. Managing tenants
     needs the platform role `TENANT_MANAGER`. A request member that needs a permission beyond its
     operation's says so in its description: changing a quality binding (`quality`, alpha) needs
     `QUALITY_EDIT` as well.
@@ -371,8 +371,7 @@ info:
     Operations and members marked `x-experimental: true`, the consumer model (Bearer JWT and the
     Consumers API) among them, may still change. Epistola Suite, the server that implements this
     contract, may not implement them yet, nor every part of the rest: installing missing dependency
-    releases when deploying, recording who requested a document, an attribute's `description`,
-    listing a stencil's usage in a released release, and a dependency alias other than the
+    releases when deploying, recording who requested a document, listing a stencil's usage in a released release, and a dependency alias other than the
     catalog's key among them. An operation a server does not implement yet answers 501
     `operation-not-implemented`.
   version: "2.0.0"
@@ -670,7 +669,15 @@ x-problem-types:
       schema: ReleaseInUseProblemDetail
       description: >-
         The release cannot be deleted while something uses it: `environments` deploy it, and
-        `pinnedBy` lists the releases of other catalogs that render with it.
+        `pinnedBy` lists the releases of other catalogs that render with it. No operation deletes a
+        released release yet; discarding a draft is refused with `catalog-draft-in-use`.
+    - slug: catalog-draft-in-use
+      status: 409
+      schema: CatalogDraftInUseProblemDetail
+      description: >-
+        The draft cannot be discarded while something outside it relies on it (`deleteCatalogRelease`):
+        `dependents` lists the drafts of other catalogs whose dependency declarations name it, and
+        `heldResources` the resources only it holds that something outside it still uses.
     - slug: catalog-draft-name-in-use
       status: 409
       schema: ProblemDetail
@@ -1026,10 +1033,10 @@ x-validation-codes:
       kind: domain
       description: >-
         The tenant does not hold the namespace the catalog is named or released in.
-    - code: catalog-namespace-local
+    - code: catalog-registry-local
       kind: domain
       description: >-
-        A catalog in the `local` namespace never leaves the organisation, so it cannot be published.
+        A catalog in the `local` registry never leaves the organisation, so it cannot be published.
     - code: catalog-key-ambiguous
       kind: domain
       description: >-
@@ -1360,6 +1367,8 @@ paths:
     $ref: './paths/generation.yaml#/documents'
   /tenants/{tenantKey}/documents/{documentId}:
     $ref: './paths/generation.yaml#/document-detail'
+  /tenants/{tenantKey}/documents/{documentId}/content:
+    $ref: './paths/generation.yaml#/document-content'
 
   # Generation Result Collection
   /tenants/{tenantKey}/generation/collect:
@@ -1624,6 +1633,8 @@ components:
       $ref: './components/schemas/catalogs.yaml#/ReleasedDependencyDto'
     UnreleasedCatalogDependency:
       $ref: './components/schemas/catalogs.yaml#/UnreleasedCatalogDependency'
+    CatalogDraftRefDto:
+      $ref: './components/schemas/catalogs.yaml#/CatalogDraftRefDto'
 
     # Code list schemas
     CodeListDto:
@@ -1768,6 +1779,8 @@ components:
       $ref: './components/responses/errors.yaml#/CatalogVersionBehindProblemDetail'
     ReleaseInUseProblemDetail:
       $ref: './components/responses/errors.yaml#/ReleaseInUseProblemDetail'
+    CatalogDraftInUseProblemDetail:
+      $ref: './components/responses/errors.yaml#/CatalogDraftInUseProblemDetail'
     AmbiguousVariantProblemDetail:
       $ref: './components/responses/errors.yaml#/AmbiguousVariantProblemDetail'
     MergeConflictsUnresolvedProblemDetail:

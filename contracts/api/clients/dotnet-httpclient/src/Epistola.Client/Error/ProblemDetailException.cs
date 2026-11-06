@@ -121,8 +121,10 @@ public class ProblemDetailException : ApiException
     public IReadOnlyList<string> Behind { get; }
 
     /// <summary>
-    /// The environments a <c>release-in-use</c> problem (409, from <c>DeleteCatalogRelease</c>)
-    /// says deploy the release; empty for any other problem, and when none does.
+    /// The environments a <c>release-in-use</c> problem (409) says deploy the release; empty for any
+    /// other problem, and when none does. No operation deletes a released release yet; discarding a
+    /// draft is refused with <c>catalog-draft-in-use</c> (<see cref="Dependents"/>,
+    /// <see cref="HeldResources"/>).
     /// </summary>
     public IReadOnlyList<string> Environments { get; }
 
@@ -131,6 +133,21 @@ public class ProblemDetailException : ApiException
     /// render with it; empty for any other problem. A malformed entry is skipped.
     /// </summary>
     public IReadOnlyList<CatalogReleaseRef> PinnedBy { get; }
+
+    /// <summary>
+    /// The drafts of other catalogs a <c>catalog-draft-in-use</c> problem (409, from
+    /// <c>DeleteCatalogRelease</c>) says name the draft in their dependency declarations, in the
+    /// order the server listed them; empty for any other problem, and when none does. Change their
+    /// declarations, or discard them, first. A malformed entry is skipped.
+    /// </summary>
+    public IReadOnlyList<CatalogDraftRef> Dependents { get; }
+
+    /// <summary>
+    /// The resources a <c>catalog-draft-in-use</c> problem says only the draft holds while something
+    /// outside it still uses them, each as <c>resourceType/resourceKey</c> (<c>theme/house-style</c>);
+    /// empty for any other problem, and when none. An entry that is not a string is skipped.
+    /// </summary>
+    public IReadOnlyList<string> HeldResources { get; }
 
     /// <summary>
     /// The keys of the variants an <c>ambiguous-variant</c> problem (409, from generating or
@@ -191,7 +208,9 @@ public class ProblemDetailException : ApiException
         string? requiredPermission = null,
         string? refusedTenantKey = null,
         string? requiredPlatformRole = null,
-        string? refusalReason = null)
+        string? refusalReason = null,
+        IReadOnlyList<CatalogDraftRef>? dependents = null,
+        IReadOnlyList<string>? heldResources = null)
         // ApiException is generated and nullable-oblivious; its errorContent/headers are
         // optional and accept null at runtime, so bridge the nullable values with `!`.
         : base((int)statusCode, BuildMessage(statusCode, problem), rawBody!, headers!)
@@ -215,6 +234,8 @@ public class ProblemDetailException : ApiException
         RefusedTenantKey = refusedTenantKey;
         RequiredPlatformRole = requiredPlatformRole;
         RefusalReason = refusalReason;
+        Dependents = dependents ?? new List<CatalogDraftRef>();
+        HeldResources = heldResources ?? new List<string>();
         StatusCode = statusCode;
     }
 
@@ -273,6 +294,9 @@ public class ProblemDetailException : ApiException
 
     /// <summary>True when this problem said the release cannot be deleted while something uses it.</summary>
     public bool IsReleaseInUseProblem => TypeSlug == KnownProblemSlugs.RELEASE_IN_USE;
+
+    /// <summary>True when this problem said the draft cannot be discarded while something relies on it.</summary>
+    public bool IsCatalogDraftInUseProblem => TypeSlug == KnownProblemSlugs.CATALOG_DRAFT_IN_USE;
 
     /// <summary>True when this problem said several variants match equally well.</summary>
     public bool IsAmbiguousVariantProblem => TypeSlug == KnownProblemSlugs.AMBIGUOUS_VARIANT;

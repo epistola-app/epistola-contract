@@ -313,24 +313,24 @@ class ModelValidationTest {
     }
 
     @Test
-    void a_preview_names_a_draft_by_its_id_never_by_a_number() {
+    void a_preview_names_a_release_by_its_id_never_by_a_number() {
         ModelValidation.validate(previewOf("r4t8w2nc"));
-        for (String draft : List.of("1.4.0", "Next", "0193A6B2-8A10-7D2E-8B3C-4D5E6F708192", "abc")) {
+        for (String releaseId : List.of("1.4.0", "Next", "0193A6B2-8A10-7D2E-8B3C-4D5E6F708192", "abc")) {
             assertTrue(assertThrows(
                             IllegalArgumentException.class,
-                            () -> ModelValidation.validate(previewOf(draft)),
-                            "expected a preview of draft '" + draft + "' to fail")
+                            () -> ModelValidation.validate(previewOf(releaseId)),
+                            "expected a preview of release '" + releaseId + "' to fail")
                     .getMessage()
-                    .startsWith("draft: "));
+                    .startsWith("releaseId: "));
         }
     }
 
-    private static PreviewDocumentRequest previewOf(String draft) {
+    private static PreviewDocumentRequest previewOf(String releaseId) {
         return new PreviewDocumentRequest()
                 .namespace("acme-corp")
                 .catalogKey("letters")
                 .templateKey("invoice")
-                .draft(draft)
+                .releaseId(releaseId)
                 .data(Map.of());
     }
 

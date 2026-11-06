@@ -61,8 +61,14 @@ test('ping asks for the problem document too: every operation declares a 400', (
 
 test('a literal segment beats a parameter where both templates match', () => {
   assert.equal(findOperation('GET', '/tenants/acme/documents/jobs')!.operationId, 'listGenerationJobs')
-  assert.equal(findOperation('GET', '/tenants/acme/documents/99999999-9999-4999-8999-000000000001')!.operationId, 'downloadDocument')
-  assert.equal(findOperation('GET', '/tenants/acme/documents/99999999-9999-4999-8999-000000000001')!.accept, 'application/pdf, application/problem+json')
+  assert.equal(findOperation('GET', '/tenants/acme/documents/jobs/99999999-9999-4999-8999-000000000002')!.operationId, 'getGenerationJobStatus')
+  // Both templates match, with as many literals each: the earlier literal (`jobs`) wins.
+  assert.equal(findOperation('GET', '/tenants/acme/documents/jobs/content')!.operationId, 'getGenerationJobStatus')
+  assert.equal(findOperation('GET', '/tenants/acme/documents/99999999-9999-4999-8999-000000000001/content')!.operationId, 'downloadDocument')
+  assert.equal(findOperation('GET', '/tenants/acme/documents/99999999-9999-4999-8999-000000000001/content')!.accept, 'application/pdf, application/problem+json')
+  // A document's content is a sub-resource; the document itself is only deleted.
+  assert.equal(findOperation('DELETE', '/tenants/acme/documents/99999999-9999-4999-8999-000000000001')!.operationId, 'deleteDocument')
+  assert.equal(findOperation('GET', '/tenants/acme/documents/99999999-9999-4999-8999-000000000001'), undefined)
   assert.equal(findOperation('POST', '/tenants/acme/consumers/register')!.operationId, 'registerConsumer')
 })
 

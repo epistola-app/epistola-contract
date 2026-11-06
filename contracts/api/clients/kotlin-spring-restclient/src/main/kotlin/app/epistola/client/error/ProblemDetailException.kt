@@ -213,8 +213,9 @@ class ProblemDetailException(
     val isCatalogVersionBehindProblem: Boolean get() = typeSlug == KnownProblemSlugs.CATALOG_VERSION_BEHIND
 
     /**
-     * The environments a `release-in-use` problem (409, from `deleteCatalogRelease`) says deploy the
-     * release; empty for any other problem, and when none does.
+     * The environments a `release-in-use` problem (409) says deploy the release; empty for any other
+     * problem, and when none does. No operation deletes a released release yet; discarding a draft
+     * is refused with `catalog-draft-in-use` ([dependents], [heldResources]).
      */
     val environments: List<String>
         get() = (extensions[ProblemExtensionMembers.ENVIRONMENTS] as? List<*>).orEmpty().filterIsInstance<String>()
@@ -227,6 +228,32 @@ class ProblemDetailException(
 
     /** True when this problem said the release cannot be deleted while something uses it. */
     val isReleaseInUseProblem: Boolean get() = typeSlug == KnownProblemSlugs.RELEASE_IN_USE
+
+    /**
+     * The drafts of other catalogs a `catalog-draft-in-use` problem (409, from
+     * `deleteCatalogRelease`) says name the draft in their dependency declarations, in the order the
+     * server listed them; empty for any other problem, and when none does. Change their
+     * declarations, or discard them, first.
+     *
+     * An entry missing one of its five members, or carrying one that is not a string, is skipped.
+     */
+    val dependents: List<CatalogDraftRef>
+        get() {
+            val raw = extensions[ProblemExtensionMembers.DEPENDENTS] as? List<*> ?: return emptyList()
+            return raw.mapNotNull { CatalogDraftRef.fromMember(it) }
+        }
+
+    /**
+     * The resources a `catalog-draft-in-use` problem says only the draft holds while something
+     * outside it still uses them, each as `resourceType/resourceKey` (`theme/house-style`), in the
+     * order the server listed them; empty for any other problem, and when none. An entry that is
+     * not a string is skipped.
+     */
+    val heldResources: List<String>
+        get() = (extensions[ProblemExtensionMembers.HELD_RESOURCES] as? List<*>).orEmpty().filterIsInstance<String>()
+
+    /** True when this problem said the draft cannot be discarded while something relies on it. */
+    val isCatalogDraftInUseProblem: Boolean get() = typeSlug == KnownProblemSlugs.CATALOG_DRAFT_IN_USE
 
     /**
      * The keys of the variants an `ambiguous-variant` problem (409, from generating or previewing a

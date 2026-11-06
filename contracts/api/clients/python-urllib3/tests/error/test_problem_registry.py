@@ -49,6 +49,8 @@ EXPECTED_SLUGS = {
     "UNSUPPORTED_MEDIA_TYPE": "unsupported-media-type",
     "INTERNAL_ERROR": "internal-error",
     "CATALOG_SOURCE_UNAVAILABLE": "catalog-source-unavailable",
+    "RELEASE_IN_USE": "release-in-use",
+    "CATALOG_DRAFT_IN_USE": "catalog-draft-in-use",
 }
 
 

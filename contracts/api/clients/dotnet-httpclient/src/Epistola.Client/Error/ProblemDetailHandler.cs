@@ -91,7 +91,9 @@ public sealed class ProblemDetailHandler : DelegatingHandler
             requiredPermission: parsed.RequiredPermission,
             refusedTenantKey: parsed.RefusedTenantKey,
             requiredPlatformRole: parsed.RequiredPlatformRole,
-            refusalReason: parsed.RefusalReason);
+            refusalReason: parsed.RefusalReason,
+            dependents: parsed.Dependents,
+            heldResources: parsed.HeldResources);
     }
 
     /// <summary>
@@ -100,8 +102,9 @@ public sealed class ProblemDetailHandler : DelegatingHandler
     /// <c>missingFields</c> / <c>invalidFields</c> arrays a <c>template-data-invalid</c> problem
     /// carries, the <c>missingDependencies</c> array of a <c>release-dependencies-missing</c>
     /// problem, the <c>unreleasedDependencies</c> array of a
-    /// <c>release-dependencies-unreleased</c> problem, and the <c>readOnlyReason</c> of a
-    /// <c>catalog-read-only</c> problem. Returns <c>null</c> on any parse failure. Internal and self-contained so it can be
+    /// <c>release-dependencies-unreleased</c> problem, the <c>readOnlyReason</c> of a
+    /// <c>catalog-read-only</c> problem, and the <c>dependents</c> / <c>heldResources</c> of a
+    /// <c>catalog-draft-in-use</c> problem, among the other members the contract models. Returns <c>null</c> on any parse failure. Internal and self-contained so it can be
     /// unit-tested without a live server.
     /// </summary>
     internal static ParsedProblem? ParseProblem(string body)
@@ -153,7 +156,9 @@ public sealed class ProblemDetailHandler : DelegatingHandler
                 forbidden ? StringMember(tree, "requiredPermission") : null,
                 forbidden ? StringMember(tree, "tenantKey") : null,
                 forbidden ? StringMember(tree, "requiredPlatformRole") : null,
-                forbidden ? StringMember(tree, "reason") : null);
+                forbidden ? StringMember(tree, "reason") : null,
+                Entries(tree, "dependents", CatalogDraftRef.FromMember),
+                Strings(tree, "heldResources"));
         }
         catch (JsonException)
         {
@@ -193,7 +198,8 @@ public sealed class ProblemDetailHandler : DelegatingHandler
     }
 
     /// <summary>
-    /// A dependency member (<c>missingDependencies</c>, <c>unreleasedDependencies</c>), entry by
+    /// A member of hand-parsed entries (<c>missingDependencies</c>, <c>unreleasedDependencies</c>,
+    /// <c>pinnedBy</c>, <c>dependents</c>), entry by
     /// entry: unlike <see cref="Members{T}"/>, a malformed entry is skipped on its own, so one bad
     /// entry does not hide what the others name. Absent or not an array yields an empty list.
     /// </summary>
@@ -273,6 +279,12 @@ public sealed class ProblemDetailHandler : DelegatingHandler
         /// <summary>Why a policy refused a <c>forbidden</c> problem's request; <c>null</c> for any other problem.</summary>
         public string? RefusalReason { get; }
 
+        /// <summary>The drafts a <c>catalog-draft-in-use</c> problem says depend on the draft; empty when absent.</summary>
+        public IReadOnlyList<CatalogDraftRef> Dependents { get; }
+
+        /// <summary>The resources a <c>catalog-draft-in-use</c> problem says the draft holds; empty when absent.</summary>
+        public IReadOnlyList<string> HeldResources { get; }
+
         public ParsedProblem(
             ProblemDetail problem,
             IReadOnlyList<ValidationError> errors,
@@ -292,7 +304,9 @@ public sealed class ProblemDetailHandler : DelegatingHandler
             string? requiredPermission = null,
             string? refusedTenantKey = null,
             string? requiredPlatformRole = null,
-            string? refusalReason = null)
+            string? refusalReason = null,
+            IReadOnlyList<CatalogDraftRef>? dependents = null,
+            IReadOnlyList<string>? heldResources = null)
         {
             Problem = problem;
             Errors = errors;
@@ -313,6 +327,8 @@ public sealed class ProblemDetailHandler : DelegatingHandler
             RefusedTenantKey = refusedTenantKey;
             RequiredPlatformRole = requiredPlatformRole;
             RefusalReason = refusalReason;
+            Dependents = dependents ?? new List<CatalogDraftRef>();
+            HeldResources = heldResources ?? new List<string>();
         }
     }
 }

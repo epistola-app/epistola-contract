@@ -206,7 +206,7 @@ consumer-resource:
       - Uncollected generation results remain in the system but are no longer
         deliverable via the `/generation/collect` endpoint.
       - Generated documents can still be accessed directly via
-        `GET /tenants/{tenantKey}/documents/{documentId}`.
+        `GET /tenants/{tenantKey}/documents/{documentId}/content`.
       - The `createdBy` field on documents retains the consumer ID
         (orphaned reference).
     tags:

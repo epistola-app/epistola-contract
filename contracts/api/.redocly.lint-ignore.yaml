@@ -8,3 +8,11 @@
 components/schemas/variants.yaml:
   no-invalid-schema-examples:
     - '#/UpdateVariantContentRequest/schema'
+#
+# A document's content and a job share the `documents/` prefix, so `documents/jobs/content` matches
+# both templates. Neither operation is ever reached that way: a `documentId` and a `requestId` are
+# both UUIDs, and `jobs` and `content` are not, so whichever operation a router picks, it answers
+# 400 or 404 for that path. No real request is ambiguous.
+openapi.yaml:
+  no-ambiguous-paths:
+    - '#/paths/~1tenants~1{tenantKey}~1documents~1{documentId}~1content'

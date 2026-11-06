@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import app.epistola.client.jakarta.EpistolaRestClients;
 import app.epistola.client.jakarta.StubServer;
+import app.epistola.client.jakarta.error.CatalogDraftRef;
 import app.epistola.client.jakarta.error.CatalogReleaseRef;
 import app.epistola.client.jakarta.error.KnownProblemSlugs;
 import app.epistola.client.jakarta.error.MissingDependency;
@@ -322,6 +323,28 @@ class ApiExceptionMapperTest {
     }
 
     @Test
+    void a_catalog_draft_in_use_problem_names_what_relies_on_the_draft() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(409, PROBLEM_JSON,
+                        """
+                        {"type": "https://epistola.app/errors/catalog-draft-in-use", "title": "Catalog Draft In Use",
+                         "status": 409,
+                         "dependents": [{"registry": "exchange.epistola.app", "namespace": "acme-corp",
+                                         "catalogKey": "invoices", "releaseId": "q8w2e4rt",
+                                         "releaseName": "Invoices 2027"}],
+                         "heldResources": ["theme/house-style"]}
+                        """)));
+
+        assertEquals(KnownProblemSlugs.CATALOG_DRAFT_IN_USE, e.getTypeSlug());
+        assertTrue(e.isCatalogDraftInUseProblem());
+        assertFalse(e.isReleaseInUseProblem());
+        assertEquals(
+                List.of(new CatalogDraftRef("exchange.epistola.app", "acme-corp", "invoices", "q8w2e4rt", "Invoices 2027")),
+                e.getDependents());
+        assertEquals(List.of("theme/house-style"), e.getHeldResources());
+    }
+
+    @Test
     void an_ambiguous_variant_problem_lists_the_tied_variants() {
         ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
                 StubServer.StubResponse.of(409, PROBLEM_JSON,
@@ -429,6 +452,9 @@ class ApiExceptionMapperTest {
         assertTrue(e.getMissingDependencies().isEmpty());
         assertFalse(e.isReleaseDependenciesUnreleasedProblem());
         assertTrue(e.getUnreleasedDependencies().isEmpty());
+        assertFalse(e.isCatalogDraftInUseProblem());
+        assertTrue(e.getDependents().isEmpty());
+        assertTrue(e.getHeldResources().isEmpty());
         assertFalse(e.isCatalogReadOnlyProblem());
         assertNull(e.getReadOnlyReason());
         assertFalse(e.isMergeConflictsUnresolvedProblem());

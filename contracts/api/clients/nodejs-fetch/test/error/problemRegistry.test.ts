@@ -45,6 +45,8 @@ const EXPECTED_SLUGS: Record<string, string> = {
   ENVIRONMENT_DEPLOYMENT_REFUSED: 'environment-deployment-refused',
   RESOURCE_MODIFIED: 'resource-modified',
   CATALOG_SOURCE_UNAVAILABLE: 'catalog-source-unavailable',
+  RELEASE_IN_USE: 'release-in-use',
+  CATALOG_DRAFT_IN_USE: 'catalog-draft-in-use',
 }
 
 test('the hand-written type base matches the generated one', () => {
@@ -77,6 +79,8 @@ test('the extension members the client reads by name are the ones the registry d
   assert.equal(ProblemExtensionMembers.BEHIND, 'behind')
   assert.equal(ProblemExtensionMembers.ENVIRONMENTS, 'environments')
   assert.equal(ProblemExtensionMembers.PINNED_BY, 'pinnedBy')
+  assert.equal(ProblemExtensionMembers.DEPENDENTS, 'dependents')
+  assert.equal(ProblemExtensionMembers.HELD_RESOURCES, 'heldResources')
   assert.equal(ProblemExtensionMembers.TIED_VARIANTS, 'tiedVariants')
   assert.equal(ProblemExtensionMembers.UNRESOLVED_CONFLICTS, 'unresolvedConflicts')
   assert.equal(ProblemExtensionMembers.VERSION, 'version')

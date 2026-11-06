@@ -75,15 +75,17 @@ PreviewDocumentRequest:
         a range (`deployCatalogRelease`). The request is refused with 404 `not-found` when the
         environment serves no such release.
       example: null
-    draft:
+    releaseId:
       oneOf:
         - $ref: './identifiers.yaml#/CatalogReleaseId'
         - type: 'null'
       description: |
-        Render a draft of the template's catalog, including changes not yet released, by its
-        `releaseId` (a `CatalogReleaseId`; mutually exclusive with versionRange and environmentKey). A
-        version range never matches a draft; a generated document renders one only through an
-        environment it is deployed to (`deployCatalogRelease`).
+        Render one release of the template's catalog, by its `releaseId` (mutually exclusive with
+        versionRange and environmentKey). A draft renders with its changes not yet released; a
+        released release renders as its version does. This is how a draft is previewed: a version
+        range never matches a draft, and a generated document renders one only through an
+        environment it is deployed to (`deployCatalogRelease`). Refused with 404 `not-found` when
+        the catalog has no such release.
       example: null
     data:
       type: object

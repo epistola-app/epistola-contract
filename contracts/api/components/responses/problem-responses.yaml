@@ -268,6 +268,31 @@ CatalogDraftConflictError:
         status: 409
         detail: Another draft of letters is named Redesign 2027
 
+CatalogDraftInUseError:
+  description: >-
+    The draft cannot be discarded. When something outside it still relies on it, the problem is
+    `catalog-draft-in-use`: `dependents` lists the drafts of other catalogs whose dependency
+    declarations name it, and `heldResources` the resources only it holds that something outside it
+    still uses. When the catalog cannot be changed in this installation, it is `catalog-read-only`
+    (`readOnlyReason`). A release that is not a draft is refused with `conflict`: a released release
+    is never discarded.
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/CatalogDraftInUseProblemDetail'
+      example:
+        type: https://epistola.app/errors/catalog-draft-in-use
+        title: Catalog Draft In Use
+        status: 409
+        detail: The draft Redesign 2027 of letters is named by one draft and holds one theme in use
+        dependents:
+          - registry: exchange.epistola.app
+            namespace: acme-corp
+            catalogKey: invoices
+            releaseId: q8w2e4rt
+            releaseName: Invoices 2027
+        heldResources: [theme/house-style]
+
 ReleaseInUseError:
   description: >-
     The release cannot be deleted. When something uses it, the problem is `release-in-use`:
