@@ -110,6 +110,12 @@ not implement every part of 2.0 yet.
 
 ### Added
 
+- **A QR code carries its own text alternative** (`alt`, `decorative`), as an image does: `alt` says
+  what scanning it does for a screen reader ("Pay this invoice online"), and `decorative` marks a
+  code whose information is printed next to it. Both are optional; without them a renderer falls
+  back to a text of its own. The `data-bound-link` example shows `alt`. A catalog that sets either is
+  refused with `TEMPLATE_NODE_PROPERTY_INVALID` by a validator from before this change.
+
 - **Optimistic locking.** Every update returns `ETag` and accepts `If-Match` (412
   `resource-modified`), and every create returns `Location`. In the Jakarta client, use the
   `…WithHttpInfo` siblings to read them.
