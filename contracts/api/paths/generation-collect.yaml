@@ -16,6 +16,13 @@ generation-collect:
       Collect completed and failed generation results as a compressed NDJSON stream.
       Each line is a self-contained JSON object representing one generation result.
 
+      ## Whose results
+
+      The feed delivers the results of the requests the caller submitted: each caller (an API key,
+      a user) has its own backlog, and two applications in one tenant never receive each other's
+      results. Results of requests a server did not record a submitter for are delivered to every
+      caller in the tenant. Epistola Suite may not separate backlogs yet.
+
       ## Partition-based routing
 
       Results are routed to nodes using consistent hashing on the `routingKey`

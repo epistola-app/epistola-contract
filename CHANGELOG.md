@@ -41,7 +41,8 @@ not implement every part of 2.0 yet.
   pages the items. A batch holds at most 10000 items. `previewDocument` renders any release by its
   `releaseId`, which is how a draft is previewed. A document's PDF is downloaded from
   `…/documents/{documentId}/content` (`downloadDocument`), leaving the document's own path free for
-  its metadata in a later 2.x.
+  its metadata in a later 2.x. `collectGenerationResults` delivers each caller the results of the
+  requests it submitted, never another application's.
 - **Catalogs are identified by `registry`, `namespace` and `catalogKey`** (ADR 0003), in paths
   (`~` is the default registry) and in every body that named a catalog. A registry is `local` or a
   DNS name. References into another catalog use the alias its dependency declaration gives it.
