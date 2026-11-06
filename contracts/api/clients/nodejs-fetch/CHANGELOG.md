@@ -11,6 +11,13 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Added
 
+- `ProblemDetailException.dependents`, `heldResources` and `isCatalogDraftInUseProblem` surface a
+  `catalog-draft-in-use` problem (409 from `deleteCatalogRelease`, which refuses to discard a draft
+  something outside it relies on): the drafts of other catalogs whose dependency declarations name
+  it, each a `CatalogDraftRef` (the generated `CatalogDraftRefDto`; an entry missing a member is
+  dropped), and the resources only it holds that something outside it still uses, as
+  `resourceType/resourceKey`. `environments`, `pinnedBy` and `isReleaseInUseProblem` stay, for
+  `release-in-use`, which no operation answers yet.
 - `KnownValidationCodes` (and the `KnownValidationCode` type), generated from the contract's
   `x-validation-codes` registry: one constant per code that says why a field of a
   `validation-error` failed. Compare a field error's `code` (`undefined` when the server sent none)
@@ -57,31 +64,33 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Changed
 
-- **BREAKING:** a resource's address is its `key` (#84). The hand-written API follows the
-  generated one: `TemplateDataValidator.validate`, `TemplateSchemaValidator.validate`,
-  `ServerTemplateDataValidator.validate` and `SchemaCache.getOrLoad` / `evict` take
-  `(tenantKey, registry, namespace, catalogKey, templateKey, …)`; `ServerValidationTarget` takes
-  `variantKey` and `environmentKey` in place of `variantId` and `environmentId`; and
-  `ResultCollector.builder().tenantId(…)` is now `.tenantKey(…)`. The generated request parameters
-  and models carry the same renames (`tenantKey`, `templateKey`, …, and `key` in place of `slug` and
-  of a create request's `id`).
-- **BREAKING:** a catalog is addressed by registry, namespace and key. `TemplateDataValidator.validate`,
-  `TemplateSchemaValidator.validate` and `ServerTemplateDataValidator.validate` take
-  `(tenantId, registry, namespace, catalogKey, templateId, data)` in place of
-  `(tenantId, catalogId, templateId, data)`, the registry in its path-segment form (`~` for the
-  server's default registry, or named in full, such as `acme.com`) and the namespace a plain slug.
-  `SchemaCache.getOrLoad` / `evict` are keyed the same way. `ValidatingGenerationApi` hands a
-  pre-flighting validator the request's `registry`, or `~` when the request leaves it out or null.
-- **BREAKING:** `ServerValidationTarget` takes a `versionRange` (a version range such as `1.4.0` or
-  `^1.4.0`, sent as the request's `versionRange`) in place of `versionId`, matching contract 2.0's
-  generation by release. It may be combined with `environmentKey`; without either, the catalog's
-  latest release is checked.
+- `findOperation` breaks a tie between two path templates with as many literal segments by the
+  first segment where they differ, a literal winning over a parameter, rather than by comparing the
+  templates as strings. `GET /documents/jobs/content` matched both `getGenerationJobStatus` and the
+  moved `downloadDocument` (`/documents/{documentId}/content`), and resolved to the latter, so the
+  request asked for a PDF. Neither id can be `jobs` or `content` in practice, both being UUIDs.
+- **BREAKING:** contract 2.0 addresses a resource by its `key` (#84), a catalog by registry,
+  namespace and key, and renders a release rather than a template version. Against 1.4, the
+  hand-written API changes as follows:
+  - `TemplateDataValidator.validate`, `TemplateSchemaValidator.validate` and
+    `ServerTemplateDataValidator.validate` take `(tenantKey, registry, namespace, catalogKey,
+    templateKey, data)` in place of `(tenantId, catalogId, templateId, data)`, the registry in its
+    path-segment form (`~` for the server's default registry, or named in full, such as
+    `acme.com`). `SchemaCache.getOrLoad` / `evict` are keyed the same way. `ValidatingGenerationApi`
+    hands a pre-flighting validator the request's `registry`, or `~` when the request leaves it out
+    or null.
+  - `ServerValidationTarget` takes `variantKey` and `environmentKey` in place of `variantId` and
+    `environmentId`, and a `versionRange` (`1.4.0`, `^1.4.0`, sent as the request's
+    `versionRange`) in place of `versionId`. Without a range or an environment, the catalog's
+    highest release is checked.
+  - `ResultCollector.builder().tenantId(…)` is now `.tenantKey(…)`.
+  - The generated request parameters and models carry the same renames (`tenantKey`,
+    `templateKey`, …, and `key` in place of `slug` and of a create request's `id`).
 - Results handed to a `ResultCollector` handler carry the template's catalog as `registry`,
   `namespace` and `catalogKey`, always set, next to `version`, which is null for a result
   rendered from a draft.
 - The README no longer mentions the `X-API-Key` header: the contract dropped it, and the client
   only ever sent `Authorization: ApiKey <key>`.
-
 - **Template data is validated by the server, not by a bundled schema compiler.**
   `TemplateSchemaValidator` and `ValidatingGenerationApi` now call `validateTemplateData` through a
   pluggable `TemplateDataValidator`, whose only shipped implementation is

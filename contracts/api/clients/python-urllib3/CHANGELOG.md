@@ -25,6 +25,14 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Added
 
+- `ProblemDetailException.dependents`, `held_resources` and `is_catalog_draft_in_use_problem`
+  surface a `catalog-draft-in-use` problem (409 from `delete_catalog_release`, which refuses to
+  discard a draft something outside it relies on): the drafts of other catalogs whose dependency
+  declarations name it, each a `CatalogDraftRef(registry, namespace, catalog_key, release_id,
+  release_name)`, exported from `epistola_client`, and the resources only it holds that something
+  outside it still uses, as `resourceType/resourceKey`. The constructor's `dependents=` and
+  `held_resources=` parameters are optional. `environments`, `pinned_by` and
+  `is_release_in_use_problem` stay, for `release-in-use`, which no operation answers yet.
 - `KnownValidationCodes`, generated from the contract's `x-validation-codes` registry and exported
   from `epistola_client`: one constant per code that says why a field of a `validation-error`
   failed, and `ALL`. Compare a field error's `code` (`None` when the server sent none) against
@@ -82,42 +90,24 @@ records contract changes; this file records changes to the hand-written library 
 - **BREAKING:** the HTTP client and the result collector send `application/vnd.epistola.v2+json` and
   `application/vnd.epistola.v2+ndjson`, the contract 2.x media types. A 2.x server refuses the 1.x
   ones.
-- **BREAKING:** a resource's address is its `key`, following the contract's rename of `id`/`slug`
-  to `key` (#84). The hand-written library follows:
+- **BREAKING:** contract 2.0 addresses a resource by its `key` (#84), a catalog by registry,
+  namespace and key, and renders a release rather than a template version. Against 1.4, the
+  hand-written library changes as follows:
   - `TemplateDataValidator.validate`, `ServerTemplateDataValidator.validate` and
     `TemplateSchemaValidator.validate` take `(tenant_key, registry, namespace, catalog_key,
-    template_key, data)`.
-  - `ServerTemplateDataValidator`'s `variant_id=` and `environment_id=` are now `variant_key=` and
-    `environment_key=`.
-  - `ValidatingGenerationApi.generate_document` and `generate_document_batch` take `tenant_key`.
-  - `ResultCollectorBuilder.tenant_id()` is now `tenant_key()`, and `GenerationResult.template_id`
-    and `variant_id` are now `template_key` and `variant_key`, read from the stream's
-    `templateKey` and `variantKey`.
-- **BREAKING:** a catalog is identified by registry, namespace and key.
-  `TemplateDataValidator.validate`, `ServerTemplateDataValidator.validate` and
-  `TemplateSchemaValidator.validate` take `(tenant_id, registry, namespace, catalog_key,
-  template_id, data)`; `registry` is `~` for the server's default registry or a registry named in
-  full (`acme.com`). `ValidatingGenerationApi`'s pre-flight passes a request's `registry`, or `~`
-  when the request leaves it unset, and its namespace as is: the `host/name` → `host~name`
-  conversion is gone, because a namespace is now a plain slug.
-- The result collector's `GenerationResult` gained `registry` next to `namespace`, `catalog_key`
-  and `version` (`None` for results from before contract 2.0).
-
-- **BREAKING:** a catalog is addressed by namespace and key. `TemplateDataValidator.validate`,
-  `ServerTemplateDataValidator.validate` and `TemplateSchemaValidator.validate` take
-  `(tenant_id, namespace, catalog_key, template_id, data)` in place of
-  `(tenant_id, catalog_id, template_id, data)`, and `ValidatingGenerationApi` passes a request's
-  `namespace` and `catalog_key` to the validator. `ServerTemplateDataValidator`'s
-  `release_version=` is now `version_range=`, a version range (`1.4.0`, `^1.4.0`) sent as the
-  request's `versionRange`, that may be combined with `environment_key=`.
-- The result collector's `GenerationResult` gained `namespace` and `catalog_key` next to
-  `version`, naming the catalog release a document was generated from (`None` for results
-  from before contract 2.0).
-- **BREAKING:** the server-side template data validator no longer takes a `versionId`, matching
-  contract 2.0's generation by release; without a version range or an environment, the catalog's
-  latest release is checked. The result collector reports `version` (a string, the release's
-  version) in place of `version_id`.
-
+    template_key, data)` in place of `(tenant_id, catalog_id, template_id, data)`. `registry` is
+    `~` for the server's default registry or a registry named in full (`acme.com`).
+  - `ServerTemplateDataValidator` no longer takes a version id. `version_range=` (`1.4.0`,
+    `^1.4.0`, sent as the request's `versionRange`) and `environment_key=` select the release;
+    with neither, the catalog's highest release is checked. Its `variant_id=` and
+    `environment_id=` are now `variant_key=` and `environment_key=`.
+  - `ValidatingGenerationApi.generate_document` and `generate_document_batch` take `tenant_key`,
+    and the pre-flight passes a request's `registry` (`~` when unset), `namespace` and
+    `catalog_key` to the validator.
+  - `ResultCollectorBuilder.tenant_id()` is now `tenant_key()`.
+  - `GenerationResult.template_id` and `variant_id` are now `template_key` and `variant_key`, and
+    `version_id` is now `version`, the release's version (`None` for a draft). It gains `registry`,
+    `namespace` and `catalog_key`, naming the catalog release a document was generated from.
 - **Template data is validated by the server, not by a bundled library.** `TemplateSchemaValidator`
   and `ValidatingGenerationApi` now call `validateTemplateData` through a pluggable
   `TemplateDataValidator` protocol, whose only shipped implementation is

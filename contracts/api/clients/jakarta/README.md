@@ -139,7 +139,8 @@ EpistolaRestClients clients = EpistolaRestClients.builder()
         .build();
 
 TemplatesApi templates = clients.api(TemplatesApi.class);
-TemplateDto template = templates.getTemplate("my-tenant", "default", "monthly-invoice");
+// tenant, registry ("~" = the server's default), namespace, catalog, release, template
+TemplateDto template = templates.getTemplate("my-tenant", "~", "acme-corp", "default", "1.4.0", "monthly-invoice");
 ```
 
 `clients.restClientBuilder()` returns the configured `RestClientBuilder` for anything this does not
@@ -151,7 +152,7 @@ Every request must carry `User-Agent` and `X-EP-Node-Id`. The first `User-Agent`
 `epistola-contract/{contractVersion}`, read from a resource the build writes from the spec:
 
 ```
-User-Agent: epistola-contract/1.1.0 zaakafhandelcomponent/3.4.0
+User-Agent: epistola-contract/2.0.0 zaakafhandelcomponent/3.4.0
 X-EP-Node-Id: my-pod-123
 ```
 
@@ -184,7 +185,7 @@ registration on your part — every generated interface declares
 
 ```java
 try {
-    templates.getTemplate("my-tenant", "default", "unknown");
+    templates.getTemplate("my-tenant", "~", "acme-corp", "default", "1.4.0", "unknown");
 } catch (ProblemDetailException e) {
     String slug = e.getTypeSlug();          // null for about:blank and non-Epistola types
     if (KnownProblemSlugs.NOT_FOUND.equals(slug)) {
@@ -219,9 +220,10 @@ try {
     } else if (KnownProblemSlugs.CATALOG_VERSION_BEHIND.equals(slug)) {
         // releaseCatalogDraft: name these in acknowledgedBehind to release anyway
         log.warn("the draft is behind {}", e.getBehind());
-    } else if (KnownProblemSlugs.RELEASE_IN_USE.equals(slug)) {
-        // deleteCatalogRelease: undeploy it, and release the catalogs that pin it without it
-        log.warn("deployed to {}; pinned by {}", e.getEnvironments(), e.getPinnedBy());
+    } else if (KnownProblemSlugs.CATALOG_DRAFT_IN_USE.equals(slug)) {
+        // deleteCatalogRelease: drafts of other catalogs name the draft, or it alone holds resources
+        // something outside it uses (resourceType/resourceKey); change those first
+        log.warn("named by {}; holds {}", e.getDependents(), e.getHeldResources());
     } else if (KnownProblemSlugs.AMBIGUOUS_VARIANT.equals(slug)) {
         // generateDocument / previewDocument: name one by variantKey
         log.warn("several variants match: {}", e.getTiedVariants());
@@ -457,10 +459,11 @@ It is excluded from `./gradlew build` and from CI because it pulls a WildFly ima
 | --- | --- | --- | --- |
 | Kotlin / Spring Boot 3 | `app.epistola.contract:client-spring3-restclient` | Spring `RestClient` | Jackson |
 | **Jakarta EE** | **`app.epistola.contract:client-jakarta`** | **MicroProfile Rest Client** | **JSON-B** |
-| .NET 8 | `Epistola.Contract.Client` | `HttpClient` | `System.Text.Json` |
+| .NET 8 | `Epistola.Contract.Client` | `HttpClient` | Newtonsoft.Json |
 | Python | `epistola-client` | `urllib3` | Pydantic |
+| Node.js | `@epistola.app/epistola-client` | the platform's `fetch` | the platform's `JSON` |
 
-All four are generated from the same spec and carry the same conventions: identity headers, the
+All five are generated from the same spec and carry the same conventions: identity headers, the
 problem-type registry, the result-collection protocol, contract-constraint validation.
 
 Release history: [CHANGELOG.md](../../../../CHANGELOG.md).

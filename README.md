@@ -242,24 +242,11 @@ The artifact currently provides:
   `@epistola.app/epistola-catalog/registry`
 - JVM resources under `META-INF/epistola-catalog`
 
-This is a clean pre-1.0 coordinate rename. Consumers must replace
-`app.epistola.contract:epistola-model` and
-`@epistola.app/epistola-model`; no duplicate-class compatibility artifact is
-published.
-
 See [contracts/catalog/docs/catalog-registry.md](contracts/catalog/docs/catalog-registry.md) for registry details.
 See [contracts/api/docs/template-model.md](contracts/api/docs/template-model.md) for the template model,
 explained end to end with a worked example, for building templates through the API.
 See [contracts/catalog/docs/catalog-compatibility.md](contracts/catalog/docs/catalog-compatibility.md) for the
 explicit breaking changes and required producer/consumer migrations.
-
-### Kotlin Server (`app.epistola.contract:server-kotlin-springboot4`)
-
-Spring server interfaces for implementing the API:
-- Interface-only generation (no implementations)
-- Spring Boot 4.x compatible (Jackson 3)
-- Bean validation annotations
-- Ready to implement in your Spring application
 
 ## Versioning
 
@@ -445,16 +432,16 @@ make release  # → releases 1.0.x
 `v2.0.0-alpha.1` do not count):
 
 ```
-Tags: client-spring3-restclient-v1.0.0, client-spring3-restclient-v1.0.1
-Next release: client-spring3-restclient-v1.0.2
+Tags: v1.4.0, v1.4.1
+Next release: v1.4.2
 ```
 
 When the API version changes (e.g., `1.0` → `2.0`), patch resets to `0`:
 
 ```
-Tags: client-spring3-restclient-v1.0.5
+Tags: v1.4.5, v2.0.0-beta.3
 Spec: 2.0.0
-Next release: client-spring3-restclient-v2.0.0
+Next release: v2.0.0
 ```
 
 ### Required Repository Secrets
@@ -536,7 +523,7 @@ A Docker image of the mock server is published to GitHub Container Registry:
 docker run -p 4010:4010 ghcr.io/epistola-app/epistola-contract/mock-server:latest
 
 # Or use a specific version
-docker run -p 4010:4010 ghcr.io/epistola-app/epistola-contract/mock-server:1.0.0
+docker run -p 4010:4010 ghcr.io/epistola-app/epistola-contract/mock-server:2.0.0
 ```
 
 Test with: `curl http://localhost:4010/api/tenants`
@@ -615,7 +602,7 @@ and client-side schema validation.
 
 ```kotlin
 dependencies {
-    implementation("app.epistola.contract:server-kotlin-springboot4:1.0.0")
+    implementation("app.epistola.contract:server-kotlin-springboot4:2.0.0")
 }
 ```
 

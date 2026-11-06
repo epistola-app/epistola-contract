@@ -7,7 +7,7 @@ Generated Spring Boot 4 server interfaces for the Epistola API, with additional 
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("app.epistola.contract:server-springboot4:0.3.0")
+    implementation("app.epistola.contract:server-kotlin-springboot4:2.0.0")
 }
 ```
 
@@ -24,7 +24,9 @@ class MyGenerationApi(private val mediator: Mediator) : GenerationApi {
         generateDocumentRequest: GenerateDocumentRequest,
     ): ResponseEntity<GenerationJobResponse> {
         val result = mediator.send(GenerateDocument(tenantKey, generateDocumentRequest))
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(result)
+        // A 202 that starts a job carries the job's address in Location.
+        val location = URI.create("/api/tenants/$tenantKey/documents/jobs/${result.requestId}")
+        return ResponseEntity.accepted().location(location).body(result)
     }
 
     // ... other methods
@@ -36,9 +38,12 @@ Available interfaces:
 - `TenantsApi` — tenant CRUD
 - `ConsumersApi` — consumer registration, approval, lifecycle
 - `TemplatesApi`, `VariantsApi` — templates, their variants' working copies and mark ready
-- `ThemesApi`, `EnvironmentsApi`, `StencilsApi`, `CatalogsApi` — supporting resources
+- `CatalogsApi` — catalogs, their releases and drafts, imports and release registries
+- `ThemesApi`, `StencilsApi`, `FontsApi`, `ImagesApi` — supporting resources
+- `EnvironmentsApi` — environments and the releases they deploy
 - `GenerationApi` — document generation + result collection
-- `AttributesApi` — variant selection criteria
+- `AttributesApi`, `CodeListsApi` — variant selection criteria and the code lists they bind
+- `QualityProfilesApi` — quality profiles (alpha)
 - `SearchApi` — searching a tenant's catalogs and resources by name (alpha)
 
 ## Error Responses
@@ -73,7 +78,7 @@ ProblemDetails.dataModelValidation(
     status = HttpStatus.UNPROCESSABLE_ENTITY,
     type = ProblemDetails.typeFor("data-model-validation-error"),
     validationErrors = mapOf(
-        "Example 1" to listOf(DataModelValidationError(path = "/name", message = "required property 'name' not found")),
+        "standard-invoice" to listOf(DataModelValidationError(path = "/name", message = "required property 'name' not found")),
     ),
 )
 
@@ -190,11 +195,11 @@ class ApiExceptionHandler : ResponseEntityExceptionHandler() {
 The `ClientInfo` utility parses client identity from incoming request headers (`User-Agent` and `X-EP-Node-Id`).
 
 ```kotlin
-@GetMapping("/tenants/{tenantKey}/templates")
-fun listTemplates(
+@GetMapping("/tenants/{tenantKey}/catalogs")
+fun listCatalogs(
     @PathVariable tenantKey: String,
     request: HttpServletRequest,
-): ResponseEntity<TemplateListResponse> {
+): ResponseEntity<CatalogListResponse> {
     val client = ClientInfo.from(request)
 
     log.info("Request from node=${client.nodeId}, contract=${client.contractVersion}")
@@ -293,12 +298,12 @@ class ConsumerAuthFilter : OncePerRequestFilter() {
 
 ## OpenAPI Spec
 
-The bundled OpenAPI spec is included in the JAR at `/openapi.yaml`. This can be served for API documentation:
+The bundled OpenAPI spec is included in the JAR at `/openapi/epistola-contract.yaml`. This can be served for API documentation:
 
 ```kotlin
 @Configuration
 class OpenApiConfig {
     @Bean
-    fun openApiResource() = ClassPathResource("openapi.yaml")
+    fun openApiResource() = ClassPathResource("openapi/epistola-contract.yaml")
 }
 ```

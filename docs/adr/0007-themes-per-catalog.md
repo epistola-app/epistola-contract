@@ -60,8 +60,8 @@ rendering. It is used in two explicit ways:
 
 - a catalog created in the tenant starts with it as its `defaultTheme`, declared and pinned like any
   other reference, so its releases carry it;
-- an "apply to all catalogs" action sets it as the `defaultTheme` of the tenant's existing authored
-  catalogs; each one takes it into a release the next time a draft is released.
+- an "apply to all catalogs" action sets it as the `defaultTheme` of the tenant's existing catalogs
+  it can change (`editable`); each one takes it into a release the next time a draft is released.
 
 Changing the house theme therefore changes no document until a catalog that uses it is released
 and deployed. Copying it into a release automatically at release time was considered and rejected:
@@ -112,8 +112,8 @@ the report in decision 2 says when one does not.
   falls back to the presets its themes style, so nothing breaks on upgrade.
 - The API exposes both on a release, and sets them on a draft (`updateCatalogRelease`). The tenant default theme stays as the house
   theme (decision 1a): its fields remain, described as a starting value, and an operation applies it
-  to every authored catalog.
-- **Migration (suite):** every authored catalog with templates that inherit their theme gets the
+  to every catalog the tenant can change.
+- **Migration (suite):** every catalog the tenant can change, with templates that inherit their theme gets the
   tenant's current default theme as its `defaultTheme`, so nothing renders differently; the tenant
   default theme stays as the house theme, no longer read while rendering. Each catalog's `presets` are seeded from the preset keys its themes
   style.
