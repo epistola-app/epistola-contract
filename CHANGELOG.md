@@ -113,6 +113,10 @@ not implement every part of 2.0 yet.
 
 ### Added
 
+- **The `SUPPORT_DESK` platform role** (identity-provider name `support-desk`): works the
+  installation's support desk, the support requests of every tenant, their replies and internal
+  notes, their status and priority, and passing them on to a support connection. It grants nothing
+  in any tenant.
 - **A QR code carries its own text alternative** (`alt`, `decorative`), as an image does: `alt` says
   what scanning it does for a screen reader ("Pay this invoice online"), and `decorative` marks a
   code whose information is printed next to it. Both are optional; without them a renderer falls

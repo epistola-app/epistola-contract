@@ -185,6 +185,7 @@ Platform roles:
 | `TENANT_MANAGER` | Create and delete tenants across the platform, and manage their namespaces |
 | `INSTALLATION_ADMINISTRATOR` | Maintain the installation: its cluster nodes, the site banner, and what it shares with Epistola |
 | `PLATFORM_OBSERVER` | `DIAGNOSTICS_VIEW` and `AUDIT_VIEW` in every tenant, read-only |
+| `SUPPORT_DESK` | Work the installation's support desk: every tenant's support requests, their replies, internal notes, status and priority, and passing them on |
 
 Important: `TENANT_ADMINISTRATOR` does not imply releasing, deploying or editing content. Grant
 `CONTENT_AUTHOR` and/or `CONTENT_PUBLISHER` alongside administration when an administrator also
