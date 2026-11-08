@@ -21,6 +21,9 @@ not implement every part of 2.0 yet.
 
 ### Changed (breaking)
 
+- **Feedback is support requests.** The permissions `FEEDBACK_SUBMIT` and `FEEDBACK_MANAGE` are now
+  `SUPPORT_REQUEST_SUBMIT` and `SUPPORT_REQUEST_HANDLE`, granted by the same roles. Neither is used
+  by an API operation; an identity provider or provisioning flow that names them uses the new names.
 - **Catalog releases replace template versions** (ADR 0002). A release is a `draft` (editable, no
   version) or `released` (immutable, with a `version`), addressed by `releaseId` or version under
   `…/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}`. A catalog may have any
