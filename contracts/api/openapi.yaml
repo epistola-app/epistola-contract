@@ -461,6 +461,11 @@ x-authorization:
       idpName: platform-observer
       description: Reads the diagnostics and audit trail of every tenant, and changes nothing.
       grantsInEveryTenant: [DIAGNOSTICS_VIEW, AUDIT_VIEW]
+    - name: SUPPORT_DESK
+      idpName: support-desk
+      description: >-
+        Works the installation's support desk: the support requests of every tenant, their replies and
+        internal notes, their status and priority, and passing them on to a support connection.
   permissions:
     - name: TEMPLATE_VIEW
       grantedBy: [CONTENT_VIEWER]
@@ -530,14 +535,14 @@ x-authorization:
       description: >-
         Change the settings that send a tenant's data out of the installation: the Exchange
         connection, and quality and AI providers.
-    - name: FEEDBACK_SUBMIT
+    - name: SUPPORT_REQUEST_SUBMIT
       grantedBy: [CONTENT_VIEWER]
       outsideApi: true
-      description: Send feedback to Epistola, and follow and comment on one's own.
-    - name: FEEDBACK_MANAGE
+      description: Send support requests, and follow and comment on one's own.
+    - name: SUPPORT_REQUEST_HANDLE
       grantedBy: [TENANT_ADMINISTRATOR]
       outsideApi: true
-      description: Follow, comment on and close all of a tenant's feedback.
+      description: Follow, comment on and close all of a tenant's support requests.
     - name: DIAGNOSTICS_VIEW
       grantedBy: [TENANT_ADMINISTRATOR]
       outsideApi: true

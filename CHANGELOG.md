@@ -21,6 +21,9 @@ not implement every part of 2.0 yet.
 
 ### Changed (breaking)
 
+- **Feedback is support requests.** The permissions `FEEDBACK_SUBMIT` and `FEEDBACK_MANAGE` are now
+  `SUPPORT_REQUEST_SUBMIT` and `SUPPORT_REQUEST_HANDLE`, granted by the same roles. Neither is used
+  by an API operation; an identity provider or provisioning flow that names them uses the new names.
 - **Catalog releases replace template versions** (ADR 0002). A release is a `draft` (editable, no
   version) or `released` (immutable, with a `version`), addressed by `releaseId` or version under
   `…/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}`. A catalog may have any
@@ -113,6 +116,10 @@ not implement every part of 2.0 yet.
 
 ### Added
 
+- **The `SUPPORT_DESK` platform role** (identity-provider name `support-desk`): works the
+  installation's support desk, the support requests of every tenant, their replies and internal
+  notes, their status and priority, and passing them on to a support connection. It grants nothing
+  in any tenant.
 - **A QR code carries its own text alternative** (`alt`, `decorative`), as an image does: `alt` says
   what scanning it does for a screen reader ("Pay this invoice online"), and `decorative` marks a
   code whose information is printed next to it. Both are optional; without them a renderer falls

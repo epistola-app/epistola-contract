@@ -161,18 +161,18 @@ Tenant roles are composable and non-hierarchical:
 
 | Suite role | Grants |
 |------------|--------|
-| `CONTENT_VIEWER` | `TEMPLATE_VIEW`, `THEME_VIEW`, `STENCIL_VIEW`, `REFERENCE_VIEW`, `CATALOG_VIEW`, `FEEDBACK_SUBMIT` |
+| `CONTENT_VIEWER` | `TEMPLATE_VIEW`, `THEME_VIEW`, `STENCIL_VIEW`, `REFERENCE_VIEW`, `CATALOG_VIEW`, `SUPPORT_REQUEST_SUBMIT` |
 | `CONTENT_AUTHOR` | `TEMPLATE_EDIT`, `THEME_EDIT`, `STENCIL_EDIT`, `REFERENCE_EDIT` |
 | `DOCUMENT_GENERATOR` | `DOCUMENT_GENERATE`, `DOCUMENT_VIEW` |
 | `DOCUMENT_READER` | `DOCUMENT_VIEW` |
 | `CONTENT_PUBLISHER` | `QUALITY_EDIT` (create, change and delete quality profiles, and change a template's or a release's quality binding, alpha: the rules gate releases), `CATALOG_RELEASE` (release and discard catalog drafts), `ENVIRONMENT_DEPLOY` (deploy and undeploy releases of catalogs, released ones and drafts, in environments), `CATALOG_PUBLISH` (publish released releases to a release registry, alpha: the release leaves the installation) |
-| `TENANT_ADMINISTRATOR` | `TENANT_SETTINGS`, `CREDENTIALS_MANAGE`, `INTEGRATIONS_MANAGE`, `CATALOG_MANAGE`, `DIAGNOSTICS_VIEW`, `DIAGNOSTICS_MANAGE`, `AUDIT_VIEW`, `FEEDBACK_MANAGE` |
+| `TENANT_ADMINISTRATOR` | `TENANT_SETTINGS`, `CREDENTIALS_MANAGE`, `INTEGRATIONS_MANAGE`, `CATALOG_MANAGE`, `DIAGNOSTICS_VIEW`, `DIAGNOSTICS_MANAGE`, `AUDIT_VIEW`, `SUPPORT_REQUEST_HANDLE` |
 
 Reading content and reading what was generated from it are separate: `CONTENT_VIEWER` does not
 grant `DOCUMENT_VIEW`, because a generated document carries the data it was generated with. Grant
 `DOCUMENT_READER` to someone who reads documents without generating them.
 
-`INTEGRATIONS_MANAGE`, `FEEDBACK_SUBMIT`, `FEEDBACK_MANAGE`, `DIAGNOSTICS_VIEW`, `DIAGNOSTICS_MANAGE`
+`INTEGRATIONS_MANAGE`, `SUPPORT_REQUEST_SUBMIT`, `SUPPORT_REQUEST_HANDLE`, `DIAGNOSTICS_VIEW`, `DIAGNOSTICS_MANAGE`
 and `AUDIT_VIEW` grant Suite features outside this API (`outsideApi` in `x-authorization`): no
 operation in the contract requires them. Every other permission above is the
 `x-required-permissions` of at least one operation, and every permission an operation requires is in
@@ -185,6 +185,7 @@ Platform roles:
 | `TENANT_MANAGER` | Create and delete tenants across the platform, and manage their namespaces |
 | `INSTALLATION_ADMINISTRATOR` | Maintain the installation: its cluster nodes, the site banner, and what it shares with Epistola |
 | `PLATFORM_OBSERVER` | `DIAGNOSTICS_VIEW` and `AUDIT_VIEW` in every tenant, read-only |
+| `SUPPORT_DESK` | Work the installation's support desk: every tenant's support requests, their replies, internal notes, status and priority, and passing them on |
 
 Important: `TENANT_ADMINISTRATOR` does not imply releasing, deploying or editing content. Grant
 `CONTENT_AUTHOR` and/or `CONTENT_PUBLISHER` alongside administration when an administrator also
