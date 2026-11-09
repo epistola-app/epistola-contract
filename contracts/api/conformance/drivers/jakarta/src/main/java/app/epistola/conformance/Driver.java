@@ -99,6 +99,7 @@ import app.epistola.client.jakarta.model.UpdateAttributeRequest;
 import app.epistola.client.jakarta.model.UpdateCatalogReleaseRequest;
 import app.epistola.client.jakarta.model.UpdateCodeListEntryHiddenRequest;
 import app.epistola.client.jakarta.model.UpdateConsumerRequest;
+import app.epistola.client.jakarta.model.ConsumerPermissions;
 import app.epistola.client.jakarta.model.UpdateEnvironmentRequest;
 import app.epistola.client.jakarta.model.UpdateStencilContentRequest;
 import app.epistola.client.jakarta.model.UpdateTemplateRequest;
@@ -455,7 +456,8 @@ public final class Driver {
                                 new UpdateConsumerRequest()
                                         .name(optional(config, "name"))
                                         .description(optional(config, "description"))
-                                        .clearExpiresAt(optionalBoolean(config, "clearExpiresAt")),
+                                        .clearExpiresAt(optionalBoolean(config, "clearExpiresAt"))
+                                        .grantedPermissions(grantedPermissions(config)),
                                 optional(config, "ifMatch")),
                 response -> {
                     ConsumerDto consumer = response.readEntity(ConsumerDto.class);
@@ -464,6 +466,18 @@ public final class Driver {
                             "name", String.valueOf(consumer.getName()),
                             "lastModified", instant(consumer.getLastModified()));
                 });
+    }
+
+    /** The scenario's {@code grantedPermissions}, bound as the client binds a response, or null. */
+    private static ConsumerPermissions grantedPermissions(JsonObject config) {
+        if (!config.containsKey("grantedPermissions") || config.isNull("grantedPermissions")) {
+            return null;
+        }
+        try (var jsonb = JsonbBuilder.create()) {
+            return jsonb.fromJson(config.get("grantedPermissions").toString(), ConsumerPermissions.class);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     /**
@@ -819,7 +833,9 @@ public final class Driver {
                             config.getString("tenantKey"),
                             config.getString("registry"),
                             config.getString("namespace"),
-                            config.getString("catalogKey"));
+                            config.getString("catalogKey"),
+                            config.containsKey("page") && !config.isNull("page") ? config.getInt("page") : null,
+                            config.containsKey("size") && !config.isNull("size") ? config.getInt("size") : null);
         } catch (ProblemDetailException e) {
             report(
                     baseUrl,
@@ -835,6 +851,7 @@ public final class Driver {
                         "registry", String.valueOf(releases.getRegistry()),
                         "namespace", String.valueOf(releases.getNamespace()),
                         "catalogKey", String.valueOf(releases.getCatalogKey()),
+                        "total", String.valueOf(releases.getPage().getTotal()),
                         "availableComparedTo",
                                 available.stream()
                                         .map(release -> release.getVersion() + "=" + release.getComparedTo())

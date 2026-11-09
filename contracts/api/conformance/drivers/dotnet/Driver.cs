@@ -324,7 +324,12 @@ public static class Driver
                 new UpdateConsumerRequest(
                     name: OptStr(config, "name")!,
                     description: OptStr(config, "description")!,
-                    clearExpiresAt: OptBool(config, "clearExpiresAt")),
+                    clearExpiresAt: OptBool(config, "clearExpiresAt"),
+                    grantedPermissions: config.TryGetProperty("grantedPermissions", out var granted)
+                        && granted.ValueKind == JsonValueKind.Object
+                        // Through Newtonsoft, as the client itself reads a response.
+                        ? Newtonsoft.Json.JsonConvert.DeserializeObject<ConsumerPermissions>(granted.GetRawText())!
+                        : null!),
                 ifMatch: OptStr(config, "ifMatch"));
         }
         catch (ProblemDetailException e)
@@ -819,7 +824,9 @@ public static class Driver
         try
         {
             releases = new CatalogsApi(http, apiBase).ListAvailableCatalogReleases(
-                Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"));
+                Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"),
+                page: config.TryGetProperty("page", out var page) && page.ValueKind == JsonValueKind.Number ? page.GetInt32() : null,
+                size: config.TryGetProperty("size", out var size) && size.ValueKind == JsonValueKind.Number ? size.GetInt32() : null);
         }
         catch (ProblemDetailException e)
         {
@@ -837,6 +844,7 @@ public static class Driver
             ["registry"] = Show(releases.Registry),
             ["namespace"] = Show(releases.Namespace),
             ["catalogKey"] = Show(releases.CatalogKey),
+            ["total"] = Show(releases.Page.Total),
             ["availableComparedTo"] = string.Join(";", available.Select(r => $"{Show(r.Version)}={Show(r.ComparedTo)}")),
             ["availableChanges"] = string.Join(";", available
                 .Select(r => $"{Show(r.Version)}=" + string.Join("+", (r.Changes ?? new List<ReleasedChangeDto>())

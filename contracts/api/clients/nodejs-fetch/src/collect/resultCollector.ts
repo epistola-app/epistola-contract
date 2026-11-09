@@ -282,7 +282,9 @@ export class ResultCollector {
       return
     }
     this.assignment = current
-    this.routing = PartitionRouting.of(current.total, current.mine)
+    // A hash this client does not implement gets no routing: the wrong algorithm would send results
+    // to other nodes, while no routing only loses node affinity.
+    this.routing = current.hash === 'murmur3' ? PartitionRouting.of(current.total, current.mine) : undefined
     this.settings.metricsListener?.onPartitionChange?.(previous, current)
   }
 

@@ -9,6 +9,12 @@ records contract changes; this file records changes to the hand-written library 
 
 ## [Unreleased]
 
+### Fixed
+
+- `ResultCollector.partitionFor`, `isMyPartition` and `routingKeyToMe` answer as before the
+  assignment is known when it names a `hash` other than `murmur3`, instead of routing with murmur3
+  regardless and sending results to other nodes.
+
 ### Added
 
 - `ProblemDetailException.dependents`, `heldResources` and `isCatalogDraftInUseProblem` surface a

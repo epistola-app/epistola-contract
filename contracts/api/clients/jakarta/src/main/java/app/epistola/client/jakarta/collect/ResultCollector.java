@@ -56,6 +56,8 @@ import java.util.function.Consumer;
  *         switch (result.getStatus()) {
  *             case COMPLETED -> downloadAndProcess(result.getDocumentId(), result.getCorrelationId());
  *             case FAILED -> logFailure(result.getCorrelationId(), result.getError());
+ *             // A later 2.x may add a status; the result is acknowledged once this returns.
+ *             default -> logUnhandled(result);
  *         }
  *     })
  *     .build();
@@ -161,10 +163,17 @@ public final class ResultCollector {
 
     // --- Partition routing helpers ---
 
-    /** The current assignment as the shared router sees it, or null while it is unknown. */
+    /**
+     * The current assignment as the shared router sees it, or null while it is unknown. Also null
+     * when the server hashes with an algorithm this client does not implement: routing with the
+     * wrong one would send results to other nodes, while no routing only loses node affinity.
+     */
     private PartitionRouting routing() {
         PartitionAssignment assignment = partitionAssignment;
-        return assignment == null ? null : PartitionRouting.of(assignment.getTotal(), assignment.getMine());
+        if (assignment == null || assignment.getHash() != PartitionAssignment.HashEnum.MURMUR3) {
+            return null;
+        }
+        return PartitionRouting.of(assignment.getTotal(), assignment.getMine());
     }
 
     /**

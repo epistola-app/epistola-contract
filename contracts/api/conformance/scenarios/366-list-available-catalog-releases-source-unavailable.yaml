@@ -35,7 +35,9 @@ expect:
   requests:
     - method: GET
       path: /api/tenants/acme-corp/catalogs/registry.gemeente-x.nl/huisstijl/branding/available-releases
-      query: ""
+      queryParams:
+        page: { whenPresent: '0' }
+        size: { whenPresent: '20' }
   report:
     problemTypeSlug: catalog-source-unavailable
     problemStatus: 502

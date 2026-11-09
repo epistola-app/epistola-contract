@@ -11,6 +11,9 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Fixed
 
+- `ResultCollector.partition_for`, `is_my_partition` and `routing_key_to_me` answer as before the
+  assignment is known when it names a `hash` other than `murmur3`, instead of routing with murmur3
+  regardless and sending results to other nodes.
 - An enum value this client does not know, from a newer 2.x server, no longer fails the
   response. A named enum reads it as an unknown member that keeps the value (`.value`, and equal
   to the received string), and an enum declared inline keeps the string.

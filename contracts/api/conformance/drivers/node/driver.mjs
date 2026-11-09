@@ -511,6 +511,8 @@ async function listAvailableCatalogReleases(baseUrl, config) {
       registry: config.registry,
       namespace: config.namespace,
       catalogKey: config.catalogKey,
+      ...(config.page !== undefined ? { page: config.page } : {}),
+      ...(config.size !== undefined ? { size: config.size } : {}),
     })
   } catch (error) {
     if (!(error instanceof ProblemDetailException)) throw error
@@ -521,6 +523,7 @@ async function listAvailableCatalogReleases(baseUrl, config) {
     registry: show(releases.registry),
     namespace: show(releases.namespace),
     catalogKey: show(releases.catalogKey),
+    total: show(releases.page.total),
     availableComparedTo: releases.available.map((r) => `${show(r.version)}=${show(r.comparedTo)}`).join(';'),
     availableChanges: releases.available
       .map((r) => `${show(r.version)}=${r.changes.map((c) => `${show(c.type)}/${show(c.key)}:${show(c.change)}`).join('+')}`)
@@ -1505,7 +1508,7 @@ async function updateConsumer(baseUrl, config) {
     () => new ConsumersApi(client(baseUrl, config)).updateConsumerRaw({
       tenantKey: config.tenantKey,
       consumerId: config.consumerId,
-      updateConsumerRequest: pick(config, ['name', 'description', 'clearExpiresAt']),
+      updateConsumerRequest: pick(config, ['name', 'description', 'clearExpiresAt', 'grantedPermissions']),
       ...ifMatch(config),
     }),
     (consumer) => ({

@@ -194,7 +194,8 @@ the thing under test.
 **Expectations** are `requestCount` / `requestCountAtMost` / `requestCountAtLeast`, a positional
 `requests` list, an `everyRequest` matcher, `gaps`, `jwt`, and `report`. Header and body values match
 literally, or as `{matches: regex}`, `{contains}`, `{oneOf}`, `{absent: true}`; bodies also take
-`{json: {...}}` for a deep subset, `{jsonAbsent: [keys]}` and `{jsonNullOrAbsent: [keys]}`. An array
+`{json: {...}}` for a deep subset, `{jsonAbsent: [keys]}` (a key may be a dotted path into
+nested objects) and `{jsonNullOrAbsent: [keys]}`. An array
 in `json` matches element by element, at the same length, each element a deep subset. Query
 strings match whole via `query` or per parameter via `queryParams`. A request's `path` is matched
 with percent-encoded unreserved characters decoded (`%7E` is recorded as `~`).

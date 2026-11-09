@@ -132,7 +132,12 @@ ConsumerPermissions:
   description: |
     Resource-level permissions for a consumer. Each resource type has its own
     access levels. Higher levels imply lower levels (e.g., `write` implies `read`).
-    All default to `none`.
+
+    A resource the object leaves out is `none` when a consumer registers or is approved. On
+    `updateConsumer` it keeps its current level, so that a client built before a resource was
+    added does not revoke it: send `none` to revoke a resource. A minor version may add resources
+    and levels. Send only the resources you change, never a level read back as unknown
+    (`unknown_default_open_api`), which is refused with 400.
 
     The generation result collection endpoint (`POST /generation/collect`) is
     accessible to consumers with `generation: read` or higher. No separate
@@ -145,24 +150,20 @@ ConsumerPermissions:
     templates:
       type: string
       enum: [none, read, write]
-      default: none
       description: |
         read = list/get templates, their variants' content and data contracts.
         write = create/update/delete templates, edit their content in drafts, mark ready + read.
     variants:
       type: string
       enum: [none, read, write]
-      default: none
       description: "read = list/get variants, write = create/update/delete + read"
     themes:
       type: string
       enum: [none, read, write]
-      default: none
       description: "read = list/get themes, write = create/update/delete + read"
     environments:
       type: string
       enum: [none, read, write, deploy]
-      default: none
       description: |
         read = list/get environments, what they serve and their deployment history.
         write = create/update/delete environments + read.
@@ -170,12 +171,10 @@ ConsumerPermissions:
     stencils:
       type: string
       enum: [none, read, write]
-      default: none
       description: "read = list/get stencils and their usage, write = create/update, edit their content in drafts, mark ready + read"
     catalogs:
       type: string
       enum: [none, read, write, release]
-      default: none
       description: |
         read = list catalogs, their releases and a draft's changes.
         write = import catalogs + read.
@@ -183,7 +182,6 @@ ConsumerPermissions:
     generation:
       type: string
       enum: [none, read, write]
-      default: none
       description: |
         read = view jobs, documents, and collect generation results
         via POST /generation/collect.
@@ -191,7 +189,6 @@ ConsumerPermissions:
     consumers:
       type: string
       enum: [none, read, manage]
-      default: none
       description: |
         Consumer management within this tenant.
         read = list/view consumers.
@@ -332,6 +329,9 @@ UpdateConsumerRequest:
         Cannot change other statuses (use approve/reject instead).
     grantedPermissions:
       $ref: '#/ConsumerPermissions'
+      description: |
+        The resources to change, each to the level given. A resource left out keeps its current
+        level; `none` revokes it.
     expiresAt:
       type: ['string', 'null']
       format: date-time

@@ -54,6 +54,8 @@ import app.epistola.client.model.UpdateCatalogDependenciesRequest
 import app.epistola.client.model.UpdateCatalogReleaseRequest
 import app.epistola.client.model.UpdateCodeListEntryHiddenRequest
 import app.epistola.client.model.UpdateConsumerRequest
+import app.epistola.client.model.ConsumerPermissions
+import app.epistola.client.EpistolaJson
 import app.epistola.client.model.UpdateEnvironmentRequest
 import app.epistola.client.model.UpdateStencilContentRequest
 import app.epistola.client.model.UpdateTemplateRequest
@@ -373,6 +375,8 @@ object Driver {
                 name = config.optionalText("name"),
                 description = config.optionalText("description"),
                 clearExpiresAt = config.optionalBoolean("clearExpiresAt"),
+                grantedPermissions = config.get("grantedPermissions")?.takeUnless { it.isNull }
+                    ?.let { EpistolaJson.objectMapper.convertValue(it, ConsumerPermissions::class.java) },
             ),
             ifMatch = config.optionalText("ifMatch"),
         )
@@ -818,6 +822,8 @@ object Driver {
                 config["registry"].asText(),
                 config["namespace"].asText(),
                 config["catalogKey"].asText(),
+                page = config.get("page")?.takeUnless { it.isNull }?.asInt(),
+                size = config.get("size")?.takeUnless { it.isNull }?.asInt(),
             )
         } catch (e: ProblemDetailException) {
             report(baseUrl, mapOf("problemTypeSlug" to (e.typeSlug ?: "<null>"), "problemStatus" to e.statusCode.value()))
@@ -829,6 +835,7 @@ object Driver {
                 "registry" to releases.registry,
                 "namespace" to releases.namespace,
                 "catalogKey" to releases.catalogKey,
+                "total" to releases.page.total.toString(),
                 "availableComparedTo" to releases.available.joinToString(";") { "${it.version}=${it.comparedTo ?: "null"}" },
                 "availableChanges" to releases.available.joinToString(";") { release ->
                     "${release.version}=" + release.changes.joinToString("+") { "${it.type}/${it.key}:${it.change.value}" }

@@ -1,0 +1,69 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: update-consumer-granted-permissions
+title: Changing a consumer's permissions sends only the resources the caller changed
+why: >
+  On `updateConsumer` a resource that `grantedPermissions` leaves out keeps its current level, so
+  that a client built before a resource was added cannot revoke it by not knowing it. That only
+  holds if a client sends exactly the resources its caller set. A generator that fills in a schema
+  default, or a serializer that writes every property of the permissions object, sends `none` for
+  every resource the caller did not touch, and the server reads each as a revocation: granting
+  `generation: write` would silently take away the consumer's template and catalog access. `none`
+  the caller does set is a revocation, and goes out as is.
+
+action:
+  name: update-consumer
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantKey: acme-corp
+    consumerId: billing-service
+    grantedPermissions:
+      generation: write
+      themes: none
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      id: billing-service
+      tenantKey: acme-corp
+      name: Billing Service
+      authMethod: api-key
+      status: active
+      requestedPermissions: {}
+      grantedPermissions:
+        templates: read
+        generation: write
+      nodes: []
+      createdAt: "2026-01-20T09:00:00Z"
+      lastModified: "2026-10-22T08:30:00Z"
+    etag: 'null'
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PATCH
+      path: /api/tenants/acme-corp/consumers/billing-service
+      body:
+        json:
+          grantedPermissions:
+            generation: write
+            themes: none
+        jsonAbsent:
+          - name
+          - description
+          - grantedPermissions.templates
+          - grantedPermissions.variants
+          - grantedPermissions.environments
+          - grantedPermissions.stencils
+          - grantedPermissions.catalogs
+          - grantedPermissions.consumers
+  report:
+    id: billing-service
+    name: Billing Service
+    lastModified: "2026-10-22T08:30:00Z"
+    etag: 'null'

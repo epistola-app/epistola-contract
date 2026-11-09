@@ -26,6 +26,13 @@ import org.jspecify.annotations.Nullable;
 public final class PartitionRouting {
 
     /**
+     * The partition assignment's {@code hash} this routing implements. An assignment naming any
+     * other algorithm must not be routed with this class: a client that does would compute the
+     * wrong partitions and send its results to other nodes.
+     */
+    public static final String HASH = "murmur3";
+
+    /**
      * How many prefixes {@link #routingKeyToMe(String)} tries before giving up. Reaching this means
      * every one of a thousand hashes missed every partition this node owns.
      */
