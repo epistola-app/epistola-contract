@@ -447,7 +447,7 @@ x-authorization:
       idpName: tenant-administrator
       description: >-
         Administers a tenant: its settings and integrations, its API keys, catalogs, diagnostics and
-        audit trail, and the feedback sent from it. Does not edit, release or deploy content.
+        audit trail, and the support requests sent from it. Does not edit, release or deploy content.
   platformRoles:
     - name: TENANT_MANAGER
       idpName: tenant-manager
