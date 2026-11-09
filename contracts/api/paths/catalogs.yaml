@@ -50,13 +50,16 @@ catalog-available-releases:
 
   get:
     operationId: listAvailableCatalogReleases
+    parameters:
+      - $ref: '../components/parameters/pagination.yaml#/Page'
+      - $ref: '../components/parameters/pagination.yaml#/Size'
     summary: List the releases a catalog's source offers that the tenant has not installed
     description: |
       Read-only. Lists every release of a catalog that its source (`CatalogDto.source`: an exchange,
       a registry, or a mirror of one the server is configured with) offers and the tenant has not
       installed,
-      lowest first. Not only those above the highest installed release: a fix to an older line
-      (`1.4.1`) is listed while the tenant has `2.0.0`.
+      lowest first, a page at a time. Not only those above the highest installed release: a fix to
+      an older line (`1.4.1`) is listed while the tenant has `2.0.0`.
 
       For each, the release it is compared to (`comparedTo`): the closest installed release whose
       version is below it, or null when the tenant has none below it. What it added, modified and removed

@@ -212,11 +212,14 @@ class ResultCollector:
 
     def partition_for(self, routing_key: str) -> Optional[int]:
         """Compute the partition number for a routing key using the server's hash
-        (murmur3 x86 32-bit, seed 0). Returns ``None`` if the assignment is not yet known.
+        (murmur3 x86 32-bit, seed 0). Returns ``None`` if the assignment is not yet known, or names
+        a hash this client does not implement.
         """
         assignment = self.current_partition_assignment
-        # A zero partition count would be a ZeroDivisionError, not a "no partition" answer.
-        if assignment is None or not assignment.total:
+        # A zero partition count would be a ZeroDivisionError, not a "no partition" answer. A hash
+        # this client does not implement gives no answer either: the wrong algorithm would send
+        # results to other nodes, while no routing only loses node affinity.
+        if assignment is None or not assignment.total or assignment.hash != "murmur3":
             return None
         h = _murmur3_x86_32(routing_key.encode("utf-8"), 0)
         return (h & 0x7FFFFFFF) % assignment.total
@@ -243,6 +246,8 @@ class ResultCollector:
         """
         assignment = self.current_partition_assignment
         if assignment is None or not assignment.total or not assignment.mine:
+            return None
+        if self.partition_for(key) is None:
             return None
         if self.is_my_partition(key):
             return key

@@ -290,6 +290,14 @@ when (job.status) {
 }
 ```
 
+What a client ignores it cannot send back. A request built from a response carries only the members
+this client knows, and an unknown enum value goes out as `unknown_default_open_api`, which the server refuses with
+400. That matters where a write replaces what was read: a template document read with
+`getVariantContent` (or `getStencilContent`) and written back with `updateVariantContent` (or
+`updateStencilContent`) loses every member a newer catalog wire version added. Edit template
+documents with a client at least as new as the server, and change a consumer's permissions by
+sending only the resources you change, never the object you read.
+
 ## Error Handling
 
 The API reports errors as [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457)
@@ -500,6 +508,9 @@ val collector = ResultCollector.builder()
             "failed" -> {
                 println("Generation failed: ${result.error}")
             }
+            // A later 2.x may add a status. The result is acknowledged once the handler returns,
+            // so a status nobody handles is a result lost: log it, at least.
+            else -> logger.warn("Result ${result.requestId} has status ${result.status}")
         }
     }
     .errorHandler { e ->

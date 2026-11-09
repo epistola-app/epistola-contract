@@ -50,6 +50,8 @@ import kotlin.concurrent.withLock
  *         when (result.status) {
  *             "completed" -> downloadAndProcess(result.documentId, result.correlationId)
  *             "failed" -> logFailure(result.correlationId, result.error)
+ *             // A later 2.x may add a status; the result is acknowledged once this returns.
+ *             else -> logUnhandled(result)
  *         }
  *     }
  *     .build()
@@ -165,7 +167,8 @@ class ResultCollector private constructor(
      * Compute the partition number for a given routing key using the same
      * hash algorithm as the server (murmur3 x86 32-bit, seed 0).
      *
-     * Returns null if the partition assignment is not yet known (call after first poll).
+     * Returns null if the partition assignment is not yet known (call after first poll), or names a
+     * hash this client does not implement.
      */
     fun partitionFor(routingKey: String): Int? = routing()?.partitionFor(routingKey)
 
@@ -187,8 +190,14 @@ class ResultCollector private constructor(
      */
     fun routingKeyToMe(key: String): String? = routing()?.routingKeyToMe(key)
 
-    /** The current assignment as the shared router sees it, or null while it is unknown. */
-    private fun routing(): PartitionRouting? = partitionAssignment?.let { PartitionRouting.of(it.total, it.mine) }
+    /**
+     * The current assignment as the shared router sees it, or null while it is unknown. Also null
+     * when the server hashes with an algorithm this client does not implement: routing with the
+     * wrong one would send results to other nodes, while no routing only loses node affinity.
+     */
+    private fun routing(): PartitionRouting? = partitionAssignment
+        ?.takeIf { it.hash == PartitionRouting.HASH }
+        ?.let { PartitionRouting.of(it.total, it.mine) }
 
     // --- Poll loop ---
 

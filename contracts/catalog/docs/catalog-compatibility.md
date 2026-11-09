@@ -10,6 +10,22 @@ read v4 through v8, while an old consumer is not expected to read a newly emitte
 wire version. Wire v8 belongs to contract 2.0 and changes the Kotlin model incompatibly (see
 "Wire v8" below).
 
+## What needs a new wire version
+
+A change that is not round-trip compatible needs a new wire version, and so does one the schemas
+would accept at the current version but older consumers would not read whole:
+
+- **A new component type.** `Node.type` is a free string, but a catalog library built before the
+  component refuses every node of it (`TEMPLATE_NODE_TYPE_UNSUPPORTED`).
+- **A new member of `TemplateDocument`, `Node` or `Slot`.** These are closed objects, so an older
+  validator refuses the member, and an API client that reads a template document and writes it back
+  drops it.
+
+At a new wire version an older consumer refuses the archive as a whole, with
+`CATALOG_SCHEMA_TOO_NEW`, instead of reading part of it. The migration from the previous version may
+do nothing. New props of an existing component and new style keys need no new version: props and
+styles are open objects, and an unknown style key is a warning.
+
 ## Explicit breaking changes
 
 | Change | What is incompatible | Required migration |

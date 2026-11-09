@@ -89,6 +89,25 @@ if ! grep -rqE 'TolerantStringEnumConverter' "$GEN_OUT/src/Epistola.Client"; the
   exit 1
 fi
 
+# The generator numbers enum members in order, 1 to n, with UnknownDefaultOpenApi last. C# compiles
+# an enum member into its caller as that number, so a value added in a minor version would take
+# UnknownDefaultOpenApi's number and shift it: an application built against the older client and
+# run with the newer one would match the new value in its `case UnknownDefaultOpenApi:`. Pin it to
+# 0, which no generated member uses and which is also default(T).
+echo "==> Pinning UnknownDefaultOpenApi to 0"
+find "$GEN_OUT/src" -name '*.cs' -print0 \
+  | xargs -0 perl -pi -e 's/\bUnknownDefaultOpenApi = \d+\b/UnknownDefaultOpenApi = 0/g'
+if leftovers="$(grep -rnE '\bUnknownDefaultOpenApi = [1-9]' "$GEN_OUT/src/Epistola.Client")"; then
+  echo "UnknownDefaultOpenApi is not 0 everywhere; extend the rewrite in generate.sh:" >&2
+  echo "$leftovers" >&2
+  exit 1
+fi
+if collisions="$(grep -rnE '^\s+[A-Z][A-Za-z0-9]* = 0,?$' --include='*.cs' "$GEN_OUT/src/Epistola.Client/Model" | grep -v UnknownDefaultOpenApi)"; then
+  echo "A generated enum member other than UnknownDefaultOpenApi is numbered 0, colliding with it:" >&2
+  echo "$collisions" >&2
+  exit 1
+fi
+
 echo "==> Generating derived sources (KnownProblemSlugs, KnownValidationCodes, ModelValidation, ContractVersion)"
 mkdir -p "$DERIVED_OUT"
 dotnet run --project "$SCRIPT_DIR/src/Epistola.Client.Gen" -c Release -- "$SPEC" "$DERIVED_OUT"

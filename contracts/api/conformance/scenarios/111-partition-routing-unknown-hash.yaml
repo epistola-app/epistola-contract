@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: partition-routing-unknown-hash
+title: A client does not route with a partition hash it does not implement
+why: >
+  The partition assignment names the hash the server routes with, and `hash` is a response enum a
+  minor version may extend. Every client implements murmur3 only. Routing a key with murmur3 while
+  the server hashes with something else gives an answer that looks right and is not: the result
+  goes to another node, which acknowledges it, and the submitting node waits for a result that was
+  already delivered. Not routing at all only loses node affinity; the results still arrive.
+
+  So a client that does not recognize the hash answers every routing question as it does before
+  the assignment is known: no partition, not mine, no routed key. The assignment itself is still
+  read (`partitionTotal`).
+
+newerServer: the server's 2.x routes with a partition hash the client was not generated with
+
+action:
+  name: routing
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    keys:
+      - invoice-2026-001
+      - order-42
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+ndjson
+    ndjson:
+      - { _meta: true, hasMore: false, lastSequence: 0, resultCount: 0, partitions: { total: 8, mine: [0, 3], hash: xxhash32 } }
+
+expect:
+  requestCount: 1
+  report:
+    partitionTotal: 8
+    partitions: invoice-2026-001:null,order-42:null
+    routed: invoice-2026-001=null,order-42=null
+    routedPartitions: null,null
+    mineFlags: false,false

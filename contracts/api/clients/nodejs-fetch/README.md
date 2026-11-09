@@ -123,6 +123,12 @@ member it does not know is ignored, and an enum value it does not know is kept a
 received, though the generated type does not list it. Keep a `default` branch when switching on an
 enum.
 
+What a client ignores it cannot send back. A request built from a response carries only the members
+this client knows. That matters where a write replaces what was read: a template document read with
+`getVariantContent` and written back with `updateVariantContent` loses every member a newer catalog wire version added.
+Edit template documents with a client at least as new as the server, and change a consumer's
+permissions by sending only the resources you change, never the object you read.
+
 ## Error handling
 
 Catch `ProblemDetailException` and switch on `typeSlug` against `KnownProblemSlugs`. The slug list is

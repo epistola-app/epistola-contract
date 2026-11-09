@@ -109,8 +109,10 @@ public sealed class ResultCollector
     public int? PartitionFor(string routingKey)
     {
         var assignment = CurrentPartitionAssignment;
-        // A zero partition count would be a divide-by-zero, not a "no partition" answer.
-        if (assignment == null || assignment.Total == 0) return null;
+        // A zero partition count would be a divide-by-zero, not a "no partition" answer. A hash
+        // this client does not implement gives no answer either: the wrong algorithm would send
+        // results to other nodes, while no routing only loses node affinity.
+        if (assignment == null || assignment.Total == 0 || assignment.Hash != "murmur3") return null;
         var hash = Murmur3X86_32(Encoding.UTF8.GetBytes(routingKey), 0);
         return (int)((hash & 0x7FFFFFFF) % assignment.Total);
     }
@@ -138,6 +140,7 @@ public sealed class ResultCollector
     {
         var assignment = CurrentPartitionAssignment;
         if (assignment == null || assignment.Total == 0 || assignment.Mine.Count == 0) return null;
+        if (PartitionFor(key) == null) return null;
         if (IsMyPartition(key)) return key;
         // Trying only the partition numbers this node owns is not enough: "3:key" hashes to
         // wherever it hashes, not to partition 3. Only checking the hash of each candidate can

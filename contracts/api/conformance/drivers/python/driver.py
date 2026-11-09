@@ -60,6 +60,7 @@ from epistola_client import (
     UpdateCatalogReleaseRequest,
     UpdateCodeListEntryHiddenRequest,
     UpdateConsumerRequest,
+    ConsumerPermissions,
     UpdateEnvironmentRequest,
     UpdateStencilContentRequest,
     UpdateTemplateRequest,
@@ -627,6 +628,7 @@ def _list_available_catalog_releases(base_url: str, config: dict) -> None:
             config["registry"],
             config["namespace"],
             config["catalogKey"],
+            **{name: config[name] for name in ("page", "size") if name in config},
         )
     except ProblemDetailException as exc:
         _report(base_url, {"problemTypeSlug": exc.type_slug or "<null>", "problemStatus": exc.status_code})
@@ -637,6 +639,7 @@ def _list_available_catalog_releases(base_url: str, config: dict) -> None:
             "registry": _show(releases.registry),
             "namespace": _show(releases.namespace),
             "catalogKey": _show(releases.catalog_key),
+            "total": _show(releases.page.total),
             "availableComparedTo": ";".join(f"{_show(r.version)}={_show(r.compared_to)}" for r in releases.available),
             "availableChanges": ";".join(
                 f"{_show(r.version)}="
@@ -1674,6 +1677,8 @@ def _update_consumer(base_url: str, config: dict) -> None:
         for key, attr in (("name", "name"), ("description", "description"), ("clearExpiresAt", "clear_expires_at"))
         if config.get(key) is not None
     }
+    if config.get("grantedPermissions") is not None:
+        members["granted_permissions"] = ConsumerPermissions.from_dict(config["grantedPermissions"])
     try:
         response = ConsumersApi(_client(base_url, config)).update_consumer_with_http_info(
             config["tenantKey"],

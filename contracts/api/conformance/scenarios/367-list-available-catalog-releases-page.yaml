@@ -1,0 +1,55 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: list-available-catalog-releases-page
+title: The available releases are listed a page at a time, the page the caller asks for
+why: >
+  A catalog's source keeps offering releases, older lines included, so the list of releases a
+  tenant lacks only grows. It is paged like every other list from the start: paging added later,
+  with a default page size, would silently cut the list short for every client built before it.
+  A client sends the page and size its caller asks for and reads the total, which counts every
+  available release, not the ones on this page.
+
+action:
+  name: list-available-catalog-releases
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    page: 1
+    size: 2
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      registry: exchange.epistola.app
+      namespace: acme-corp
+      catalogKey: letters
+      available:
+        - version: 2.1.0
+          comparedTo: 2.0.0
+          changes:
+            - { type: theme, key: corporate, change: added }
+          dependencies: []
+      page: { number: 1, size: 2, total: 3, totalPages: 2 }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/available-releases
+      queryParams:
+        page: '1'
+        size: '2'
+  report:
+    registry: exchange.epistola.app
+    namespace: acme-corp
+    catalogKey: letters
+    total: '3'
+    availableComparedTo: 2.1.0=2.0.0
+    availableChanges: 2.1.0=theme/corporate:added
+    availableDependencies: 2.1.0=

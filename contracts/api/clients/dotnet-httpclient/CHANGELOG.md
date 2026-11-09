@@ -9,6 +9,14 @@ records contract changes; this file records changes to the hand-written library 
 
 ## [Unreleased]
 
+### Fixed
+
+- `ResultCollector.PartitionFor`, `IsMyPartition` and `RoutingKeyToMe` answer as before the
+  assignment is known when it names a `Hash` other than `murmur3`, instead of routing with murmur3
+  regardless and sending results to other nodes.
+- Every generated enum numbers `UnknownDefaultOpenApi` 0 (`generate.sh`), so a value added in a
+  later 2.x cannot take its number.
+
 ### Added
 
 - `ProblemDetailException.Dependents`, `HeldResources` and `IsCatalogDraftInUseProblem` surface a

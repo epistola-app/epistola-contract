@@ -56,6 +56,7 @@ make build-node    # Build the Node.js client only
 make mock          # Start mock server on localhost:4010
 make conformance   # Check every client behaves identically on the wire
 make breaking      # Check for breaking changes vs main
+make append-only   # Check members and parameters are only appended within the major
 ```
 
 ## Working with the OpenAPI Spec
@@ -178,6 +179,10 @@ All endpoints use versioned media type: `application/vnd.epistola.v2+json`
   owned by the catalog wire format (such as `PageFormat`)
 - **Counts and timestamps**: a count of items is `total`; a last change is `lastModified`
 - **Created resources**: a 201 carries `Location`; a 202 that starts a job carries the job's `Location`
+- **Append only within a major**: a minor version adds members and parameters after the existing
+  ones, and a new one as optional; only a major version reorders them. The generated clients take
+  them positionally, so an insertion compiles and shifts every later argument. `make append-only`
+  (gating in CI) compares with the latest release of the major
 - **Concurrency**: every update returns `ETag` and accepts `If-Match` (412 `resource-modified`); Jakarta
   has a `…WithHttpInfo` sibling for every operation declaring `ETag` or `Location`
 
@@ -361,6 +366,12 @@ that number, so any change that is not round-trip compatible needs a new version
 
 - Add `catalog-manifest-vN` and `resource-detail-vN` schemas, keep the previous ones, and point the
   unversioned schemas at the new version.
+- A new component type, or a new member of `TemplateDocument`, `Node` or `Slot`, needs a new wire
+  version too, although the schemas would accept it at the old one. A catalog library at the old
+  version refuses an unknown component node by node (`TEMPLATE_NODE_TYPE_UNSUPPORTED`), and a client
+  that reads a template document through the API writes it back without the new member. At a new
+  wire version, an older installation refuses the archive as a whole (`CATALOG_SCHEMA_TOO_NEW`), and
+  "Compatibility within 2.x" in `openapi.yaml` tells API clients what that means for them.
 - Bump `CatalogWireSchema.CURRENT_VERSION` and add an explicit `CatalogV{N-1}ToV{N}Migration`, with
   golden fixtures under `fixtures/v1/migrations/` and a `fixtures/v1/wire-vN/` copy. Bump the
   `conformance/` fixtures to the new version.

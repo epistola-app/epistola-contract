@@ -21,6 +21,15 @@ not implement every part of 2.0 yet.
 
 ### Changed (breaking)
 
+- **A consumer's permissions change one resource at a time.** On `updateConsumer`, a resource
+  `grantedPermissions` leaves out keeps its current level, and `none` revokes it; on registering and
+  approving it is still `none`. `ConsumerPermissions` loses its `default: none`, so the generated
+  clients send only the resources a caller sets. Before, a client built before a resource was added
+  would have revoked it on every update. Conformance scenario `update-consumer-granted-permissions`.
+- **`listAvailableCatalogReleases` is paged** (`page`, `size`, and a required `page` in the
+  response), like every other list. The list only grows, and paging added later, with a default
+  page size, would silently cut it short for older clients. Conformance scenario
+  `list-available-catalog-releases-page`.
 - **Feedback is support requests.** The permissions `FEEDBACK_SUBMIT` and `FEEDBACK_MANAGE` are now
   `SUPPORT_REQUEST_SUBMIT` and `SUPPORT_REQUEST_HANDLE`, granted by the same roles. Neither is used
   by an API operation; an identity provider or provisioning flow that names them uses the new names.
@@ -109,6 +118,21 @@ not implement every part of 2.0 yet.
   as received, and the Node.js client already did. `EpistolaJson.objectMapper` ignores unknown
   members. Conformance scenarios `newer-server-unknown-members`, `newer-server-unknown-enum-values`
   and `newer-server-unknown-values-in-a-list` hold all five to it.
+- **Compatibility within 2.x is spelled out further.** A minor version may add roles, permissions
+  and consumer permission levels, an operation keeping what it required, and may raise the catalog
+  wire version. Every new component type and every new member of a template document raises it, so
+  an older installation refuses such an archive whole (`CATALOG_SCHEMA_TOO_NEW`) instead of reading
+  part of it. A minor version adds members and parameters only after the existing ones, and a major
+  version may reorder them; the new `make append-only` check, gating in CI, holds it to that
+  against the latest release of the major. Upgrading a client means rebuilding against it, and a
+  client that writes back a template document it read must be at least as new as the server's
+  wire version: every client README says what is lost otherwise.
+- **The clients do not route with a partition hash they do not implement.** A minor version may add
+  a `hash` to the partition assignment. Every client routed with murmur3 whatever it said, and would
+  have sent its results to other nodes; now `partitionFor`, `isMyPartition` and `routingKeyToMe`
+  answer as before the assignment is known. Conformance scenario `partition-routing-unknown-hash`.
+- **.NET: `UnknownDefaultOpenApi` is 0 in every generated enum**, and so `default(T)`. It was the
+  last number, which a value added in a minor version would have taken.
 - **The clients validate template data through the server** (`validateTemplateData`) behind a
   pluggable `TemplateDataValidator`, rather than each bundling its own JSON Schema library. That
   library was never published for the JVM clients, which threw `NoClassDefFoundError`. A failure's

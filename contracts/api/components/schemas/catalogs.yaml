@@ -124,6 +124,7 @@ AvailableCatalogReleases:
     - namespace
     - catalogKey
     - available
+    - page
   properties:
     registry:
       $ref: './identifiers.yaml#/Registry'
@@ -142,11 +143,14 @@ AvailableCatalogReleases:
     available:
       type: array
       description: |
-        Every release the source offers that the tenant has not installed, lowest first: not only
-        those above the highest installed release, so a fix to an older line (`1.4.1`) is listed
-        while the tenant has `2.0.0`. Empty when the tenant has every release the source offers.
+        This page of the releases the source offers that the tenant has not installed, lowest
+        first: not only those above the highest installed release, so a fix to an older line
+        (`1.4.1`) is listed while the tenant has `2.0.0`. Empty when the tenant has every release
+        the source offers.
       items:
         $ref: '#/AvailableReleaseDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
 
 AvailableReleaseDto:
   type: object

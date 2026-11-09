@@ -147,9 +147,16 @@ function checkBody(label, matcher, entry, failures) {
       failures.push(`${label}: body is not JSON: ${truncate(rawBody)}`)
       return
     }
+    // A key may be a dotted path into nested objects (`grantedPermissions.variants`).
     for (const key of matcher.jsonAbsent) {
-      if (parsed !== null && typeof parsed === 'object' && key in parsed) {
-        failures.push(`${label}: body should not carry "${key}", got ${JSON.stringify(parsed[key])}`)
+      const segments = key.split('.')
+      let holder = parsed
+      for (const segment of segments.slice(0, -1)) {
+        holder = holder !== null && typeof holder === 'object' ? holder[segment] : undefined
+      }
+      const last = segments[segments.length - 1]
+      if (holder !== null && typeof holder === 'object' && last in holder) {
+        failures.push(`${label}: body should not carry "${key}", got ${JSON.stringify(holder[last])}`)
       }
     }
   }

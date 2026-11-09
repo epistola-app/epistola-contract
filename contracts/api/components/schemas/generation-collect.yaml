@@ -239,7 +239,11 @@ PartitionAssignment:
       type: string
       description: |
         Hash algorithm used for routing key → partition mapping.
-        The client must use the same algorithm to predict routing.
+        The client must use the same algorithm to predict routing. A minor version may add an
+        algorithm: a client that does not implement the one named must not predict routing at
+        all, rather than predict it with another algorithm and send its results to other nodes.
+        The client libraries then answer every routing question as they do before the assignment
+        is known.
 
         `murmur3` refers to MurmurHash3 x86 32-bit variant with seed 0.
         The partition is computed as: `(murmur3_x86_32(routingKey, seed=0) & 0x7FFFFFFF) % total`.
