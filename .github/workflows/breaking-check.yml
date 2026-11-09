@@ -50,6 +50,12 @@ jobs:
             cp contracts/api/build/openapi.yaml .oasdiff/base-openapi.yaml
           fi
 
+      # Gating, unlike the oasdiff report below: within a major version a member or parameter
+      # inserted before an existing one compiles and silently shifts the generated clients'
+      # positional arguments. Compares with the latest release of the spec's major version.
+      - name: Check members and parameters are only appended
+        run: contracts/api/scripts/check-append-only.sh
+
       # oasdiff comes from mise (see mise.toml), so local `make breaking` and CI
       # run the same pinned version. Results go to files to avoid routing the
       # (potentially very large) diff output through GitHub Actions step

@@ -1,4 +1,4 @@
-.PHONY: all lint license license-check conformance conformance-kotlin conformance-jakarta conformance-dotnet conformance-python conformance-node bundle build-protocol build-client build-jakarta build-server build-catalog build-epistola-catalog build-dotnet build-python build-node build clean publish-local sbom-dotnet breaking mock validate-impl release docs help
+.PHONY: all lint license license-check conformance conformance-kotlin conformance-jakarta conformance-dotnet conformance-python conformance-node bundle build-protocol build-client build-jakarta build-server build-catalog build-epistola-catalog build-dotnet build-python build-node build clean publish-local sbom-dotnet breaking append-only mock validate-impl release docs help
 
 API_DIR := contracts/api
 API_SPEC := $(API_DIR)/openapi.yaml
@@ -161,6 +161,10 @@ publish-local: build
 		  mv package.json.publish-local package.json; exit $$rc; }
 
 # Check for breaking changes against main branch
+# Within a major version, members and parameters are only added after the existing ones
+append-only: $(REDOCLY)
+	@$(API_DIR)/scripts/check-append-only.sh
+
 breaking: bundle
 	@echo "==> Checking for breaking changes against main branch..."
 	@rm -rf /tmp/epistola-base-spec && mkdir -p /tmp/epistola-base-spec
@@ -279,6 +283,7 @@ help:
 	@echo "  clean          - Clean all build artifacts"
 	@echo "  publish-local  - Publish every artifact locally at the spec version (override: VERSION=x.y.z)"
 	@echo "  breaking       - Check for breaking API changes against main branch"
+	@echo "  append-only    - Check members and parameters are only appended within the major version"
 	@echo "  docs           - Build API docs and serve at http://localhost:8888"
 	@echo "  mock           - Start Prism mock server on http://localhost:4010"
 	@echo "  validate-impl  - Validate implementation against spec (set TARGET_URL)"
