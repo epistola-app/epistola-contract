@@ -99,6 +99,12 @@ else:
     retry_later(job)  # pending, in-progress, and any status added later, e.g. job.status.value
 ```
 
+What a client ignores it cannot send back. A request built from a response carries only the members
+this client knows. That matters where a write replaces what was read: a template document read with
+`get_variant_content` and written back with `update_variant_content` loses every member a newer catalog wire version added.
+Edit template documents with a client at least as new as the server, and change a consumer's
+permissions by sending only the resources you change, never the object you read.
+
 ## Error handling
 
 Install the opt-in problem-detail handler on the client

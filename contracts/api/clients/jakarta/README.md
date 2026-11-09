@@ -176,6 +176,14 @@ A minor version of the contract may add response members and enum values ("Compa
 ignores a response member it does not know, and an enum value it does not know reads as that
 enum's `UNKNOWN_DEFAULT_OPEN_API` constant. Keep a `default` branch when switching on an enum.
 
+What a client ignores it cannot send back. A request built from a response carries only the members
+this client knows, and an unknown enum value goes out as `unknown_default_open_api`, which the server refuses with
+400. That matters where a write replaces what was read: a template document read with
+`getVariantContent` (or `getStencilContent`) and written back with `updateVariantContent` (or
+`updateStencilContent`) loses every member a newer catalog wire version added. Edit template
+documents with a client at least as new as the server, and change a consumer's permissions by
+sending only the resources you change, never the object you read.
+
 ## Error handling
 
 `application/problem+json` responses arrive as a typed `ProblemDetailException`, with no
@@ -361,6 +369,9 @@ ResultCollector collector = ResultCollector.builder()
                 // the release rendered; getVersion() is null for a draft rendered through an environment.
                 case COMPLETED -> download(result.getDocumentId(), result.getCorrelationId());
                 case FAILED -> logFailure(result.getCorrelationId(), result.getError());
+                // A later 2.x may add a status (read as UNKNOWN_DEFAULT_OPEN_API). The result is
+                // acknowledged once the handler returns, so log what nobody handles, at least.
+                default -> log.warn("result {} has status {}", result.getRequestId(), result.getStatus());
             }
         })
         .errorHandler(e -> log.warn("collect failed, backing off", e))

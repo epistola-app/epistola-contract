@@ -95,6 +95,14 @@ member it does not know is ignored, and an enum value it does not know reads as 
 `UnknownDefaultOpenApi` member (`Epistola.Client.Json.TolerantStringEnumConverter`). Keep a
 `default` arm when switching on an enum.
 
+What a client ignores it cannot send back. A request built from a response carries only the members
+this client knows, and an unknown enum value goes out as `unknown_default_open_api`, which the server refuses with
+400. That matters where a write replaces what was read: a template document read with
+`GetVariantContent` (or `GetStencilContent`) and written back with `UpdateVariantContent` (or
+`UpdateStencilContent`) loses every member a newer catalog wire version added. Edit template
+documents with a client at least as new as the server, and change a consumer's permissions by
+sending only the resources you change, never the object you read.
+
 ## Error handling
 
 With `InstallProblemDetailHandler()`, `application/problem+json` error responses raise a typed
@@ -281,6 +289,9 @@ var collector = ResultCollector.Builder()
             // Registry, Namespace and CatalogKey name the catalog rendered; Version is null for a draft.
             case "completed": Download(result.DocumentId, result.CorrelationId); break;
             case "failed":    LogFailure(result.CorrelationId, result.Error);    break;
+            // A later 2.x may add a status. The result is acknowledged once the handler returns,
+            // so log what nobody handles, at least.
+            default: logger.LogWarning("Result {RequestId} has status {Status}", result.RequestId, result.Status); break;
         }
     })
     .Build();

@@ -359,12 +359,30 @@ info:
       as their `unknown_default_open_api` member (`UNKNOWN_DEFAULT_OPEN_API` in Jakarta,
       `UnknownDefaultOpenApi` in .NET), the Python client as an unknown member that keeps the
       value, and the Node.js client as the string received;
-    - problem types and validation codes (see "Errors").
+    - problem types and validation codes (see "Errors");
+    - roles and permissions (`x-authorization`), and resources and levels of a consumer's
+      permissions (`ConsumerPermissions`). An operation keeps requiring what it required: when a
+      minor version moves an operation to a new permission, every role that granted the old one
+      grants the new one;
+    - a catalog wire version (`x-epistola-catalog-contract`). Every new component type and every
+      new member of a template document (`TemplateDocument`, `Node`, `Slot`) raises it. An
+      installation refuses an archive of a newer wire version as a whole
+      (`CATALOG_SCHEMA_TOO_NEW`), rather than reading part of it.
 
     It never removes or renames a member or an enum value, makes an optional request member
     required, or narrows what a request may send. A server refuses a request enum value it does
     not know with 400, so never send `unknown_default_open_api`. Operations and members marked
     `x-experimental` are outside these rules.
+
+    A minor version adds members and parameters only after the existing ones, so the positional
+    arguments of the generated clients keep their meaning; a major version may reorder them. A new optional parameter or member
+    still changes the generated method and constructor signatures: rebuild against the client
+    library you ship with, which may then ask for code changes, rather than replace its binary.
+
+    A client that reads a template document and writes it back (`getVariantContent` and
+    `updateVariantContent`, and the same for stencils) sends only the members it knows, and the
+    write replaces the document. Edit template documents with a client at least as new as the
+    server's catalog wire version, or the members it does not know are lost.
 
     ## Experimental parts and server support
 

@@ -40,6 +40,12 @@ A released `schemaVersion` is never tightened in place. A change that is not rou
 needs a new wire version:
 
 - Add new versioned schemas and keep the previous ones.
+- A new component type, or a new member of `TemplateDocument`, `Node` or `Slot`, needs a new wire
+  version too, although the schemas would accept it at the old one. A catalog library at the old
+  version refuses an unknown component node by node (`TEMPLATE_NODE_TYPE_UNSUPPORTED`), and a client
+  that reads a template document through the API writes it back without the new member. At a new
+  wire version, an older installation refuses the archive as a whole (`CATALOG_SCHEMA_TOO_NEW`), and
+  "Compatibility within 2.x" in `openapi.yaml` tells API clients what that means for them.
 - Bump `CatalogWireSchema.CURRENT_VERSION` and add an explicit migration that repairs with notices.
   What an archive cannot say for itself (the registry and namespace of a v7 archive) comes from the caller through
   `CatalogMigrationOptions`; without it the migration reports a finding and never invents a value.
