@@ -393,8 +393,9 @@ info:
     Operations and members marked `x-experimental: true`, the consumer model (Bearer JWT and the
     Consumers API) among them, may still change. Epistola Suite, the server that implements this
     contract, may not implement them yet, nor every part of the rest: installing missing dependency
-    releases when deploying, recording who requested a document, listing a stencil's usage in a released release, and a dependency alias other than the
-    catalog's key among them. An operation a server does not implement yet answers 501
+    releases when deploying, recording who requested a document, listing a stencil's usage in a released release, listing a catalog's templates across its
+    releases (`listCatalogTemplates`), and a dependency alias other than the catalog's key among
+    them. An operation a server does not implement yet answers 501
     `operation-not-implemented`.
   version: "2.0.0"
   contact:
@@ -1305,6 +1306,8 @@ paths:
     $ref: './paths/templates.yaml#/templates'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates/{templateKey}:
     $ref: './paths/templates.yaml#/templates-id'
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/templates:
+    $ref: './paths/templates.yaml#/catalog-templates'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/templates/{templateKey}/validate:
     $ref: './paths/templates.yaml#/template-validate'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates/{templateKey}/mark-ready:
@@ -1568,6 +1571,12 @@ components:
       $ref: './components/schemas/templates.yaml#/UpdateTemplateRequest'
     TemplateListResponse:
       $ref: './components/schemas/templates.yaml#/TemplateListResponse'
+    CatalogTemplateDto:
+      $ref: './components/schemas/templates.yaml#/CatalogTemplateDto'
+    CatalogTemplateRelease:
+      $ref: './components/schemas/templates.yaml#/CatalogTemplateRelease'
+    CatalogTemplateListResponse:
+      $ref: './components/schemas/templates.yaml#/CatalogTemplateListResponse'
     DataExampleDto:
       $ref: './components/schemas/templates.yaml#/DataExampleDto'
 

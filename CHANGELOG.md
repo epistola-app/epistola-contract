@@ -152,6 +152,11 @@ not implement every part of 2.0 yet.
 - **`help` may name the missing kind**: a `not-found` problem's `help` may add `missing=<kind>`
   (`…/not-found?operation=generateDocument&missing=template`), a contract term, never a value, so
   the error page can give hints per kind.
+- **`listCatalogTemplates`** (`GET …/catalogs/{registry}/{namespace}/{catalogKey}/templates`): a
+  catalog's templates across its releases, each once with the releases that contain it
+  (`CatalogTemplateListResponse`), optionally only those deployed to an `environmentKey`, so a
+  client can offer a template before choosing a release. Epistola Suite may answer 501 until it
+  implements it.
 
 - **The `SUPPORT_DESK` platform role** (identity-provider name `support-desk`): works the
   installation's support desk, the support requests of every tenant, their replies and internal
