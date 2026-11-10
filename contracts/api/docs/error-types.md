@@ -21,7 +21,9 @@ explanation of the type. `help`, when present, opens the same page with the requ
 its query, such as the `operation` that answered, so the page can give the hints for that
 operation. The context is made of this contract's own names, never a value from the request or the
 installation: a `help` link can be shared, logged or opened in a browser without disclosing
-anything.
+anything. A `not-found` problem's `help` may also carry `missing`, the kind of resource that was not
+found (`?operation=generateDocument&missing=template`), a contract term like `operation`, never the
+resource's key.
 
 A response may carry additional domain-specific **extension members** as top-level fields.
 Clients must ignore members they do not recognize.
@@ -52,7 +54,7 @@ against the operation it answers.
 | `https://epistola.app/errors/unauthorized` | `unauthorized` | 401 | `ProblemDetail` | missing or invalid authentication credentials |
 | `https://epistola.app/errors/api-key-auth-disabled` | `api-key-auth-disabled` | 401 | `ProblemDetail` | API-key authentication is disabled for this deployment; use `Authorization: Bearer <jwt>` instead |
 | `https://epistola.app/errors/forbidden` | `forbidden` | 403 | `ProblemDetail` + `requiredPermission`, `requiredPlatformRole`, `tenantKey`, `reason` (all optional) | authenticated, but refused. Which members are present says what was refused: a permission in a tenant (`requiredPermission`, as the operation's `x-required-permissions` names it, and `tenantKey`), access to the tenant itself (`tenantKey` alone), a platform role (`requiredPlatformRole`), or a policy the server applies (`reason`, text for a person, with no single permission to grant) |
-| `https://epistola.app/errors/not-found` | `not-found` | 404 | `ProblemDetail` | the addressed resource (tenant, catalog, template, …) does not exist |
+| `https://epistola.app/errors/not-found` | `not-found` | 404 | `ProblemDetail` + `missing` (optional) | the addressed resource (tenant, catalog, template, …) does not exist. `missing` says which (`kind`: `tenant`, `catalog`, `environment`, `release`, `template`, `variant`) and the context it was looked for in; see [Not found](#not-found) |
 | `https://epistola.app/errors/no-matching-variant` | `no-matching-variant` | 404 | `ProblemDetail` | the template exists, but none of its variants matches the attributes the request requires (`generateDocument`, `generateDocumentBatch`, `previewDocument`) |
 | `https://epistola.app/errors/release-registry-not-found` | `release-registry-not-found` | 404 | `ProblemDetail` | the release registry the request names (alpha, ADR 0008) is not one this installation has configured or is connected to; `listReleaseRegistries` lists those it has. Nothing was published or installed |
 | `https://epistola.app/errors/method-not-allowed` | `method-not-allowed` | 405 | `ProblemDetail` | the operation does not accept this HTTP method; the `Allow` header lists those it does. Any operation may answer it; it is not listed on each |
@@ -87,6 +89,48 @@ against the operation it answers.
 The slug list is **open**: the API may introduce new `type` values without a major version
 bump. Clients that switch on `type` must always keep a default branch for unrecognized types
 and fall back to the HTTP `status`.
+
+## Not found
+
+A missing resource is `not-found`, whichever resource it is. Its optional `missing` member
+(`MissingResource`) says which, machine-readably, so a client does not have to read `detail`: RFC
+9457 §3.1.4 says consumers *SHOULD NOT parse the "detail" member for information; extensions are
+more suitable and less error-prone ways to obtain such information*. It is one named member with a
+structured value, like the RFC's own `errors` example, not a generic `details` wrapper.
+
+```json
+{
+  "type": "https://epistola.app/errors/not-found",
+  "title": "Not Found",
+  "status": 404,
+  "detail": "Release municipality-demo@1.4.0 does not contain template 'besluit'",
+  "help": "https://epistola.app/errors/not-found?operation=generateDocument&missing=template",
+  "missing": {
+    "kind": "template",
+    "catalog": { "registry": "local", "namespace": "demo", "catalogKey": "municipality-demo" },
+    "release": "1.4.0",
+    "template": "besluit"
+  }
+}
+```
+
+`kind` is required and may gain values in a minor version, so keep a default branch. The other
+members are present depending on the kind and the request:
+
+| `kind` | members | meaning |
+| --- | --- | --- |
+| `tenant` | — | the tenant in the path does not exist |
+| `catalog` | `catalog` | the catalog does not exist |
+| `environment` | `environment` | the environment does not exist |
+| `release` | `catalog`, `release` | the catalog has no such release (`release` is a version, or a `releaseId` for a draft) |
+| `release` | `catalog`, `versionRange` | no release of the catalog satisfies the range |
+| `release` | `catalog`, `versionRange`, `environment` | no release deployed to the environment satisfies the range |
+| `release` | `catalog`, `environment` | the environment serves no release of the catalog |
+| `template` | `catalog`, `template` (+ `release`) | the template does not exist; with `release`, that release does not contain it |
+| `variant` | `catalog`, `template`, `variant` (+ `release`) | the variant does not exist; with `release`, the template in that release has no such variant |
+
+The members are values from the request, for the client that sent it; `help` carries only the
+`kind`. `missing` is optional: a server may leave it out, and only a `not-found` problem carries it.
 
 ## Validation errors
 

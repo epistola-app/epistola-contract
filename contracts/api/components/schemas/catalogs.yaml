@@ -281,6 +281,31 @@ InstallCatalogReleaseResponse:
       items:
         $ref: '#/CatalogReleaseRefDto'
 
+CatalogRefDto:
+  type: object
+  description: |
+    A catalog, named in full, because a catalog's key alone is not unique: its registry, its
+    namespace and its key.
+  required:
+    - registry
+    - namespace
+    - catalogKey
+  properties:
+    registry:
+      $ref: './identifiers.yaml#/Registry'
+      description: |
+        Registry of the catalog: the exchange or domain its namespace lives in. Always written in
+        full, the default registry by its name, never `~`.
+      example: exchange.epistola.app
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the catalog, within its registry
+      example: acme-corp
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the catalog, unique within its registry and namespace
+      example: letters
+
 CatalogReleaseRefDto:
   type: object
   description: |

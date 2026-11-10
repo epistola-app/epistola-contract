@@ -14,3 +14,4 @@ src/main/kotlin/app/epistola/api/model/MergeConflictsUnresolvedProblemDetail.kt
 src/main/kotlin/app/epistola/api/model/MergeBaseMissingProblemDetail.kt
 src/main/kotlin/app/epistola/api/model/CatalogRenderingDefaultsTooNewProblemDetail.kt
 src/main/kotlin/app/epistola/api/model/ForbiddenProblemDetail.kt
+src/main/kotlin/app/epistola/api/model/NotFoundProblemDetail.kt

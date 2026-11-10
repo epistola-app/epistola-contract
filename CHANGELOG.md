@@ -140,6 +140,19 @@ not implement every part of 2.0 yet.
 
 ### Added
 
+- **A `not-found` problem says what is missing** (`NotFoundProblemDetail`). Its optional `missing`
+  member (`MissingResource`) names the `kind` of resource (`tenant`, `catalog`, `environment`,
+  `release`, `template`, `variant`; may gain values) and the context it was looked for in:
+  `catalog` (in full, `CatalogRefDto`), `environment`, `versionRange`, `release`, `template`,
+  `variant`. So a client can tell "no release satisfies `^2.0.0` in `production`" from "release
+  1.4.0 does not contain template `besluit`" without parsing `detail`, which RFC 9457 §3.1.4 advises
+  against. `NotFoundError`, `VariantSelectionNotFoundError` (generation and preview) and
+  `ReleaseRegistryNotFoundError` use it. Server stubs: `ProblemDetails.notFound(missing, …)`. The
+  clients expose it through their generic extension members for now.
+- **`help` may name the missing kind**: a `not-found` problem's `help` may add `missing=<kind>`
+  (`…/not-found?operation=generateDocument&missing=template`), a contract term, never a value, so
+  the error page can give hints per kind.
+
 - **The `SUPPORT_DESK` platform role** (identity-provider name `support-desk`): works the
   installation's support desk, the support requests of every tenant, their replies and internal
   notes, their status and priority, and passing them on to a support connection. It grants nothing
