@@ -615,3 +615,99 @@ TemplateListResponse:
       size: 20
       total: 1
       totalPages: 1
+
+CatalogTemplateDto:
+  type: object
+  description: |
+    A template of a catalog, as `listCatalogTemplates` lists it: once, with every release considered
+    that contains it.
+  required:
+    - key
+    - name
+    - releases
+  properties:
+    key:
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: Key of the template
+      example: besluit
+    name:
+      type: string
+      description: The template's name in the highest release that contains it
+      example: Besluit
+    description:
+      type: [string, "null"]
+      maxLength: 2000
+      description: |
+        The template's description in the highest release that contains it. Null when it has none.
+      example: Decision letter; the appeal paragraph follows the 2026 house style.
+    releases:
+      type: array
+      description: |
+        The releases considered that contain the template: a draft first, when one is considered,
+        as a request through the environment without a `versionRange` renders it, then the released
+        releases, highest first.
+      items:
+        $ref: '#/CatalogTemplateRelease'
+  example:
+    key: besluit
+    name: Besluit
+    description: null
+    releases:
+      - version: "1.4.0"
+        releaseId: k7m2x9qa
+        status: released
+      - version: "1.3.0"
+        releaseId: p3n8w4rd
+        status: released
+
+CatalogTemplateRelease:
+  type: object
+  description: A release of the catalog that contains the template
+  required:
+    - version
+    - releaseId
+    - status
+  properties:
+    version:
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
+      description: The release's version; null for a draft, which has none
+      example: "1.4.0"
+    releaseId:
+      $ref: './identifiers.yaml#/CatalogReleaseId'
+      description: The release's id, which addresses it as its version does
+    status:
+      $ref: './catalogs.yaml#/CatalogReleaseStatus'
+
+CatalogTemplateListResponse:
+  description: The templates of a catalog across its releases
+  type: object
+  required:
+    - items
+    - page
+  properties:
+    items:
+      type: array
+      description: The templates, each once
+      items:
+        $ref: '#/CatalogTemplateDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
+  example:
+    items:
+      - key: besluit
+        name: Besluit
+        description: null
+        releases:
+          - version: null
+            releaseId: p3n8w4rd
+            status: draft
+          - version: "1.4.0"
+            releaseId: k7m2x9qa
+            status: released
+    page:
+      number: 0
+      size: 20
+      total: 1
+      totalPages: 1

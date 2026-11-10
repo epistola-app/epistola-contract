@@ -375,6 +375,7 @@ openApiGenerate {
             "MergeBaseMissingProblemDetail" to "org.springframework.http.ProblemDetail",
             "CatalogRenderingDefaultsTooNewProblemDetail" to "org.springframework.http.ProblemDetail",
             "ForbiddenProblemDetail" to "org.springframework.http.ProblemDetail",
+            "NotFoundProblemDetail" to "org.springframework.http.ProblemDetail",
         ),
     )
 

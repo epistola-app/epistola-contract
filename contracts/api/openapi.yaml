@@ -328,10 +328,14 @@ info:
     - `detail` (optional): what happened this time;
     - `instance` (optional): this occurrence;
     - `help` (optional): the type's page with this request's context, such as the `operation`
-      that answered, for hints that fit it. It names this contract's terms only, never a value.
+      that answered, for hints that fit it. It names this contract's terms only, never a value:
+      a `not-found` problem's may add the kind of resource that was missing,
+      `https://epistola.app/errors/not-found?operation=generateDocument&missing=template`.
 
-    A problem may add members of its own, such as the field-level `errors` of a `validation-error`;
-    ignore members you do not recognize. The problem types are listed, machine-readably, in this
+    A problem may add members of its own, such as the field-level `errors` of a `validation-error`
+    or the `missing` of a `not-found`, which says which resource was not found and where it was
+    looked for; ignore members you do not recognize. Read such members rather than `detail`, which
+    is for a person (RFC 9457 §3.1.4). The problem types are listed, machine-readably, in this
     document's `x-problem-types` extension, and in the
     [error type registry](https://github.com/epistola-app/epistola-contract/blob/main/contracts/api/docs/error-types.md).
 
@@ -389,8 +393,9 @@ info:
     Operations and members marked `x-experimental: true`, the consumer model (Bearer JWT and the
     Consumers API) among them, may still change. Epistola Suite, the server that implements this
     contract, may not implement them yet, nor every part of the rest: installing missing dependency
-    releases when deploying, recording who requested a document, listing a stencil's usage in a released release, and a dependency alias other than the
-    catalog's key among them. An operation a server does not implement yet answers 501
+    releases when deploying, recording who requested a document, listing a stencil's usage in a released release, listing a catalog's templates across its
+    releases (`listCatalogTemplates`), and a dependency alias other than the catalog's key among
+    them. An operation a server does not implement yet answers 501
     `operation-not-implemented`.
   version: "2.0.0"
   contact:
@@ -648,8 +653,12 @@ x-problem-types:
         (`reason`). Every member is optional.
     - slug: not-found
       status: 404
-      schema: ProblemDetail
-      description: The addressed resource does not exist.
+      schema: NotFoundProblemDetail
+      description: >-
+        The addressed resource does not exist. `missing` (optional) says which
+        resource (`kind`) and the context it was looked for in: a release no
+        release satisfies a `versionRange`, or a release that does not contain
+        the template, for instance.
     - slug: no-matching-variant
       status: 404
       schema: ProblemDetail
@@ -1297,6 +1306,8 @@ paths:
     $ref: './paths/templates.yaml#/templates'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates/{templateKey}:
     $ref: './paths/templates.yaml#/templates-id'
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/templates:
+    $ref: './paths/templates.yaml#/catalog-templates'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/templates/{templateKey}/validate:
     $ref: './paths/templates.yaml#/template-validate'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates/{templateKey}/mark-ready:
@@ -1560,6 +1571,12 @@ components:
       $ref: './components/schemas/templates.yaml#/UpdateTemplateRequest'
     TemplateListResponse:
       $ref: './components/schemas/templates.yaml#/TemplateListResponse'
+    CatalogTemplateDto:
+      $ref: './components/schemas/templates.yaml#/CatalogTemplateDto'
+    CatalogTemplateRelease:
+      $ref: './components/schemas/templates.yaml#/CatalogTemplateRelease'
+    CatalogTemplateListResponse:
+      $ref: './components/schemas/templates.yaml#/CatalogTemplateListResponse'
     DataExampleDto:
       $ref: './components/schemas/templates.yaml#/DataExampleDto'
 
@@ -1578,6 +1595,8 @@ components:
       $ref: './components/schemas/catalogs.yaml#/InstallCatalogReleaseResponse'
     CatalogReleaseRefDto:
       $ref: './components/schemas/catalogs.yaml#/CatalogReleaseRefDto'
+    CatalogRefDto:
+      $ref: './components/schemas/catalogs.yaml#/CatalogRefDto'
     ReleaseRegistryKind:
       $ref: './components/schemas/release-registries.yaml#/ReleaseRegistryKind'
     ReleaseRegistryDto:
@@ -1814,6 +1833,10 @@ components:
       $ref: './components/responses/errors.yaml#/CatalogRenderingDefaultsTooNewProblemDetail'
     ForbiddenProblemDetail:
       $ref: './components/responses/errors.yaml#/ForbiddenProblemDetail'
+    NotFoundProblemDetail:
+      $ref: './components/responses/errors.yaml#/NotFoundProblemDetail'
+    MissingResource:
+      $ref: './components/responses/errors.yaml#/MissingResource'
     DataModelValidationError:
       $ref: './components/responses/errors.yaml#/DataModelValidationError'
     TemplateDataValidationProblemDetail:

@@ -9,6 +9,7 @@ import app.epistola.api.model.CatalogReadOnlyReason
 import app.epistola.api.model.CatalogReleaseRefDto
 import app.epistola.api.model.DataModelValidationError
 import app.epistola.api.model.MissingReleaseDependency
+import app.epistola.api.model.MissingResource
 import app.epistola.api.model.UnreleasedCatalogDependency
 import app.epistola.api.model.ValidationError
 import app.epistola.protocol.ProblemTypeUris
@@ -151,6 +152,12 @@ object ProblemDetails {
 
     /** Extension member saying why a policy refused a `forbidden` problem's request (`ForbiddenProblemDetail`). */
     const val REASON_PROPERTY: String = ProblemExtensionMembers.REASON
+
+    /**
+     * Extension member saying which resource a `not-found` problem could not find, and the context
+     * it was looked for in (`NotFoundProblemDetail`).
+     */
+    const val MISSING_PROPERTY: String = ProblemExtensionMembers.MISSING
 
     // The mapping is shared with the clients, which use it in the other direction.
     private val uris = ProblemTypeUris.of(TYPE_BASE)
@@ -588,6 +595,23 @@ object ProblemDetails {
         if (tenantKey != null) problem.setProperty(TENANT_KEY_PROPERTY, tenantKey)
         if (requiredPlatformRole != null) problem.setProperty(REQUIRED_PLATFORM_ROLE_PROPERTY, requiredPlatformRole)
         if (reason != null) problem.setProperty(REASON_PROPERTY, reason)
+        return problem
+    }
+
+    /**
+     * Builds a `not-found` [ProblemDetail] (404): like [of] plus the [missing] extension member, which
+     * resource was not found and the context it was looked for in (the `NotFoundProblemDetail` shape
+     * from the contract), written only when given. Prefer it to describing the resource in [detail]
+     * alone: a client should not parse `detail` (RFC 9457 §3.1.4). When you set `help`, it may carry
+     * `missing=<kind>` as well as `operation`, never a key from [missing].
+     */
+    fun notFound(
+        missing: MissingResource? = null,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        val problem = of(HttpStatusCode.valueOf(404), typeFor(KnownProblemSlugs.NOT_FOUND), detail, instance)
+        if (missing != null) problem.setProperty(MISSING_PROPERTY, missing)
         return problem
     }
 

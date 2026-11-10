@@ -19,87 +19,40 @@ maps every 1.x operation and member to its 2.0 counterpart.**
 Parts marked alpha (`x-experimental`) may still change in a minor 2.x release. Epistola Suite may
 not implement every part of 2.0 yet.
 
-### Changed (breaking)
+Entries marked **Breaking** need a client change; the rest are additive. Within a topic, the
+breaking entries come first.
 
-- **A consumer's permissions change one resource at a time.** On `updateConsumer`, a resource
-  `grantedPermissions` leaves out keeps its current level, and `none` revokes it; on registering and
-  approving it is still `none`. `ConsumerPermissions` loses its `default: none`, so the generated
-  clients send only the resources a caller sets. Before, a client built before a resource was added
-  would have revoked it on every update. Conformance scenario `update-consumer-granted-permissions`.
-- **`listAvailableCatalogReleases` is paged** (`page`, `size`, and a required `page` in the
-  response), like every other list. The list only grows, and paging added later, with a default
-  page size, would silently cut it short for older clients. Conformance scenario
-  `list-available-catalog-releases-page`.
-- **Feedback is support requests.** The permissions `FEEDBACK_SUBMIT` and `FEEDBACK_MANAGE` are now
-  `SUPPORT_REQUEST_SUBMIT` and `SUPPORT_REQUEST_HANDLE`, granted by the same roles. Neither is used
-  by an API operation; an identity provider or provisioning flow that names them uses the new names.
-- **Catalog releases replace template versions** (ADR 0002). A release is a `draft` (editable, no
-  version) or `released` (immutable, with a `version`), addressed by `releaseId` or version under
-  `…/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}`. A catalog may have any
-  number of drafts. Each starts from a base and is versioned by what changed against it, so a fix
-  to an older line is an ordinary release (`1.4.1` after `2.0.0`). Drafts are independent; one that
-  is **behind** later releases needs `acknowledgedBehind` to be released. Resources are edited as
-  working copies in a draft and marked ready before releasing (`getCatalogChanges`,
+### Catalog releases
+
+- **Breaking:** **Catalog releases replace template versions** (ADR 0002). A release is a `draft`
+  (editable, no version) or `released` (immutable, with a `version`), addressed by `releaseId` or
+  version under `…/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}`. A catalog may
+  have any number of drafts. Each starts from a base and is versioned by what changed against it, so
+  a fix to an older line is an ordinary release (`1.4.1` after `2.0.0`). Drafts are independent; one
+  that is **behind** later releases needs `acknowledgedBehind` to be released. Resources are edited
+  as working copies in a draft and marked ready before releasing (`getCatalogChanges`,
   `markCatalogReady`, `mark…Ready`). The template version, activation, variant draft, stencil
   version and contract draft operations are removed.
-- **Environments deploy releases.** `deployCatalogRelease` (with `replace` and
-  `includeDependencies`), `undeployCatalogRelease`, `listEnvironmentDeployments` (with
-  `lastUsedAt` and `documentsRequested`) and `listDeploymentHistory`. An environment can serve
-  several releases of a catalog and at most one draft, never in an environment marked
-  `production`. Rollback is undeploying the newer release.
-- **Generation selects a release by `versionRange` and `environmentKey`** instead of `versionId`.
-  Jobs, documents and collected results name the release they rendered (`version`, `releaseId`,
-  `releaseName`). `getGenerationJobStatus` returns counts, and the new `listGenerationJobItems`
-  pages the items. A batch holds at most 10000 items. `previewDocument` renders any release by its
-  `releaseId`, which is how a draft is previewed. A document's PDF is downloaded from
-  `…/documents/{documentId}/content` (`downloadDocument`), leaving the document's own path free for
-  its metadata in a later 2.x. `collectGenerationResults` delivers each caller the results of the
-  requests it submitted, never another application's.
-- **Catalogs are identified by `registry`, `namespace` and `catalogKey`** (ADR 0003), in paths
-  (`~` is the default registry) and in every body that named a catalog. A registry is `local` or a
-  DNS name. References into another catalog use the alias its dependency declaration gives it.
-- **Catalog dependencies pin an exact release** (`listCatalogDependencies`,
+- **Breaking:** **Environments deploy releases.** `deployCatalogRelease` (with `replace` and
+  `includeDependencies`), `undeployCatalogRelease`, `listEnvironmentDeployments` (with `lastUsedAt`
+  and `documentsRequested`) and `listDeploymentHistory`. An environment can serve several releases
+  of a catalog and at most one draft, never in an environment marked `production`. Rollback is
+  undeploying the newer release.
+- **Breaking:** **Catalog dependencies pin an exact release** (`listCatalogDependencies`,
   `updateCatalogDependencies`). A draft may depend on another catalog's draft, and releasing takes
   it along (`releaseDependencies`) or is refused with `release-dependencies-unreleased`.
-- **Catalogs have no type.** `CatalogType` is gone. `CatalogDto` says whether a catalog can be
-  changed (`editable`, `readOnlyReason`) and where its releases come from (`source`). A write to
-  one that cannot be changed is 409 `catalog-read-only`.
-- **Nothing is upgraded in place.** `importCatalog` installs the archive's release beside the
-  others, never into a draft. `upgradeCatalog` and `previewCatalogUpgrade` become
+- **Breaking:** **Catalogs have no type.** `CatalogType` is gone. `CatalogDto` says whether a
+  catalog can be changed (`editable`, `readOnlyReason`) and where its releases come from (`source`).
+  A write to one that cannot be changed is 409 `catalog-read-only`.
+- **Breaking:** **Nothing is upgraded in place.** `importCatalog` installs the archive's release
+  beside the others, never into a draft. `upgradeCatalog` and `previewCatalogUpgrade` become
   `installCatalogRelease` and `listAvailableCatalogReleases`. A source that cannot be used is
   503/502 `catalog-source-unavailable`.
-- **Keys, not ids or slugs.** `key` is a resource's address, with one rule for every catalog
-  resource (3–50 characters, a leading digit allowed). `*Id` references become `*Key`, and the
-  deprecated `id` and `slug` members are removed. Key and number rules are named once, in
-  `components/schemas/identifiers.yaml`.
-- **Consistent names.** A resource's own name is `name` (was `displayName` or `title`), a count is
-  `total`, and a last change is `lastModified`. Document and job ids become `documentId`, `requestId` and `itemId`. Every enum value is lowercase kebab-case.
-  Fingerprints name their algorithm (`v6:<hex>`). Release numbers may carry a patch label
-  (`1.3.1-gemeente-x.1`).
-- **Every problem has a registered type**, with 31 new ones, such as `catalog-version-behind`,
-  `catalog-draft-in-use`, `resource-modified`, `ambiguous-variant` and `operation-not-implemented`. A
-  server answers only with registered types; anything else gets its status's generic type.
-  `forbidden` says what was refused (`requiredPermission`, `requiredPlatformRole`, `tenantKey`,
-  `reason`).
-- **The authorization vocabulary.** `CATALOG_RELEASE` and `ENVIRONMENT_DEPLOY` replace
-  `TEMPLATE_PUBLISH` and `STENCIL_PUBLISH`, and `TENANT_USERS` is now `CREDENTIALS_MANAGE`.
-  `CONTENT_VIEWER` no longer grants `DOCUMENT_VIEW`. New roles are `DOCUMENT_READER` and
-  `INSTALLATION_ADMINISTRATOR`. Consumer permissions lose `versions` and the templates `publish`
-  level, and gain `catalogs: release` and `environments: deploy`.
-- **Null never removes a value on update.** Omitted or null keeps the current value. An empty
-  string, array or object removes it, and an explicit flag covers the rest (`clearDefaultTheme`,
-  `clearCodeListBinding`, `clearExpiresAt`).
-- **Bounds and paging.** Code lists, attributes, variants and themes have length limits, a code
-  list's `sourceUrl` is HTTPS only, and `listCodeListEntries` is paged. Every request input outside
-  the alpha parts and the catalog's own documents is now bounded: a variant has at most 50
-  attributes and a request at most 50 attribute criteria, each value at most 255 characters, as
-  are attribute `allowedValues` and a data example's `name`; a template at most 100 data examples;
-  a draft at most 50 dependencies (as many as an archive may carry) and 100 declared presets; a
-  theme at most 100 block style presets; `acknowledgedBehind` at most 1000 versions; and an
-  image's `mediaType` at most 255 characters. A map over its limit fails as `max-items`.
-  `listTemplates` sorts by an enum, and the other lists lose a `sort` that sorted by nothing.
-  `listDocuments` filters by catalog.
-- **Portable catalog wire v8**, which reads and migrates every earlier archive:
+- **Breaking:** **`listAvailableCatalogReleases` is paged** (`page`, `size`, and a required `page`
+  in the response), like every other list. The list only grows, and paging added later, with a
+  default page size, would silently cut it short for older clients. Conformance scenario
+  `list-available-catalog-releases-page`.
+- **Breaking:** **Portable catalog wire v8**, which reads and migrates every earlier archive:
   - Catalog identity: registry and namespace.
   - Pinned, aliased `catalogDependencies`.
   - A required release version and a V6 fingerprint over content only.
@@ -109,54 +62,107 @@ not implement every part of 2.0 yet.
   - Archives may carry the releases they pin.
   - A theme owns the default block spacing (`defaultBlockStyles`). The registry no longer adds
     `marginBottom: 1.5sp`.
-- **The clients read what a newer 2.x server sends.** The API description gains "Compatibility
-  within 2.x": a minor version may add response members and response enum values, and a client
-  must ignore the one and treat the other as unknown. Four clients failed the whole response on an
-  unknown enum value and the Kotlin client on an unknown member, which would have frozen every
-  response for the life of 2.x. The Kotlin, Jakarta and .NET enums gain `unknown_default_open_api`
-  (an exhaustive `when` or `switch` needs a branch for it), the Python client keeps an unknown value
-  as received, and the Node.js client already did. `EpistolaJson.objectMapper` ignores unknown
-  members. Conformance scenarios `newer-server-unknown-members`, `newer-server-unknown-enum-values`
-  and `newer-server-unknown-values-in-a-list` hold all five to it.
-- **Compatibility within 2.x is spelled out further.** A minor version may add roles, permissions
-  and consumer permission levels, an operation keeping what it required, and may raise the catalog
-  wire version. Every new component type and every new member of a template document raises it, so
-  an older installation refuses such an archive whole (`CATALOG_SCHEMA_TOO_NEW`) instead of reading
-  part of it. A minor version adds members and parameters only after the existing ones, and a major
-  version may reorder them; the new `make append-only` check, gating in CI, holds it to that
-  against the latest release of the major. Upgrading a client means rebuilding against it, and a
-  client that writes back a template document it read must be at least as new as the server's
-  wire version: every client README says what is lost otherwise.
-- **The clients do not route with a partition hash they do not implement.** A minor version may add
-  a `hash` to the partition assignment. Every client routed with murmur3 whatever it said, and would
-  have sent its results to other nodes; now `partitionFor`, `isMyPartition` and `routingKeyToMe`
-  answer as before the assignment is known. Conformance scenario `partition-routing-unknown-hash`.
-- **.NET: `UnknownDefaultOpenApi` is 0 in every generated enum**, and so `default(T)`. It was the
-  last number, which a value added in a minor version would have taken.
-- **The clients validate template data through the server** (`validateTemplateData`) behind a
-  pluggable `TemplateDataValidator`, rather than each bundling its own JSON Schema library. That
-  library was never published for the JVM clients, which threw `NoClassDefFoundError`. A failure's
-  `path` is a JSON Pointer in every client.
+- **A release's content hash** (`contentHash`) and finding releases by it.
+- **`listCatalogTemplates`** (`GET …/catalogs/{registry}/{namespace}/{catalogKey}/templates`): a
+  catalog's templates across its releases, each once with the releases that contain it
+  (`CatalogTemplateListResponse`), optionally only those deployed to an `environmentKey`, so a
+  client can offer a template before choosing a release. Epistola Suite may answer 501 until it
+  implements it.
 
-### Added
+### Generation
 
+- **Breaking:** **Generation selects a release by `versionRange` and `environmentKey`** instead of
+  `versionId`. Jobs, documents and collected results name the release they rendered (`version`,
+  `releaseId`, `releaseName`). `getGenerationJobStatus` returns counts, and the new
+  `listGenerationJobItems` pages the items. A batch holds at most 10000 items. `previewDocument`
+  renders any release by its `releaseId`, which is how a draft is previewed. A document's PDF is
+  downloaded from `…/documents/{documentId}/content` (`downloadDocument`), leaving the document's
+  own path free for its metadata in a later 2.x. `collectGenerationResults` delivers each caller the
+  results of the requests it submitted, never another application's.
+
+### Catalog identity and names
+
+- **Breaking:** **Catalogs are identified by `registry`, `namespace` and `catalogKey`** (ADR 0003),
+  in paths (`~` is the default registry) and in every body that named a catalog. A registry is
+  `local` or a DNS name. References into another catalog use the alias its dependency declaration
+  gives it.
+- **Breaking:** **Keys, not ids or slugs.** `key` is a resource's address, with one rule for every
+  catalog resource (3–50 characters, a leading digit allowed). `*Id` references become `*Key`, and
+  the deprecated `id` and `slug` members are removed. Key and number rules are named once, in
+  `components/schemas/identifiers.yaml`.
+- **Breaking:** **Consistent names.** A resource's own name is `name` (was `displayName` or
+  `title`), a count is `total`, and a last change is `lastModified`. Document and job ids become
+  `documentId`, `requestId` and `itemId`. Every enum value is lowercase kebab-case. Fingerprints
+  name their algorithm (`v6:<hex>`). Release numbers may carry a patch label (`1.3.1-gemeente-x.1`).
+
+### Errors
+
+- **Breaking:** **Every problem has a registered type**, with 31 new ones, such as
+  `catalog-version-behind`, `catalog-draft-in-use`, `resource-modified`, `ambiguous-variant` and
+  `operation-not-implemented`. A server answers only with registered types; anything else gets its
+  status's generic type. `forbidden` says what was refused (`requiredPermission`,
+  `requiredPlatformRole`, `tenantKey`, `reason`).
+- **A `not-found` problem says what is missing** (`NotFoundProblemDetail`). Its optional `missing`
+  member (`MissingResource`) names the `kind` of resource (`tenant`, `catalog`, `environment`,
+  `release`, `template`, `variant`; may gain values) and the context it was looked for in:
+  `catalog` (in full, `CatalogRefDto`), `environment`, `versionRange`, `release`, `template`,
+  `variant`. So a client can tell "no release satisfies `^2.0.0` in `production`" from "release
+  1.4.0 does not contain template `besluit`" without parsing `detail`, which RFC 9457 §3.1.4 advises
+  against. `NotFoundError`, `VariantSelectionNotFoundError` (generation and preview) and
+  `ReleaseRegistryNotFoundError` use it. Server stubs: `ProblemDetails.notFound(missing, …)`. The
+  clients expose it through their generic extension members for now.
+- **Problem `help`.** An optional link to the problem type's page, carrying the request's context.
+- **`help` may name the missing kind**: a `not-found` problem's `help` may add `missing=<kind>`
+  (`…/not-found?operation=generateDocument&missing=template`), a contract term, never a value, so
+  the error page can give hints per kind.
+- **Validation codes.** Each field error may carry a `code`, from the `x-validation-codes`
+  registry, generated as `KnownValidationCodes` in every client.
+
+### Updates, concurrency and limits
+
+- **Breaking:** **Null never removes a value on update.** Omitted or null keeps the current value.
+  An empty string, array or object removes it, and an explicit flag covers the rest
+  (`clearDefaultTheme`, `clearCodeListBinding`, `clearExpiresAt`).
+- **Breaking:** **Bounds and paging.** Code lists, attributes, variants and themes have length
+  limits, a code list's `sourceUrl` is HTTPS only, and `listCodeListEntries` is paged. Every request
+  input outside the alpha parts and the catalog's own documents is now bounded: a variant has at
+  most 50 attributes and a request at most 50 attribute criteria, each value at most 255 characters,
+  as are attribute `allowedValues` and a data example's `name`; a template at most 100 data
+  examples; a draft at most 50 dependencies (as many as an archive may carry) and 100 declared
+  presets; a theme at most 100 block style presets; `acknowledgedBehind` at most 1000 versions; and
+  an image's `mediaType` at most 255 characters. A map over its limit fails as `max-items`.
+  `listTemplates` sorts by an enum, and the other lists lose a `sort` that sorted by nothing.
+  `listDocuments` filters by catalog.
+- **Optimistic locking.** Every update returns `ETag` and accepts `If-Match` (412
+  `resource-modified`), and every create returns `Location`. In the Jakarta client, use the
+  `…WithHttpInfo` siblings to read them.
+
+### Authorization
+
+- **Breaking:** **The authorization vocabulary.** `CATALOG_RELEASE` and `ENVIRONMENT_DEPLOY` replace
+  `TEMPLATE_PUBLISH` and `STENCIL_PUBLISH`, and `TENANT_USERS` is now `CREDENTIALS_MANAGE`.
+  `CONTENT_VIEWER` no longer grants `DOCUMENT_VIEW`. New roles are `DOCUMENT_READER` and
+  `INSTALLATION_ADMINISTRATOR`. Consumer permissions lose `versions` and the templates `publish`
+  level, and gain `catalogs: release` and `environments: deploy`.
+- **Breaking:** **A consumer's permissions change one resource at a time.** On `updateConsumer`, a
+  resource `grantedPermissions` leaves out keeps its current level, and `none` revokes it; on
+  registering and approving it is still `none`. `ConsumerPermissions` loses its `default: none`, so
+  the generated clients send only the resources a caller sets. Before, a client built before a
+  resource was added would have revoked it on every update. Conformance scenario
+  `update-consumer-granted-permissions`.
+- **Breaking:** **Feedback is support requests.** The permissions `FEEDBACK_SUBMIT` and
+  `FEEDBACK_MANAGE` are now `SUPPORT_REQUEST_SUBMIT` and `SUPPORT_REQUEST_HANDLE`, granted by the
+  same roles. Neither is used by an API operation; an identity provider or provisioning flow that
+  names them uses the new names.
 - **The `SUPPORT_DESK` platform role** (identity-provider name `support-desk`): works the
   installation's support desk, the support requests of every tenant, their replies and internal
   notes, their status and priority, and passing them on to a support connection. It grants nothing
   in any tenant.
-- **A QR code carries its own text alternative** (`alt`, `decorative`), as an image does: `alt` says
-  what scanning it does for a screen reader ("Pay this invoice online"), and `decorative` marks a
-  code whose information is printed next to it. Both are optional; without them a renderer falls
-  back to a text of its own. The `data-bound-link` example shows `alt`. A catalog that sets either is
-  refused with `TEMPLATE_NODE_PROPERTY_INVALID` by a catalog validator older than 2.0.0.
-- **Optimistic locking.** Every update returns `ETag` and accepts `If-Match` (412
-  `resource-modified`), and every create returns `Location`. In the Jakarta client, use the
-  `…WithHttpInfo` siblings to read them.
-- **Validation codes.** Each field error may carry a `code`, from the `x-validation-codes`
-  registry, generated as `KnownValidationCodes` in every client.
-- **Problem `help`.** An optional link to the problem type's page, carrying the request's context.
 - **`x-authorization`.** The roles and permissions, machine-readable, held to every operation's
   requirements.
+
+### Template content
+
 - **Content:**
   - a template `description`;
   - a template's data contract on `createTemplate`;
@@ -169,13 +175,56 @@ not implement every part of 2.0 yet.
   Unknown or inapplicable style keys are now warnings, not errors.
 - **Stencils by reference, with lexical scope** (ADR 0006): `readsTemplateData` and
   `passParameters`.
-- **A release's content hash** (`contentHash`) and finding releases by it.
+- **A QR code carries its own text alternative** (`alt`, `decorative`), as an image does: `alt` says
+  what scanning it does for a screen reader ("Pay this invoice online"), and `decorative` marks a
+  code whose information is printed next to it. Both are optional; without them a renderer falls
+  back to a text of its own. The `data-bound-link` example shows `alt`. A catalog that sets either is
+  refused with `TEMPLATE_NODE_PROPERTY_INVALID` by a catalog validator older than 2.0.0.
+
+### Clients
+
+- **Breaking:** **The clients read what a newer 2.x server sends.** The API description gains
+  "Compatibility within 2.x": a minor version may add response members and response enum values, and
+  a client must ignore the one and treat the other as unknown. Four clients failed the whole
+  response on an unknown enum value and the Kotlin client on an unknown member, which would have
+  frozen every response for the life of 2.x. The Kotlin, Jakarta and .NET enums gain
+  `unknown_default_open_api` (an exhaustive `when` or `switch` needs a branch for it), the Python
+  client keeps an unknown value as received, and the Node.js client already did.
+  `EpistolaJson.objectMapper` ignores unknown members. Conformance scenarios
+  `newer-server-unknown-members`, `newer-server-unknown-enum-values` and
+  `newer-server-unknown-values-in-a-list` hold all five to it.
+- **Breaking:** **Compatibility within 2.x is spelled out further.** A minor version may add roles,
+  permissions and consumer permission levels, an operation keeping what it required, and may raise
+  the catalog wire version. Every new component type and every new member of a template document
+  raises it, so an older installation refuses such an archive whole (`CATALOG_SCHEMA_TOO_NEW`)
+  instead of reading part of it. A minor version adds members and parameters only after the existing
+  ones, and a major version may reorder them; the new `make append-only` check, gating in CI, holds
+  it to that against the latest release of the major. Upgrading a client means rebuilding against
+  it, and a client that writes back a template document it read must be at least as new as the
+  server's wire version: every client README says what is lost otherwise.
+- **Breaking:** **The clients do not route with a partition hash they do not implement.** A minor
+  version may add a `hash` to the partition assignment. Every client routed with murmur3 whatever it
+  said, and would have sent its results to other nodes; now `partitionFor`, `isMyPartition` and
+  `routingKeyToMe` answer as before the assignment is known. Conformance scenario
+  `partition-routing-unknown-hash`.
+- **Breaking:** **.NET: `UnknownDefaultOpenApi` is 0 in every generated enum**, and so `default(T)`.
+  It was the last number, which a value added in a minor version would have taken.
+- **Breaking:** **The clients validate template data through the server** (`validateTemplateData`)
+  behind a pluggable `TemplateDataValidator`, rather than each bundling its own JSON Schema library.
+  That library was never published for the JVM clients, which threw `NoClassDefFoundError`. A
+  failure's `path` is a JSON Pointer in every client.
+
+### Alpha
+
 - **Alpha:**
   - tenant search (`searchTenant`);
   - quality profiles (ADR 0010; wire v8 and the `QualityProfiles` operations);
   - release registries for moving releases between installations through an Exchange or a
     container registry (ADR 0008);
   - merging a release into a draft (ADR 0005).
+
+### Docs
+
 - **Docs:**
   - [`contracts/api/docs/template-model.md`](contracts/api/docs/template-model.md), on building
     templates through the API;

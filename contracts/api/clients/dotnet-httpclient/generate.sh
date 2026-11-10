@@ -38,8 +38,9 @@ fi
 # (`varNamespace`, `varBase`, `varVersion`). Map them to their plain name instead; a C# keyword
 # takes the verbatim prefix `@`, so callers write `@namespace:` for a named argument. The first
 # key is the operation parameter, named from the spec; the `var…` keys are the model constructor
-# parameters, which the generator escapes before it consults the mapping.
-PARAMETER_NAME_MAPPINGS="namespace=@namespace,varNamespace=@namespace,varBase=@base,varVersion=version"
+# parameters, which the generator escapes before it consults the mapping (`varEnvironment`: the
+# `environment` of MissingResource, whose class also has an `Environment` member).
+PARAMETER_NAME_MAPPINGS="namespace=@namespace,varNamespace=@namespace,varBase=@base,varVersion=version,varEnvironment=environment"
 
 echo "==> Generating C# client from $SPEC"
 rm -rf "$GEN_OUT"

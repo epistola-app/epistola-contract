@@ -47,6 +47,11 @@ ProblemDetail:
         general explanation of the type otherwise. It names the contract's terms only, never
         a value from the request or the installation, so it can be shared or logged as it is.
         Optional; a server may leave it out. Do not compare it: switch on `type`.
+
+        A `not-found` problem's `help` may also carry `missing`, the `kind` of its `missing`
+        member (`missing=template`), so the page can give the hints for that kind of resource:
+        `https://epistola.app/errors/not-found?operation=generateDocument&missing=template`. That
+        is a contract term, never the key of the resource itself.
       example: https://epistola.app/errors/not-found?operation=getTemplate
 
 # Extension for validation errors with field-level details
@@ -305,6 +310,96 @@ ForbiddenProblemDetail:
             permissions a role carries, so that there is no single permission to grant. Text for a
             person to read, not a code to switch on.
           example: Only the release board deploys to production environments.
+
+NotFoundProblemDetail:
+  description: >-
+    A missing resource (`not-found`, 404). `missing` says, machine-readably, which resource the
+    server could not find and where it looked, so that a client can act on it without reading
+    `detail`: RFC 9457 §3.1.4 says consumers SHOULD NOT parse `detail` for information, and that
+    extensions are more suitable and less error-prone ways to obtain it. It is one named member with
+    a structured value, like RFC 9457's own `errors` example, rather than a generic `details`
+    wrapper. `missing` is optional: a server may leave it out, and a client that does not know it
+    still knows the resource was not found. Only a `not-found` problem carries it.
+  allOf:
+    - $ref: '#/ProblemDetail'
+    - type: object
+      properties:
+        missing:
+          $ref: '#/MissingResource'
+
+MissingResource:
+  type: object
+  description: |
+    The resource a `not-found` problem could not find (`kind`), with the context it was looked for
+    in. Which context members are present depends on the kind and on the request:
+
+    - `tenant`: the tenant in the path; no context.
+    - `catalog`: `catalog`.
+    - `environment`: `environment`.
+    - `release`: `catalog`, and either `release`, a release by version or `releaseId` that the
+      catalog does not have, or `versionRange`, which no release of the catalog satisfies. With
+      `environment` as well, no release deployed there satisfies it; `environment` without
+      `versionRange` or `release`, the environment serves no release of the catalog.
+    - `template`: `catalog` and `template`; with `release`, that release of the catalog does not
+      contain the template.
+    - `variant`: `catalog`, `template` and `variant`; with `release`, the template in that release
+      has no such variant.
+
+    The members name what the request named, as the server resolved it: the catalog in full, never
+    `~`, and the release that was selected. They are values from the request, for the client that
+    sent it; they never appear in `help`.
+  required:
+    - kind
+  properties:
+    kind:
+      type: string
+      enum:
+        - tenant
+        - catalog
+        - environment
+        - release
+        - template
+        - variant
+      description: |
+        Which resource was not found. May gain values in a minor version (see "Compatibility within
+        2.x"): keep a default branch, and fall back on the problem itself for a kind you do not
+        recognize.
+      example: template
+    catalog:
+      $ref: '../schemas/catalogs.yaml#/CatalogRefDto'
+      description: The catalog the resource was looked for in, or the catalog that was not found
+    environment:
+      $ref: '../schemas/identifiers.yaml#/EnvironmentKey'
+      description: The environment that was not found, or the one whose deployments were looked in
+      example: production
+    versionRange:
+      type: string
+      minLength: 1
+      maxLength: 256
+      description: The version range no release satisfies, as the request sent it
+      example: ^1.4.0
+    release:
+      $ref: '../schemas/identifiers.yaml#/CatalogReleaseRef'
+      description: |
+        The release: by its version, or by its `releaseId` for a draft. For `release`, the one the
+        catalog does not have; for `template` and `variant`, the one that does not contain it.
+      example: "1.4.0"
+    template:
+      $ref: '../schemas/identifiers.yaml#/ResourceKey'
+      description: The template that was not found, or the one whose variant was not
+      example: besluit
+    variant:
+      $ref: '../schemas/identifiers.yaml#/ResourceKey'
+      description: The variant that was not found
+      example: english
+  example:
+    kind: template
+    catalog:
+      registry: local
+      namespace: demo
+      catalogKey: municipality-demo
+    release: "1.4.0"
+    template: besluit
 
 DataModelValidationError:
   type: object

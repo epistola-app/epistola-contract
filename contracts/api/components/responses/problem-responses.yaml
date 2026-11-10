@@ -39,11 +39,11 @@ ReleaseRegistryNotFoundError:
     The addressed resource does not exist. When the release registry the request names is not one
     this installation has configured or is connected to (alpha), the problem is
     `release-registry-not-found`. Other missing resources (a catalog, a release, a version the
-    registry does not hold) use `not-found`.
+    registry does not hold) use `not-found`, which may say which in `missing`.
   content:
     application/problem+json:
       schema:
-        $ref: './errors.yaml#/ProblemDetail'
+        $ref: './errors.yaml#/NotFoundProblemDetail'
       examples:
         registryNotFound:
           summary: A release registry this installation does not have
@@ -154,16 +154,37 @@ CatalogInstallBadRequestError:
                 message: must be a release version
 
 NotFoundError:
-  description: The requested resource was not found
+  description: >-
+    The requested resource was not found (`not-found`). `missing`, when present, says which
+    resource, and the context it was looked for in.
   content:
     application/problem+json:
       schema:
-        $ref: './errors.yaml#/ProblemDetail'
-      example:
-        type: https://epistola.app/errors/not-found
-        title: Not Found
-        status: 404
-        detail: The requested resource was not found
+        $ref: './errors.yaml#/NotFoundProblemDetail'
+      examples:
+        notFound:
+          summary: A resource that does not exist
+          value:
+            type: https://epistola.app/errors/not-found
+            title: Not Found
+            status: 404
+            detail: The requested resource was not found
+        templateNotInRelease:
+          summary: The release does not contain the template
+          value:
+            type: https://epistola.app/errors/not-found
+            title: Not Found
+            status: 404
+            detail: "Release municipality-demo@1.4.0 does not contain template 'besluit'"
+            help: https://epistola.app/errors/not-found?operation=getTemplate&missing=template
+            missing:
+              kind: template
+              catalog:
+                registry: local
+                namespace: demo
+                catalogKey: municipality-demo
+              release: "1.4.0"
+              template: besluit
 
 ConflictError:
   description: The request conflicts with the current state of the resource
@@ -332,18 +353,55 @@ GenerationJobNotCancellableError:
 
 VariantSelectionNotFoundError:
   description: >-
-    The template does not exist, or another resource the request names does not (`not-found`). When
-    the template exists but none of its variants matches the attributes the request requires, the
-    problem is `no-matching-variant`.
+    The template does not exist, or another resource the request names does not (`not-found`), and
+    `missing` says which: the tenant, the catalog, the environment, the release (no release satisfies
+    `versionRange`, or none deployed in the environment does), the template or the named variant,
+    or that the selected release does not contain the template. When the template exists but none
+    of its variants matches the attributes the request requires, the problem is
+    `no-matching-variant`, without `missing`.
   content:
     application/problem+json:
       schema:
-        $ref: './errors.yaml#/ProblemDetail'
-      example:
-        type: https://epistola.app/errors/no-matching-variant
-        title: No Matching Variant
-        status: 404
-        detail: No variant of invoice has locale fr-FR
+        $ref: './errors.yaml#/NotFoundProblemDetail'
+      examples:
+        noMatchingVariant:
+          summary: No variant matches the attributes
+          value:
+            type: https://epistola.app/errors/no-matching-variant
+            title: No Matching Variant
+            status: 404
+            detail: No variant of invoice has locale fr-FR
+        templateNotInRelease:
+          summary: The release does not contain the template
+          value:
+            type: https://epistola.app/errors/not-found
+            title: Not Found
+            status: 404
+            detail: "Release municipality-demo@1.4.0 does not contain template 'besluit'"
+            help: https://epistola.app/errors/not-found?operation=generateDocument&missing=template
+            missing:
+              kind: template
+              catalog:
+                registry: local
+                namespace: demo
+                catalogKey: municipality-demo
+              release: "1.4.0"
+              template: besluit
+        noReleaseSatisfiesRange:
+          summary: No release deployed in the environment satisfies the version range
+          value:
+            type: https://epistola.app/errors/not-found
+            title: Not Found
+            status: 404
+            detail: "No release of municipality-demo satisfying ^2.0.0 is deployed to production"
+            missing:
+              kind: release
+              catalog:
+                registry: local
+                namespace: demo
+                catalogKey: municipality-demo
+              environment: production
+              versionRange: ^2.0.0
 
 AmbiguousVariantError:
   description: >-

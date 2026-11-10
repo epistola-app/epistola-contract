@@ -6,10 +6,12 @@ package app.epistola.api.error
 
 import app.epistola.api.model.CatalogDraftRefDto
 import app.epistola.api.model.CatalogReadOnlyReason
+import app.epistola.api.model.CatalogRefDto
 import app.epistola.api.model.CatalogReleaseRefDto
 import app.epistola.api.model.DataModelValidationError
 import app.epistola.api.model.MissingReleaseDependency
 import app.epistola.api.model.MissingReleaseDependencyReason
+import app.epistola.api.model.MissingResource
 import app.epistola.api.model.UnreleasedCatalogDependency
 import app.epistola.api.model.ValidationError
 import org.springframework.http.HttpStatus
@@ -224,6 +226,26 @@ class ProblemDetailsTest {
         assertEquals("9", problem.properties?.get("renderingDefaultsVersion"))
         assertEquals(6, problem.properties?.get("supportedVersion"))
         assertEquals("catalog-rendering-defaults-too-new", ProblemDetails.KnownSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW)
+    }
+
+    @Test
+    fun `notFound says which resource is missing as a 404`() {
+        val missing = MissingResource(
+            kind = MissingResource.Kind.TEMPLATE,
+            catalog = CatalogRefDto(registry = "local", namespace = "demo", catalogKey = "municipality-demo"),
+            release = "1.4.0",
+            template = "besluit",
+        )
+        val problem = ProblemDetails.notFound(missing, detail = "Release municipality-demo@1.4.0 does not contain template 'besluit'")
+        assertEquals(URI.create("https://epistola.app/errors/not-found"), problem.type)
+        assertEquals(404, problem.status)
+        assertEquals(mapOf("missing" to missing), problem.properties)
+        assertEquals("missing", ProblemDetails.MISSING_PROPERTY)
+    }
+
+    @Test
+    fun `notFound writes missing only when given`() {
+        assertEquals(null, ProblemDetails.notFound().properties)
     }
 
     @Test

@@ -268,7 +268,8 @@ class GeneratedApiContractTest {
      * A catalog's content lives in its releases: every operation on a catalog's templates, variants,
      * stencils, themes, attributes, code lists, fonts, images, dependencies, changes and readiness
      * takes the release it works on, a draft or a released one. Only data validation stays at the
-     * catalog, because it validates against what is released.
+     * catalog, because it validates against what is released, and listing the catalog's templates
+     * across its releases ({@code listCatalogTemplates}), because it reads every release at once.
      */
     @Test
     void catalog_content_is_addressed_through_a_release() {
@@ -294,7 +295,10 @@ class GeneratedApiContractTest {
                 }
                 String rest = fullPath.substring(at + catalog.length());
                 String where = api.getSimpleName() + "." + method.getName() + " (" + fullPath + ")";
-                if (rest.isEmpty() || catalogLevel.contains(rest) || method.getName().equals("validateTemplateData")) {
+                if (rest.isEmpty()
+                        || catalogLevel.contains(rest)
+                        || method.getName().equals("validateTemplateData")
+                        || method.getName().equals("listCatalogTemplates")) {
                     continue;
                 }
                 releaseScoped++;
@@ -308,6 +312,10 @@ class GeneratedApiContractTest {
                 List.of("tenantKey", "registry", "namespace", "catalogKey", "templateKey"),
                 pathParams(method(TemplatesApi.class, "validateTemplateData")),
                 "validateTemplateData stays at the catalog and takes no release");
+        assertEquals(
+                List.of("tenantKey", "registry", "namespace", "catalogKey"),
+                pathParams(method(TemplatesApi.class, "listCatalogTemplates")),
+                "listCatalogTemplates reads every release of the catalog and takes none");
     }
 
     /**

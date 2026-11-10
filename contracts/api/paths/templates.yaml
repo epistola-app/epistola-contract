@@ -201,6 +201,68 @@ templates-id:
       '409':
         $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
 
+catalog-templates:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant (e.g., "acme-corp")
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+
+  get:
+    operationId: listCatalogTemplates
+    summary: List the templates of a catalog across its releases
+    description: |
+      List every template of the catalog that any of the releases considered contains, each once,
+      with the releases that contain it, highest first, so that a client can offer a template
+      without first choosing a release, and then a release of it.
+
+      With `environmentKey`, the releases considered are those deployed to that environment, its
+      deployed draft included. Without it, every released release, and the newest draft when the
+      catalog has never been released. Only releases that can be rendered count. A template's
+      `name` and `description` are those of the highest release that contains it.
+
+      Epistola Suite may not implement this operation yet, and answers 501
+      `operation-not-implemented` until it does.
+    tags:
+      - Templates
+    x-required-permissions: [TEMPLATE_VIEW]
+    parameters:
+      - name: environmentKey
+        in: query
+        required: false
+        description: |
+          Only the releases deployed to this environment, its deployed draft included. Omitted, every
+          released release, and the newest draft when the catalog has never been released.
+        schema:
+          $ref: '../components/schemas/identifiers.yaml#/EnvironmentKey'
+      - name: q
+        in: query
+        description: Search term for filtering templates by name
+        schema:
+          type: string
+      - $ref: '../components/parameters/pagination.yaml#/Page'
+      - $ref: '../components/parameters/pagination.yaml#/Size'
+    responses:
+      '200':
+        description: The catalog's templates, each with the releases that contain it
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/templates.yaml#/CatalogTemplateListResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
 template-validate:
   parameters:
     - name: tenantKey

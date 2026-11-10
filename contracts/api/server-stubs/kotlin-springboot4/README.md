@@ -144,6 +144,18 @@ ProblemDetails.catalogRenderingDefaultsTooNew(
     detail = "letters 1.1.0 renders with rendering defaults version 9, which this Epistola does not have (it has up to 6)",
 )
 
+// 404 not-found: any missing resource. Say which in `missing` (MissingResource): its kind and the
+// context it was looked for in, so a client need not parse `detail`. Written only when given.
+ProblemDetails.notFound(
+    missing = MissingResource(
+        kind = MissingResource.Kind.TEMPLATE,
+        catalog = CatalogRefDto(registry = "local", namespace = "demo", catalogKey = "municipality-demo"),
+        release = "1.4.0",
+        template = "besluit",
+    ),
+    detail = "Release municipality-demo@1.4.0 does not contain template 'besluit'",
+)
+
 // 403 forbidden: any refused authorization. Name what was refused: a permission in a tenant
 // (requiredPermission and tenantKey), access to the tenant (tenantKey alone), a platform role
 // (requiredPlatformRole), or a policy (reason). Each member is written only when given.

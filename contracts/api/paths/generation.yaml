@@ -12,6 +12,10 @@ preview-document:
       - The endpoint is **rate-limited** — do not use for production document generation
       - There are **no guarantees on latency or throughput**
       - Generated documents are **not stored** — use the async generation endpoints for production use
+
+      A 404 `not-found` carries `missing`, which says which resource the request names was not
+      found (the template, the variant, a release that satisfies `versionRange`, or the selected
+      release not containing the template) and where it was looked for.
     tags:
       - Generation
     x-required-permissions: [DOCUMENT_GENERATE]
@@ -62,7 +66,9 @@ generate-document:
       `not-found`, and nothing is accepted, when the tenant, the catalog, the template, the named
       variant or the environment does not exist, when no variant matches the `attributes`, or when
       no release matches: no release satisfies `versionRange`, or the environment serves no
-      release of the catalog that matches. The template data is not checked against the
+      release of the catalog that matches. The problem's `missing` member says which, and where
+      it was looked for (`kind` `template` with a `release`: the selected release does not
+      contain the template). The template data is not checked against the
       template's data contract here; it is checked when the item renders, and an item whose data
       breaks the contract fails (`failed`, with its `errorMessage`). Check it first with
       `validateTemplateData` to find out before submitting.
@@ -119,7 +125,9 @@ generate-batch:
       `not-found`, and nothing is accepted, when the tenant, the catalog, the template, the named
       variant or the environment does not exist, when no variant matches the `attributes`, or when
       no release matches: no release satisfies `versionRange`, or the environment serves no
-      release of the catalog that matches. The template data is not checked against the
+      release of the catalog that matches. The problem's `missing` member says which, and where
+      it was looked for (`kind` `template` with a `release`: the selected release does not
+      contain the template). The template data is not checked against the
       template's data contract here; it is checked when the item renders, and an item whose data
       breaks the contract fails (`failed`, with its `errorMessage`). Check it first with
       `validateTemplateData` to find out before submitting. A batch is
