@@ -9,6 +9,8 @@ libraries.
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-12
+
 Contract 2.0 replaces per-template versions with **catalog releases**: a catalog's content is
 edited in drafts, released as a whole under a version, and deployed to environments, which can
 serve several releases side by side. Almost every body changes, and the media type is now

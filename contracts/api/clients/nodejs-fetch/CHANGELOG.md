@@ -9,6 +9,8 @@ records contract changes; this file records changes to the hand-written library 
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-12
+
 ### Fixed
 
 - `ResultCollector.partitionFor`, `isMyPartition` and `routingKeyToMe` answer as before the
