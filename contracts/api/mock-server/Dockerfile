@@ -7,7 +7,7 @@
 FROM node:24-alpine
 
 # Install Prism CLI globally (keep the pin in sync with contracts/api/tools/package.json)
-RUN npm install -g @stoplight/prism-cli@5.15.11
+RUN npm install -g @stoplight/prism-cli@5.16.0
 
 # Copy the bundled OpenAPI spec
 COPY openapi.yaml /app/openapi.yaml

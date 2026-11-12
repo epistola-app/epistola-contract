@@ -213,6 +213,14 @@ breaking entries come first.
   behind a pluggable `TemplateDataValidator`, rather than each bundling its own JSON Schema library.
   That library was never published for the JVM clients, which threw `NoClassDefFoundError`. A
   failure's `path` is a JSON Pointer in every client.
+- **Breaking:** **The Python client needs Python 3.10 or later** and at least `urllib3` 2.8.0,
+  `pyjwt[crypto]` 2.15.0 and `pydantic` 2.4.0. The old minimums allowed versions with known
+  vulnerabilities, PyJWT's HMAC-forgery bypasses among them, and the first `urllib3` without its
+  advisories no longer supports Python 3.9, which reached end of life in October 2025.
+- Dependencies with known vulnerabilities are updated: Spring Boot 4.1.2 in the server stubs
+  (Tomcat 11.0.27, which fixes DIGEST and FORM authentication bypasses), Jackson 3.2.4 in the server
+  stubs and the catalog, and Jackson 2.21.8 in the Kotlin client. The mock server runs Prism 5.16.0,
+  as `make mock` does.
 
 ### Alpha
 
