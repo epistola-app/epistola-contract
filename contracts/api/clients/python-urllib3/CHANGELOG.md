@@ -83,6 +83,9 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Changed
 
+- **BREAKING:** Requires Python 3.10 or later, `urllib3>=2.8.0`, `pyjwt[crypto]>=2.15.0` and
+  `pydantic>=2.4.0`. The old minimums allowed versions with known vulnerabilities, and the first
+  `urllib3` without them does not support Python 3.9, which is end of life.
 - **BREAKING:** `GenerationResult.registry`, `namespace` and `catalog_key` are `str`, no longer
   `Optional[str]`: every collected result names its catalog. `version` stays `None` for a
   document rendered from a draft. `GenerationResult.status` carries the wire value as sent, now

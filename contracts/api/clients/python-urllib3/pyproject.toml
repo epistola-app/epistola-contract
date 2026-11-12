@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "Python client library for the Epistola document generation API, using urllib3. Generated from the Epistola OpenAPI contract, with identity headers, RFC 9457 problem-detail error handling, self-signed JWT auth, NDJSON result collection, and server-backed template data validation."
 readme = "README.md"
 license = "EUPL-1.2"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [{ name = "Sander de Groot" }]
 keywords = ["epistola", "openapi", "document-generation", "client", "api"]
 classifiers = [
@@ -18,12 +18,12 @@ classifiers = [
 ]
 dependencies = [
     # Generated urllib3 client runtime.
-    "urllib3>=2.1.0,<3.0.0",
+    "urllib3>=2.8.0,<3.0.0",
     "python-dateutil>=2.8.2",
-    "pydantic>=2",
+    "pydantic>=2.4.0",
     "typing-extensions>=4.7.1",
     # Self-signed JWT auth (JwtSigner).
-    "pyjwt[crypto]>=2.8.0",
+    "pyjwt[crypto]>=2.15.0",
 ]
 
 [project.urls]

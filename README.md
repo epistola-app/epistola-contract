@@ -208,7 +208,7 @@ A .NET 8 client library using:
 
 ### Python Client (`epistola-client`)
 
-A Python 3.9+ client library using:
+A Python 3.10+ client library using:
 - **urllib3** transport with **pydantic v2** models
 - Identity headers, API-key auth (and experimental self-signed JWT auth), RFC 9457
   problem-detail handling, NDJSON result collection, and client-side JSON-Schema validation
