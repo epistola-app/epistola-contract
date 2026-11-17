@@ -105,6 +105,11 @@ caller that sent `prompt` and gets none back knows the server did not honour it,
 when the item fails to render. The echo is the only signal it gets, so it is required whenever the
 server honoured the member, `never` included.
 
+This becomes a general rule in "Compatibility within 2.x": *a server may ignore a request member it
+does not know; a member whose effect the caller must rely on is echoed in the response.* It
+describes what servers do without promising it, so a later server may still refuse unknown members,
+and it gives every future member of this kind the same answer.
+
 `GenerationJobStatus` and `GenerationItemStatus` gain `awaiting-input`, before `pending`. Contract
 2.x allows response enums to gain values, and every client reads an unknown value without failing.
 Only callers who sent `prompt` create such jobs; others see the value only in `listGenerationJobs`.
@@ -126,6 +131,22 @@ contract fixes what the form must do, not how it looks:
 - **A page of its own.** The caller opens it as a top-level page or in a new tab. An installation
   that does not allow embedding refuses to be framed, so a caller cannot count on an iframe.
 
+### Why a job was cancelled
+
+A caller acts differently on "the user declined", "nobody came" and "we cancelled it ourselves": it
+drops the first, reminds someone of the second, and already knows the third. One status with a
+reason says all three without a status per cause. `GenerationJobResponse`, `DocumentGenerationJobDto`,
+`DocumentGenerationItemDto` and `GenerationResult` gain `cancelReason`, appended, set whenever the
+status is `cancelled` and null otherwise:
+
+| `cancelReason` | The job was cancelled                                          |
+| -------------- | -------------------------------------------------------------- |
+| `caller`       | by `cancelGenerationJob`, prompted or not                      |
+| `user`         | by the user, on the form                                       |
+| `expired`      | because nobody submitted the form before `inputExpiresAt`      |
+
+A response enum, so it may gain values in a minor version like any other.
+
 ### The URL is a capability
 
 `inputUrl` carries an unguessable token and nothing else: no tenant credential, no caller identity,
@@ -144,9 +165,10 @@ parameters, and nothing else: user input in a URL ends up in browser history, pr
 
 A `returnUrl` must match an origin the server allows; others are refused with 400 `validation-error`,
 the field `returnUrl`, and a new domain validation code `return-url-not-allowed`. Without that, a
-form any token-holder can open is an open redirect. Where the list is kept is the server's: Suite
-keeps its other host allowlists as installation settings, which is enough to start. A list per
-consumer, the calling system that sends the job, is the natural place later.
+form any token-holder can open is an open redirect. Where the list is kept is the server's, and the
+contract adds no member for it: Suite keeps its other host allowlists as installation settings, which
+is enough to start. A list per consumer, the calling system that sends the job, can be appended to
+the consumer resource later without breaking anything.
 
 ### What the user entered goes back to the caller
 
@@ -170,7 +192,8 @@ template defect must not cost the user their input.
 
 The collect stream delivers terminal results, today `completed` or `failed`. A caller that only
 collects would never learn that the user abandoned the form, so `GenerationResult.status` gains
-`cancelled`, delivered only for jobs created with a `prompt`, with `data` null.
+`cancelled`, delivered only for jobs created with a `prompt`, with its `cancelReason` and `data`
+null.
 
 ### Rendering again
 
@@ -233,7 +256,8 @@ above is the one chosen.
   amended data when the form is submitted.
 - **Collect only knows `completed` and `failed`**, constrained in the database, and cancelling a job
   writes nothing to it today. A `cancelled` line for prompted jobs means widening that constraint and
-  emitting a result on cancellation and on expiry. Results are written as NDJSON from a hand-built
+  emitting a result on cancellation and on expiry. `cancelReason` is a column on the job, written by
+  whichever of the three cancels it. Results are written as NDJSON from a hand-built
   map, so `data` and `editedFields` are easy to add there.
 - **Nothing expires a job yet.** Suite sets an expiry on finished jobs but nothing acts on it;
   `inputExpiresAt` needs a sweep that cancels forms nobody completed. Retention otherwise drops whole
@@ -250,9 +274,9 @@ above is the one chosen.
   responses. `make append-only` holds; `make breaking` reports the enum additions, which the 2.x
   rules allow.
 - Every client changes: the generated types, each README's generation example, and a conformance
-  scenario covering `prompt`, the `awaiting-input` job with `inputUrl`, `data` and `editedFields`
-  on a collect line, a `failed` line that still carries `data`, a `cancelled` line, and `data`
-  sent back unchanged.
+  scenario covering `prompt` and its echo, the `awaiting-input` job with `inputUrl`, `data` and
+  `editedFields` on a collect line, a `failed` line that still carries `data`, a `cancelled` line
+  with its `cancelReason`, and `data` sent back unchanged.
 - Suite gains an end-user surface reachable without a session, holding only a token. That is the
   surface to keep small and to review hardest.
 - A job can now wait on a person for up to `inputExpiresAt`. Job counts, dashboards and timeouts
@@ -260,16 +284,22 @@ above is the one chosen.
 - The Bridge's SmartDocuments wizard can later create a job with `prompt: always` and redirect to
   Suite's form, instead of keeping a form of its own.
 
+## Settled while drafting
+
+- **`prompt`, not `interactive`.** It reads with its values (`prompt: missing`), and an
+  `interactive` member suggests a boolean, which cannot say `missing` from `always`. OpenID
+  Connect's `prompt` parameter likewise decides whether a user is asked.
+- **`data`, not `submittedData` or `renderedData`.** Rendering again is then `item.data` into
+  `request.data`. `renderedData` would be slightly untrue, since defaults are applied after it.
+- **Expiry is a `cancelReason`, not a status.** A separate `expired` status would tell expiry apart
+  but not the user's cancel from the caller's; a reason tells all three apart with one status.
+- **Return hosts are a server setting.** The contract fixes only the refusal; a per-consumer list
+  can be appended later.
+- **Unknown request members** get a sentence in "Compatibility within 2.x" that describes rather
+  than promises, with the echo as the general rule.
+
 ## Open questions
 
-- **Names.** `data` mirrors the request member, but sits on an item next to `documentId`;
-  `submittedData` or `renderedData` say more. `prompt` versus `interactive`.
-- **Expiry as its own status.** An expired form is `cancelled` here; a caller may want to tell "the
-  user cancelled" from "nobody came" without a reason member.
-- **Unknown request members.** Suite ignores them, which the contract does not state. Saying so in
-  "Compatibility within 2.x" would make the echoed `prompt` a pattern rather than a one-off.
-- **Return hosts per consumer.** Whether the allowlist becomes a member of the consumer, configured
-  through the API, or stays an installation setting.
 - **The user's identity.** The form knows only the token. A caller that must record who completed it
   supplies that itself; whether the request should carry a display name for the form to show is
   open.
