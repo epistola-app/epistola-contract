@@ -12,7 +12,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { gzipSync } from 'node:zlib'
 import type { ServerResponse } from 'node:http'
-import { EpistolaClient, ResultCollector, type GenerationResult, type PartitionAssignment } from '../../src/index.js'
+import { EpistolaClient, GenerateDocumentRequestToJSON, ResultCollector, type GenerateDocumentRequest, type GenerationResult, type PartitionAssignment } from '../../src/index.js'
 import { sleep, startServer, waitFor, type RecordedRequest, type TestServer } from '../helpers/server.js'
 
 const NDJSON = 'application/vnd.epistola.v2+ndjson'
@@ -104,6 +104,36 @@ test('a result names its catalog, and its release unless it was rendered from a 
         ['registry.gemeente-x.nl', 'huisstijl', 'letters', null],
       ],
     )
+  } finally {
+    await server.close()
+  }
+})
+
+test('an interactive result carries what the person entered and why it was cancelled, a null as null', async () => {
+  const entered = { caseNumber: 'Z-2026-0412', amountDue: 19.99, lineCount: 3, paid: false, reference: null, citizen: { name: 'J. Jansen', address: { street: 'Kerkstraat 11' } }, tags: ['objection', 'urgent'] }
+  const lines = [
+    { ...RESULTS[0], cancelReason: null, data: entered, editedFields: ['/citizen/address/street'] },
+    { ...RESULTS[1], cancelReason: null, data: { caseNumber: 'Z-2026-0413' }, editedFields: [] },
+    { ...RESULTS[2], status: 'cancelled', cancelReason: 'expired', data: null, editedFields: null },
+    // A job created without `interactive`: the members are absent, not null.
+    { ...RESULTS[2], sequence: 504 },
+    { ...META, hasMore: false, resultCount: 4, lastSequence: 504 },
+  ]
+  const server = await startServer((_, res) => respond(res, lines))
+  try {
+    const handled: GenerationResult[] = []
+    await collector(server, handled).collectOnce()
+
+    assert.deepEqual(handled.map((r) => r.status), ['completed', 'failed', 'cancelled', 'completed'])
+    assert.deepEqual(handled.map((r) => r.cancelReason), [null, null, 'expired', undefined])
+    assert.deepEqual(handled.map((r) => r.data), [entered, { caseNumber: 'Z-2026-0413' }, null, undefined])
+    assert.deepEqual(handled.map((r) => r.editedFields), [['/citizen/address/street'], [], null, undefined])
+
+    // Rendering again: the result's `data` is what a generation request takes, sent back unchanged.
+    const data = handled[0].data
+    assert.ok(data)
+    const request: GenerateDocumentRequest = { namespace: 'acme-corp', catalogKey: 'letters', templateKey: 'invoice', variantKey: handled[0].variantKey, data }
+    assert.equal(JSON.stringify(GenerateDocumentRequestToJSON(request).data), JSON.stringify(entered))
   } finally {
     await server.close()
   }

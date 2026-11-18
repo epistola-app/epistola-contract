@@ -63,8 +63,9 @@ test('the validation codes are generated with their documented values', () => {
   assert.equal(KnownValidationCodes.PATTERN, 'pattern')
   assert.equal(KnownValidationCodes.STENCIL_RECURSION, 'stencil-recursion')
   assert.equal(KnownValidationCodes.CATALOG_RESOURCES_NOT_READY, 'catalog-resources-not-ready')
+  assert.equal(KnownValidationCodes.URL_NOT_ALLOWED, 'url-not-allowed')
   const all = Object.values(KnownValidationCodes)
-  assert.equal(all.length, 51)
+  assert.equal(all.length, 52)
   assert.equal(new Set(all).size, all.length)
 })
 
