@@ -140,7 +140,7 @@ does not know; a member whose effect the caller must rely on is echoed in the re
 describes what servers do without promising it, so a later server may still refuse unknown members,
 and it gives every future member of this kind the same answer.
 
-`GenerationJobStatus` and `GenerationItemStatus` gain `awaiting-input`, before `pending`. Contract
+`GenerationJobStatus` and `GenerationItemStatus` gain `awaiting-input`, appended last. Contract
 2.x allows response enums to gain values, and every client reads an unknown value without failing.
 Only callers who sent `interactive` create such jobs; others see the value only in `listGenerationJobs`.
 

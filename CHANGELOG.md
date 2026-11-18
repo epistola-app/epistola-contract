@@ -9,6 +9,29 @@ libraries.
 
 ## [Unreleased]
 
+### Generation
+
+- **Interactive generation** (alpha, `x-experimental`, ADR 0011): `generateDocument` takes an
+  optional `interactive` member. When the data is incomplete (`trigger: incomplete`), or always
+  (`trigger: always`), the job is accepted in the new status `awaiting-input` and
+  `interactive.url` is a link to a form Epistola serves, where a person completes the data. The
+  link works until the form is submitted, the job is cancelled or `interactive.expiresAt` passes;
+  `getGenerationJobStatus` returns it again while the job waits. The request may set the expiry
+  (up to the server's maximum), a `returnUrl`, a `title`, `instructions`, `links` and a `locale`.
+  Job responses echo `interactive`, so a caller can tell a server that does not support it.
+- Generation items and collect results carry, for an interactive job, the complete `data` the
+  document renders from and `editedFields`, the JSON Pointers the person changed. That `data` is
+  valid input to `generateDocument`, so rendering again sends it back.
+- A cancelled job says why (`cancelReason`: `caller`, `user` or `expired`), and the collect stream
+  delivers a `cancelled` result for an interactive job. `cancelGenerationJob` also cancels a job
+  awaiting input.
+- New validation code `url-not-allowed`, for a `returnUrl` or link on an origin the server does not
+  allow.
+- `GenerateDocumentRequest` now documents that with neither `variantKey` nor `attributes` the
+  template's default variant is used, chosen when the request is accepted.
+- "Compatibility within 2.x" now says that a server may ignore a request member it does not know,
+  and that a member whose effect the caller must rely on is echoed in the response.
+
 ## [2.0.0] - 2026-11-12
 
 Contract 2.0 replaces per-template versions with **catalog releases**: a catalog's content is
