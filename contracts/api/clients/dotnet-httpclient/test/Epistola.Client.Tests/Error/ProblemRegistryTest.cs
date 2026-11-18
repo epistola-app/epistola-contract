@@ -63,7 +63,8 @@ public class ProblemRegistryTest
         Assert.Equal("pattern", KnownValidationCodes.PATTERN);
         Assert.Equal("stencil-recursion", KnownValidationCodes.STENCIL_RECURSION);
         Assert.Equal("catalog-resources-not-ready", KnownValidationCodes.CATALOG_RESOURCES_NOT_READY);
-        Assert.Equal(51, KnownValidationCodes.All.Count);
+        Assert.Equal("url-not-allowed", KnownValidationCodes.URL_NOT_ALLOWED);
+        Assert.Equal(52, KnownValidationCodes.All.Count);
         Assert.Equal(KnownValidationCodes.All.Count, KnownValidationCodes.All.Distinct().Count());
     }
 }

@@ -14,6 +14,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Epistola.Client.Http;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace Epistola.Client.Collect;
@@ -324,7 +325,7 @@ public sealed class ResultCollector
             while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
             {
                 if (string.IsNullOrWhiteSpace(line)) continue;
-                var node = JObject.Parse(line);
+                var node = ParseLine(line);
 
                 if (node["_meta"] != null && node["_meta"]!.Value<bool>())
                 {
@@ -396,7 +397,30 @@ public sealed class ResultCollector
         ContentType: node["contentType"]?.Value<string>(),
         SizeBytes: node["sizeBytes"]?.Value<long?>(),
         Error: node["error"]?.Value<string>(),
-        CompletedAt: node["completedAt"]?.Value<string>());
+        CompletedAt: node["completedAt"]?.Value<string>(),
+        CancelReason: node["cancelReason"]?.Value<string>(),
+        Data: FreeForm(node["data"]),
+        EditedFields: (node["editedFields"] as JArray)?.Select(field => field.Value<string>() ?? string.Empty).ToList());
+
+    /// <summary>
+    /// Parses one NDJSON line, reading date-like strings as the strings they are. Newtonsoft's
+    /// default reads them as local <see cref="DateTime"/>s, which turned <c>completedAt</c> into
+    /// the culture's own spelling and would rewrite the offset of a date-time in <c>data</c>.
+    /// Numbers are read as the generated models read them, so <see cref="GenerationResult.Data"/>
+    /// serializes into a request exactly as an item's <c>Data</c> does.
+    /// </summary>
+    private static JObject ParseLine(string line)
+    {
+        using var reader = new JsonTextReader(new StringReader(line)) { DateParseHandling = DateParseHandling.None };
+        return JObject.Load(reader);
+    }
+
+    /// <summary>
+    /// Free-form JSON as the generated models hold it: what Newtonsoft makes of a member typed
+    /// <c>object</c> (a <see cref="JObject"/> for an object), and null for an absent or null member.
+    /// </summary>
+    private static object? FreeForm(JToken? token) =>
+        token == null || token.Type == JTokenType.Null ? null : token;
 
     /// <summary>A member the contract requires on every result line; a line without it is malformed.</summary>
     private static string Required(JObject node, string member) =>
@@ -521,7 +545,10 @@ public sealed class ResultCollector
         }
     }
 
-    /// <summary>A completed or failed generation result.</summary>
+    /// <summary>
+    /// A completed or failed generation result, or a cancelled one for a job created with
+    /// <c>interactive</c>.
+    /// </summary>
     /// <remarks>
     /// <see cref="Registry"/>, <see cref="Namespace"/>, <see cref="CatalogKey"/> and
     /// <see cref="Version"/> name the catalog release the document was rendered from; a
@@ -531,7 +558,21 @@ public sealed class ResultCollector
     /// <see cref="ReleaseId"/> names the release rendered, the draft's when <see cref="Version"/>
     /// is null, and <see cref="ReleaseName"/> is the release's name at render time (null for a
     /// release that has none).
-    /// <see cref="Status"/> is the wire value, <c>completed</c> or <c>failed</c>.
+    /// <see cref="Status"/> is the wire value, <c>completed</c> or <c>failed</c>, or <c>cancelled</c>
+    /// for a job created with <c>interactive</c> whose form was cancelled or expired (alpha); a later
+    /// 2.x may add values, so keep a default branch. <see cref="CompletedAt"/> is the instant exactly
+    /// as the server sent it.
+    /// <para>
+    /// The last three members are alpha (contract ADR 0011) and set only for a job created with
+    /// <c>interactive</c>. <see cref="CancelReason"/> is the wire value (<c>caller</c>, <c>user</c>
+    /// or <c>expired</c>), set exactly when <see cref="Status"/> is <c>cancelled</c>.
+    /// <see cref="Data"/> is the complete data the document rendered from, the person's input
+    /// included, on a <c>completed</c> or <c>failed</c> result, and null otherwise. It is typed and
+    /// held as the generated <c>GenerateDocumentRequest.Data</c> is (a Newtonsoft
+    /// <see cref="JObject"/>), so rendering again passes it straight back as a request's
+    /// <c>data</c>. <see cref="EditedFields"/> are the JSON Pointers into <see cref="Data"/> where
+    /// it differs from what the caller sent, set and null exactly when <see cref="Data"/> is.
+    /// </para>
     /// </remarks>
     public sealed record GenerationResult(
         long Sequence,
@@ -553,7 +594,10 @@ public sealed class ResultCollector
         string? ContentType,
         long? SizeBytes,
         string? Error,
-        string? CompletedAt);
+        string? CompletedAt,
+        string? CancelReason = null,
+        object? Data = null,
+        IReadOnlyList<string>? EditedFields = null);
 
     /// <summary>The outcome of one collection call.</summary>
     public sealed record CollectResult(int Count, bool HasMore);
