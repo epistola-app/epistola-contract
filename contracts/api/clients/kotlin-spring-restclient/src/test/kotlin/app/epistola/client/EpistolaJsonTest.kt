@@ -28,6 +28,22 @@ class EpistolaJsonTest {
     }
 
     @Test
+    fun `a null inside free-form data is the caller's value and is sent`() {
+        // An item's data sent back to render again must go out as it came in, null members included.
+        val json = EpistolaJson.objectMapper.writeValueAsString(
+            GenerateDocumentRequest(
+                namespace = "acme-corp",
+                catalogKey = "default",
+                templateKey = "invoice",
+                data = mapOf("reference" to null, "citizen" to mapOf("middleName" to null)),
+            ),
+        )
+
+        assertTrue(json.contains("\"data\":{\"reference\":null,\"citizen\":{\"middleName\":null}}"), json)
+        assertFalse(json.contains("attributes"), json)
+    }
+
+    @Test
     fun `a partial update carries only the field it set`() {
         // A server built to a contract before 2.0 reads a null description or contact as "clear",
         // so writing them as null turns a rename into a rename plus an erase.

@@ -126,6 +126,10 @@ Removing a value never relies on null. An empty string removes an optional text 
 that has neither has an explicit flag (`clearExpiresAt = true`, `clearDefaultTheme = true`,
 `clearCodeListBinding = true`).
 
+A `null` inside free-form JSON, such as a member of a generation request's `data`, is your value,
+not an unset property, and goes out as is: an item's `data` sent back to render again arrives
+exactly as it was read.
+
 `EpistolaJson.objectMapper` is the same mapper, exposed for anywhere you serialize these models
 yourself.
 
@@ -286,7 +290,7 @@ member, and Spring Boot's mapper on an unknown value of an enum declared inline 
 when (job.status) {
     GenerationJobStatus.completed -> collect(job)
     GenerationJobStatus.failed, GenerationJobStatus.cancelled -> report(job)
-    else -> retryLater(job) // pending, in-progress, and any status added later
+    else -> retryLater(job) // pending, in-progress, awaiting-input, and any status added later
 }
 ```
 
@@ -463,6 +467,63 @@ val batch = api.generateDocumentBatch("acme-corp", GenerateBatchRequest(
 ))
 ```
 
+### Interactive generation (alpha)
+
+When the caller has only part of the data, a person can complete it in a form Epistola serves
+(contract ADR 0011). Send `interactive`; with `trigger = incomplete` the form appears only when the
+data misses a required field or holds an invalid value, with `always` every time. A server that does
+not support it ignores the member and answers an ordinary job without `interactive`.
+
+```kotlin
+val job = api.generateDocument("acme-corp", GenerateDocumentRequest(
+    namespace = "acme-corp",
+    catalogKey = "letters",
+    templateKey = "objection-decision",
+    data = mapOf("caseNumber" to "Z-2026-0412"),
+    correlationId = "Z-2026-0412",
+    interactive = InteractiveGenerationRequest(
+        trigger = InteractiveGenerationTrigger.incomplete,
+        returnUrl = "https://cases.example.org/cases/Z-2026-0412", // where the browser returns
+        title = "Objection decision, case Z-2026-0412",
+        links = listOf(InteractiveGenerationLink(label = "Open case", url = "https://cases.example.org/cases/Z-2026-0412")),
+    ),
+))
+val formUrl = job.interactive?.url
+when {
+    job.interactive == null -> logger.info("This server does not support forms; the job renders as sent")
+    formUrl != null -> redirectTo(formUrl) // the job is awaiting-input
+    else -> logger.info("The data was complete; no form needed")
+}
+
+// The link need not be stored: the job returns it while it waits for the person.
+val status = api.getGenerationJobStatus("acme-corp", job.requestId)
+when (status.status) {
+    GenerationJobStatus.awaitingMinusInput -> status.interactive?.url?.let(::redirectTo)
+    // A cancelled job says why: caller, user (the person cancelled the form) or expired.
+    GenerationJobStatus.cancelled -> logger.info("Cancelled: ${status.cancelReason}")
+    else -> {}
+}
+```
+
+Items (and collect results, see below) carry the complete `data` the document rendered from, as the
+person amended it, and `editedFields`, the JSON Pointers of the fields they changed. That `data` is
+valid input for a new request, so rendering again, to correct something or for a newer release,
+sends it back as is:
+
+```kotlin
+val item = api.listGenerationJobItems("acme-corp", job.requestId).items.first()
+store(item.data, item.editedFields)    // what the person entered, not only the PDF
+
+val again = api.generateDocument("acme-corp", GenerateDocumentRequest(
+    namespace = "acme-corp",
+    catalogKey = "letters",
+    templateKey = "objection-decision",
+    variantKey = item.variantKey,
+    data = requireNotNull(item.data),  // no conversion: the response's type is the request's
+    interactive = InteractiveGenerationRequest(trigger = InteractiveGenerationTrigger.always),
+))
+```
+
 ### Downloading the result
 
 `downloadDocument`, `previewDocument`, and an image's `downloadImageContent` all return
@@ -489,7 +550,7 @@ routingKey = myKey              // guaranteed to route to this node's partitions
 
 ## Collecting Generation Results
 
-The `ResultCollector` polls the `/generation/collect` endpoint for completed/failed generation results. It uses NDJSON streaming (constant memory), compressed responses, and adaptive polling.
+The `ResultCollector` polls the `/generation/collect` endpoint for finished generation results: completed or failed, or cancelled for an interactive job whose form was cancelled or expired. It uses NDJSON streaming (constant memory), compressed responses, and adaptive polling.
 
 ```kotlin
 val collector = ResultCollector.builder()
@@ -507,6 +568,12 @@ val collector = ResultCollector.builder()
             }
             "failed" -> {
                 println("Generation failed: ${result.error}")
+                // An interactive job keeps the person's input, so a failed render does not lose it.
+                result.data?.let { store(it, result.editedFields) }
+            }
+            "cancelled" -> {
+                // An interactive job whose form was cancelled (`user`, `caller`) or `expired`.
+                println("Form cancelled: ${result.cancelReason}")
             }
             // A later 2.x may add a status. The result is acknowledged once the handler returns,
             // so a status nobody handles is a result lost: log it, at least.

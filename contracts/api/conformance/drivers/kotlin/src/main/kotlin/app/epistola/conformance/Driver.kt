@@ -40,6 +40,11 @@ import app.epistola.client.model.DataExampleDto
 import app.epistola.client.model.EnvironmentDto
 import app.epistola.client.model.GenerateDocumentRequest
 import app.epistola.client.model.GenerationItemStatus
+import app.epistola.client.model.GenerationJobResponse
+import app.epistola.client.model.InteractiveGenerationDto
+import app.epistola.client.model.InteractiveGenerationLink
+import app.epistola.client.model.InteractiveGenerationRequest
+import app.epistola.client.model.InteractiveGenerationTrigger
 import app.epistola.client.model.MergeIntoCatalogDraftRequest
 import app.epistola.client.model.Node
 import app.epistola.client.model.PingRequest
@@ -118,6 +123,7 @@ object Driver {
                 "list-documents" -> listDocuments(baseUrl, config)
                 "get-generation-job-status" -> getGenerationJobStatus(baseUrl, config)
                 "list-generation-job-items" -> listGenerationJobItems(baseUrl, config)
+                "regenerate-from-item" -> regenerateFromItem(baseUrl, config)
                 "search-tenant" -> searchTenant(baseUrl, config)
                 "list-images" -> listImages(baseUrl, config)
                 "upload-image" -> uploadImage(baseUrl, config)
@@ -298,9 +304,22 @@ object Driver {
                 "releases" to handled.joinToString(",") {
                     "${it.registry}/${it.namespace}/${it.catalogKey}@${it.version ?: "null"}#${it.releaseId ?: "null"}:${it.releaseName ?: "null"}"
                 },
+                "cancelReasons" to handled.joinToString(",") { it.cancelReason ?: "null" },
+                "dataMembers" to handled.joinToString(";") { dataMembers(it.data) },
+                "editedFields" to handled.joinToString(";") { editedFields(it.editedFields) },
             ),
         )
     }
+
+    /** A free-form `data` object's top-level member names, sorted and joined with `+`; `null` for none. */
+    private fun dataMembers(data: Any?): String = when (data) {
+        null -> "null"
+        is Map<*, *> -> data.keys.map { it.toString() }.sorted().joinToString("+")
+        else -> error("data is not an object: ${data::class}")
+    }
+
+    /** The JSON Pointers of the fields a person changed, joined with `+`; `null` when null. */
+    private fun editedFields(fields: List<String>?): String = fields?.joinToString("+") ?: "null"
 
     /**
      * A request body with something in it: required fields, two of the optional ones set, the rest
@@ -308,9 +327,17 @@ object Driver {
      * is the generator's serialization, which is the part no client hand-writes and no client's own
      * tests inspect.
      */
-    private fun generateDocument(baseUrl: String, config: ObjectNode) {
+    private fun generateDocument(baseUrl: String, config: ObjectNode) = reportGeneration(baseUrl) {
+        generateDocumentCall(baseUrl, config)
+    }
+
+    /**
+     * Makes a generation request and reports what the client parsed from the job it answered with,
+     * or from the problem it raised.
+     */
+    private fun reportGeneration(baseUrl: String, call: () -> ResponseEntity<GenerationJobResponse>) {
         val response = try {
-            generateDocumentCall(baseUrl, config)
+            call()
         } catch (e: ProblemDetailException) {
             report(
                 baseUrl,
@@ -331,8 +358,58 @@ object Driver {
                 "jobType" to job.jobType.value,
                 "total" to job.total,
                 "location" to (response.headers.getFirst(HttpHeaders.LOCATION) ?: "null"),
-            ),
+                "cancelReason" to (job.cancelReason?.value ?: "null"),
+                "interactiveMissingFields" to (job.interactive?.missingFields?.joinToString(",") { it.path } ?: "null"),
+            ) + interactiveFields(job.interactive),
         )
+    }
+
+    /** What a job's `interactive` echo says, each member `null` when the job has none. */
+    private fun interactiveFields(interactive: InteractiveGenerationDto?): Map<String, Any> = mapOf(
+        "interactiveTrigger" to (interactive?.trigger?.value ?: "null"),
+        "interactiveUrl" to (interactive?.url ?: "null"),
+        "interactiveExpiresAt" to timestamp(interactive?.expiresAt),
+    )
+
+    /** `config.interactive` as the request's `interactive`, each member only when the config gives it. */
+    private fun interactiveRequest(config: ObjectNode): InteractiveGenerationRequest? = config.get("interactive")?.takeUnless { it.isNull }?.let { interactive ->
+        InteractiveGenerationRequest(
+            trigger = interactive["trigger"].asText().let { trigger -> InteractiveGenerationTrigger.entries.single { it.value == trigger } },
+            expiresInMinutes = interactive.get("expiresInMinutes")?.takeUnless { it.isNull }?.asInt(),
+            returnUrl = interactive.optionalText("returnUrl"),
+            title = interactive.optionalText("title"),
+            instructions = interactive.optionalText("instructions"),
+            links = interactive.get("links")?.takeUnless { it.isNull }?.map { link ->
+                InteractiveGenerationLink(label = link["label"].asText(), url = link["url"].asText())
+            },
+            locale = interactive.optionalText("locale"),
+        )
+    }
+
+    /**
+     * Renders again from an earlier item: the first item's `variantKey` and `data`, the data handed
+     * from the response model to the request model as the client returned it, with no conversion.
+     * That the generated types let this compile, and that the data goes out as it came in, is what
+     * the scenario checks.
+     */
+    private fun regenerateFromItem(baseUrl: String, config: ObjectNode) {
+        val api = GenerationApi(restClient(baseUrl, config))
+        val tenantKey = config["tenantKey"].asText()
+        val item = api.listGenerationJobItems(tenantKey, UUID.fromString(config["requestId"].asText())).items.first()
+        reportGeneration(baseUrl) {
+            api.generateDocumentWithHttpInfo(
+                tenantKey,
+                GenerateDocumentRequest(
+                    namespace = config["namespace"].asText(),
+                    catalogKey = config["catalogKey"].asText(),
+                    templateKey = config["templateKey"].asText(),
+                    variantKey = item.variantKey,
+                    data = checkNotNull(item.data) { "the item carries no data" },
+                    versionRange = config.optionalText("versionRange"),
+                    interactive = interactiveRequest(config),
+                ),
+            )
+        }
     }
 
     private fun generateDocumentCall(baseUrl: String, config: ObjectNode) =
@@ -357,6 +434,7 @@ object Driver {
                 environmentKey = config.optionalText("environmentKey"),
                 correlationId = config.optionalText("correlationId"),
                 routingKey = config.optionalText("routingKey"),
+                interactive = interactiveRequest(config),
             ),
         )
 
@@ -603,7 +681,8 @@ object Driver {
                 "total" to job.total,
                 "completedCount" to job.completedCount,
                 "failedCount" to job.failedCount,
-            ),
+                "cancelReason" to (job.cancelReason?.value ?: "null"),
+            ) + interactiveFields(job.interactive),
         )
     }
 
@@ -623,6 +702,9 @@ object Driver {
                 "statuses" to response.items.joinToString(",") { it.status.value },
                 "documentIds" to response.items.joinToString(",") { it.documentId?.toString() ?: "null" },
                 "correlationIds" to response.items.joinToString(",") { it.correlationId ?: "null" },
+                "cancelReasons" to response.items.joinToString(",") { it.cancelReason?.value ?: "null" },
+                "dataMembers" to response.items.joinToString(";") { dataMembers(it.data) },
+                "editedFields" to response.items.joinToString(";") { editedFields(it.editedFields) },
                 "total" to response.page.total.toString(),
             ),
         )

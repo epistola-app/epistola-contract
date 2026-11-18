@@ -30,6 +30,9 @@ import org.springframework.http.ResponseEntity
  * would spend an extra round trip — one per item, for a batch — to learn what submitting already
  * tells us. Either way the caller catches one exception type and reads one error shape.
  *
+ * A request that sends `interactive` (alpha, ADR 0011) is never pre-flighted: incomplete data is
+ * what it asks a person to complete, so the server answers it with a form, not a refusal.
+ *
  * ```kotlin
  * val validating = ValidatingGenerationApi(GenerationApi(restClient), TemplatesApi(restClient))
  * try {
@@ -90,7 +93,7 @@ class ValidatingGenerationApi(
     private fun registrySegment(registry: String?): String = registry ?: TemplateDataValidator.DEFAULT_REGISTRY
 
     private fun preflight(tenantKey: String, request: GenerateDocumentRequest) {
-        if (!validator.preflightsGeneration) {
+        if (!validator.preflightsGeneration || request.interactive != null) {
             return
         }
         val errors = validator.validate(tenantKey, registrySegment(request.registry), request.namespace, request.catalogKey, request.templateKey, request.data)
