@@ -302,7 +302,9 @@ keeps room for it, and any later choice should follow the same rules:
   required and not nullable, and making it nullable would break clients that read every job. The
   variant is still resolved when the job is accepted, from `variantKey`, `attributes` or the
   template's default variant, and the user may change it, never empty it. A job is complete at
-  every moment; the form only amends it.
+  every moment; the form only amends it. Suite already resolves an omitted variant this way, to the
+  template's default variant in the bound release; the contract does not say so yet, and the change
+  that implements this ADR documents it on `GenerateDocumentRequest`.
 - **Reported in members the result already has.** The chosen variant is the item's `variantKey`,
   and rendering again sends it back. A choice that needs a new result member is a sign it is the
   wrong kind of choice.
