@@ -313,9 +313,12 @@ InteractiveGenerationRequest:
     expiresInMinutes:
       type: [integer, "null"]
       minimum: 1
+      maximum: 43200
       description: |
         How long the form's link stays usable, in minutes. Omitted or null: the server's default.
-        Above the server's maximum the request is refused with 400 `validation-error`, code
+        No job waits for input longer than 30 days (43200 minutes): the contract caps this, and a
+        server may set a lower maximum of its own, and its default never exceeds either. Above
+        the maximum that applies, the request is refused with 400 `validation-error`, code
         `maximum`. When it passes unsubmitted, the job is cancelled (`cancelReason` `expired`).
       example: 1440
     returnUrl:
@@ -416,7 +419,9 @@ InteractiveGenerationDto:
     expiresAt:
       type: [string, "null"]
       format: date-time
-      description: When the link stops working and the job is cancelled; null when nothing was asked.
+      description: |
+        When the link stops working and the job is cancelled; null when nothing was asked. Never
+        more than 30 days after the job was accepted.
       example: "2026-11-19T09:12:00Z"
     missingFields:
       type: array

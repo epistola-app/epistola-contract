@@ -17,7 +17,7 @@ libraries.
   `interactive.url` is a link to a form Epistola serves, where a person completes the data. The
   link works until the form is submitted, the job is cancelled or `interactive.expiresAt` passes;
   `getGenerationJobStatus` returns it again while the job waits. The request may set the expiry
-  (up to the server's maximum), a `returnUrl`, a `title`, `instructions`, `links` and a `locale`.
+  (up to the server's maximum, and never more than 30 days, which the contract caps), a `returnUrl`, a `title`, `instructions`, `links` and a `locale`.
   Job responses echo `interactive`, so a caller can tell a server that does not support it.
 - Generation items and collect results carry, for an interactive job, the complete `data` the
   document renders from and `editedFields`, the JSON Pointers the person changed. That `data` is

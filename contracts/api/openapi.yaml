@@ -218,6 +218,8 @@ info:
       one job, which the caller hands only to the person it authenticated itself. It works until the
       form is submitted, the job cancelled or `interactive.expiresAt` passes, and is submitted once.
       `getGenerationJobStatus` returns it again while the job waits, so it need not be stored.
+    - No job waits for input longer than 30 days. The caller may set a shorter expiry
+      (`interactive.expiresInMinutes`), and a server may allow less than 30 days.
     - Submitting moves the job to `pending`, and it renders like any other. The browser returns to
       `interactive.returnUrl` with only the `requestId` and `status`.
     - Items and collect results carry the complete `data` the document renders from, as amended,

@@ -67,7 +67,7 @@ everything about the form, so later settings are added inside it rather than to 
 | `interactive.`     | Meaning                                                                                 |
 | ------------------ | --------------------------------------------------------------------------------------- |
 | `trigger`          | Required. When the user is asked: `incomplete` or `always` (below)                      |
-| `expiresInMinutes` | How long the link stays usable. Omitted: the server's default                           |
+| `expiresInMinutes` | How long the link stays usable, at most 30 days. Omitted: the server's default          |
 | `returnUrl`        | Where the browser goes after submitting or cancelling (see "Coming back")               |
 | `title`            | A heading for the form, such as the case and the document: "Objection decision, case Z-2026-0412" |
 | `instructions`     | Text shown above the fields: what is asked, why, who to ask                             |
@@ -95,13 +95,23 @@ caller allowed to generate but not to view templates can still be told what is m
 `generateDocumentBatch` and `previewDocument` do not take it. A form per batch item, or a form
 before a synchronous preview, is a different design.
 
-**Expiry: a default, a caller override, a maximum.** The server has a default and a maximum, both
-installation settings. A caller sets `expiresInMinutes` per job: short when the user is at the screen
-now, a day or more when the form may be finished tomorrow. Above the server's maximum the request is
-refused with 400 `validation-error` on `interactive.expiresInMinutes`, code `maximum`, and the message names
+**Expiry: a default, a caller override, a maximum.** The contract caps the wait at 30 days
+(`expiresInMinutes` `maximum: 43200`): no job stays `awaiting-input` longer, on any server. Within
+that, the server has a default and a maximum of its own, both installation settings, neither above
+the cap. A caller sets `expiresInMinutes` per job: short when the user is at the screen now, a day or
+more when the form may be finished tomorrow, a week when it waits for someone back from leave. Above
+the maximum that applies the request is refused with 400 `validation-error` on `interactive.expiresInMinutes`, code `maximum`, and the message names
 the maximum. Refusing rather than shortening it means a caller finds a mismatch with the installation
 when it integrates, not when a user finds the link dead the next morning. Whole minutes, not an ISO
 8601 duration: an integer every client reads the same way.
+
+The cap is in the contract rather than only in installations because what it bounds is not one
+installation's business: a server has to keep a waiting job, its personal data and a live link to it
+for that long, and a caller has to be able to count on an end. 30 days covers the longest wait in
+sight (someone away for a couple of weeks) and stays well inside the retention every store applies.
+Raising it later is compatible for servers and only means older clients refuse, before sending, an
+expiry newer servers would accept; lowering it would break callers that ask for more, so it starts
+no higher than it needs to be.
 
 **Context, not identity.** `title`, `instructions` and `links` tell the user what this is about and
 where it came from, which a form of bare fields cannot. They are what the caller wants to say, shown
@@ -387,7 +397,16 @@ above is the one chosen.
   `data` and `editedFields` are easy to add there.
 - **Nothing expires a job yet.** Suite sets an expiry on finished jobs but nothing acts on it;
   `interactive.expiresAt` needs a sweep that cancels forms nobody completed. Retention otherwise drops whole
-  monthly partitions, whatever a job's status, so a job cannot outlive it waiting for input.
+  monthly partitions by `created_at`, whatever a job's status, so a job cannot outlive it waiting for
+  input. The 30-day cap keeps a waiting job well inside the default of three months; an installation
+  that configures retention down to one month must keep the job's partition until its expiry, since
+  a month's partition can be dropped less than 30 days after its last job was created.
+- **A long wait skews two things that read `created_at`.** The queue-wait metric
+  (`epistola.generation.queue.wait`) measures from `created_at` to the claim, so a form submitted
+  after a week would record a week of queueing; it should start from the submission. And workers
+  claim `ORDER BY created_at`, so a submitted form goes to the front of the queue, which is harmless
+  for one document but worth knowing when many arrive during a large batch. Neither blocks anything:
+  workers claim only `PENDING` rows, and a waiting job writes nothing to collect until it ends.
 - **Unknown members are ignored**, hence `interactive` echoed in the response.
 - **Return hosts** have no home yet. Suite's other allowlists are installation settings, and its
   calling systems (`applications`, the contract's consumers) carry no URLs. The expiry's default and
@@ -462,7 +481,7 @@ above is the one chosen.
 - **The link is fetched, not stored.** `getGenerationJobStatus` returns it while the job waits, so a
   "continue" button never needs a stored copy.
 - **Resuming overnight is a long enough expiry.** The caller sets it per job up to the server's
-  maximum, and the form restores the progress it kept. Unlike the Bridge's case (Bridge ADR 0021),
+  maximum, never more than the contract's 30 days, and the form restores the progress it kept. Unlike the Bridge's case (Bridge ADR 0021),
   the caller can offer "continue": it holds the `requestId` and can list its jobs `awaiting-input`.
 - **Context instead of identity.** The form shows what the caller says the document is about
   (`title`, `instructions`, `links`), not who the user is. Who completed it is the caller's to record.
