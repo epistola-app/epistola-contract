@@ -128,6 +128,10 @@ contract fixes what the form must do, not how it looks:
 - **Nothing renders until the user submits.** Submitting moves the job to `pending`; cancelling on
   the form, `cancelGenerationJob`, or reaching `inputExpiresAt` moves it to `cancelled`.
   `cancelGenerationJob` therefore accepts an `awaiting-input` job.
+- **Progress may be kept, and is not a submission.** The form may save what the user has entered
+  and restore it when the link is opened again, until it is submitted, cancelled or expired. How is
+  the server's. Only submitting moves the job to `pending`, and nothing saved before that reaches
+  the caller.
 - **A page of its own.** The caller opens it as a top-level page or in a new tab. An installation
   that does not allow embedding refuses to be framed, so a caller cannot count on an iframe.
 
@@ -208,7 +212,9 @@ its own records. `version` and `releaseId` on the same item say which data contr
 to.
 
 They are readable from the moment the user submits (`pending`), through `listGenerationJobItems`,
-so a caller can store the input before the PDF exists. A `failed` result still carries them: a
+so a caller can store the input before the PDF exists. While the job is `awaiting-input` they are
+null, even when the form has kept the user's progress: a caller must never store input the user did
+not confirm as if it were final. A `failed` result still carries them: a
 template defect must not cost the user their input.
 
 The collect stream delivers terminal results, today `completed` or `failed`. A caller that only
@@ -243,7 +249,8 @@ turn out to matter.
 
 `data` and `editedFields` are personal data entered by a user. They stay readable for as long as the
 job does, and go with it; on a collect line, for as long as the result is kept. Input on a form that
-is never submitted is discarded when the job is cancelled.
+is never submitted, including progress the form kept, is discarded when the job is cancelled or its
+link expires.
 
 ## Fit with Suite
 
@@ -329,6 +336,11 @@ above is the one chosen.
   worse than the exposure the expiry already bounds.
 
 ## Open questions
+
+- **Resuming overnight.** Kept progress survives a reload or a closed tab within `inputExpiresAt`.
+  Coming back the next day needs an expiry of a day or more, which keeps a leaked link usable as
+  long, or the deferred fresh links. Unlike the Bridge's case (Bridge ADR 0021), the caller can
+  offer "continue": it holds the `requestId` and can list its jobs `awaiting-input`.
 
 - **The user's identity.** The form knows only the token. A caller that must record who completed it
   supplies that itself; whether the request should carry a display name for the form to show is
