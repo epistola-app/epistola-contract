@@ -327,7 +327,20 @@ callers never meant to offer. The choice is granted explicitly, and the request'
 can match no variant or several, which `generateDocument` answers with 404 or 409 and a form could
 only show as an error. So the form offers the attribute values as facets, limited to combinations a
 variant of the bound release has, and every choice resolves to exactly one variant. Granting "any
-variant of the template" is the same picker with nothing fixed.
+variant of the template" is the same picker with nothing fixed. A granted attribute is named as
+`VariantSelectionAttribute` names one, by `key` and, for an attribute of a dependency catalog,
+`catalogKey`, not by a bare string.
+
+For example, a caller that knows the brand and guesses the language sends, as today,
+`attributes: [{key: brand, value: gemeente-x}, {key: language, value: nl}]`, which selects the Dutch
+variant at acceptance, and grants `form.variantChoice: {attributes: [{key: language}]}`. The form
+offers the languages that variant's brand has, with Dutch selected; the brand is not offered.
+Without the grant the Dutch variant renders and the form shows no choice.
+
+**A member of `form`, not a flag on the attribute.** `{key: language, value: nl, userMayChange:
+true}` would keep the pre-selection and the grant together, but `VariantSelectionAttribute` is shared
+with batch items and preview, where such a flag means nothing, and a caller that names an explicit
+`variantKey` could not grant a choice at all.
 
 The data contract belongs to the template, not the variant, so switching variant keeps the form's
 fields. It changes the preview, and the optional fields the variant's template reads.
