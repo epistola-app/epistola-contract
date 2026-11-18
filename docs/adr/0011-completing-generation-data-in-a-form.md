@@ -85,6 +85,40 @@ before it goes. It also gives re-rendering its two modes (below).
 `generateDocumentBatch` and `previewDocument` do not take it. A form per batch item, or a form
 before a synchronous preview, is a different design.
 
+### Describing the form
+
+Next to `prompt`, the request gains one more optional member, `form`, appended after it. It holds
+everything the form needs besides the data, so later settings join it rather than the request. It is
+ignored when `prompt` is `never` or absent.
+
+| `form.`            | Meaning                                                                                 |
+| ------------------ | --------------------------------------------------------------------------------------- |
+| `expiresInMinutes` | How long the link stays usable. Omitted: the server's default                           |
+| `returnUrl`        | Where the browser goes after submitting or cancelling (see "Coming back")               |
+| `title`            | A heading for the form, such as the case and the document: "Objection decision, case Z-2026-0412" |
+| `instructions`     | Text shown above the fields: what is asked, why, who to ask                             |
+| `links`            | Up to five `{label, url}`: back to the case, to a guideline                             |
+| `locale`           | The language of the form's own text (buttons, messages). Omitted: the tenant's default locale |
+
+**Expiry: a default, a caller override, a maximum.** The server has a default and a maximum, both
+installation settings. A caller sets `expiresInMinutes` per job: short when the user is at the screen
+now, a day or more when the form may be finished tomorrow. Above the server's maximum the request is
+refused with 400 `validation-error` on `form.expiresInMinutes`, code `maximum`, and the message names
+the maximum. Refusing rather than shortening it means a caller finds a mismatch with the installation
+when it integrates, not when a user finds the link dead the next morning. Whole minutes, not an ISO
+8601 duration: an integer every client reads the same way.
+
+**Context, not identity.** `title`, `instructions` and `links` tell the user what this is about and
+where it came from, which a form of bare fields cannot. They are what the caller wants to say, shown
+as given: plain text, escaped, line breaks kept; no HTML or Markdown. Each `url` is `http` or
+`https`, and must pass the same allowlist as `returnUrl`. A link on Epistola's page lends it
+Epistola's domain, whoever wrote it. The form does not claim to know who the user is. A caller that
+wants that on the page writes it into `instructions` or `title`; who completed the form is the
+caller's to record, since it chose whom to give the link.
+
+These texts often name a citizen or a case, so they are personal data under the same retention as
+`data`.
+
 ### The answer
 
 The usual `202` with `GenerationJobResponse`. When the user must act, the job's `status` is
@@ -92,12 +126,12 @@ The usual `202` with `GenerationJobResponse`. When the user must act, the job's 
 
 | Member           | Meaning                                                                                |
 | ---------------- | -------------------------------------------------------------------------------------- |
-| `inputUrl`       | Where to send the user's browser. A bearer capability (below)                          |
-| `inputExpiresAt` | When the URL stops working and the job is cancelled                                    |
+| `formUrl`       | Where to send the user's browser. A bearer capability (below)                          |
+| `formExpiresAt` | When the URL stops working and the job is cancelled                                    |
 | `missingFields`  | What the form will ask for, as `validateTemplateData` reports it (`MissingDataField`) |
 
 When nothing is asked, they are null and the job is `pending`. A caller only checks whether
-`inputUrl` is set.
+`formUrl` is set.
 
 The response also echoes `prompt`. A server that predates this member ignores it: Suite binds request
 bodies with Jackson's defaults, which skip unknown members, and answers an ordinary `pending` job. A
@@ -126,7 +160,7 @@ contract fixes what the form must do, not how it looks:
 - **Every field editable**, including values the caller supplied. The user is accountable for the
   document; a caller that needs read-only pre-fill asks for it in a later revision.
 - **Nothing renders until the user submits.** Submitting moves the job to `pending`; cancelling on
-  the form, `cancelGenerationJob`, or reaching `inputExpiresAt` moves it to `cancelled`.
+  the form, `cancelGenerationJob`, or reaching `formExpiresAt` moves it to `cancelled`.
   `cancelGenerationJob` therefore accepts an `awaiting-input` job.
 - **Progress may be kept, and is not a submission.** The form may save what the user has entered
   and restore it when the link is opened again, until it is submitted, cancelled or expired. How is
@@ -147,7 +181,7 @@ status is `cancelled` and null otherwise:
 | -------------- | -------------------------------------------------------------- |
 | `caller`       | by `cancelGenerationJob`, prompted or not                      |
 | `user`         | by the user, on the form                                       |
-| `expired`      | because nobody submitted the form before `inputExpiresAt`      |
+| `expired`      | because nobody submitted the form before `formExpiresAt`      |
 
 A response enum, so it may gain values in a minor version like any other.
 
@@ -160,11 +194,11 @@ complete the document, as it decides today who may have one generated. The link 
 caller's authority over this one job to that user, and nothing beyond it: not other jobs, not another
 template, no lookups.
 
-`inputUrl` carries an unguessable token and nothing else: no tenant credential, no caller identity,
+`formUrl` carries an unguessable token and nothing else: no tenant credential, no caller identity,
 no data. Its rules:
 
 - **Usable until submitted or expired.** It can be opened any number of times until the form is
-  submitted, the job cancelled, or `inputExpiresAt` reached, whichever is first. Reloading the page,
+  submitted, the job cancelled, or `formExpiresAt` reached, whichever is first. Reloading the page,
   closing the tab and returning, or a dropped connection costs the user nothing.
 - **Submitted once.** The first submission moves the job from `awaiting-input` to `pending`, and
   every later one, from another tab or a replay, is refused with the outcome shown. Changing the data
@@ -174,23 +208,28 @@ no data. Its rules:
   it expires. The caller hands it to the authenticated user it was minted for and does not store or
   forward it. The page sends no `Referer`, so the token does not travel to links on it.
 
-`inputExpiresAt` is an installation setting, of the order of an hour.
+`formExpiresAt` follows from `form.expiresInMinutes` or the server's default (see "Describing the
+form"). Resuming the next day, with the progress the form kept, is a matter of asking for a long
+enough expiry, within the maximum the installation allows.
 
 Fresh links on request were considered: an operation on the job that mints a short-lived link and
 revokes the previous one, so a job can wait for days while each link lives for minutes. It is
-deferred. It complicates what every caller has to do, and it can be appended without breaking
-anything if callers turn out to need forms that wait longer than a link should live.
+deferred. It complicates what every caller has to do, and a capped, per-job expiry covers the cases
+in sight. It can be appended without breaking anything if callers turn out to need forms that wait
+longer than an installation lets a link live.
 
 ### Coming back
 
-The request may name a `returnUrl`, appended to `GenerateDocumentRequest`. After submitting or
-cancelling, the form sends the browser there with the job's `requestId` and `status` as query
-parameters, and nothing else: user input in a URL ends up in browser history, proxy logs and
-`Referer` headers. The caller's backend reads the outcome with its own credential.
+The request may name `form.returnUrl`. After submitting or cancelling, the form sends the browser
+there with the job's `requestId` and `status` as query parameters, and nothing else: user input in a
+URL ends up in browser history, proxy logs and `Referer` headers. The caller's backend reads the
+outcome with its own credential. Without a `returnUrl` the form ends on a page saying the document is
+on its way, or was cancelled, and the user closes the tab.
 
-A `returnUrl` must match an origin the server allows; others are refused with 400 `validation-error`,
-the field `returnUrl`, and a new domain validation code `return-url-not-allowed`. Without that, a
-form any token-holder can open is an open redirect. Where the list is kept is the server's, and the
+A `returnUrl`, like every `form.links` url, must match an origin the server allows; others are
+refused with 400 `validation-error` on the field, with a new domain validation code
+`url-not-allowed`. Only an authenticated caller sets them, but a page on Epistola's domain that
+forwards anywhere a leaked or misused API key chooses is still an open redirect. Where the list is kept is the server's, and the
 contract adds no member for it: Suite keeps its other host allowlists as installation settings, which
 is enough to start. A list per consumer, the calling system that sends the job, can be appended to
 the consumer resource later without breaking anything.
@@ -291,11 +330,13 @@ above is the one chosen.
   whichever of the three cancels it. Results are written as NDJSON from a hand-built
   map, so `data` and `editedFields` are easy to add there.
 - **Nothing expires a job yet.** Suite sets an expiry on finished jobs but nothing acts on it;
-  `inputExpiresAt` needs a sweep that cancels forms nobody completed. Retention otherwise drops whole
+  `formExpiresAt` needs a sweep that cancels forms nobody completed. Retention otherwise drops whole
   monthly partitions, whatever a job's status, so a job cannot outlive it waiting for input.
 - **Unknown members are ignored**, hence the echoed `prompt`.
 - **Return hosts** have no home yet. Suite's other allowlists are installation settings, and its
-  calling systems (`applications`, the contract's consumers) carry no URLs.
+  calling systems (`applications`, the contract's consumers) carry no URLs. The expiry's default and
+  maximum are installation settings beside them.
+- **The tenant already has a default locale**, which is what `form.locale` falls back to.
 
 ## Consequences
 
@@ -305,12 +346,13 @@ above is the one chosen.
   responses. `make append-only` holds; `make breaking` reports the enum additions, which the 2.x
   rules allow.
 - Every client changes: the generated types, each README's generation example, and a conformance
-  scenario covering `prompt` and its echo, the `awaiting-input` job with `inputUrl`, `data` and
+  scenario covering `prompt` and its echo, `form` sent as given, the `awaiting-input` job with
+  `formUrl`, `data` and
   `editedFields` on a collect line, a `failed` line that still carries `data`, a `cancelled` line
   with its `cancelReason`, and `data` sent back unchanged.
 - Suite gains an end-user surface reachable without a session, holding only a token. That is the
   surface to keep small and to review hardest.
-- A job can now wait on a person for up to `inputExpiresAt`. Job counts, dashboards and timeouts
+- A job can now wait on a person for up to `formExpiresAt`. Job counts, dashboards and timeouts
   that assumed a job is always on its way to a worker must allow for `awaiting-input`.
 - The Bridge's SmartDocuments wizard can later create a job with `prompt: always` and redirect to
   Suite's form, instead of keeping a form of its own.
@@ -327,21 +369,22 @@ above is the one chosen.
   `request.data`. `renderedData` would be slightly untrue, since defaults are applied after it.
 - **Expiry is a `cancelReason`, not a status.** A separate `expired` status would tell expiry apart
   but not the user's cancel from the caller's; a reason tells all three apart with one status.
-- **Return hosts are a server setting.** The contract fixes only the refusal; a per-consumer list
-  can be appended later.
+- **Allowed origins are a server setting.** The contract fixes only the refusal (`url-not-allowed`,
+  for `returnUrl` and every link); a per-consumer list can be appended later.
 - **Unknown request members** get a sentence in "Compatibility within 2.x" that describes rather
   than promises, with the echo as the general rule.
 - **The link is submitted once and lives until its expiry**, rather than opening once. Reopening it
   is what users do after a reload or a dropped connection, and losing the form to that would be
   worse than the exposure the expiry already bounds.
+- **Resuming overnight is a long enough expiry.** The caller sets it per job up to the server's
+  maximum, and the form restores the progress it kept. Unlike the Bridge's case (Bridge ADR 0021),
+  the caller can offer "continue": it holds the `requestId`, can list its jobs `awaiting-input`, and
+  the link stays the same.
+- **Context instead of identity.** The form shows what the caller says the document is about
+  (`title`, `instructions`, `links`), not who the user is. Who completed it is the caller's to record.
+- **Form settings are one object**, `form`, so later ones are added inside it, and the response's
+  `formUrl` and `formExpiresAt` match its name.
 
 ## Open questions
 
-- **Resuming overnight.** Kept progress survives a reload or a closed tab within `inputExpiresAt`.
-  Coming back the next day needs an expiry of a day or more, which keeps a leaked link usable as
-  long, or the deferred fresh links. Unlike the Bridge's case (Bridge ADR 0021), the caller can
-  offer "continue": it holds the `requestId` and can list its jobs `awaiting-input`.
-
-- **The user's identity.** The form knows only the token. A caller that must record who completed it
-  supplies that itself; whether the request should carry a display name for the form to show is
-  open.
+None at the time of writing.
