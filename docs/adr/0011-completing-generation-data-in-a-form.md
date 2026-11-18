@@ -50,9 +50,9 @@ can keep it in its own records, and it wants to render again later without askin
      3xx, and the generators treat 3xx as an error, so success would arrive as an exception.
    - A 302 has no body: no `requestId`, no expiry, no way to cancel, and the caller never learns
      that the user closed the tab.
-4. **A flag on `generateDocument` answered with the usual `202`**, the job in a new
-   `awaiting-input` status and the form's URL as a member. One operation, one response type, one
-   lifecycle: the session *is* the job.
+4. **A member on `generateDocument` answered with the usual `202`**, the job in a new
+   `awaiting-input` status and the form's URL in the response. One operation, one response type,
+   one lifecycle: the session *is* the job.
 
 ## Decision
 
@@ -60,14 +60,28 @@ Option 4, marked alpha (`x-experimental`) until Suite has implemented it.
 
 ### Asking for a form
 
-`GenerateDocumentRequest` gains an optional member, appended after the existing ones: `prompt`,
-whether the user is asked to complete the data before rendering.
+`GenerateDocumentRequest` gains one optional member, appended after the existing ones: `form`
+(`GenerationFormRequest`). Sending it is the opt-in; without it, nothing changes. It holds
+everything about the form, so later settings are added inside it rather than to the request.
 
-| `prompt`          | Meaning                                                                                  |
-| ----------------- | ---------------------------------------------------------------------------------------- |
-| `never` (default) | Today's behaviour: the job is `pending` at once                                          |
-| `missing`         | A form only when the data, as sent, lacks a required field or holds an invalid value under the data contract of the release the job is bound to; otherwise `pending` at once |
-| `always`          | A form every time, pre-filled, so the user reviews what is merged                        |
+| `form.`            | Meaning                                                                                 |
+| ------------------ | --------------------------------------------------------------------------------------- |
+| `show`             | Required. When the user is asked: `missing` or `always` (below)                         |
+| `expiresInMinutes` | How long the link stays usable. Omitted: the server's default                           |
+| `returnUrl`        | Where the browser goes after submitting or cancelling (see "Coming back")               |
+| `title`            | A heading for the form, such as the case and the document: "Objection decision, case Z-2026-0412" |
+| `instructions`     | Text shown above the fields: what is asked, why, who to ask                             |
+| `links`            | Up to five `{label, url}`: back to the case, to a guideline                             |
+| `locale`           | The language of the form's own text (buttons, messages). Omitted: the tenant's default locale |
+
+| `form.show` | The user is asked                                                                        |
+| ----------- | ---------------------------------------------------------------------------------------- |
+| `missing`   | Only when the data, as sent, lacks a required field or holds an invalid value under the data contract of the release the job is bound to; otherwise the job is `pending` at once |
+| `always`    | Every time, with the form pre-filled, so the user reviews what is merged                 |
+
+Two values, because they serve different callers: an unattended process that only wants help when
+stuck, and a case worker who should see every letter before it goes. They also give rendering again
+its two modes (below).
 
 The check is the analysis `validateTemplateData` runs, applied to the release the job was bound to
 at acceptance rather than resolved again, and to the data exactly as sent. Where a preview or a
@@ -75,30 +89,11 @@ validation of empty data may fall back to the release's first data example, a jo
 data is an empty form, not someone else's example. Absent optional fields only appear on the form;
 they never cause one.
 
-`prompt` needs no permission beyond `DOCUMENT_GENERATE`, which `generateDocument` already requires.
-A caller allowed to generate but not to view templates can still be told what is missing.
-
-An enum rather than a boolean, because `missing` and `always` serve different callers: an
-unattended process that only wants help when stuck, and a case worker who should see every letter
-before it goes. It also gives re-rendering its two modes (below).
+`form` needs no permission beyond `DOCUMENT_GENERATE`, which `generateDocument` already requires. A
+caller allowed to generate but not to view templates can still be told what is missing.
 
 `generateDocumentBatch` and `previewDocument` do not take it. A form per batch item, or a form
 before a synchronous preview, is a different design.
-
-### Describing the form
-
-Next to `prompt`, the request gains one more optional member, `form`, appended after it. It holds
-everything the form needs besides the data, so later settings join it rather than the request. It is
-ignored when `prompt` is `never` or absent.
-
-| `form.`            | Meaning                                                                                 |
-| ------------------ | --------------------------------------------------------------------------------------- |
-| `expiresInMinutes` | How long the link stays usable. Omitted: the server's default                           |
-| `returnUrl`        | Where the browser goes after submitting or cancelling (see "Coming back")               |
-| `title`            | A heading for the form, such as the case and the document: "Objection decision, case Z-2026-0412" |
-| `instructions`     | Text shown above the fields: what is asked, why, who to ask                             |
-| `links`            | Up to five `{label, url}`: back to the case, to a guideline                             |
-| `locale`           | The language of the form's own text (buttons, messages). Omitted: the tenant's default locale |
 
 **Expiry: a default, a caller override, a maximum.** The server has a default and a maximum, both
 installation settings. A caller sets `expiresInMinutes` per job: short when the user is at the screen
@@ -121,23 +116,24 @@ These texts often name a citizen or a case, so they are personal data under the 
 
 ### The answer
 
-The usual `202` with `GenerationJobResponse`. When the user must act, the job's `status` is
-`awaiting-input`, and three members appended to `GenerationJobResponse` are set:
+The usual `202` with `GenerationJobResponse`, which gains `form` (`GenerationFormDto`), appended. So
+does `DocumentGenerationJobDto`, so `getGenerationJobStatus` and `listGenerationJobs` carry it too.
 
-| Member           | Meaning                                                                                |
-| ---------------- | -------------------------------------------------------------------------------------- |
-| `formUrl`       | Where to send the user's browser. A bearer capability (below)                          |
-| `formExpiresAt` | When the URL stops working and the job is cancelled                                    |
-| `missingFields`  | What the form will ask for, as `validateTemplateData` reports it (`MissingDataField`) |
+| `form.`         | Meaning                                                                                 |
+| --------------- | --------------------------------------------------------------------------------------- |
+| `show`          | The request's `show`, echoed                                                            |
+| `url`           | Where to send the user's browser, while the job is `awaiting-input`; null otherwise. A bearer capability (below) |
+| `expiresAt`     | When the link stops working and the job is cancelled; null when nothing was asked       |
+| `missingFields` | What the form asks for, as `validateTemplateData` reports it (`MissingDataField`); empty when nothing was asked |
 
-When nothing is asked, they are null and the job is `pending`. A caller only checks whether
-`formUrl` is set.
+When the user must act, the job's `status` is `awaiting-input` and `form.url` is set. When nothing
+is asked, the job is `pending` and `form.url` is null. A caller only checks `form.url`.
 
-The response also echoes `prompt`. A server that predates this member ignores it: Suite binds request
-bodies with Jackson's defaults, which skip unknown members, and answers an ordinary `pending` job. A
-caller that sent `prompt` and gets none back knows the server did not honour it, rather than learning
-when the item fails to render. The echo is the only signal it gets, so it is required whenever the
-server honoured the member, `never` included.
+**`form` in the response is the echo.** A server that predates it ignores the request's `form`:
+Suite binds request bodies with Jackson's defaults, which skip unknown members, and answers an
+ordinary `pending` job. A caller that sent `form` and gets none back knows the server did not honour
+it, rather than learning when the item fails to render. So a server that honours it always returns
+it, even when nothing was asked.
 
 This becomes a general rule in "Compatibility within 2.x": *a server may ignore a request member it
 does not know; a member whose effect the caller must rely on is echoed in the response.* It
@@ -146,7 +142,7 @@ and it gives every future member of this kind the same answer.
 
 `GenerationJobStatus` and `GenerationItemStatus` gain `awaiting-input`, before `pending`. Contract
 2.x allows response enums to gain values, and every client reads an unknown value without failing.
-Only callers who sent `prompt` create such jobs; others see the value only in `listGenerationJobs`.
+Only callers who sent `form` create such jobs; others see the value only in `listGenerationJobs`.
 
 ### The form
 
@@ -160,7 +156,7 @@ contract fixes what the form must do, not how it looks:
 - **Every field editable**, including values the caller supplied. The user is accountable for the
   document; a caller that needs read-only pre-fill asks for it in a later revision.
 - **Nothing renders until the user submits.** Submitting moves the job to `pending`; cancelling on
-  the form, `cancelGenerationJob`, or reaching `formExpiresAt` moves it to `cancelled`.
+  the form, `cancelGenerationJob`, or reaching `form.expiresAt` moves it to `cancelled`.
   `cancelGenerationJob` therefore accepts an `awaiting-input` job.
 - **Progress may be kept, and is not a submission.** The form may save what the user has entered
   and restore it when the link is opened again, until it is submitted, cancelled or expired. How is
@@ -179,9 +175,9 @@ status is `cancelled` and null otherwise:
 
 | `cancelReason` | The job was cancelled                                          |
 | -------------- | -------------------------------------------------------------- |
-| `caller`       | by `cancelGenerationJob`, prompted or not                      |
+| `caller`       | by `cancelGenerationJob`, with a form or without               |
 | `user`         | by the user, on the form                                       |
-| `expired`      | because nobody submitted the form before `formExpiresAt`      |
+| `expired`      | because nobody submitted the form before `form.expiresAt`      |
 
 A response enum, so it may gain values in a minor version like any other.
 
@@ -194,23 +190,27 @@ complete the document, as it decides today who may have one generated. The link 
 caller's authority over this one job to that user, and nothing beyond it: not other jobs, not another
 template, no lookups.
 
-`formUrl` carries an unguessable token and nothing else: no tenant credential, no caller identity,
+`form.url` carries an unguessable token and nothing else: no tenant credential, no caller identity,
 no data. Its rules:
 
 - **Usable until submitted or expired.** It can be opened any number of times until the form is
-  submitted, the job cancelled, or `formExpiresAt` reached, whichever is first. Reloading the page,
+  submitted, the job cancelled, or `form.expiresAt` reached, whichever is first. Reloading the page,
   closing the tab and returning, or a dropped connection costs the user nothing.
 - **Submitted once.** The first submission moves the job from `awaiting-input` to `pending`, and
   every later one, from another tab or a replay, is refused with the outcome shown. Changing the data
   afterwards is a new job (see "Rendering again").
 - **One link per job, never reissued.** Its lifetime is the job's wait for input.
+- **Fetched, not stored.** The caller need not keep the link: `getGenerationJobStatus` returns it
+  for as long as the job is `awaiting-input`. A "continue" button asks for it when it is pressed, so
+  the link lives in Epistola and in the browser of the user it was handed to, not in the caller's
+  database or a message.
 - **The expiry bounds a leak.** Whoever holds the link sees the pre-filled data and the preview until
-  it expires. The caller hands it to the authenticated user it was minted for and does not store or
+  it expires. The caller hands it only to the authenticated user it is meant for, and does not
   forward it. The page sends no `Referer`, so the token does not travel to links on it.
 
-`formExpiresAt` follows from `form.expiresInMinutes` or the server's default (see "Describing the
-form"). Resuming the next day, with the progress the form kept, is a matter of asking for a long
-enough expiry, within the maximum the installation allows.
+`form.expiresAt` follows from `form.expiresInMinutes` or the server's default. Resuming the next day,
+with the progress the form kept, is a matter of asking for a long enough expiry, within the maximum
+the installation allows.
 
 Fresh links on request were considered: an operation on the job that mints a short-lived link and
 revokes the previous one, so a job can wait for days while each link lives for minutes. It is
@@ -229,15 +229,15 @@ on its way, or was cancelled, and the user closes the tab.
 A `returnUrl`, like every `form.links` url, must match an origin the server allows; others are
 refused with 400 `validation-error` on the field, with a new domain validation code
 `url-not-allowed`. Only an authenticated caller sets them, but a page on Epistola's domain that
-forwards anywhere a leaked or misused API key chooses is still an open redirect. Where the list is kept is the server's, and the
-contract adds no member for it: Suite keeps its other host allowlists as installation settings, which
-is enough to start. A list per consumer, the calling system that sends the job, can be appended to
-the consumer resource later without breaking anything.
+forwards anywhere a leaked or misused API key chooses is still an open redirect. Where the list is
+kept is the server's, and the contract adds no member for it: Suite keeps its other host allowlists
+as installation settings, which is enough to start. A list per consumer, the calling system that
+sends the job, can be appended to the consumer resource later without breaking anything.
 
 ### What the user entered goes back to the caller
 
 `DocumentGenerationItemDto` and the collect stream's `GenerationResult` gain two members, appended
-after the existing ones, set only for jobs created with a `prompt`:
+after the existing ones, set only for jobs created with a `form`:
 
 | Member         | Meaning                                                                                          |
 | -------------- | ------------------------------------------------------------------------------------------------ |
@@ -253,13 +253,12 @@ to.
 They are readable from the moment the user submits (`pending`), through `listGenerationJobItems`,
 so a caller can store the input before the PDF exists. While the job is `awaiting-input` they are
 null, even when the form has kept the user's progress: a caller must never store input the user did
-not confirm as if it were final. A `failed` result still carries them: a
-template defect must not cost the user their input.
+not confirm as if it were final. A `failed` result still carries them: a template defect must not
+cost the user their input.
 
 The collect stream delivers terminal results, today `completed` or `failed`. A caller that only
 collects would never learn that the user abandoned the form, so `GenerationResult.status` gains
-`cancelled`, delivered only for jobs created with a `prompt`, with its `cancelReason` and `data`
-null.
+`cancelled`, delivered only for jobs created with a `form`, with its `cancelReason` and `data` null.
 
 ### Rendering again
 
@@ -267,11 +266,11 @@ No new mechanism. Because `data` is complete, and holds only what the caller and
 (defaults are applied again at every render, never stored into it), it is valid input to
 `generateDocument` for the same template, and the contract says so:
 
-| The caller wants                                   | It sends                                              |
-| -------------------------------------------------- | ----------------------------------------------------- |
-| The same document again                            | `data` from the earlier item, no `prompt`             |
-| The user to correct something                      | that `data` with `prompt: always`: the form opens with their earlier answers |
-| A render against a newer release                   | that `data` with `prompt: missing`: asked only what the new release adds |
+| The caller wants                   | It sends                                                                      |
+| ---------------------------------- | ----------------------------------------------------------------------------- |
+| The same document again            | `data` and `variantKey` from the earlier item, no `form`                      |
+| The user to correct something      | the same with `form.show: always`: the form opens with their earlier answers  |
+| A render against a newer release   | the same with `form.show: missing`: asked only what the new release adds      |
 
 `versionRange` decides as always: pinned to the earlier `version` for an identical document, open to
 pick up a template fix. A caller whose own records changed meanwhile overlays the earlier `data` at
@@ -286,10 +285,10 @@ turn out to matter.
 
 ### Retention
 
-`data` and `editedFields` are personal data entered by a user. They stay readable for as long as the
-job does, and go with it; on a collect line, for as long as the result is kept. Input on a form that
-is never submitted, including progress the form kept, is discarded when the job is cancelled or its
-link expires.
+`data`, `editedFields` and the texts in `form` are personal data. They stay readable for as long as
+the job does, and go with it; on a collect line, for as long as the result is kept. Input on a form
+that is never submitted, including progress the form kept, is discarded when the job is cancelled or
+its link expires.
 
 ### Later: choices on the form
 
@@ -310,11 +309,11 @@ keeps room for it, and any later choice should follow the same rules:
   wrong kind of choice.
 - **Within the bound release.** The user chooses among what the job's release holds, never another
   version.
-- **No effect on whether a form appears.** A pre-selected choice is never missing, so `prompt:
+- **No effect on whether a form appears.** A pre-selected choice is never missing, so `show:
   missing` still asks only for data; a caller that wants the user to choose sends `always`.
-- **Declared in `form` and echoed.** Something like `form.variantChoice`, naming the variants or the
-  attributes (say, only `language`) the user may pick from, appended inside `form`. A server that
-  predates it ignores it, so the response echoes it by the rule above.
+- **Declared in `form` and echoed.** Something like `form.variantChoice`, appended inside the
+  request's `form`, and echoed in the response's `form`, so a caller can tell a server that
+  predates it.
 
 **Granted, not implied by an omitted variant.** Omitting `variantKey` and `attributes` already means
 "the default variant", and callers omit them because a template has one variant or because they do
@@ -357,7 +356,8 @@ above is the one chosen.
   to `PENDING`, after which it is picked up like any other. Suite maps its statuses to the contract's
   by name, so the contract value has to exist first.
 - **The release is bound at acceptance**, which is what lets the form be derived from the release the
-  job will actually render, and why `prompt: missing` is defined against that binding.
+  job will actually render, and why `show: missing` is defined against that binding. So is the
+  variant, which is what lets a later variant choice start from a pre-selection.
 - **The analysis exists and is reusable.** `validateTemplateData`'s analysis is a component that takes
   a contract and data, and Suite's own documentation expects generation to use it. Its endpoint
   resolves the release again, requires `TEMPLATE_VIEW`, and substitutes a data example for empty data;
@@ -371,22 +371,24 @@ above is the one chosen.
   API keys and its hashed, expiring OAuth state already show the pattern for storing the token.
   Because the link stays usable until it is submitted, the page needs no session: the token is
   looked up on every request and posted back with the form, which also keeps it working in an iframe
-  where third-party cookies are blocked.
-  Its content security policy (no inline scripts, no framing unless embedding is enabled) is why the
-  form is specified as a page of its own.
+  where third-party cookies are blocked. Its content security policy (no inline scripts, no framing
+  unless embedding is enabled) is why the form is specified as a page of its own.
+- **Returning the link from `getGenerationJobStatus`** means the token cannot be kept only as a
+  hash: Suite keeps it encrypted, or derives it, so it can hand it out again until the job leaves
+  `awaiting-input`.
 - **Request data is already kept per job and never cleared after rendering**, and contract defaults
   are applied in memory at render time. `data` is therefore the stored data, and the "before defaults"
   rule above is what Suite has. `editedFields` needs the data as the caller sent it, kept beside the
   amended data when the form is submitted.
 - **Collect only knows `completed` and `failed`**, constrained in the database, and cancelling a job
-  writes nothing to it today. A `cancelled` line for prompted jobs means widening that constraint and
-  emitting a result on cancellation and on expiry. `cancelReason` is a column on the job, written by
-  whichever of the three cancels it. Results are written as NDJSON from a hand-built
-  map, so `data` and `editedFields` are easy to add there.
+  writes nothing to it today. A `cancelled` line for jobs with a form means widening that constraint
+  and emitting a result on cancellation and on expiry. `cancelReason` is a column on the job, written
+  by whichever of the three cancels it. Results are written as NDJSON from a hand-built map, so
+  `data` and `editedFields` are easy to add there.
 - **Nothing expires a job yet.** Suite sets an expiry on finished jobs but nothing acts on it;
-  `formExpiresAt` needs a sweep that cancels forms nobody completed. Retention otherwise drops whole
+  `form.expiresAt` needs a sweep that cancels forms nobody completed. Retention otherwise drops whole
   monthly partitions, whatever a job's status, so a job cannot outlive it waiting for input.
-- **Unknown members are ignored**, hence the echoed `prompt`.
+- **Unknown members are ignored**, hence `form` echoed in the response.
 - **Return hosts** have no home yet. Suite's other allowlists are installation settings, and its
   calling systems (`applications`, the contract's consumers) carry no URLs. The expiry's default and
   maximum are installation settings beside them.
@@ -394,31 +396,33 @@ above is the one chosen.
 
 ## Consequences
 
-- One flag gives callers without a UI a way to finish incomplete requests, and the callers with one
-  keep the `validateTemplateData` route.
+- One member gives callers without a UI a way to finish incomplete requests, and the callers with
+  one keep the `validateTemplateData` route.
 - Additive within 2.x: optional request members, optional response members, enum values in
   responses. `make append-only` holds; `make breaking` reports the enum additions, which the 2.x
   rules allow.
 - Every client changes: the generated types, each README's generation example, and a conformance
-  scenario covering `prompt` and its echo, `form` sent as given, the `awaiting-input` job with
-  `formUrl`, `data` and
-  `editedFields` on a collect line, a `failed` line that still carries `data`, a `cancelled` line
-  with its `cancelReason`, and `data` sent back unchanged.
+  scenario covering `form` sent as given and echoed, the `awaiting-input` job with `form.url`, the
+  link returned again by `getGenerationJobStatus`, `data` and `editedFields` on a collect line, a
+  `failed` line that still carries `data`, a `cancelled` line with its `cancelReason`, and `data`
+  sent back unchanged.
 - Suite gains an end-user surface reachable without a session, holding only a token. That is the
   surface to keep small and to review hardest.
-- A job can now wait on a person for up to `formExpiresAt`. Job counts, dashboards and timeouts
+- A job can now wait on a person for up to `form.expiresAt`. Job counts, dashboards and timeouts
   that assumed a job is always on its way to a worker must allow for `awaiting-input`.
-- The Bridge's SmartDocuments wizard can later create a job with `prompt: always` and redirect to
+- The Bridge's SmartDocuments wizard can later create a job with `form.show: always` and redirect to
   Suite's form, instead of keeping a form of its own.
-- Suite can use the feature itself. An author can create a prompted job from the editor against a
+- Suite can use the feature itself. An author can create a job with a form from the editor against a
   draft deployed to a test environment, and see the form a case worker will see before any caller
   integrates. It is the same job path, so the contract needs nothing more for it.
 
 ## Settled while drafting
 
-- **`prompt`, not `interactive`.** It reads with its values (`prompt: missing`), and an
-  `interactive` member suggests a boolean, which cannot say `missing` from `always`. OpenID
-  Connect's `prompt` parameter likewise decides whether a user is asked.
+- **One `form` member, not `prompt` beside `form`.** Every form setting meant nothing without the
+  flag, which is a sign they are one thing. Sending `form` is the opt-in, so the `never` value goes,
+  and the response's `form` mirrors it and is the echo.
+- **`show`, not `when` or `prompt`.** `show: missing` reads as what happens. `when` is a Kotlin
+  keyword, which the generated client would have to escape.
 - **`data`, not `submittedData` or `renderedData`.** Rendering again is then `item.data` into
   `request.data`. `renderedData` would be slightly untrue, since defaults are applied after it.
 - **Expiry is a `cancelReason`, not a status.** A separate `expired` status would tell expiry apart
@@ -430,15 +434,182 @@ above is the one chosen.
 - **The link is submitted once and lives until its expiry**, rather than opening once. Reopening it
   is what users do after a reload or a dropped connection, and losing the form to that would be
   worse than the exposure the expiry already bounds.
+- **The link is fetched, not stored.** `getGenerationJobStatus` returns it while the job waits, so a
+  "continue" button never needs a stored copy.
 - **Resuming overnight is a long enough expiry.** The caller sets it per job up to the server's
   maximum, and the form restores the progress it kept. Unlike the Bridge's case (Bridge ADR 0021),
-  the caller can offer "continue": it holds the `requestId`, can list its jobs `awaiting-input`, and
-  the link stays the same.
+  the caller can offer "continue": it holds the `requestId` and can list its jobs `awaiting-input`.
 - **Context instead of identity.** The form shows what the caller says the document is about
   (`title`, `instructions`, `links`), not who the user is. Who completed it is the caller's to record.
-- **Form settings are one object**, `form`, so later ones are added inside it, and the response's
-  `formUrl` and `formExpiresAt` match its name.
 
 ## Open questions
 
 None at the time of writing.
+
+## Appendix: a full example
+
+Gemeente X uses a case system. A case worker prepares an objection decision for case Z-2026-0412.
+The case system knows the citizen and the address, not the motivation or the decision date.
+`form.variantChoice` is the later addition, not part of the first version.
+
+**1. The caller submits** (`POST /api/tenants/gemeente-x/documents/generate`, with its API key):
+
+```json
+{
+  "namespace": "gemeente-x",
+  "catalogKey": "letters",
+  "templateKey": "objection-decision",
+  "attributes": [
+    { "key": "brand",    "value": "gemeente-x" },
+    { "key": "language", "value": "nl" }
+  ],
+  "versionRange": "^1.4",
+  "environmentKey": "production",
+  "data": {
+    "caseNumber": "Z-2026-0412",
+    "citizen": {
+      "name": "J. Jansen",
+      "address": { "street": "Kerkstraat 1", "postalCode": "1234 AB", "city": "Sittard" }
+    },
+    "objectionReceivedOn": "2026-10-02"
+  },
+  "filename": "besluit-bezwaar-Z-2026-0412.pdf",
+  "correlationId": "Z-2026-0412",
+  "routingKey": "Z-2026-0412",
+  "form": {
+    "show": "missing",
+    "expiresInMinutes": 1440,
+    "returnUrl": "https://zac.gemeente-x.nl/zaken/Z-2026-0412",
+    "title": "Besluit op bezwaar, zaak Z-2026-0412",
+    "instructions": "Vul de motivering en de besluitdatum in.\nControleer het adres van de bezwaarmaker.",
+    "links": [
+      { "label": "Open zaak", "url": "https://zac.gemeente-x.nl/zaken/Z-2026-0412" },
+      { "label": "Schrijfwijzer bezwaarbesluiten", "url": "https://intranet.gemeente-x.nl/schrijfwijzer" }
+    ],
+    "locale": "nl-NL",
+    "variantChoice": { "attributes": [{ "key": "language" }] }
+  }
+}
+```
+
+Suite binds release `1.4.2` and the Dutch variant, finds `/motivation` and `/decisionDate` missing,
+and checks both URLs against the allowed origins.
+
+**2. The answer** (`202 Accepted`, `Location: /api/tenants/gemeente-x/documents/jobs/550e8400-…`):
+
+```json
+{
+  "requestId": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "awaiting-input",
+  "jobType": "single",
+  "total": 1,
+  "createdAt": "2026-11-18T09:12:00Z",
+  "cancelReason": null,
+  "form": {
+    "show": "missing",
+    "url": "https://suite.gemeente-x.nl/forms/k3J9fQ2xV7mN0pL8sR4tY6wZ1aB5cD3e",
+    "expiresAt": "2026-11-19T09:12:00Z",
+    "missingFields": [
+      { "path": "/motivation",         "required": true,  "schema": { "type": "string", "title": "Motivering" } },
+      { "path": "/decisionDate",       "required": true,  "schema": { "type": "string", "format": "date" } },
+      { "path": "/citizen/salutation", "required": false, "schema": { "type": "string", "enum": ["Geachte heer", "Geachte mevrouw", "Geachte heer/mevrouw"] } }
+    ]
+  }
+}
+```
+
+The case system keeps the `requestId`, shows "letter waiting for input" with a **Continue** button,
+and opens `form.url` in a new tab. **Continue**, pressed the next morning, fetches the same link with
+`getGenerationJobStatus`; the form still holds what the user typed.
+
+**3. The user submits.** They fill in the motivation and the date, pick a salutation, correct the
+street to "Kerkstraat 11", and (later) switch the language to English. Suite validates the input,
+moves the job to `pending`, and sends the browser to
+`https://zac.gemeente-x.nl/zaken/Z-2026-0412?requestId=550e8400-…&status=pending`.
+
+**4. The result**, on the collect stream as today (shown here formatted, one NDJSON line on the
+wire):
+
+```json
+{
+  "sequence": 1763456000001,
+  "requestId": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "completed",
+  "documentId": "770e8400-e29b-41d4-a716-446655440002",
+  "correlationId": "Z-2026-0412",
+  "routingKey": "Z-2026-0412",
+  "registry": "epistola.gemeente-x.nl",
+  "namespace": "gemeente-x",
+  "catalogKey": "letters",
+  "templateKey": "objection-decision",
+  "variantKey": "objection-decision-en-gx",
+  "version": "1.4.2",
+  "filename": "besluit-bezwaar-Z-2026-0412.pdf",
+  "contentType": "application/pdf",
+  "sizeBytes": 91234,
+  "error": null,
+  "completedAt": "2026-11-19T08:40:07Z",
+  "cancelReason": null,
+  "data": {
+    "caseNumber": "Z-2026-0412",
+    "citizen": {
+      "name": "J. Jansen",
+      "salutation": "Dear Sir or Madam",
+      "address": { "street": "Kerkstraat 11", "postalCode": "1234 AB", "city": "Sittard" }
+    },
+    "objectionReceivedOn": "2026-10-02",
+    "motivation": "The objection is well-founded because …",
+    "decisionDate": "2026-11-19"
+  },
+  "editedFields": ["/citizen/salutation", "/citizen/address/street", "/motivation", "/decisionDate"]
+}
+```
+
+The same `data` and `editedFields` are on the item from `listGenerationJobItems` as soon as the job
+is `pending`.
+
+**When it does not go through.** Nobody submits before `form.expiresAt`: the job is `cancelled`
+with `cancelReason: expired`, the saved input is discarded, and collect delivers a `cancelled` line
+with `data` null. The user presses cancel: `user`, and the browser returns with `status=cancelled`.
+The caller cancels: `caller`. Rendering fails after submission: `failed`, with `data` still present.
+
+**A refused request:**
+
+```json
+{
+  "type": "https://epistola.app/errors/validation-error",
+  "title": "Validation failed",
+  "status": 400,
+  "errors": [
+    { "field": "form.returnUrl", "code": "url-not-allowed", "message": "https://zac.example.com is not an allowed origin" },
+    { "field": "form.expiresInMinutes", "code": "maximum", "message": "at most 1440 minutes" }
+  ]
+}
+```
+
+**A server that predates this** answers `"status": "pending"` and no `form`; the caller falls back.
+
+**5. A correction next week**, from the stored result:
+
+```json
+{
+  "namespace": "gemeente-x",
+  "catalogKey": "letters",
+  "templateKey": "objection-decision",
+  "variantKey": "objection-decision-en-gx",
+  "versionRange": "1.4.2",
+  "environmentKey": "production",
+  "data": { "…": "the data from the earlier item, unchanged" },
+  "correlationId": "Z-2026-0412-v2",
+  "form": {
+    "show": "always",
+    "expiresInMinutes": 60,
+    "returnUrl": "https://zac.gemeente-x.nl/zaken/Z-2026-0412",
+    "title": "Correctie besluit op bezwaar, zaak Z-2026-0412",
+    "instructions": "Corrigeer de besluitdatum."
+  }
+}
+```
+
+The form opens with every earlier answer, in English, against the same release. Without `form` the
+same request renders the identical letter at once.
