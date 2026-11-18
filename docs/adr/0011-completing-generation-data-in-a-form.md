@@ -316,6 +316,19 @@ keeps room for it, and any later choice should follow the same rules:
   attributes (say, only `language`) the user may pick from, appended inside `form`. A server that
   predates it ignores it, so the response echoes it by the rule above.
 
+**Granted, not implied by an omitted variant.** Omitting `variantKey` and `attributes` already means
+"the default variant", and callers omit them because a template has one variant or because they do
+not mind. Reading the omission as "the user decides" would put a choice in front of users that those
+callers never meant to offer. The choice is granted explicitly, and the request's own `variantKey` or
+`attributes`, or their absence, decide only what is pre-selected.
+
+**Attributes as facets, not free input.** The natural grant is by attribute: the user may vary
+`language`, and the request's `attributes` fix the rest (`brand: acme`). Changing attributes freely
+can match no variant or several, which `generateDocument` answers with 404 or 409 and a form could
+only show as an error. So the form offers the attribute values as facets, limited to combinations a
+variant of the bound release has, and every choice resolves to exactly one variant. Granting "any
+variant of the template" is the same picker with nothing fixed.
+
 The data contract belongs to the template, not the variant, so switching variant keeps the form's
 fields. It changes the preview, and the optional fields the variant's template reads.
 
