@@ -10,6 +10,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Epistola.Client.Collect;
+using Epistola.Client.Model;
+using Newtonsoft.Json.Linq;
 using Xunit;
 
 namespace Epistola.Client.Tests.Collect;
@@ -100,6 +102,113 @@ public class ResultCollectorTest
         var e = Assert.Throws<FormatException>(() => collector.CollectOnce());
         Assert.Contains("registry", e.Message);
         Assert.Empty(received);
+    }
+
+    private static List<ResultCollector.GenerationResult> CollectLines(params string[] lines)
+    {
+        var received = new List<ResultCollector.GenerationResult>();
+        ResultCollector.Builder()
+            .HttpClient(StubClient(string.Join("\n", lines) + "\n{\"_meta\":true,\"hasMore\":false}\n"))
+            .TenantKey("acme")
+            .RegisterShutdownHook(false)
+            .Handler(received.Add)
+            .Build()
+            .CollectOnce();
+        return received;
+    }
+
+    private const string Catalog = "\"registry\":\"exchange.epistola.app\",\"namespace\":\"acme-corp\",\"catalogKey\":\"letters\"";
+
+    [Fact]
+    public void AnInteractiveResultCarriesTheDataThePersonCompletedAndWhatTheyEdited()
+    {
+        var received = CollectLines(
+            "{\"sequence\":1,\"requestId\":\"r1\",\"status\":\"completed\"," + Catalog + ",\"cancelReason\":null," +
+            "\"data\":{\"caseNumber\":\"Z-1\",\"citizen\":{\"name\":\"J. Jansen\"},\"amountDue\":19.99,\"paid\":false,\"reference\":null,\"tags\":[\"a\",1]}," +
+            "\"editedFields\":[\"/citizen/name\",\"/amountDue\"]}");
+
+        var result = Assert.Single(received);
+        Assert.Null(result.CancelReason);
+        var data = Assert.IsType<JObject>(result.Data);
+        Assert.Equal("J. Jansen", data["citizen"]!["name"]!.Value<string>());
+        Assert.Equal(JTokenType.Float, data["amountDue"]!.Type);
+        Assert.Equal(JTokenType.Null, data["reference"]!.Type);
+        Assert.Equal(new[] { "/citizen/name", "/amountDue" }, result.EditedFields);
+    }
+
+    [Fact]
+    public void ACancelledResultSaysWhyAndCarriesNoData()
+    {
+        var received = CollectLines(
+            "{\"sequence\":1,\"requestId\":\"r1\",\"status\":\"cancelled\"," + Catalog + ",\"cancelReason\":\"expired\",\"data\":null,\"editedFields\":null}");
+
+        var result = Assert.Single(received);
+        Assert.Equal("cancelled", result.Status);
+        Assert.Equal("expired", result.CancelReason);
+        Assert.Null(result.Data);
+        Assert.Null(result.EditedFields);
+    }
+
+    [Fact]
+    public void AResultWithoutTheInteractiveMembersReadsThemAsNull()
+    {
+        // A job without a form, or a server before the members existed, sends none of them.
+        var result = Assert.Single(CollectLines("{\"sequence\":1,\"requestId\":\"r1\",\"status\":\"completed\"," + Catalog + "}"));
+
+        Assert.Null(result.CancelReason);
+        Assert.Null(result.Data);
+        Assert.Null(result.EditedFields);
+    }
+
+    [Fact]
+    public void AnEmptyEditedFieldsIsNotNull()
+    {
+        // The person changed nothing: data is set, so editedFields is an empty list, not null.
+        var result = Assert.Single(CollectLines(
+            "{\"sequence\":1,\"requestId\":\"r1\",\"status\":\"completed\"," + Catalog + ",\"data\":{},\"editedFields\":[]}"));
+
+        Assert.Empty(Assert.IsType<JObject>(result.Data));
+        Assert.NotNull(result.EditedFields);
+        Assert.Empty(result.EditedFields!);
+    }
+
+    [Fact]
+    public void DateLikeStringsStayExactlyAsTheServerSentThem()
+    {
+        // Newtonsoft reads a date-like string as a local DateTime by default: completedAt came out in
+        // the culture's spelling, and a date-time in data would go back into a request at another offset.
+        var result = Assert.Single(CollectLines(
+            "{\"sequence\":1,\"requestId\":\"r1\",\"status\":\"completed\"," + Catalog + ",\"completedAt\":\"2026-11-19T08:40:07Z\"," +
+            "\"data\":{\"signedAt\":\"2026-11-19T09:12:00+02:00\"},\"editedFields\":[]}"));
+
+        Assert.Equal("2026-11-19T08:40:07Z", result.CompletedAt);
+        var data = Assert.IsType<JObject>(result.Data);
+        Assert.Equal(JTokenType.String, data["signedAt"]!.Type);
+        Assert.Equal("""{"signedAt":"2026-11-19T09:12:00+02:00"}""", data.ToString(Newtonsoft.Json.Formatting.None));
+    }
+
+    [Fact]
+    public void AResultsDataGoesBackIntoAGenerationRequestUnchanged()
+    {
+        // Rendering again sends a result's data as the request's data, with no conversion.
+        const string data = """{"caseNumber":"Z-1","amountDue":19.99,"lineCount":3,"paid":false,"reference":null,"signedAt":"2026-11-19T09:12:00+02:00","citizen":{"address":{"street":"Kerkstraat 11"}},"tags":["objection",1]}""";
+        var result = Assert.Single(CollectLines(
+            "{\"sequence\":1,\"requestId\":\"r1\",\"status\":\"failed\"," + Catalog + ",\"data\":" + data + ",\"editedFields\":[]}"));
+
+        var request = new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "letters", templateKey: "invoice", data: result.Data!);
+        // Compared as text: parsing the body back would itself read the date-time as a DateTime.
+        var sent = Newtonsoft.Json.JsonConvert.SerializeObject(request);
+
+        Assert.Contains("\"data\":" + data, sent);
+    }
+
+    [Fact]
+    public void AResultsDataIsTypedAsTheGeneratedModelsTypeIt()
+    {
+        var requestData = typeof(GenerateDocumentRequest).GetProperty(nameof(GenerateDocumentRequest.Data))!.PropertyType;
+
+        Assert.Equal(requestData, typeof(ResultCollector.GenerationResult).GetProperty(nameof(ResultCollector.GenerationResult.Data))!.PropertyType);
+        Assert.Equal(requestData, typeof(DocumentGenerationItemDto).GetProperty(nameof(DocumentGenerationItemDto.Data))!.PropertyType);
     }
 
     [Fact]

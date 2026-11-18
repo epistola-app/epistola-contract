@@ -9,6 +9,7 @@ import app.epistola.client.error.handleErrorResponse
 import app.epistola.protocol.Compression
 import app.epistola.protocol.PartitionRouting
 import app.epistola.protocol.PollBackoff
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import org.springframework.http.HttpMethod
@@ -50,6 +51,8 @@ import kotlin.concurrent.withLock
  *         when (result.status) {
  *             "completed" -> downloadAndProcess(result.documentId, result.correlationId)
  *             "failed" -> logFailure(result.correlationId, result.error)
+ *             // An interactive job whose form was cancelled or expired (alpha, ADR 0011).
+ *             "cancelled" -> logCancelled(result.correlationId, result.cancelReason)
  *             // A later 2.x may add a status; the result is acknowledged once this returns.
  *             else -> logUnhandled(result)
  *         }
@@ -76,6 +79,13 @@ class ResultCollector private constructor(
     // The polling policy — shared with the Jakarta client, because the collapse-to-zero bug lived
     // in this arithmetic in every client.
     private val backoff = PollBackoff.of(minInterval.toMillis(), maxInterval.toMillis(), backoffMultiplier)
+
+    // Reads each line with decimals as BigDecimal rather than Double, so a result's free-form `data`
+    // holds its numbers exactly as received and goes back unchanged when it is resubmitted.
+    private val lineReader = objectMapper.reader().with(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
+
+    // Turns a result's `data` into plain JSON values: maps, lists, strings, numbers, booleans, null.
+    private val dataReader = objectMapper.readerFor(Any::class.java).with(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
 
     private val running = AtomicBoolean(false)
 
@@ -110,7 +120,14 @@ class ResultCollector private constructor(
         private const val MAX_ROUTING_KEY_ATTEMPTS = 1000
     }
 
-    /** A completed or failed generation result. */
+    /**
+     * A finished generation result: `completed` or `failed`, or `cancelled` for an interactive job
+     * whose form was cancelled or expired (alpha, ADR 0011). Treat a status you do not recognize as
+     * unknown: a later 2.x may add one.
+     *
+     * The members after [completedAt] were added for interactive generation; they are null for a
+     * job that had no form, and for a server that does not support it.
+     */
     data class GenerationResult(
         val sequence: Long,
         val requestId: String,
@@ -138,6 +155,21 @@ class ResultCollector private constructor(
         val sizeBytes: Long?,
         val error: String?,
         val completedAt: String?,
+        /**
+         * Why the job was cancelled, for a `cancelled` result: `caller`, `user` or `expired`, or a
+         * reason a later 2.x adds. Null otherwise.
+         */
+        val cancelReason: String? = null,
+        /**
+         * The complete data the document rendered from, as the person amended it in the form, for a
+         * failed render too; null for a job that had no form, and for a cancelled one. Plain JSON
+         * values (maps, lists, strings, numbers, booleans, null), typed as the generated
+         * `GenerateDocumentRequest.data` is, so it can be sent back as is to render again. Decimals
+         * are [java.math.BigDecimal], so they go back exactly as they arrived.
+         */
+        val data: Any? = null,
+        /** JSON Pointers into [data] of the fields the person changed; null without a form. */
+        val editedFields: List<String>? = null,
     )
 
     data class CollectResult(
@@ -338,7 +370,7 @@ class ResultCollector private constructor(
                     reader.useLines { lines ->
                         for (line in lines) {
                             if (line.isBlank()) continue
-                            val node = objectMapper.readTree(line)
+                            val node = lineReader.readTree(line)
 
                             if (node.has("_meta") && node["_meta"].asBoolean()) {
                                 hasMore = node["hasMore"]?.asBoolean() ?: false
@@ -405,6 +437,9 @@ class ResultCollector private constructor(
         sizeBytes = node.optionalField("sizeBytes")?.asLong(),
         error = node.optionalField("error")?.asText(),
         completedAt = node.optionalField("completedAt")?.asText(),
+        cancelReason = node.optionalField("cancelReason")?.asText(),
+        data = node.optionalField("data")?.let { dataReader.readValue<Any>(it) },
+        editedFields = node.optionalField("editedFields")?.map { it.asText() },
     )
 
     /** [field] of a result line, or null when it is absent or JSON `null` (which `asText()` would make `"null"`). */

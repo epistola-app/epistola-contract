@@ -161,6 +161,22 @@ class ValidatingGenerationApiTest {
     }
 
     @Test
+    void an_interactive_request_is_submitted_without_a_pre_flight_its_incomplete_data_being_the_point() {
+        GenerateDocumentRequest interactive = new GenerateDocumentRequest()
+                .namespace("acme-corp")
+                .catalogKey("default")
+                .templateKey("invoice")
+                .data(Map.of())
+                .interactive(new app.epistola.client.jakarta.model.InteractiveGenerationRequest()
+                        .trigger(app.epistola.client.jakarta.model.InteractiveGenerationTrigger.INCOMPLETE));
+
+        new ValidatingGenerationApi(generationApi(null), local("/name")).generateDocument("acme-corp", interactive);
+
+        assertEquals(0, validations.get());
+        assertEquals(1, submissions.get());
+    }
+
+    @Test
     void a_local_validator_reports_every_item_of_a_batch_at_once() {
         TemplateDataValidationException e = assertThrows(
                 TemplateDataValidationException.class,

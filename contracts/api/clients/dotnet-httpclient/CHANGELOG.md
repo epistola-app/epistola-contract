@@ -9,6 +9,26 @@ records contract changes; this file records changes to the hand-written library 
 
 ## [Unreleased]
 
+### Added
+
+- `ResultCollector.GenerationResult` gains `CancelReason`, `Data` and `EditedFields` (alpha,
+  contract ADR 0011), appended after `CompletedAt` as optional parameters, and `Status` may be
+  `cancelled` for a job created with `interactive`. `Data` is typed and held as the generated
+  `GenerateDocumentRequest.Data` (`object`, a Newtonsoft `JObject`), so a result's data goes
+  straight back into a request; absent or null members read as null.
+
+### Fixed
+
+- Free-form JSON keeps date-like strings as they arrived. Newtonsoft read them as local
+  `DateTime`s and wrote them back in the local time zone, so a string such as
+  `"2026-11-19T09:12:00+02:00"` in a request's `data` went out at another offset
+  (`EpistolaUnsetPropertyHandler`), and in a response's free-form members (an item's `data`, a
+  data contract) came back changed (`generate.sh` now sets `DateParseHandling.None` on the
+  generated `ApiClient`'s serializer settings; typed date-time members still parse).
+- `ResultCollector.GenerationResult.CompletedAt` is the instant exactly as the server sent it
+  (`2026-11-19T08:40:07Z`), instead of the culture's spelling of a parsed date
+  (`11/19/2026 08:40:07`).
+
 ## [2.0.0] - 2026-11-12
 
 ### Fixed

@@ -136,6 +136,71 @@ class ResultCollectorTest {
     }
 
     @Test
+    fun `parses what an interactive job carries - its data, edited fields and cancel reason`() {
+        val results = mutableListOf<ResultCollector.GenerationResult>()
+        val data = """{"caseNumber":"Z-2026-0412","amountDue":19.99,"lineCount":3,"paid":false,"reference":null,""" +
+            """"citizen":{"name":"J. Jansen","address":{"street":"Kerkstraat 11"}},"tags":["objection","urgent"]}"""
+        val submitted = """{"sequence":100,"requestId":"r1","status":"completed","registry":"exchange.example.org",""" +
+            """"namespace":"team-a","catalogKey":"letters","cancelReason":null,"data":$data,""" +
+            """"editedFields":["/citizen/address/street","/amountDue"]}"""
+        val cancelled = """{"sequence":101,"requestId":"r2","status":"cancelled","registry":"exchange.example.org",""" +
+            """"namespace":"team-a","catalogKey":"letters","cancelReason":"expired","data":null,"editedFields":null}"""
+        val restClient = mockRestClient(ndjsonResponse(submitted, cancelled, metaLine(hasMore = false, count = 2, lastSequence = 101)))
+
+        buildCollector(restClient) { results.add(it) }.collectOnce()
+
+        assertNull(results[0].cancelReason, "an explicit JSON null is missing, not the string \"null\"")
+        val parsed = assertNotNull(results[0].data) as Map<*, *>
+        assertEquals("Z-2026-0412", parsed["caseNumber"])
+        assertEquals(java.math.BigDecimal("19.99"), parsed["amountDue"], "a decimal is kept exactly")
+        assertEquals(3, parsed["lineCount"])
+        assertEquals(false, parsed["paid"])
+        assertTrue(parsed.containsKey("reference") && parsed["reference"] == null, "a null member is kept")
+        assertEquals(listOf("objection", "urgent"), parsed["tags"])
+        assertEquals("Kerkstraat 11", ((parsed["citizen"] as Map<*, *>)["address"] as Map<*, *>)["street"])
+        assertEquals(listOf("/citizen/address/street", "/amountDue"), results[0].editedFields)
+
+        assertEquals("cancelled", results[1].status)
+        assertEquals("expired", results[1].cancelReason)
+        assertNull(results[1].data)
+        assertNull(results[1].editedFields)
+    }
+
+    @Test
+    fun `a result without the interactive members reads them as null`() {
+        val results = mutableListOf<ResultCollector.GenerationResult>()
+        val restClient = mockRestClient(ndjsonResponse(resultLine(sequence = 100), metaLine(hasMore = false, count = 1, lastSequence = 100)))
+
+        buildCollector(restClient) { results.add(it) }.collectOnce()
+
+        assertNull(results[0].cancelReason)
+        assertNull(results[0].data)
+        assertNull(results[0].editedFields)
+    }
+
+    @Test
+    fun `a result's data goes back into a generation request unchanged`() {
+        val results = mutableListOf<ResultCollector.GenerationResult>()
+        val data = """{"caseNumber":"Z-2026-0412","amountDue":19.99,"precise":0.1000000000000000055511151231257827,""" +
+            """"big":12345678901234567890,"paid":false,"reference":null,"citizen":{"name":"J. Jansen"},"tags":["a",1,true]}"""
+        val line = """{"sequence":100,"requestId":"r1","status":"failed","registry":"exchange.example.org",""" +
+            """"namespace":"team-a","catalogKey":"letters","data":$data,"editedFields":[]}"""
+        val restClient = mockRestClient(ndjsonResponse(line, metaLine(hasMore = false, count = 1, lastSequence = 100)))
+
+        buildCollector(restClient) { results.add(it) }.collectOnce()
+
+        val request = app.epistola.client.model.GenerateDocumentRequest(
+            namespace = "team-a",
+            catalogKey = "letters",
+            templateKey = "objection-decision",
+            data = assertNotNull(results[0].data),
+        )
+        val sent = objectMapper.writeValueAsString(request)
+        assertTrue(sent.contains("\"data\":$data"), "every value is sent back as received: $sent")
+        assertEquals(emptyList(), results[0].editedFields)
+    }
+
+    @Test
     fun `a problem response is raised as a ProblemDetailException carrying its status, not parsed as results`() {
         val problem = """{"type":"https://epistola.app/errors/permission-denied","title":"Permission Denied","status":403,"detail":"Insufficient permissions","instance":"/api/tenants/demo/generation/collect"}"""
         val headers = HttpHeaders().apply { contentType = MediaType.APPLICATION_PROBLEM_JSON }

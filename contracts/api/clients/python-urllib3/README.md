@@ -95,6 +95,8 @@ if job.status == GenerationJobStatus.COMPLETED:
     collect(job)
 elif job.status in (GenerationJobStatus.FAILED, GenerationJobStatus.CANCELLED):
     report(job)
+elif job.status == GenerationJobStatus.AWAITING_MINUS_INPUT:
+    remind(job.interactive.url)  # an interactive job waiting for its form (alpha)
 else:
     retry_later(job)  # pending, in-progress, and any status added later, e.g. job.status.value
 ```
@@ -211,6 +213,52 @@ release_name)`: a draft of another catalog whose dependency declarations name th
 `delete_catalog_release` would discard; each `held_resources` entry is a
 `resourceType/resourceKey` only that draft holds while something outside it uses it.
 
+## Interactive generation (alpha)
+
+A caller with only part of a template's data can ask a person to complete it in a form before the
+document renders (contract ADR 0011). Epistola Suite may not implement it yet: a server that does
+not answers with no `interactive`, which is how you tell.
+
+```python
+from epistola_client import (
+    GenerateDocumentRequest, GenerationApi, GenerationJobStatus,
+    InteractiveGenerationLink, InteractiveGenerationRequest,
+)
+
+generation = GenerationApi(http)
+job = generation.generate_document("acme", GenerateDocumentRequest(
+    namespace="acme", catalogKey="letters", templateKey="objection-decision",
+    data={"caseNumber": "Z-2026-0412"},
+    interactive=InteractiveGenerationRequest(
+        trigger="incomplete",  # or "always"
+        returnUrl="https://cases.example.org/cases/Z-2026-0412",
+        title="Objection decision, case Z-2026-0412",
+        links=[InteractiveGenerationLink(label="Open case", url="https://cases.example.org/cases/Z-2026-0412")],
+    ),
+))
+if job.interactive is None:
+    ...  # the server ignored interactive: an ordinary job
+elif job.status == GenerationJobStatus.AWAITING_MINUS_INPUT:
+    redirect(job.interactive.url)  # send the person's browser here, before job.interactive.expires_at
+
+# The link need not be stored: the job returns it for as long as it waits.
+url = generation.get_generation_job_status("acme", job.request_id).interactive.url
+
+# What the person entered comes with each item (and each collected result, below), a failed
+# render included; data and edited_fields are None until the form is submitted.
+item = generation.list_generation_job_items("acme", job.request_id).items[0]
+store(item.data, changed=item.edited_fields)  # JSON Pointers into data, e.g. "/motivation"
+
+# Rendering again, to correct something or for a newer release, sends the item's data back as is.
+generation.generate_document("acme", GenerateDocumentRequest(
+    namespace="acme", catalogKey="letters", templateKey="objection-decision",
+    variantKey=item.variant_key, data=item.data,
+))
+```
+
+A form cancelled or left to expire ends the job `cancelled`, with `cancel_reason` `user`,
+`expired` or `caller`.
+
 ## Result collection
 
 ```python
@@ -222,14 +270,21 @@ collector = (
     .tenant_key("acme")
     .handler(lambda result: print(
         result.request_id,
-        result.status,  # "completed" or "failed", as sent
+        # "completed" or "failed", as sent; "cancelled" for an interactive job whose form was
+        # cancelled or expired, with result.cancel_reason saying which.
+        result.status,
         # The catalog it was generated from; version is None when rendered from a draft.
         f"{result.registry}/{result.namespace}/{result.catalog_key}@{result.version}",
+        # For an interactive job, what the person entered; None otherwise.
+        result.data, result.edited_fields,
     ))
     .build()
 )
 collector.start()   # blocks; adaptive polling until collector.stop()
 ```
+
+A result's `data` has the type `GenerateDocumentRequest.data` takes, so it goes back into a request
+unchanged, as an item's does.
 
 ## Response headers
 

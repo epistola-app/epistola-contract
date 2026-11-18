@@ -57,6 +57,7 @@ public static class Driver
                 case "list-documents": ListDocuments(baseUrl, config); break;
                 case "get-generation-job-status": GetGenerationJobStatus(baseUrl, config); break;
                 case "list-generation-job-items": ListGenerationJobItems(baseUrl, config); break;
+                case "regenerate-from-item": RegenerateFromItem(baseUrl, config); break;
                 case "search-tenant": SearchTenant(baseUrl, config); break;
                 case "list-images": ListImages(baseUrl, config); break;
                 case "upload-image": UploadImage(baseUrl, config); break;
@@ -245,6 +246,9 @@ public static class Driver
                 ["partitionTotal"] = collector.CurrentPartitionAssignment?.Total ?? -1,
                 ["releases"] = string.Join(",", handled.Select(r =>
                     $"{Show(r.Registry)}/{Show(r.Namespace)}/{Show(r.CatalogKey)}@{Show(r.Version)}#{Show(r.ReleaseId)}:{Show(r.ReleaseName)}")),
+                ["cancelReasons"] = string.Join(",", handled.Select(r => Show(r.CancelReason))),
+                ["dataMembers"] = string.Join(";", handled.Select(r => DataMembers(r.Data))),
+                ["editedFields"] = string.Join(";", handled.Select(r => EditedFields(r.EditedFields))),
             });
         }
     }
@@ -255,33 +259,61 @@ public static class Driver
     /// receives is the generator's serialization, which is the part no client hand-writes and no
     /// client's own tests inspect.
     /// </summary>
-    private static void GenerateDocument(string baseUrl, JsonElement config)
+    private static void GenerateDocument(string baseUrl, JsonElement config) =>
+        SendGeneration(baseUrl, config, new GenerateDocumentRequest(
+            // Left unset when the scenario does not name it: omitted means the default registry, which
+            // only the server knows, so the client must not fill one in.
+            registry: OptStr(config, "registry")!,
+            @namespace: Str(config, "namespace"),
+            catalogKey: Str(config, "catalogKey"),
+            templateKey: Str(config, "templateKey"),
+            // Optional, and left unset when the scenario does not name them: an unset optional
+            // must stay off the wire (scenario 120), not go out as null.
+            variantKey: OptStr(config, "variantKey"),
+            attributes: OptAttributes(config),
+            versionRange: OptStr(config, "versionRange"),
+            environmentKey: OptStr(config, "environmentKey"),
+            // Parsed with Newtonsoft, not System.Text.Json: the generated models serialize
+            // through Newtonsoft, which does not know what to do with a JsonElement and emits
+            // an empty object for it.
+            data: Newtonsoft.Json.JsonConvert.DeserializeObject(config.GetProperty("data").GetRawText()),
+            correlationId: OptStr(config, "correlationId"),
+            routingKey: OptStr(config, "routingKey"),
+            interactive: OptInteractive(config)!));
+
+    /// <summary>
+    /// Renders again from an earlier item: reads the job's items, then generates with the first
+    /// item's variant and its <c>data</c> exactly as the generated response model holds it. No
+    /// conversion of the driver's own sits between the two models; that round trip is the point.
+    /// </summary>
+    private static void RegenerateFromItem(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var item = new GenerationApi(http, apiBase)
+            .ListGenerationJobItems(Str(config, "tenantKey"), Guid.Parse(Str(config, "requestId")))
+            .Items[0];
+
+        SendGeneration(baseUrl, config, new GenerateDocumentRequest(
+            @namespace: Str(config, "namespace"),
+            catalogKey: Str(config, "catalogKey"),
+            templateKey: Str(config, "templateKey"),
+            variantKey: item.VariantKey,
+            versionRange: OptStr(config, "versionRange"),
+            data: item.Data,
+            interactive: OptInteractive(config)!));
+    }
+
+    /// <summary>
+    /// Sends a generation request through the operation that exposes the response headers and
+    /// reports the job, its form included, or the problem the server answered with.
+    /// </summary>
+    private static void SendGeneration(string baseUrl, JsonElement config, GenerateDocumentRequest request)
     {
         var (http, apiBase) = Client(baseUrl, config);
         ApiResponse<GenerationJobResponse> response;
         try
         {
-        response = new GenerationApi(http, apiBase).GenerateDocumentWithHttpInfo(
-            Str(config, "tenantKey"),
-            new GenerateDocumentRequest(
-                // Left unset when the scenario does not name it: omitted means the default registry, which
-                // only the server knows, so the client must not fill one in.
-                registry: OptStr(config, "registry")!,
-                @namespace: Str(config, "namespace"),
-                catalogKey: Str(config, "catalogKey"),
-                templateKey: Str(config, "templateKey"),
-                // Optional, and left unset when the scenario does not name them: an unset optional
-                // must stay off the wire (scenario 120), not go out as null.
-                variantKey: OptStr(config, "variantKey"),
-                attributes: OptAttributes(config),
-                versionRange: OptStr(config, "versionRange"),
-                environmentKey: OptStr(config, "environmentKey"),
-                // Parsed with Newtonsoft, not System.Text.Json: the generated models serialize
-                // through Newtonsoft, which does not know what to do with a JsonElement and emits
-                // an empty object for it.
-                data: Newtonsoft.Json.JsonConvert.DeserializeObject(config.GetProperty("data").GetRawText()),
-                correlationId: OptStr(config, "correlationId"),
-                routingKey: OptStr(config, "routingKey")));
+            response = new GenerationApi(http, apiBase).GenerateDocumentWithHttpInfo(Str(config, "tenantKey"), request);
         }
         catch (ProblemDetailException e)
         {
@@ -295,15 +327,70 @@ public static class Driver
         }
         var job = response.Data;
 
-        Report(baseUrl, new Dictionary<string, object>
+        var values = new Dictionary<string, object>
         {
             ["requestId"] = Show(job?.RequestId),
             ["status"] = job == null ? "null" : Wire(job.Status),
             ["jobType"] = job == null ? "null" : Wire(job.JobType),
             ["total"] = job == null ? "null" : job.Total,
             ["location"] = Header(response, "Location"),
-        });
+            ["cancelReason"] = WireOrNull(job?.CancelReason),
+            ["interactiveMissingFields"] = job?.Interactive?.MissingFields == null
+                ? "null"
+                : string.Join(",", job.Interactive.MissingFields.Select(field => field.Path)),
+        };
+        AddInteractive(values, job?.Interactive);
+        Report(baseUrl, values);
     }
+
+    /// <summary>
+    /// <c>config.interactive</c> as the request's <c>interactive</c>, each member set only when the
+    /// scenario gives it, or null (left off the wire) when the scenario names none.
+    /// </summary>
+    private static InteractiveGenerationRequest? OptInteractive(JsonElement config)
+    {
+        if (!config.TryGetProperty("interactive", out var interactive) || interactive.ValueKind == JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        return new InteractiveGenerationRequest(
+            trigger: Parse<InteractiveGenerationTrigger>(Str(interactive, "trigger")),
+            expiresInMinutes: interactive.TryGetProperty("expiresInMinutes", out var expires) && expires.ValueKind == JsonValueKind.Number
+                ? expires.GetInt32()
+                : null,
+            returnUrl: OptStr(interactive, "returnUrl")!,
+            title: OptStr(interactive, "title")!,
+            instructions: OptStr(interactive, "instructions")!,
+            links: interactive.TryGetProperty("links", out var links) && links.ValueKind == JsonValueKind.Array
+                ? links.EnumerateArray().Select(link => new InteractiveGenerationLink(label: Str(link, "label"), url: Str(link, "url"))).ToList()
+                : null!,
+            locale: OptStr(interactive, "locale")!);
+    }
+
+    /// <summary>A job's form as <c>generate-document</c> and <c>get-generation-job-status</c> report it, each member <c>null</c> without one.</summary>
+    private static void AddInteractive(Dictionary<string, object> values, InteractiveGenerationDto? interactive)
+    {
+        values["interactiveTrigger"] = interactive == null ? "null" : Wire(interactive.Trigger);
+        values["interactiveUrl"] = Show(interactive?.Url);
+        values["interactiveExpiresAt"] = Show(Iso(interactive?.ExpiresAt));
+    }
+
+    /// <summary>Free-form data's top-level member names, sorted and joined with <c>+</c>; <c>null</c> when the data is.</summary>
+    private static string DataMembers(object? data) => data switch
+    {
+        null => "null",
+        Newtonsoft.Json.Linq.JObject members => string.Join("+", members.Properties().Select(p => p.Name).OrderBy(n => n, StringComparer.Ordinal)),
+        _ => throw new InvalidOperationException($"data is a {data.GetType().Name}, not a JSON object"),
+    };
+
+    /// <summary>JSON Pointers joined with <c>+</c>; <c>null</c> when the list is.</summary>
+    private static string EditedFields(IEnumerable<string>? fields) =>
+        fields == null ? "null" : string.Join("+", fields);
+
+    /// <summary>A nullable generated enum constant as its wire value, or <c>null</c>.</summary>
+    private static string WireOrNull<T>(T? value) where T : struct, Enum =>
+        value.HasValue ? Wire(value.Value) : "null";
 
     /// <summary>
     /// A partial update that sets only the members the scenario names. Everything the caller did not
@@ -603,12 +690,12 @@ public static class Driver
     /// Lists documents with the catalog and template filters the scenario sets, each sent only
     /// when set, and reports what the client made of the page.
     /// </summary>
-    /// <summary>Reads a generation job's status and reports its counts; the job carries no items.</summary>
+    /// <summary>Reads a generation job's status and reports its counts and its form; the job carries no items.</summary>
     private static void GetGenerationJobStatus(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
         var job = new GenerationApi(http, apiBase).GetGenerationJobStatus(Str(config, "tenantKey"), Guid.Parse(Str(config, "requestId")));
-        Report(baseUrl, new Dictionary<string, object>
+        var values = new Dictionary<string, object>
         {
             ["requestId"] = Show(job.RequestId),
             ["status"] = Wire(job.Status),
@@ -616,7 +703,10 @@ public static class Driver
             ["total"] = job.Total,
             ["completedCount"] = job.CompletedCount,
             ["failedCount"] = job.FailedCount,
-        });
+            ["cancelReason"] = WireOrNull(job.CancelReason),
+        };
+        AddInteractive(values, job.Interactive);
+        Report(baseUrl, values);
     }
 
     /// <summary>Lists a page of a generation job's items, <c>status</c>, <c>page</c> and <c>size</c> each sent only when set.</summary>
@@ -636,6 +726,9 @@ public static class Driver
             ["statuses"] = string.Join(",", response.Items.Select(i => Wire(i.Status))),
             ["documentIds"] = string.Join(",", response.Items.Select(i => Show(i.DocumentId))),
             ["correlationIds"] = string.Join(",", response.Items.Select(i => Show(i.CorrelationId))),
+            ["cancelReasons"] = string.Join(",", response.Items.Select(i => WireOrNull(i.CancelReason))),
+            ["dataMembers"] = string.Join(";", response.Items.Select(i => DataMembers(i.Data))),
+            ["editedFields"] = string.Join(";", response.Items.Select(i => EditedFields(i.EditedFields))),
             ["total"] = Show(response.Page.Total),
         });
     }

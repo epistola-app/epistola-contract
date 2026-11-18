@@ -62,7 +62,8 @@ class ProblemRegistryTest {
         assertEquals("pattern", KnownValidationCodes.PATTERN);
         assertEquals("stencil-recursion", KnownValidationCodes.STENCIL_RECURSION);
         assertEquals("catalog-resources-not-ready", KnownValidationCodes.CATALOG_RESOURCES_NOT_READY);
-        assertEquals(51, KnownValidationCodes.ALL.size());
+        assertEquals("url-not-allowed", KnownValidationCodes.URL_NOT_ALLOWED);
+        assertEquals(52, KnownValidationCodes.ALL.size());
         assertEquals(
                 KnownValidationCodes.ALL.size(),
                 new java.util.LinkedHashSet<>(KnownValidationCodes.ALL).size(),

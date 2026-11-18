@@ -2,11 +2,13 @@
 //
 // SPDX-License-Identifier: EUPL-1.2
 
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace Epistola.Client.Http;
@@ -74,12 +76,20 @@ public sealed class EpistolaUnsetPropertyHandler : DelegatingHandler
     /// nested values come from caller-supplied data such as a generation request's free-form
     /// <c>data</c>, where a null is the caller's own and means what they meant by it.
     /// </summary>
+    /// <remarks>
+    /// Date-like strings are read as strings. By default Newtonsoft reads them as local
+    /// <see cref="System.DateTime"/>s and writes them back in the local time zone, which rewrote
+    /// <c>"2026-11-19T09:12:00+02:00"</c> in a caller's <c>data</c> to another offset.
+    /// </remarks>
     private static string? StripNulls(string body)
     {
         JToken parsed;
         try
         {
-            parsed = JToken.Parse(body);
+            using var reader = new JsonTextReader(new StringReader(body)) { DateParseHandling = DateParseHandling.None };
+            parsed = JToken.ReadFrom(reader);
+            // JToken.Parse refuses trailing content; keep refusing it, so such a body goes out as it was.
+            if (reader.Read()) return null;
         }
         catch
         {

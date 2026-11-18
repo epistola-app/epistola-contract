@@ -272,7 +272,7 @@ codes may come in a minor version.
 
 ## Document generation & result collection
 
-Poll completed/failed generation results with `ResultCollector` — NDJSON streaming (constant memory),
+Poll finished generation results with `ResultCollector` — NDJSON streaming (constant memory),
 compression (gzip built-in; lz4/zstd auto-detected when `K4os.Compression.LZ4` / `ZstdSharp` are
 present), adaptive polling, and partition-aware routing helpers:
 
@@ -289,6 +289,8 @@ var collector = ResultCollector.Builder()
             // Registry, Namespace and CatalogKey name the catalog rendered; Version is null for a draft.
             case "completed": Download(result.DocumentId, result.CorrelationId); break;
             case "failed":    LogFailure(result.CorrelationId, result.Error);    break;
+            // Only for a job created with `interactive` (alpha): the form was cancelled or expired.
+            case "cancelled": LogCancelled(result.CorrelationId, result.CancelReason); break;
             // A later 2.x may add a status. The result is acknowledged once the handler returns,
             // so log what nobody handles, at least.
             default: logger.LogWarning("Result {RequestId} has status {Status}", result.RequestId, result.Status); break;
@@ -302,6 +304,65 @@ collector.Start();          // blocks, running the adaptive poll loop; Stop() to
 `CollectOnce()` / `CollectOnceAsync()` perform a single poll for custom scheduling; `Kick()` shortens
 the backoff when a result is expected soon. Partition helpers: `PartitionFor`, `IsMyPartition`,
 `RoutingKeyToMe`.
+
+### Interactive generation
+
+**Alpha** (`x-experimental`, contract ADR 0011). A caller that has only part of a template's data can
+have a person complete it in a form Epistola serves, by sending `Interactive` with the request.
+Epistola Suite may not implement it yet; a server that does not ignores it, and its response then
+carries no `Interactive`:
+
+```csharp
+var generation = new GenerationApi(http, "https://epistola.example.com/api");
+
+var job = generation.GenerateDocument("acme-corp", new GenerateDocumentRequest(
+    @namespace: "acme-corp",
+    catalogKey: "letters",
+    templateKey: "objection-decision",
+    data: JObject.Parse("""{"caseNumber": "Z-2026-0412"}"""),
+    interactive: new InteractiveGenerationRequest(
+        trigger: InteractiveGenerationTrigger.Incomplete,   // or Always, to review pre-filled data
+        returnUrl: "https://cases.example.org/cases/Z-2026-0412",
+        title: "Objection decision, case Z-2026-0412",
+        links: new List<InteractiveGenerationLink> { new(label: "Open case", url: "https://cases.example.org/cases/Z-2026-0412") })));
+
+if (job.Interactive == null)
+{
+    // The server did not honour `interactive`: an ordinary job, no form.
+}
+else if (job.Interactive.Url != null)
+{
+    // The job is AwaitingInput: send the person's browser to the form. The link is a bearer
+    // capability over this one job; hand it only to the person you authenticated.
+    Redirect(job.Interactive.Url);
+}
+
+// The link need not be stored: the job returns it for as long as it waits.
+var status = generation.GetGenerationJobStatus("acme-corp", job.RequestId);
+if (status.Status == GenerationJobStatus.AwaitingInput) Redirect(status.Interactive.Url);
+```
+
+Once the form is submitted, items carry the complete `Data` the document renders from, the person's
+input included, and `EditedFields`, the JSON Pointers where it differs from what you sent; a collect
+result carries the same (`result.Data`, `result.EditedFields`), on a failed render too. A cancelled
+job says why in `CancelReason` (`Caller`, `User` or `Expired`). `Data` is typed as the request's
+`Data` is, so rendering again, with or without a form, sends an item's data back as it is:
+
+```csharp
+var item = generation.ListGenerationJobItems("acme-corp", job.RequestId).Items[0];
+Store(item.Data, item.EditedFields);
+
+generation.GenerateDocument("acme-corp", new GenerateDocumentRequest(
+    @namespace: "acme-corp",
+    catalogKey: "letters",
+    templateKey: "objection-decision",
+    variantKey: item.VariantKey,
+    data: item.Data));
+```
+
+Free-form JSON is read and written as it arrived: a date-like string in `Data` stays the string it
+was, so an item's data goes back unchanged. Numbers are read as `double`, so a number beyond a
+double's precision comes back rounded.
 
 ## Releases
 

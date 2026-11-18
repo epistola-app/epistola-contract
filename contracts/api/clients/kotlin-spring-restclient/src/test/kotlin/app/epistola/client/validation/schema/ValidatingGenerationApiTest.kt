@@ -10,6 +10,8 @@ import app.epistola.client.error.ProblemDetailException
 import app.epistola.client.model.BatchGenerationItem
 import app.epistola.client.model.GenerateBatchRequest
 import app.epistola.client.model.GenerateDocumentRequest
+import app.epistola.client.model.InteractiveGenerationRequest
+import app.epistola.client.model.InteractiveGenerationTrigger
 import app.epistola.client.model.ProblemDetail
 import app.epistola.client.model.TemplateDataValidationResult
 import io.mockk.every
@@ -175,6 +177,16 @@ class ValidatingGenerationApiTest {
         assertFailsWith<TemplateDataValidationException> { api.generateDocument("acme", request) }
 
         verify(exactly = 0) { generationApi.generateDocument(any(), any()) }
+    }
+
+    @Test
+    fun `an interactive request is submitted without a pre-flight, its incomplete data being the point`() {
+        val api = ValidatingGenerationApi(generationApi, local("/name"))
+        val interactive = request.copy(interactive = InteractiveGenerationRequest(trigger = InteractiveGenerationTrigger.incomplete))
+
+        api.generateDocument("acme", interactive)
+
+        verify(exactly = 1) { generationApi.generateDocument("acme", interactive) }
     }
 
     @Test

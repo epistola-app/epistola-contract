@@ -27,8 +27,8 @@ import json
 import random
 import threading
 import time
-from dataclasses import dataclass
-from typing import Callable, List, Optional, Protocol
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional, Protocol
 
 _VENDOR_JSON = "application/vnd.epistola.v2+json"
 _NDJSON = "application/vnd.epistola.v2+ndjson"
@@ -40,8 +40,9 @@ MAX_ROUTING_KEY_ATTEMPTS = 1000
 
 @dataclass(frozen=True)
 class GenerationResult:
-    """A completed or failed generation result. ``status`` is the wire value as sent:
-    ``completed`` or ``failed``."""
+    """A completed or failed generation result, or a cancelled interactive one. ``status`` is the
+    wire value as sent: ``completed``, ``failed``, or ``cancelled`` for a job created with
+    ``interactive`` whose form was cancelled or expired (alpha, contract ADR 0011)."""
 
     sequence: int
     request_id: str
@@ -69,6 +70,17 @@ class GenerationResult:
     size_bytes: Optional[int]
     error: Optional[str]
     completed_at: Optional[str]
+    #: Why the job was cancelled (``caller``, ``user`` or ``expired``, the wire value as sent); set
+    #: exactly when ``status`` is ``cancelled``, else ``None`` (alpha).
+    cancel_reason: Optional[str] = None
+    #: For a job created with ``interactive``, the complete data the document rendered from, as the
+    #: person completed it on the form; ``None`` for a cancelled one and for jobs without a form
+    #: (alpha, contract ADR 0011). Typed as ``GenerateDocumentRequest.data`` is, so it can be sent
+    #: back as a request's ``data`` to render again. Left out of the hash, being a dict.
+    data: Optional[Dict[str, Any]] = field(default=None, hash=False)
+    #: JSON Pointers into ``data`` where it differs from what the caller sent; set and ``None``
+    #: exactly when ``data`` is (alpha). Left out of the hash, being a list.
+    edited_fields: Optional[List[str]] = field(default=None, hash=False)
 
 
 @dataclass(frozen=True)
@@ -526,6 +538,9 @@ def _parse_result(node: dict) -> GenerationResult:
         size_bytes=node.get("sizeBytes"),
         error=node.get("error"),
         completed_at=node.get("completedAt"),
+        cancel_reason=node.get("cancelReason"),
+        data=node.get("data"),
+        edited_fields=node.get("editedFields"),
     )
 
 

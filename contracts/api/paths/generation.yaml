@@ -72,6 +72,13 @@ generate-document:
       template's data contract here; it is checked when the item renders, and an item whose data
       breaks the contract fails (`failed`, with its `errorMessage`). Check it first with
       `validateTemplateData` to find out before submitting.
+
+      With `interactive` (alpha, `x-experimental`, contract ADR 0011), the data is checked here
+      instead, against the release just bound, and a person may be asked to complete it: the job is
+      then accepted as `awaiting-input` and `interactive.url` is where to send their browser (see
+      "Interactive generation"). It needs no permission beyond this operation's. A URL in it on an
+      origin the server does not allow is refused with 400 `validation-error`, code
+      `url-not-allowed`, and an `expiresInMinutes` above the server's maximum with code `maximum`.
     tags:
       - Generation
     x-required-permissions: [DOCUMENT_GENERATE]
@@ -255,7 +262,9 @@ job-detail:
   delete:
     operationId: cancelGenerationJob
     summary: Cancel a generation job
-    description: Cancel a pending or in-progress generation job
+    description: |
+      Cancel a pending or in-progress generation job, or one awaiting input on its form. The job's
+      `cancelReason` is then `caller`, and the link of a job awaiting input stops working.
     tags:
       - Generation
     x-required-permissions: [DOCUMENT_GENERATE]

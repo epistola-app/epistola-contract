@@ -53,6 +53,16 @@ public class EpistolaUnsetPropertyHandlerTest
     }
 
     [Fact]
+    public async Task LeavesDateLikeStringsInCallerSuppliedDataAsTheyWere()
+    {
+        // Reparsed with Newtonsoft's defaults, a date-time with an offset came back in the local time
+        // zone: the same instant, but not the string the caller sent.
+        var sent = await Send("""{"templateKey":"invoice","data":{"signedAt":"2026-11-19T09:12:00+02:00","day":"2026-11-19"},"filename":null}""");
+
+        Assert.Equal("""{"templateKey":"invoice","data":{"signedAt":"2026-11-19T09:12:00+02:00","day":"2026-11-19"}}""", sent);
+    }
+
+    [Fact]
     public async Task LeavesABodyWithNothingToStripByteIdentical()
     {
         var body = """{"namespace":"acme-corp","catalogKey":"default","templateKey":"invoice"}""";

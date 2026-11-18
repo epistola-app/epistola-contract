@@ -36,9 +36,9 @@ CollectRequest:
 GenerationResult:
   type: object
   description: |
-    A completed or failed generation result. Streamed as one NDJSON line
-    per result. Contains all information needed to process the result
-    without additional API calls (except downloading the document itself).
+    A completed or failed generation result, or a cancelled one for a job created with
+    `interactive`. Streamed as one NDJSON line per result. Contains all information needed to
+    process the result without additional API calls (except downloading the document itself).
   required:
     - sequence
     - requestId
@@ -69,8 +69,11 @@ GenerationResult:
       example: null
     status:
       type: string
-      enum: [completed, failed]
-      description: Terminal status of the generation request
+      enum: [completed, failed, cancelled]
+      description: |
+        Terminal status of the generation request. `cancelled` is delivered only for a job created
+        with `interactive` (alpha, contract ADR 0011), so a caller that only collects learns that the
+        form was cancelled or expired; see `cancelReason`. May gain values: keep a default branch.
       example: completed
     documentId:
       type: ['string', 'null']
@@ -155,8 +158,32 @@ GenerationResult:
     completedAt:
       type: string
       format: date-time
-      description: When the generation completed or failed
+      description: When the generation completed or failed, or the job was cancelled
       example: "2026-04-24T10:30:05Z"
+    cancelReason:
+      oneOf:
+        - $ref: './generation.yaml#/GenerationCancelReason'
+        - type: 'null'
+      x-experimental: true
+      description: Why the job was cancelled; set exactly when `status` is `cancelled` (alpha).
+      example: null
+    data:
+      type: [object, "null"]
+      x-experimental: true
+      description: |
+        For a job created with `interactive`, the complete data the document rendered from, as
+        `DocumentGenerationItemDto.data` (alpha, contract ADR 0011): set on a `completed` or
+        `failed` line, null on a `cancelled` one and for jobs without a form.
+      example: null
+    editedFields:
+      type: [array, "null"]
+      x-experimental: true
+      items:
+        type: string
+      description: |
+        JSON Pointers into `data` where it differs from what the caller sent, as
+        `DocumentGenerationItemDto.editedFields`; set and null exactly when `data` is (alpha).
+      example: null
 
 CollectMeta:
   type: object

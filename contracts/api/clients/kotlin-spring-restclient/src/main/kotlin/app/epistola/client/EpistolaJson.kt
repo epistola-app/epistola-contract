@@ -44,13 +44,18 @@ object EpistolaJson {
 
     /**
      * The shared, thread-safe [ObjectMapper]: Kotlin and `java.time` support, and — the part that
-     * matters on the wire — properties left unset are omitted rather than written as `null`, and
+     * matters on the wire — properties left unset are omitted rather than written as `null` (a `null`
+     * inside free-form JSON such as `data` is kept), and
      * response members and enum values this client does not know are read without failing.
      */
     val objectMapper: ObjectMapper by lazy {
         jacksonObjectMapper().apply {
             registerModule(JavaTimeModule())
-            setSerializationInclusion(JsonInclude.Include.NON_NULL)
+            // Unset properties are omitted, but a null inside free-form JSON (a map's value, such as
+            // a member of `data`) is the caller's value and goes out as is. `setSerializationInclusion`
+            // would drop those too: it applies NON_NULL to map contents as well, so a `data` read from
+            // a generation item lost its null members when it was sent back.
+            setDefaultPropertyInclusion(JsonInclude.Value.construct(JsonInclude.Include.NON_NULL, JsonInclude.Include.ALWAYS))
             configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
             configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_USING_DEFAULT_VALUE, true)
         }

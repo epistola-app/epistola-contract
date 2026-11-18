@@ -286,6 +286,66 @@ decoded; zstd is offered and decoded where Node's zlib has it (22.15+). `partiti
 `isMyPartition` and `routingKeyToMe` compute, from the assignment the server reports, a routing key
 whose result comes back to this node.
 
+## Interactive generation
+
+Interactive generation is **alpha**: Epistola Suite may not implement it yet, and it may still
+change. Send `interactive` with a request that may lack data, and a person completes it on a form
+Epistola serves. A server that does not support it ignores the member, so the `interactive` echoed
+in the response is how you tell:
+
+```ts
+import { GenerationApi, GenerationJobStatus } from '@epistola.app/epistola-client'
+
+const generation = new GenerationApi(client)
+const job = await generation.generateDocument({
+  tenantKey: 'acme',
+  generateDocumentRequest: {
+    namespace: 'acme', catalogKey: 'letters', templateKey: 'objection-decision',
+    data: { caseNumber: 'Z-2026-0412' },
+    interactive: {
+      trigger: 'incomplete',                   // or 'always': ask every time, pre-filled
+      returnUrl: 'https://cases.example.org/cases/Z-2026-0412',
+      title: 'Objection decision, case Z-2026-0412',
+      links: [{ label: 'Open case', url: 'https://cases.example.org/cases/Z-2026-0412' }],
+    },
+  },
+})
+if (job.interactive == null) {
+  // the server ignored `interactive`: an ordinary job, rendered from the data as sent
+} else if (job.interactive.url != null) {
+  redirect(job.interactive.url)                // status 'awaiting-input'; a bearer link, for this person only
+}
+
+// The link need not be stored: fetch it again while the job awaits input.
+const status = await generation.getGenerationJobStatus({ tenantKey: 'acme', requestId: job.requestId })
+if (status.status === GenerationJobStatus.AwaitingInput) redirect(status.interactive!.url!)
+```
+
+Once the form is submitted, each item, and each collected result, carries the complete `data` the
+person confirmed and the JSON Pointers they changed in `editedFields`; both are null while the job
+awaits input. A form cancelled or left to expire arrives at the collector as a `cancelled` result
+with its `cancelReason` (`caller`, `user` or `expired`). An item's `data` is what a generation
+request takes, so rendering again passes it straight back:
+
+```ts
+const { items } = await generation.listGenerationJobItems({ tenantKey: 'acme', requestId: job.requestId })
+const [item] = items
+saveToCase(item.data, item.editedFields)
+
+if (item.data != null) {
+  await generation.generateDocument({
+    tenantKey: 'acme',
+    generateDocumentRequest: {
+      namespace: 'acme', catalogKey: 'letters', templateKey: 'objection-decision',
+      variantKey: item.variantKey,             // the same variant
+      versionRange: item.version,              // the same release, for an identical document
+      data: item.data,
+      interactive: { trigger: 'always' },      // let the person correct it; omit to render as is
+    },
+  })
+}
+```
+
 ## Template data validation
 
 Template data is checked by **Epistola**, through `validateTemplateData`. Nothing is compiled here,

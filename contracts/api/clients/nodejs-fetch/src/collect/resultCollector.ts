@@ -19,7 +19,12 @@ export interface CollectResult {
   readonly hasMore: boolean
 }
 
-/** Handles one result as it streams in. A rejected promise or a throw leaves the batch unacknowledged. */
+/**
+ * Handles one result as it streams in: `completed` or `failed`, or `cancelled` (with its
+ * `cancelReason`) for a job created with `interactive`. Such a job's result also carries the `data`
+ * the person confirmed on the form and its `editedFields`. A rejected promise or a throw leaves the
+ * batch unacknowledged.
+ */
 export type ResultHandler = (result: GenerationResult) => void | Promise<void>
 
 /** Told about collection failures (a failed request, a handler that threw). */

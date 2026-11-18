@@ -52,6 +52,7 @@ const ACTIONS = {
   'list-documents': listDocuments,
   'get-generation-job-status': getGenerationJobStatus,
   'list-generation-job-items': listGenerationJobItems,
+  'regenerate-from-item': regenerateFromItem,
   'search-tenant': searchTenant,
   'list-images': listImages,
   'upload-image': uploadImage,
@@ -234,6 +235,7 @@ async function collect(baseUrl, config) {
     releases: handled
       .map((r) => `${show(r.registry)}/${show(r.namespace)}/${show(r.catalogKey)}@${show(r.version)}#${show(r.releaseId)}:${show(r.releaseName)}`)
       .join(','),
+    ...enteredDataFields(handled),
   })
 }
 
@@ -260,6 +262,44 @@ async function generateDocument(baseUrl, config) {
   if (config.environmentKey !== undefined) request.environmentKey = config.environmentKey
   // Attribute criteria pass through as the scenario writes them: each member it leaves out stays out.
   if (config.attributes !== undefined) request.attributes = config.attributes
+  if (config.interactive !== undefined) request.interactive = interactiveRequest(config.interactive)
+  await sendGeneration(baseUrl, config, request)
+}
+
+/**
+ * Reads a job's items, then asks for the first item's document again with the `data` and
+ * `variantKey` it carries. The item's `data` goes into the request exactly as the generated response
+ * model holds it: if the two models disagreed on its type, or the serializer reformatted a value,
+ * this is where it would show.
+ */
+async function regenerateFromItem(baseUrl, config) {
+  const api = new GenerationApi(client(baseUrl, config))
+  const page = await api.listGenerationJobItems({ tenantKey: config.tenantKey, requestId: config.requestId })
+  const item = page.items[0]
+  const request = {
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+    templateKey: config.templateKey,
+    variantKey: item.variantKey,
+    data: item.data,
+  }
+  if (config.versionRange !== undefined) request.versionRange = config.versionRange
+  if (config.interactive !== undefined) request.interactive = interactiveRequest(config.interactive)
+  await sendGeneration(baseUrl, config, request)
+}
+
+/** The request's `interactive`, with only the members the scenario sets; links as objects. */
+function interactiveRequest(interactive) {
+  const request = pick(interactive, ['trigger', 'expiresInMinutes', 'returnUrl', 'title', 'instructions', 'locale'])
+  if (interactive.links != null) request.links = interactive.links.map((link) => ({ label: link.label, url: link.url }))
+  return request
+}
+
+/**
+ * Sends a generation request through the operation that exposes the response headers, and reports
+ * the job it parsed, or the problem the server answered with.
+ */
+async function sendGeneration(baseUrl, config, request) {
   let response
   try {
     response = await new GenerationApi(client(baseUrl, config)).generateDocumentRaw({
@@ -282,7 +322,32 @@ async function generateDocument(baseUrl, config) {
     jobType: show(job.jobType),
     total: job.total ?? 'null',
     location: show(response.raw.headers.get('Location')),
+    cancelReason: show(job.cancelReason),
+    ...interactiveFields(job),
+    interactiveMissingFields: job.interactive == null ? 'null' : job.interactive.missingFields.map((field) => show(field.path)).join(','),
   })
+}
+
+/** The form a job echoes back: its trigger, link and expiry, each `null` when the job has none. */
+function interactiveFields(job) {
+  const interactive = job.interactive
+  return {
+    interactiveTrigger: show(interactive?.trigger),
+    interactiveUrl: show(interactive?.url),
+    interactiveExpiresAt: showInstant(interactive?.expiresAt),
+  }
+}
+
+/**
+ * What items or collected results say about a job created with `interactive`, per entry: why it was
+ * cancelled, the top-level members of the data the person confirmed, and the fields they changed.
+ */
+function enteredDataFields(entries) {
+  return {
+    cancelReasons: entries.map((entry) => show(entry.cancelReason)).join(','),
+    dataMembers: entries.map((entry) => (entry.data == null ? 'null' : Object.keys(entry.data).sort().join('+'))).join(';'),
+    editedFields: entries.map((entry) => (entry.editedFields == null ? 'null' : entry.editedFields.join('+'))).join(';'),
+  }
 }
 
 /**
@@ -325,6 +390,8 @@ async function getGenerationJobStatus(baseUrl, config) {
     total: job.total,
     completedCount: job.completedCount,
     failedCount: job.failedCount,
+    cancelReason: show(job.cancelReason),
+    ...interactiveFields(job),
   })
 }
 
@@ -340,6 +407,7 @@ async function listGenerationJobItems(baseUrl, config) {
     statuses: response.items.map((item) => show(item.status)).join(','),
     documentIds: response.items.map((item) => show(item.documentId)).join(','),
     correlationIds: response.items.map((item) => show(item.correlationId)).join(','),
+    ...enteredDataFields(response.items),
     total: show(response.page.total),
   })
 }

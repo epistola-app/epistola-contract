@@ -109,6 +109,20 @@ if collisions="$(grep -rnE '^\s+[A-Z][A-Za-z0-9]* = 0,?$' --include='*.cs' "$GEN
   exit 1
 fi
 
+# Newtonsoft reads a string that looks like a date-time as a DateTime, converted to the local time
+# zone, and writes it back in that zone. In a typed member that is harmless, but in free-form JSON
+# (an item's `data`, a data contract, a data example) it rewrites the caller's own strings:
+# "2026-11-19T09:12:00+02:00" came back as "2026-11-19T08:12:00+01:00", so sending an item's data
+# back into generateDocument changed it. Keep such strings as strings; typed DateTimeOffset members
+# still parse them, as they read the value with ReadAsDateTimeOffset whatever this setting says.
+echo "==> Reading date-like strings in responses as strings"
+perl -0pi -e 's/(\n(\s*)ConstructorHandling = ConstructorHandling\.AllowNonPublicDefaultConstructor,)/$1\n$2DateParseHandling = DateParseHandling.None,/g' \
+  "$GEN_OUT/src/Epistola.Client/Client/ApiClient.cs"
+if [[ "$(grep -c 'DateParseHandling = DateParseHandling.None,' "$GEN_OUT/src/Epistola.Client/Client/ApiClient.cs")" != 2 ]]; then
+  echo "Expected both serializer settings in ApiClient.cs to read date-like strings as strings; extend the rewrite in generate.sh" >&2
+  exit 1
+fi
+
 echo "==> Generating derived sources (KnownProblemSlugs, KnownValidationCodes, ModelValidation, ContractVersion)"
 mkdir -p "$DERIVED_OUT"
 dotnet run --project "$SCRIPT_DIR/src/Epistola.Client.Gen" -c Release -- "$SPEC" "$DERIVED_OUT"

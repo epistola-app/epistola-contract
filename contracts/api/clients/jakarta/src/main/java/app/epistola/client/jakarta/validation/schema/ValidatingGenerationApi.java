@@ -36,6 +36,9 @@ import java.util.function.Supplier;
  * would spend an extra round trip — one per item, for a batch — to learn what submitting already
  * tells us. Either way the caller catches one exception type and reads one error shape.
  *
+ * <p>A request that sends {@code interactive} (alpha, ADR 0011) is never pre-flighted: incomplete
+ * data is what it asks a person to complete, so the server answers it with a form, not a refusal.
+ *
  * <pre>{@code
  * ValidatingGenerationApi generation = new ValidatingGenerationApi(generationApi, templatesApi);
  * try {
@@ -60,9 +63,12 @@ public class ValidatingGenerationApi {
         this.validator = validator;
     }
 
-    /** Checks the request data where the validator asks for it, then submits. */
+    /**
+     * Checks the request data where the validator asks for it, then submits. An interactive request
+     * is not checked first: the data it sends may be incomplete on purpose.
+     */
     public GenerationJobResponse generateDocument(String tenantKey, GenerateDocumentRequest request) {
-        if (validator.preflightsGeneration()) {
+        if (validator.preflightsGeneration() && request.getInteractive() == null) {
             new TemplateSchemaValidator(validator)
                     .validate(
                             tenantKey,

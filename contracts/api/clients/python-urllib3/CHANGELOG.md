@@ -9,6 +9,16 @@ records contract changes; this file records changes to the hand-written library 
 
 ## [Unreleased]
 
+### Added
+
+- `GenerationResult` carries `cancel_reason`, `data` and `edited_fields` (alpha, contract ADR
+  0011), after `completed_at` and defaulting to `None`, so positional construction is unchanged.
+  The collector parses result lines by hand and would have dropped them. A result's `status` may
+  now be `cancelled`, for an interactive job whose form was cancelled or expired, with
+  `cancel_reason` saying why. `data` is a `Dict[str, Any]`, the type `GenerateDocumentRequest.data`
+  takes, so a result's data goes back into a request unchanged; `data` and `edited_fields` are
+  left out of the result's hash, so a result can still go in a set.
+
 ## [2.0.0] - 2026-11-12
 
 ### Fixed
