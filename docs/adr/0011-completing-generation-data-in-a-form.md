@@ -149,12 +149,33 @@ A response enum, so it may gain values in a minor version like any other.
 
 ### The URL is a capability
 
+Epistola never authenticates the person on the form, and that person needs no Epistola account.
+Epistola authenticates the caller, which needs `DOCUMENT_GENERATE` to create the job and could
+already render any document with any data. The caller authenticates its own user and decides who may
+complete the document, as it decides today who may have one generated. The link delegates the
+caller's authority over this one job to that user, and nothing beyond it: not other jobs, not another
+template, no lookups.
+
 `inputUrl` carries an unguessable token and nothing else: no tenant credential, no caller identity,
-no data. Whoever holds it can complete this one job, and nothing more: not read other jobs, not
-choose another template, not look anything up. It works until `inputExpiresAt` (an installation
-setting, of the order of an hour) or until the form is submitted or the job cancelled, whichever is
-first, and it is never reissued for the same job. The caller should hand it to the authenticated
-user it was minted for, and not store it.
+no data. Its rules:
+
+- **Usable until submitted or expired.** It can be opened any number of times until the form is
+  submitted, the job cancelled, or `inputExpiresAt` reached, whichever is first. Reloading the page,
+  closing the tab and returning, or a dropped connection costs the user nothing.
+- **Submitted once.** The first submission moves the job from `awaiting-input` to `pending`, and
+  every later one, from another tab or a replay, is refused with the outcome shown. Changing the data
+  afterwards is a new job (see "Rendering again").
+- **One link per job, never reissued.** Its lifetime is the job's wait for input.
+- **The expiry bounds a leak.** Whoever holds the link sees the pre-filled data and the preview until
+  it expires. The caller hands it to the authenticated user it was minted for and does not store or
+  forward it. The page sends no `Referer`, so the token does not travel to links on it.
+
+`inputExpiresAt` is an installation setting, of the order of an hour.
+
+Fresh links on request were considered: an operation on the job that mints a short-lived link and
+revokes the previous one, so a job can wait for days while each link lives for minutes. It is
+deferred. It complicates what every caller has to do, and it can be appended without breaking
+anything if callers turn out to need forms that wait longer than a link should live.
 
 ### Coming back
 
@@ -248,6 +269,9 @@ above is the one chosen.
 - **The page is Suite's first public one.** No page or endpoint outside the API and the authenticated
   UI is reachable today, so the form needs its own route with token authentication. Suite's hashed
   API keys and its hashed, expiring OAuth state already show the pattern for storing the token.
+  Because the link stays usable until it is submitted, the page needs no session: the token is
+  looked up on every request and posted back with the form, which also keeps it working in an iframe
+  where third-party cookies are blocked.
   Its content security policy (no inline scripts, no framing unless embedding is enabled) is why the
   form is specified as a page of its own.
 - **Request data is already kept per job and never cleared after rendering**, and contract defaults
@@ -283,6 +307,9 @@ above is the one chosen.
   that assumed a job is always on its way to a worker must allow for `awaiting-input`.
 - The Bridge's SmartDocuments wizard can later create a job with `prompt: always` and redirect to
   Suite's form, instead of keeping a form of its own.
+- Suite can use the feature itself. An author can create a prompted job from the editor against a
+  draft deployed to a test environment, and see the form a case worker will see before any caller
+  integrates. It is the same job path, so the contract needs nothing more for it.
 
 ## Settled while drafting
 
@@ -297,6 +324,9 @@ above is the one chosen.
   can be appended later.
 - **Unknown request members** get a sentence in "Compatibility within 2.x" that describes rather
   than promises, with the echo as the general rule.
+- **The link is submitted once and lives until its expiry**, rather than opening once. Reopening it
+  is what users do after a reload or a dropped connection, and losing the form to that would be
+  worse than the exposure the expiry already bounds.
 
 ## Open questions
 
