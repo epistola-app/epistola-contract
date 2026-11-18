@@ -1,0 +1,54 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: interactive-unsupported-server
+title: A response without `interactive` is surfaced as absent, so the caller can tell
+why: >
+  A server that does not support interactive generation ignores the member and answers an ordinary
+  `pending` job (ADR 0011, and the unknown-member rule in "Compatibility within 2.x"). The echo is
+  the caller's only signal, so a client must surface a response without `interactive` as absent,
+  never as an empty form or a default trigger. One that invents a trigger tells the caller a form
+  exists that never will.
+
+action:
+  name: generate-document
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantKey: acme-corp
+    namespace: acme-corp
+    catalogKey: letters
+    templateKey: objection-decision
+    data: { caseNumber: Z-2026-0412 }
+    interactive:
+      trigger: always
+
+script:
+  - status: 202
+    contentType: application/vnd.epistola.v2+json
+    headers:
+      Location: /api/tenants/acme-corp/documents/jobs/550e8400-e29b-41d4-a716-446655440001
+    body:
+      requestId: 550e8400-e29b-41d4-a716-446655440001
+      status: pending
+      jobType: single
+      total: 1
+      createdAt: "2026-11-18T09:12:00Z"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/documents/generate
+      body:
+        json:
+          interactive: { trigger: always }
+  report:
+    status: pending
+    interactiveTrigger: "null"
+    interactiveUrl: "null"
+    interactiveExpiresAt: "null"
+    interactiveMissingFields: "null"
+    cancelReason: "null"

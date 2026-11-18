@@ -1,0 +1,39 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: spec-generate-document-interactive
+title: An interactive generation request satisfies the schema it is generated from
+why: >
+  `interactive` is a nested object with a required `trigger`, nullable members, a bounded list of
+  link objects and URL patterns. Prism holds the body to all of it: a client that sends the trigger
+  in the wrong case, a link as a string, or a null where the schema allows none fails here without
+  anyone having predicted it.
+
+backend: prism
+
+action:
+  name: generate-document
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantKey: acme-corp
+    namespace: acme-corp
+    catalogKey: letters
+    templateKey: objection-decision
+    data: { caseNumber: Z-2026-0412, amountDue: 19.99, paid: false }
+    interactive:
+      trigger: incomplete
+      expiresInMinutes: 60
+      returnUrl: https://cases.example.org/cases/Z-2026-0412
+      title: Objection decision, case Z-2026-0412
+      links:
+        - { label: Open case, url: https://cases.example.org/cases/Z-2026-0412 }
+        - { label: Writing guide, url: https://intranet.example.org/writing-guide }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/documents/generate

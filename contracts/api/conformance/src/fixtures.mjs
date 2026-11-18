@@ -138,6 +138,11 @@ const ACTION_OPERATIONS = {
   },
   collect: { method: 'post', path: '/tenants/{tenantKey}/generation/collect' },
   routing: { method: 'post', path: '/tenants/{tenantKey}/generation/collect' },
+  // Two calls: the items it reads the earlier data from, then the generation it sends it back with.
+  'regenerate-from-item': [
+    { method: 'get', path: '/tenants/{tenantKey}/documents/jobs/{requestId}/items' },
+    { method: 'post', path: '/tenants/{tenantKey}/documents/generate' },
+  ],
 }
 
 let cached = null
@@ -187,21 +192,27 @@ function absolutise(node) {
 export function checkFixtures(scenario, specPath) {
   const { document } = spec(specPath)
   const problems = []
-  const operation = ACTION_OPERATIONS[scenario.action?.name]
+  const mapped = ACTION_OPERATIONS[scenario.action?.name]
 
-  if (!operation) {
+  if (!mapped) {
     // A new action without an entry above is not an error in the scenario; it means this check
     // silently stops covering it, which is worth saying out loud.
     return [`${scenario.id}: action "${scenario.action?.name}" has no operation mapping, fixtures unchecked`]
   }
 
-  const responses = document.paths?.[operation.path]?.[operation.method]?.responses
-  if (!responses) {
-    return [`${scenario.id}: ${operation.method.toUpperCase()} ${operation.path} is not in the spec`]
+  // An action that makes several calls maps to a list, one operation per script entry in order; the
+  // last applies to every entry after it, as the last script entry repeats.
+  const operations = Array.isArray(mapped) ? mapped : [mapped]
+  for (const operation of operations) {
+    if (!document.paths?.[operation.path]?.[operation.method]?.responses) {
+      return [`${scenario.id}: ${operation.method.toUpperCase()} ${operation.path} is not in the spec`]
+    }
   }
 
   for (const [index, entry] of (scenario.script ?? []).entries()) {
     const where = `${scenario.id}: script entry #${index + 1}`
+    const operation = operations[Math.min(index, operations.length - 1)]
+    const responses = document.paths[operation.path][operation.method].responses
     const status = String(entry.status ?? 200)
     const declared = responses[status] ?? anyOperationResponse(document, status)
 

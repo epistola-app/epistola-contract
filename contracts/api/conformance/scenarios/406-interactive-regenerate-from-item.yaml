@@ -1,0 +1,103 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: interactive-regenerate-from-item
+title: An item's data goes back into a generation request unchanged
+why: >
+  Rendering again, to correct something or for a newer release, is a generation request with an
+  earlier item's `data` and `variantKey` (ADR 0011). That only works if the client hands the item's
+  `data` to the request as it is, with no conversion, and serializes it back exactly: every JSON type
+  kept, nested objects and arrays intact, numbers still numbers. A client whose response `data` has
+  a different type than its request `data`, or that reformats a number, breaks resubmission in a way
+  no compiler notices.
+
+action:
+  name: regenerate-from-item
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantKey: acme-corp
+    requestId: 550e8400-e29b-41d4-a716-446655440000
+    namespace: acme-corp
+    catalogKey: letters
+    templateKey: objection-decision
+    versionRange: "1.4.2"
+    interactive:
+      trigger: always
+      title: Correction, case Z-2026-0412
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      items:
+        - itemId: 660e8400-e29b-41d4-a716-446655440001
+          registry: exchange.epistola.app
+          namespace: acme-corp
+          catalogKey: letters
+          templateKey: objection-decision
+          variantKey: objection-decision-en
+          version: "1.4.2"
+          correlationId: Z-2026-0412
+          status: completed
+          documentId: 770e8400-e29b-41d4-a716-446655440002
+          createdAt: "2026-11-18T09:12:00Z"
+          cancelReason: null
+          data:
+            caseNumber: Z-2026-0412
+            amountDue: 19.99
+            lineCount: 3
+            paid: false
+            reference: null
+            citizen: { name: J. Jansen, address: { street: Kerkstraat 11, city: Sittard } }
+            tags: [objection, urgent]
+          editedFields: [/citizen/address/street]
+      page: { number: 0, size: 20, total: 1, totalPages: 1 }
+  - status: 202
+    contentType: application/vnd.epistola.v2+json
+    headers:
+      Location: /api/tenants/acme-corp/documents/jobs/550e8400-e29b-41d4-a716-446655440009
+    body:
+      requestId: 550e8400-e29b-41d4-a716-446655440009
+      status: awaiting-input
+      jobType: single
+      total: 1
+      createdAt: "2026-11-25T10:00:00Z"
+      interactive:
+        trigger: always
+        url: https://epistola.example.org/forms/Zp4qR8sT2vW6xY0aB3cD5eF7gH9iJ1kL
+        expiresAt: "2026-11-26T10:00:00Z"
+        missingFields: []
+
+expect:
+  requestCount: 2
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/documents/jobs/550e8400-e29b-41d4-a716-446655440000/items
+    - method: POST
+      path: /api/tenants/acme-corp/documents/generate
+      body:
+        json:
+          namespace: acme-corp
+          catalogKey: letters
+          templateKey: objection-decision
+          variantKey: objection-decision-en
+          versionRange: "1.4.2"
+          data:
+            caseNumber: Z-2026-0412
+            amountDue: 19.99
+            lineCount: 3
+            paid: false
+            reference: null
+            citizen: { name: J. Jansen, address: { street: Kerkstraat 11, city: Sittard } }
+            tags: [objection, urgent]
+          interactive:
+            trigger: always
+            title: Correction, case Z-2026-0412
+  report:
+    requestId: 550e8400-e29b-41d4-a716-446655440009
+    status: awaiting-input
+    interactiveTrigger: always
+    interactiveUrl: https://epistola.example.org/forms/Zp4qR8sT2vW6xY0aB3cD5eF7gH9iJ1kL

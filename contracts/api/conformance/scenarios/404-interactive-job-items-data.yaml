@@ -1,0 +1,71 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: interactive-job-items-data
+title: Items carry what the person entered, and why a job was cancelled
+why: >
+  A caller stores what the person entered on the form, not only the PDF, and writes back the fields
+  the person changed (ADR 0011). Items therefore carry the complete `data` and `editedFields`, from
+  the moment the form is submitted, and a cancelled one its `cancelReason` with `data` null. A
+  client must surface all three, `data` as the free-form object it is and a null as missing.
+
+action:
+  name: list-generation-job-items
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantKey: acme-corp
+    requestId: 550e8400-e29b-41d4-a716-446655440000
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      items:
+        - itemId: 660e8400-e29b-41d4-a716-446655440001
+          registry: exchange.epistola.app
+          namespace: acme-corp
+          catalogKey: letters
+          templateKey: objection-decision
+          variantKey: objection-decision-en
+          version: "1.4.2"
+          correlationId: Z-2026-0412
+          status: pending
+          documentId: null
+          createdAt: "2026-11-18T09:12:00Z"
+          cancelReason: null
+          data:
+            caseNumber: Z-2026-0412
+            citizen: { name: J. Jansen, address: { street: Kerkstraat 11, city: Sittard } }
+            motivation: The objection is well-founded.
+            decisionDate: "2026-11-19"
+          editedFields: [/citizen/address/street, /motivation, /decisionDate]
+        - itemId: 660e8400-e29b-41d4-a716-446655440002
+          registry: exchange.epistola.app
+          namespace: acme-corp
+          catalogKey: letters
+          templateKey: objection-decision
+          variantKey: objection-decision-nl
+          version: "1.4.2"
+          correlationId: Z-2026-0413
+          status: cancelled
+          documentId: null
+          createdAt: "2026-11-18T09:13:00Z"
+          cancelReason: expired
+          data: null
+          editedFields: null
+      page: { number: 0, size: 20, total: 2, totalPages: 1 }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/documents/jobs/550e8400-e29b-41d4-a716-446655440000/items
+  report:
+    statuses: pending,cancelled
+    cancelReasons: null,expired
+    # Per item, the data's top-level members sorted and joined with +; items joined with ;.
+    dataMembers: caseNumber+citizen+decisionDate+motivation;null
+    editedFields: /citizen/address/street+/motivation+/decisionDate;null

@@ -1,0 +1,46 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: interactive-collect
+title: Collected results carry what the person entered, and a cancelled form arrives too
+why: >
+  A caller that only collects must get the person's input with the result, a failed render
+  included, so a template defect does not cost the person their work; and must learn that a form
+  was cancelled or expired, which the stream delivers as a `cancelled` result with its
+  `cancelReason` (ADR 0011). Four of the five result collectors parse lines by hand, and a member
+  added to the contract reaches their consumers only if the collector was taught it.
+
+action:
+  name: collect
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    batchSize: 5
+    minIntervalMs: 120
+    maxIntervalMs: 2000
+    multiplier: 3
+    runForMs: 600
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+ndjson
+    ndjson:
+      - { sequence: 701, requestId: 11111111-1111-4111-8111-000000000701, registry: exchange.epistola.app, namespace: acme-corp, catalogKey: letters, templateKey: objection-decision, variantKey: objection-decision-en, version: 1.4.2, releaseId: k7m2x9qa, status: completed, documentId: 22222222-2222-4222-8222-000000000701, correlationId: int-1, completedAt: "2026-11-19T08:40:07Z", cancelReason: null, data: { caseNumber: Z-2026-0412, motivation: Well-founded., decisionDate: "2026-11-19" }, editedFields: [/motivation, /decisionDate] }
+      - { sequence: 702, requestId: 11111111-1111-4111-8111-000000000702, registry: exchange.epistola.app, namespace: acme-corp, catalogKey: letters, templateKey: objection-decision, variantKey: objection-decision-nl, version: 1.4.2, releaseId: k7m2x9qa, status: failed, error: Rendering failed, correlationId: int-2, completedAt: "2026-11-19T08:41:00Z", cancelReason: null, data: { caseNumber: Z-2026-0413, motivation: Unfounded. }, editedFields: [/motivation] }
+      - { sequence: 703, requestId: 11111111-1111-4111-8111-000000000703, registry: exchange.epistola.app, namespace: acme-corp, catalogKey: letters, templateKey: objection-decision, variantKey: objection-decision-nl, version: 1.4.2, releaseId: k7m2x9qa, status: cancelled, correlationId: int-3, completedAt: "2026-11-19T09:12:00Z", cancelReason: expired, data: null, editedFields: null }
+      - { _meta: true, hasMore: false, lastSequence: 703, resultCount: 3, partitions: { total: 8, mine: [0, 3], hash: murmur3 } }
+  - status: 200
+    contentType: application/vnd.epistola.v2+ndjson
+    ndjson:
+      - { _meta: true, hasMore: false, lastSequence: 703, resultCount: 0, partitions: { total: 8, mine: [0, 3], hash: murmur3 } }
+
+expect:
+  requestCountAtLeast: 1
+  report:
+    resultsHandled: 3
+    statuses: completed,failed,cancelled
+    cancelReasons: null,null,expired
+    # Per result, the data's top-level members sorted and joined with +; results joined with ;.
+    dataMembers: caseNumber+decisionDate+motivation;caseNumber+motivation;null
+    editedFields: /motivation+/decisionDate;/motivation;null

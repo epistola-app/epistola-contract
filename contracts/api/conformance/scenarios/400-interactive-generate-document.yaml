@@ -1,0 +1,87 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: interactive-generate-document
+title: An interactive generation request sends its form settings and reads back the form's link
+why: >
+  A caller with only part of a template's data sends `interactive`, and when a person has to
+  complete it the job is accepted as `awaiting-input` with the form's link in `interactive.url`
+  (ADR 0011). The client must put every setting it was given on the wire as given, nested under
+  `interactive`, the links as objects, and must surface the echoed `interactive` with its trigger,
+  link, expiry and the fields the form asks for. A client that drops the nested object asks for no
+  form and cannot tell; one that does not surface `interactive.url` leaves the caller nowhere to
+  send the person.
+
+action:
+  name: generate-document
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantKey: acme-corp
+    namespace: acme-corp
+    catalogKey: letters
+    templateKey: objection-decision
+    correlationId: Z-2026-0412
+    data:
+      caseNumber: Z-2026-0412
+      citizen: { name: J. Jansen, address: { street: Kerkstraat 1, city: Sittard } }
+    interactive:
+      trigger: incomplete
+      expiresInMinutes: 1440
+      returnUrl: https://cases.example.org/cases/Z-2026-0412
+      title: Objection decision, case Z-2026-0412
+      instructions: "Fill in the motivation and the decision date.\nCheck the address."
+      links:
+        - { label: Open case, url: https://cases.example.org/cases/Z-2026-0412 }
+      locale: nl-NL
+
+script:
+  - status: 202
+    contentType: application/vnd.epistola.v2+json
+    headers:
+      Location: /api/tenants/acme-corp/documents/jobs/550e8400-e29b-41d4-a716-446655440000
+    body:
+      requestId: 550e8400-e29b-41d4-a716-446655440000
+      status: awaiting-input
+      jobType: single
+      total: 1
+      createdAt: "2026-11-18T09:12:00Z"
+      cancelReason: null
+      interactive:
+        trigger: incomplete
+        url: https://epistola.example.org/forms/k3J9fQ2xV7mN0pL8sR4tY6wZ1aB5cD3e
+        expiresAt: "2026-11-19T09:12:00Z"
+        missingFields:
+          - { path: /motivation, required: true, schema: { type: string } }
+          - { path: /decisionDate, required: true, schema: { type: string, format: date } }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/documents/generate
+      body:
+        json:
+          templateKey: objection-decision
+          data:
+            caseNumber: Z-2026-0412
+            citizen: { name: J. Jansen, address: { street: Kerkstraat 1, city: Sittard } }
+          interactive:
+            trigger: incomplete
+            expiresInMinutes: 1440
+            returnUrl: https://cases.example.org/cases/Z-2026-0412
+            title: Objection decision, case Z-2026-0412
+            instructions: "Fill in the motivation and the decision date.\nCheck the address."
+            links:
+              - { label: Open case, url: https://cases.example.org/cases/Z-2026-0412 }
+            locale: nl-NL
+  report:
+    requestId: 550e8400-e29b-41d4-a716-446655440000
+    status: awaiting-input
+    interactiveTrigger: incomplete
+    interactiveUrl: https://epistola.example.org/forms/k3J9fQ2xV7mN0pL8sR4tY6wZ1aB5cD3e
+    interactiveExpiresAt: "2026-11-19T09:12:00Z"
+    interactiveMissingFields: /motivation,/decisionDate
+    cancelReason: "null"
