@@ -19,6 +19,8 @@ libraries.
   `getGenerationJobStatus` returns it again while the job waits. The request may set the expiry
   (up to the server's maximum, and never more than 30 days, which the contract caps), a `returnUrl`, a `title`, `instructions`, `links` and a `locale`.
   Job responses echo `interactive`, so a caller can tell a server that does not support it.
+  After submitting or cancelling, the browser returns to `returnUrl` with `epistolaRequestId` and
+  `epistolaRequestStatus` added; the document itself arrives as any job's result does.
 - Generation items and collect results carry, for an interactive job, the complete `data` the
   document renders from and `editedFields`, the JSON Pointers the person changed. That `data` is
   valid input to `generateDocument`, so rendering again sends it back.

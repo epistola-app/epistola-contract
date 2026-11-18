@@ -326,9 +326,14 @@ InteractiveGenerationRequest:
       pattern: '^https?://'
       maxLength: 2048
       description: |
-        Where the form sends the browser after the person submits or cancels, with the job's
-        `requestId` and `status` added as query parameters and nothing else. Omitted or null: the
-        form ends on a page of its own.
+        Where the form sends the browser after the person submits or cancels. The form adds two
+        query parameters, `epistolaRequestId` (the job's `requestId`) and `epistolaRequestStatus`
+        (its status at that moment: `pending` once submitted, `cancelled` once cancelled), after any
+        the URL already has, replacing any of the same name, keeps its fragment, and adds nothing
+        else. The redirect says the person is done with the form, not that the document exists: it
+        arrives like any job's result. Anyone can make such a URL, so check the job with
+        `getGenerationJobStatus` before acting on it. Omitted or null: the form ends on a page of
+        its own.
       example: "https://cases.example.org/cases/Z-2026-0412"
     title:
       type: [string, "null"]

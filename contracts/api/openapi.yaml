@@ -221,7 +221,9 @@ info:
     - No job waits for input longer than 30 days. The caller may set a shorter expiry
       (`interactive.expiresInMinutes`), and a server may allow less than 30 days.
     - Submitting moves the job to `pending`, and it renders like any other. The browser returns to
-      `interactive.returnUrl` with only the `requestId` and `status`.
+      `interactive.returnUrl` with only `epistolaRequestId` and `epistolaRequestStatus` added, which
+      say the person is done with the form, not that the document exists. The document arrives as
+      any job's result does, through collect or `getGenerationJobStatus`.
     - Items and collect results carry the complete `data` the document renders from, as amended,
       and `editedFields`, the JSON Pointers the person changed. That `data` is valid input to
       `generateDocument`, so rendering again, with or without a form, sends it back.

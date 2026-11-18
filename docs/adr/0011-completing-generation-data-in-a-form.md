@@ -231,10 +231,50 @@ longer than an installation lets a link live.
 ### Coming back
 
 The request may name `interactive.returnUrl`. After submitting or cancelling, the form sends the browser
-there with the job's `requestId` and `status` as query parameters, and nothing else: user input in a
-URL ends up in browser history, proxy logs and `Referer` headers. The caller's backend reads the
-outcome with its own credential. Without a `returnUrl` the form ends on a page saying the document is
-on its way, or was cancelled, and the user closes the tab.
+there with two query parameters added, and nothing else: user input in a URL ends up in browser
+history, proxy logs and `Referer` headers.
+
+| Parameter               | Value                                                                       |
+| ----------------------- | --------------------------------------------------------------------------- |
+| `epistolaRequestId`     | The job's `requestId`                                                       |
+| `epistolaRequestStatus` | The job's status at the redirect: `pending` once submitted, `cancelled` once cancelled |
+
+They are prefixed because the URL is the caller's: a case system's page may well carry a `status` or
+`requestId` of its own, and those come back untouched. The two are added after the query the URL
+already has, the fragment is kept, and a parameter of the same name, should there be one, is replaced,
+so what arrives is never ambiguous. The caller puts whatever context it needs in the URL itself (the
+case in the path, a tab in its own query), so it need not map a `requestId` back to a case.
+
+Anyone can type such a URL, so the parameters are a hint, not a result: the caller's backend checks
+the job with `getGenerationJobStatus`, with its own credential, before acting on them. Without a
+`returnUrl` the form ends on a page saying the document is on its way, or was cancelled, and the user
+closes the tab.
+
+**The redirect means the person is done, not that the document exists.** Submitting moves the job to
+`pending`, and it renders in the queue like any other, so the browser usually arrives before the
+document does. The caller gets the document the way it gets any job's result: from collect, where a
+backend already running a collector receives the `completed` line with `data` and `editedFields`, or
+by polling `getGenerationJobStatus` and downloading it. A caller therefore has one path for results,
+with or without a form; interactive generation adds a person before `pending`, not a second way to
+receive documents. Waiting on the form until the document is rendered was considered and left out:
+it would hold the user on Epistola's page for as long as the queue takes, behind a large batch for
+minutes, and the caller would still need the asynchronous path for every time the wait ran out. The
+caller's own page, with the case in view and a "the letter will appear here", is the better place to
+wait. The flow for a case system:
+
+1. Its backend sends `generateDocument` with `interactive` (and a `routingKey` if it collects), and
+   keeps the `requestId` on the case as "letter waiting for input".
+2. The browser goes to `interactive.url`.
+3. The person submits. The job is `pending`, and the browser returns to the `returnUrl` with
+   `epistolaRequestId` and `epistolaRequestStatus=pending`.
+4. The case page checks the job with `getGenerationJobStatus` and shows "letter being generated".
+5. The `completed` result arrives through collect or polling, usually seconds later; the backend
+   attaches the document to the case and stores `data` where it wants it.
+
+The same wait exists without a form: `generateDocument` answers `pending` there too, and a user who
+asked for the letter waits for it in the same way. Making that wait cheaper, for instance by letting
+`getGenerationJobStatus` hold the request until the status changes, would serve both and belongs in a
+change of its own.
 
 A `returnUrl`, like every `interactive.links` url, must match an origin the server allows; others are
 refused with 400 `validation-error` on the field, with a new domain validation code
@@ -478,6 +518,10 @@ above is the one chosen.
 - **The link is submitted once and lives until its expiry**, rather than opening once. Reopening it
   is what users do after a reload or a dropped connection, and losing the form to that would be
   worse than the exposure the expiry already bounds.
+- **Prefixed return parameters.** `requestId` and `status` were the first names, matching the JSON;
+  they are not API members, though, but parameters on the caller's URL, where `status` in particular
+  clashes. `epistolaRequestId` and `epistolaRequestStatus` keep the caller's own parameters intact and
+  say where they came from.
 - **The link is fetched, not stored.** `getGenerationJobStatus` returns it while the job waits, so a
   "continue" button never needs a stored copy.
 - **Resuming overnight is a long enough expiry.** The caller sets it per job up to the server's
@@ -569,7 +613,9 @@ and opens `interactive.url` in a new tab. **Continue**, pressed the next morning
 **3. The user submits.** They fill in the motivation and the date, pick a salutation, correct the
 street to "Kerkstraat 11", and (later) switch the language to English. Suite validates the input,
 moves the job to `pending`, and sends the browser to
-`https://zac.gemeente-x.nl/zaken/Z-2026-0412?requestId=550e8400-…&status=pending`.
+`https://zac.gemeente-x.nl/zaken/Z-2026-0412?epistolaRequestId=550e8400-…&epistolaRequestStatus=pending`.
+The case page checks the job, shows "letter being generated", and the document appears when the
+result below arrives.
 
 **4. The result**, on the collect stream as today (shown here formatted, one NDJSON line on the
 wire):
@@ -614,7 +660,7 @@ is `pending`.
 
 **When it does not go through.** Nobody submits before `interactive.expiresAt`: the job is `cancelled`
 with `cancelReason: expired`, the saved input is discarded, and collect delivers a `cancelled` line
-with `data` null. The user presses cancel: `user`, and the browser returns with `status=cancelled`.
+with `data` null. The user presses cancel: `user`, and the browser returns with `epistolaRequestStatus=cancelled`.
 The caller cancels: `caller`. Rendering fails after submission: `failed`, with `data` still present.
 
 **A refused request:**
