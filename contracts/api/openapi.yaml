@@ -203,6 +203,31 @@ info:
     at render time (`releaseName`), with a null `version`, and its PDF a preview watermark. Releasing a deployed draft keeps its `releaseId`, so the environment then serves it
     as released; discarding the draft ends the deployment.
 
+    ## Interactive generation
+
+    (alpha, `x-experimental`, contract ADR 0011.) A caller that has only part of a template's data
+    can have a person complete it in a form Epistola serves, by sending `interactive` with
+    `generateDocument`. With `trigger: incomplete` the form appears only when the data, as sent,
+    misses a required field or holds an invalid value under the data contract of the release the
+    job is bound to; with `trigger: always` every time, pre-filled for review.
+
+    - The job is accepted as usual (202), in status `awaiting-input`, and the response's
+      `interactive.url` is where to send the person's browser. The release and the variant are
+      bound at acceptance, as for any job.
+    - Epistola authenticates the caller, never the person: the link is a bearer capability over this
+      one job, which the caller hands only to the person it authenticated itself. It works until the
+      form is submitted, the job cancelled or `interactive.expiresAt` passes, and is submitted once.
+      `getGenerationJobStatus` returns it again while the job waits, so it need not be stored.
+    - Submitting moves the job to `pending`, and it renders like any other. The browser returns to
+      `interactive.returnUrl` with only the `requestId` and `status`.
+    - Items and collect results carry the complete `data` the document renders from, as amended,
+      and `editedFields`, the JSON Pointers the person changed. That `data` is valid input to
+      `generateDocument`, so rendering again, with or without a form, sends it back.
+    - A cancelled job says why (`cancelReason`: `caller`, `user` or `expired`), and the collect
+      stream delivers a `cancelled` result for a job with a form.
+
+    A server that does not support it ignores `interactive`, and its response carries none.
+
     ## Versions and version ranges
 
     A version (`ReleaseVersion`) is a SemVer core version, `MAJOR.MINOR.PATCH` without leading
@@ -378,6 +403,10 @@ info:
     not know with 400, so never send `unknown_default_open_api`. Operations and members marked
     `x-experimental` are outside these rules.
 
+    A server may ignore a request member it does not know. A member whose effect the caller must
+    rely on is therefore echoed in the response, as `interactive` is: a response without it means
+    the server did not honour it.
+
     A minor version adds members and parameters only after the existing ones, so the positional
     arguments of the generated clients keep their meaning; a major version may reorder them. A new optional parameter or member
     still changes the generated method and constructor signatures: rebuild against the client
@@ -394,8 +423,8 @@ info:
     Consumers API) among them, may still change. Epistola Suite, the server that implements this
     contract, may not implement them yet, nor every part of the rest: installing missing dependency
     releases when deploying, recording who requested a document, listing a stencil's usage in a released release, listing a catalog's templates across its
-    releases (`listCatalogTemplates`), and a dependency alias other than the catalog's key among
-    them. An operation a server does not implement yet answers 501
+    releases (`listCatalogTemplates`), a dependency alias other than the catalog's key, and
+    interactive generation among them. An operation a server does not implement yet answers 501
     `operation-not-implemented`.
   version: "2.0.0"
   contact:
@@ -1093,6 +1122,10 @@ x-validation-codes:
       kind: domain
       description: >-
         A code list's source URL is not one this installation allows fetching from.
+    - code: url-not-allowed
+      kind: domain
+      description: >-
+        A URL an interactive generation request shows or returns the person to (`returnUrl`, a link) is not on an origin this installation allows.
 tags:
   - name: System
     description: |
@@ -1767,6 +1800,16 @@ components:
       $ref: './components/schemas/generation.yaml#/PreviewDocumentRequest'
     GenerateDocumentRequest:
       $ref: './components/schemas/generation.yaml#/GenerateDocumentRequest'
+    InteractiveGenerationRequest:
+      $ref: './components/schemas/generation.yaml#/InteractiveGenerationRequest'
+    InteractiveGenerationTrigger:
+      $ref: './components/schemas/generation.yaml#/InteractiveGenerationTrigger'
+    InteractiveGenerationLink:
+      $ref: './components/schemas/generation.yaml#/InteractiveGenerationLink'
+    InteractiveGenerationDto:
+      $ref: './components/schemas/generation.yaml#/InteractiveGenerationDto'
+    GenerationCancelReason:
+      $ref: './components/schemas/generation.yaml#/GenerationCancelReason'
     BatchGenerationItem:
       $ref: './components/schemas/generation.yaml#/BatchGenerationItem'
     GenerateBatchRequest:

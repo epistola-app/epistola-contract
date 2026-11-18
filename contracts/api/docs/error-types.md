@@ -222,6 +222,7 @@ generated into every client as `KnownValidationCodes`.
 | `catalog-reference-unresolved` | domain | the change would leave the draft referring to a resource that neither the draft nor its dependencies have |
 | `catalog-resources-not-ready` | domain | the draft has resources that are not marked ready, so it cannot be released yet |
 | `source-url-not-allowed` | domain | a code list's source URL is not one this installation allows fetching from |
+| `url-not-allowed` | domain | a URL an interactive generation request shows or returns the person to (`returnUrl`, a link) is not on an origin this installation allows |
 
 ## Resource modified (optimistic locking)
 
