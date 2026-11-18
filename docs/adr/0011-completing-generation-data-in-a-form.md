@@ -406,6 +406,20 @@ above is the one chosen.
   link returned again by `getGenerationJobStatus`, `data` and `editedFields` on a collect line, a
   `failed` line that still carries `data`, a `cancelled` line with its `cancelReason`, and `data`
   sent back unchanged.
+- The clients generate both modes from one shape: one operation, one request type with an optional
+  `interactive`, one response type with nullable members, and no `oneOf` per mode, which the
+  generators handle poorly. A caller that never sends `interactive` changes nothing but the
+  trailing optional argument a rebuild brings.
+- `data` in a result is declared exactly as `GenerateDocumentRequest.data` is (an inline
+  `type: object`, nullable), not as a named schema or with `additionalProperties`. The generators
+  type the request's `data` as `Any`, `Object` and `object`, but a map-shaped schema as
+  `Map<String, Any>`; declared alike, rendering again passes `item.data` into `request.data`
+  without a conversion, and the conformance scenario proves the round trip.
+- The collect stream is read by hand-written collectors in the Kotlin, Jakarta, .NET and Python
+  clients, with their own result types; only the Node.js collector uses the generated one. Those
+  four gain `data`, `editedFields` and `cancelReason` by hand, typed as each client types the
+  request's `data`, and their documentation stops calling a result "completed or failed". Their
+  status is already a string, so a `cancelled` line passes through.
 - Suite gains an end-user surface reachable without a session, holding only a token. That is the
   surface to keep small and to review hardest.
 - A job can now wait on a person for up to `interactive.expiresAt`. Job counts, dashboards and timeouts
