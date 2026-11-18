@@ -60,13 +60,13 @@ Option 4, marked alpha (`x-experimental`) until Suite has implemented it.
 
 ### Asking for a form
 
-`GenerateDocumentRequest` gains one optional member, appended after the existing ones: `form`
-(`GenerationFormRequest`). Sending it is the opt-in; without it, nothing changes. It holds
+`GenerateDocumentRequest` gains one optional member, appended after the existing ones: `interactive`
+(`InteractiveGenerationRequest`). Sending it is the opt-in; without it, nothing changes. It holds
 everything about the form, so later settings are added inside it rather than to the request.
 
-| `form.`            | Meaning                                                                                 |
+| `interactive.`     | Meaning                                                                                 |
 | ------------------ | --------------------------------------------------------------------------------------- |
-| `show`             | Required. When the user is asked: `missing` or `always` (below)                         |
+| `trigger`          | Required. When the user is asked: `incomplete` or `always` (below)                      |
 | `expiresInMinutes` | How long the link stays usable. Omitted: the server's default                           |
 | `returnUrl`        | Where the browser goes after submitting or cancelling (see "Coming back")               |
 | `title`            | A heading for the form, such as the case and the document: "Objection decision, case Z-2026-0412" |
@@ -74,10 +74,10 @@ everything about the form, so later settings are added inside it rather than to 
 | `links`            | Up to five `{label, url}`: back to the case, to a guideline                             |
 | `locale`           | The language of the form's own text (buttons, messages). Omitted: the tenant's default locale |
 
-| `form.show` | The user is asked                                                                        |
-| ----------- | ---------------------------------------------------------------------------------------- |
-| `missing`   | Only when the data, as sent, lacks a required field or holds an invalid value under the data contract of the release the job is bound to; otherwise the job is `pending` at once |
-| `always`    | Every time, with the form pre-filled, so the user reviews what is merged                 |
+| `interactive.trigger` | The user is asked                                                                     |
+| --------------------- | ---------------------------------------------------------------------------------------- |
+| `incomplete`          | Only when the data, as sent, lacks a required field or holds an invalid value under the data contract of the release the job is bound to; otherwise the job is `pending` at once |
+| `always`              | Every time, with the form pre-filled, so the user reviews what is merged                 |
 
 Two values, because they serve different callers: an unattended process that only wants help when
 stuck, and a case worker who should see every letter before it goes. They also give rendering again
@@ -89,7 +89,7 @@ validation of empty data may fall back to the release's first data example, a jo
 data is an empty form, not someone else's example. Absent optional fields only appear on the form;
 they never cause one.
 
-`form` needs no permission beyond `DOCUMENT_GENERATE`, which `generateDocument` already requires. A
+`interactive` needs no permission beyond `DOCUMENT_GENERATE`, which `generateDocument` already requires. A
 caller allowed to generate but not to view templates can still be told what is missing.
 
 `generateDocumentBatch` and `previewDocument` do not take it. A form per batch item, or a form
@@ -98,7 +98,7 @@ before a synchronous preview, is a different design.
 **Expiry: a default, a caller override, a maximum.** The server has a default and a maximum, both
 installation settings. A caller sets `expiresInMinutes` per job: short when the user is at the screen
 now, a day or more when the form may be finished tomorrow. Above the server's maximum the request is
-refused with 400 `validation-error` on `form.expiresInMinutes`, code `maximum`, and the message names
+refused with 400 `validation-error` on `interactive.expiresInMinutes`, code `maximum`, and the message names
 the maximum. Refusing rather than shortening it means a caller finds a mismatch with the installation
 when it integrates, not when a user finds the link dead the next morning. Whole minutes, not an ISO
 8601 duration: an integer every client reads the same way.
@@ -116,22 +116,22 @@ These texts often name a citizen or a case, so they are personal data under the 
 
 ### The answer
 
-The usual `202` with `GenerationJobResponse`, which gains `form` (`GenerationFormDto`), appended. So
-does `DocumentGenerationJobDto`, so `getGenerationJobStatus` and `listGenerationJobs` carry it too.
+The usual `202` with `GenerationJobResponse`, which gains `interactive` (`InteractiveGenerationDto`),
+appended. So does `DocumentGenerationJobDto`, so `getGenerationJobStatus` and `listGenerationJobs` carry it too.
 
-| `form.`         | Meaning                                                                                 |
+| `interactive.`  | Meaning                                                                                 |
 | --------------- | --------------------------------------------------------------------------------------- |
-| `show`          | The request's `show`, echoed                                                            |
+| `trigger`       | The request's `trigger`, echoed                                                         |
 | `url`           | Where to send the user's browser, while the job is `awaiting-input`; null otherwise. A bearer capability (below) |
 | `expiresAt`     | When the link stops working and the job is cancelled; null when nothing was asked       |
 | `missingFields` | What the form asks for, as `validateTemplateData` reports it (`MissingDataField`); empty when nothing was asked |
 
-When the user must act, the job's `status` is `awaiting-input` and `form.url` is set. When nothing
-is asked, the job is `pending` and `form.url` is null. A caller only checks `form.url`.
+When the user must act, the job's `status` is `awaiting-input` and `interactive.url` is set. When nothing
+is asked, the job is `pending` and `interactive.url` is null. A caller only checks `interactive.url`.
 
-**`form` in the response is the echo.** A server that predates it ignores the request's `form`:
+**`interactive` in the response is the echo.** A server that predates it ignores the request's `interactive`:
 Suite binds request bodies with Jackson's defaults, which skip unknown members, and answers an
-ordinary `pending` job. A caller that sent `form` and gets none back knows the server did not honour
+ordinary `pending` job. A caller that sent `interactive` and gets none back knows the server did not honour
 it, rather than learning when the item fails to render. So a server that honours it always returns
 it, even when nothing was asked.
 
@@ -142,7 +142,7 @@ and it gives every future member of this kind the same answer.
 
 `GenerationJobStatus` and `GenerationItemStatus` gain `awaiting-input`, before `pending`. Contract
 2.x allows response enums to gain values, and every client reads an unknown value without failing.
-Only callers who sent `form` create such jobs; others see the value only in `listGenerationJobs`.
+Only callers who sent `interactive` create such jobs; others see the value only in `listGenerationJobs`.
 
 ### The form
 
@@ -156,7 +156,7 @@ contract fixes what the form must do, not how it looks:
 - **Every field editable**, including values the caller supplied. The user is accountable for the
   document; a caller that needs read-only pre-fill asks for it in a later revision.
 - **Nothing renders until the user submits.** Submitting moves the job to `pending`; cancelling on
-  the form, `cancelGenerationJob`, or reaching `form.expiresAt` moves it to `cancelled`.
+  the form, `cancelGenerationJob`, or reaching `interactive.expiresAt` moves it to `cancelled`.
   `cancelGenerationJob` therefore accepts an `awaiting-input` job.
 - **Progress may be kept, and is not a submission.** The form may save what the user has entered
   and restore it when the link is opened again, until it is submitted, cancelled or expired. How is
@@ -177,7 +177,7 @@ status is `cancelled` and null otherwise:
 | -------------- | -------------------------------------------------------------- |
 | `caller`       | by `cancelGenerationJob`, with a form or without               |
 | `user`         | by the user, on the form                                       |
-| `expired`      | because nobody submitted the form before `form.expiresAt`      |
+| `expired`      | because nobody submitted the form before `interactive.expiresAt`      |
 
 A response enum, so it may gain values in a minor version like any other.
 
@@ -190,11 +190,11 @@ complete the document, as it decides today who may have one generated. The link 
 caller's authority over this one job to that user, and nothing beyond it: not other jobs, not another
 template, no lookups.
 
-`form.url` carries an unguessable token and nothing else: no tenant credential, no caller identity,
+`interactive.url` carries an unguessable token and nothing else: no tenant credential, no caller identity,
 no data. Its rules:
 
 - **Usable until submitted or expired.** It can be opened any number of times until the form is
-  submitted, the job cancelled, or `form.expiresAt` reached, whichever is first. Reloading the page,
+  submitted, the job cancelled, or `interactive.expiresAt` reached, whichever is first. Reloading the page,
   closing the tab and returning, or a dropped connection costs the user nothing.
 - **Submitted once.** The first submission moves the job from `awaiting-input` to `pending`, and
   every later one, from another tab or a replay, is refused with the outcome shown. Changing the data
@@ -208,7 +208,7 @@ no data. Its rules:
   it expires. The caller hands it only to the authenticated user it is meant for, and does not
   forward it. The page sends no `Referer`, so the token does not travel to links on it.
 
-`form.expiresAt` follows from `form.expiresInMinutes` or the server's default. Resuming the next day,
+`interactive.expiresAt` follows from `interactive.expiresInMinutes` or the server's default. Resuming the next day,
 with the progress the form kept, is a matter of asking for a long enough expiry, within the maximum
 the installation allows.
 
@@ -220,13 +220,13 @@ longer than an installation lets a link live.
 
 ### Coming back
 
-The request may name `form.returnUrl`. After submitting or cancelling, the form sends the browser
+The request may name `interactive.returnUrl`. After submitting or cancelling, the form sends the browser
 there with the job's `requestId` and `status` as query parameters, and nothing else: user input in a
 URL ends up in browser history, proxy logs and `Referer` headers. The caller's backend reads the
 outcome with its own credential. Without a `returnUrl` the form ends on a page saying the document is
 on its way, or was cancelled, and the user closes the tab.
 
-A `returnUrl`, like every `form.links` url, must match an origin the server allows; others are
+A `returnUrl`, like every `interactive.links` url, must match an origin the server allows; others are
 refused with 400 `validation-error` on the field, with a new domain validation code
 `url-not-allowed`. Only an authenticated caller sets them, but a page on Epistola's domain that
 forwards anywhere a leaked or misused API key chooses is still an open redirect. Where the list is
@@ -237,7 +237,7 @@ sends the job, can be appended to the consumer resource later without breaking a
 ### What the user entered goes back to the caller
 
 `DocumentGenerationItemDto` and the collect stream's `GenerationResult` gain two members, appended
-after the existing ones, set only for jobs created with a `form`:
+after the existing ones, set only for jobs created with a `interactive`:
 
 | Member         | Meaning                                                                                          |
 | -------------- | ------------------------------------------------------------------------------------------------ |
@@ -258,7 +258,7 @@ cost the user their input.
 
 The collect stream delivers terminal results, today `completed` or `failed`. A caller that only
 collects would never learn that the user abandoned the form, so `GenerationResult.status` gains
-`cancelled`, delivered only for jobs created with a `form`, with its `cancelReason` and `data` null.
+`cancelled`, delivered only for jobs created with a `interactive`, with its `cancelReason` and `data` null.
 
 ### Rendering again
 
@@ -268,9 +268,9 @@ No new mechanism. Because `data` is complete, and holds only what the caller and
 
 | The caller wants                   | It sends                                                                      |
 | ---------------------------------- | ----------------------------------------------------------------------------- |
-| The same document again            | `data` and `variantKey` from the earlier item, no `form`                      |
-| The user to correct something      | the same with `form.show: always`: the form opens with their earlier answers  |
-| A render against a newer release   | the same with `form.show: missing`: asked only what the new release adds      |
+| The same document again            | `data` and `variantKey` from the earlier item, no `interactive`                      |
+| The user to correct something      | the same with `interactive.trigger: always`: the form opens with their earlier answers  |
+| A render against a newer release   | the same with `interactive.trigger: incomplete`: asked only what the new release adds      |
 
 `versionRange` decides as always: pinned to the earlier `version` for an identical document, open to
 pick up a template fix. A caller whose own records changed meanwhile overlays the earlier `data` at
@@ -285,7 +285,7 @@ turn out to matter.
 
 ### Retention
 
-`data`, `editedFields` and the texts in `form` are personal data. They stay readable for as long as
+`data`, `editedFields` and the texts in `interactive` are personal data. They stay readable for as long as
 the job does, and go with it; on a collect line, for as long as the result is kept. Input on a form
 that is never submitted, including progress the form kept, is discarded when the job is cancelled or
 its link expires.
@@ -309,10 +309,10 @@ keeps room for it, and any later choice should follow the same rules:
   wrong kind of choice.
 - **Within the bound release.** The user chooses among what the job's release holds, never another
   version.
-- **No effect on whether a form appears.** A pre-selected choice is never missing, so `show:
-  missing` still asks only for data; a caller that wants the user to choose sends `always`.
-- **Declared in `form` and echoed.** Something like `form.variantChoice`, appended inside the
-  request's `form`, and echoed in the response's `form`, so a caller can tell a server that
+- **No effect on whether a form appears.** A pre-selected choice is never missing, so `trigger:
+  incomplete` still asks only for data; a caller that wants the user to choose sends `always`.
+- **Declared in `interactive` and echoed.** Something like `interactive.variantChoice`, appended inside the
+  request's `interactive`, and echoed in the response's `interactive`, so a caller can tell a server that
   predates it.
 
 **Granted, not implied by an omitted variant.** Omitting `variantKey` and `attributes` already means
@@ -332,11 +332,11 @@ variant of the template" is the same picker with nothing fixed. A granted attrib
 
 For example, a caller that knows the brand and guesses the language sends, as today,
 `attributes: [{key: brand, value: gemeente-x}, {key: language, value: nl}]`, which selects the Dutch
-variant at acceptance, and grants `form.variantChoice: {attributes: [{key: language}]}`. The form
+variant at acceptance, and grants `interactive.variantChoice: {attributes: [{key: language}]}`. The form
 offers the languages that variant's brand has, with Dutch selected; the brand is not offered.
 Without the grant the Dutch variant renders and the form shows no choice.
 
-**A member of `form`, not a flag on the attribute.** `{key: language, value: nl, userMayChange:
+**A member of `interactive`, not a flag on the attribute.** `{key: language, value: nl, userMayChange:
 true}` would keep the pre-selection and the grant together, but `VariantSelectionAttribute` is shared
 with batch items and preview, where such a flag means nothing, and a caller that names an explicit
 `variantKey` could not grant a choice at all.
@@ -356,7 +356,7 @@ above is the one chosen.
   to `PENDING`, after which it is picked up like any other. Suite maps its statuses to the contract's
   by name, so the contract value has to exist first.
 - **The release is bound at acceptance**, which is what lets the form be derived from the release the
-  job will actually render, and why `show: missing` is defined against that binding. So is the
+  job will actually render, and why `trigger: incomplete` is defined against that binding. So is the
   variant, which is what lets a later variant choice start from a pre-selection.
 - **The analysis exists and is reusable.** `validateTemplateData`'s analysis is a component that takes
   a contract and data, and Suite's own documentation expects generation to use it. Its endpoint
@@ -386,13 +386,13 @@ above is the one chosen.
   by whichever of the three cancels it. Results are written as NDJSON from a hand-built map, so
   `data` and `editedFields` are easy to add there.
 - **Nothing expires a job yet.** Suite sets an expiry on finished jobs but nothing acts on it;
-  `form.expiresAt` needs a sweep that cancels forms nobody completed. Retention otherwise drops whole
+  `interactive.expiresAt` needs a sweep that cancels forms nobody completed. Retention otherwise drops whole
   monthly partitions, whatever a job's status, so a job cannot outlive it waiting for input.
-- **Unknown members are ignored**, hence `form` echoed in the response.
+- **Unknown members are ignored**, hence `interactive` echoed in the response.
 - **Return hosts** have no home yet. Suite's other allowlists are installation settings, and its
   calling systems (`applications`, the contract's consumers) carry no URLs. The expiry's default and
   maximum are installation settings beside them.
-- **The tenant already has a default locale**, which is what `form.locale` falls back to.
+- **The tenant already has a default locale**, which is what `interactive.locale` falls back to.
 
 ## Consequences
 
@@ -402,15 +402,15 @@ above is the one chosen.
   responses. `make append-only` holds; `make breaking` reports the enum additions, which the 2.x
   rules allow.
 - Every client changes: the generated types, each README's generation example, and a conformance
-  scenario covering `form` sent as given and echoed, the `awaiting-input` job with `form.url`, the
+  scenario covering `interactive` sent as given and echoed, the `awaiting-input` job with `interactive.url`, the
   link returned again by `getGenerationJobStatus`, `data` and `editedFields` on a collect line, a
   `failed` line that still carries `data`, a `cancelled` line with its `cancelReason`, and `data`
   sent back unchanged.
 - Suite gains an end-user surface reachable without a session, holding only a token. That is the
   surface to keep small and to review hardest.
-- A job can now wait on a person for up to `form.expiresAt`. Job counts, dashboards and timeouts
+- A job can now wait on a person for up to `interactive.expiresAt`. Job counts, dashboards and timeouts
   that assumed a job is always on its way to a worker must allow for `awaiting-input`.
-- The Bridge's SmartDocuments wizard can later create a job with `form.show: always` and redirect to
+- The Bridge's SmartDocuments wizard can later create a job with `interactive.trigger: always` and redirect to
   Suite's form, instead of keeping a form of its own.
 - Suite can use the feature itself. An author can create a job with a form from the editor against a
   draft deployed to a test environment, and see the form a case worker will see before any caller
@@ -418,11 +418,17 @@ above is the one chosen.
 
 ## Settled while drafting
 
-- **One `form` member, not `prompt` beside `form`.** Every form setting meant nothing without the
-  flag, which is a sign they are one thing. Sending `form` is the opt-in, so the `never` value goes,
-  and the response's `form` mirrors it and is the echo.
-- **`show`, not `when` or `prompt`.** `show: missing` reads as what happens. `when` is a Kotlin
-  keyword, which the generated client would have to escape.
+- **One member, not a flag beside a settings object.** A first draft had `prompt` (`never`,
+  `missing`, `always`) next to a `form` object whose settings meant nothing without it, a sign they
+  are one thing. Sending `interactive` is the opt-in, so the `never` value goes, and the response's
+  `interactive` mirrors it and is the echo.
+- **`interactive`**, the usual term for documents a person completes as opposed to batch generation.
+  As an object it no longer reads as a boolean. `interactiveMode` was considered, but the object
+  carries the link, the expiry and the texts, not only a mode. `form` named the page rather than the
+  behaviour, and `userInput`, `attended` and `dataEntry` were the other candidates.
+- **`trigger: incomplete | always`**: what causes the form. `show` read oddly, `when` is a Kotlin
+  keyword the generated client would have to escape, and `missing` became `incomplete`, which also
+  covers invalid values.
 - **`data`, not `submittedData` or `renderedData`.** Rendering again is then `item.data` into
   `request.data`. `renderedData` would be slightly untrue, since defaults are applied after it.
 - **Expiry is a `cancelReason`, not a status.** A separate `expired` status would tell expiry apart
@@ -450,7 +456,7 @@ None at the time of writing.
 
 Gemeente X uses a case system. A case worker prepares an objection decision for case Z-2026-0412.
 The case system knows the citizen and the address, not the motivation or the decision date.
-`form.variantChoice` is the later addition, not part of the first version.
+`interactive.variantChoice` is the later addition, not part of the first version.
 
 **1. The caller submits** (`POST /api/tenants/gemeente-x/documents/generate`, with its API key):
 
@@ -476,8 +482,8 @@ The case system knows the citizen and the address, not the motivation or the dec
   "filename": "besluit-bezwaar-Z-2026-0412.pdf",
   "correlationId": "Z-2026-0412",
   "routingKey": "Z-2026-0412",
-  "form": {
-    "show": "missing",
+  "interactive": {
+    "trigger": "incomplete",
     "expiresInMinutes": 1440,
     "returnUrl": "https://zac.gemeente-x.nl/zaken/Z-2026-0412",
     "title": "Besluit op bezwaar, zaak Z-2026-0412",
@@ -505,8 +511,8 @@ and checks both URLs against the allowed origins.
   "total": 1,
   "createdAt": "2026-11-18T09:12:00Z",
   "cancelReason": null,
-  "form": {
-    "show": "missing",
+  "interactive": {
+    "trigger": "incomplete",
     "url": "https://suite.gemeente-x.nl/forms/k3J9fQ2xV7mN0pL8sR4tY6wZ1aB5cD3e",
     "expiresAt": "2026-11-19T09:12:00Z",
     "missingFields": [
@@ -519,7 +525,7 @@ and checks both URLs against the allowed origins.
 ```
 
 The case system keeps the `requestId`, shows "letter waiting for input" with a **Continue** button,
-and opens `form.url` in a new tab. **Continue**, pressed the next morning, fetches the same link with
+and opens `interactive.url` in a new tab. **Continue**, pressed the next morning, fetches the same link with
 `getGenerationJobStatus`; the form still holds what the user typed.
 
 **3. The user submits.** They fill in the motivation and the date, pick a salutation, correct the
@@ -568,7 +574,7 @@ wire):
 The same `data` and `editedFields` are on the item from `listGenerationJobItems` as soon as the job
 is `pending`.
 
-**When it does not go through.** Nobody submits before `form.expiresAt`: the job is `cancelled`
+**When it does not go through.** Nobody submits before `interactive.expiresAt`: the job is `cancelled`
 with `cancelReason: expired`, the saved input is discarded, and collect delivers a `cancelled` line
 with `data` null. The user presses cancel: `user`, and the browser returns with `status=cancelled`.
 The caller cancels: `caller`. Rendering fails after submission: `failed`, with `data` still present.
@@ -581,13 +587,13 @@ The caller cancels: `caller`. Rendering fails after submission: `failed`, with `
   "title": "Validation failed",
   "status": 400,
   "errors": [
-    { "field": "form.returnUrl", "code": "url-not-allowed", "message": "https://zac.example.com is not an allowed origin" },
-    { "field": "form.expiresInMinutes", "code": "maximum", "message": "at most 1440 minutes" }
+    { "field": "interactive.returnUrl", "code": "url-not-allowed", "message": "https://zac.example.com is not an allowed origin" },
+    { "field": "interactive.expiresInMinutes", "code": "maximum", "message": "at most 1440 minutes" }
   ]
 }
 ```
 
-**A server that predates this** answers `"status": "pending"` and no `form`; the caller falls back.
+**A server that predates this** answers `"status": "pending"` and no `interactive`; the caller falls back.
 
 **5. A correction next week**, from the stored result:
 
@@ -601,8 +607,8 @@ The caller cancels: `caller`. Rendering fails after submission: `failed`, with `
   "environmentKey": "production",
   "data": { "…": "the data from the earlier item, unchanged" },
   "correlationId": "Z-2026-0412-v2",
-  "form": {
-    "show": "always",
+  "interactive": {
+    "trigger": "always",
     "expiresInMinutes": 60,
     "returnUrl": "https://zac.gemeente-x.nl/zaken/Z-2026-0412",
     "title": "Correctie besluit op bezwaar, zaak Z-2026-0412",
@@ -611,5 +617,5 @@ The caller cancels: `caller`. Rendering fails after submission: `failed`, with `
 }
 ```
 
-The form opens with every earlier answer, in English, against the same release. Without `form` the
+The form opens with every earlier answer, in English, against the same release. Without `interactive` the
 same request renders the identical letter at once.
