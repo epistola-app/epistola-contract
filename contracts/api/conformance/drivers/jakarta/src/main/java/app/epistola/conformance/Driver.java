@@ -64,6 +64,10 @@ import app.epistola.client.jakarta.model.CatalogDraftRefDto;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
 import app.epistola.client.jakarta.model.GenerationJobResponse;
 import app.epistola.client.jakarta.model.GenerationResult;
+import app.epistola.client.jakarta.model.InteractiveGenerationDto;
+import app.epistola.client.jakarta.model.InteractiveGenerationLink;
+import app.epistola.client.jakarta.model.InteractiveGenerationRequest;
+import app.epistola.client.jakarta.model.InteractiveGenerationTrigger;
 import app.epistola.client.jakarta.model.ImageDto;
 import app.epistola.client.jakarta.model.ImportCatalogResponse;
 import app.epistola.client.jakarta.model.InstallCatalogReleaseResponse;
@@ -167,6 +171,7 @@ public final class Driver {
                 case "list-documents" -> listDocuments(baseUrl, config);
                 case "get-generation-job-status" -> getGenerationJobStatus(baseUrl, config);
                 case "list-generation-job-items" -> listGenerationJobItems(baseUrl, config);
+                case "regenerate-from-item" -> regenerateFromItem(baseUrl, config);
                 case "search-tenant" -> searchTenant(baseUrl, config);
                 case "list-images" -> listImages(baseUrl, config);
                 case "upload-image" -> uploadImage(baseUrl, config);
@@ -383,7 +388,35 @@ public final class Driver {
                                                 + result.getVersion() + "#" + result.getReleaseId() + ":"
                                                 + result.getReleaseName())
                                         .collect(Collectors.joining(",")),
-                        "partitionTotal", assignment == null ? -1 : assignment.getTotal()));
+                        "partitionTotal", assignment == null ? -1 : assignment.getTotal(),
+                        "cancelReasons",
+                                handled.stream()
+                                        .map(result -> String.valueOf(result.getCancelReason()))
+                                        .collect(Collectors.joining(",")),
+                        "dataMembers",
+                                handled.stream()
+                                        .map(result -> dataMembers(result.getData()))
+                                        .collect(Collectors.joining(";")),
+                        "editedFields",
+                                handled.stream()
+                                        .map(result -> editedFields(result.getEditedFields()))
+                                        .collect(Collectors.joining(";"))));
+    }
+
+    /** A free-form {@code data} object's top-level member names, sorted and joined with {@code +}; {@code null} for none. */
+    private static String dataMembers(Object data) {
+        if (data == null) {
+            return "null";
+        }
+        if (!(data instanceof Map<?, ?> members)) {
+            throw new IllegalStateException("data is not an object: " + data.getClass());
+        }
+        return members.keySet().stream().map(String::valueOf).sorted().collect(Collectors.joining("+"));
+    }
+
+    /** The JSON Pointers of the fields a person changed, joined with {@code +}; {@code null} when null. */
+    private static String editedFields(List<String> fields) {
+        return fields == null ? "null" : String.join("+", fields);
     }
 
     /**
@@ -404,7 +437,8 @@ public final class Driver {
                 .versionRange(optional(config, "versionRange"))
                 .environmentKey(optional(config, "environmentKey"))
                 .correlationId(optional(config, "correlationId"))
-                .routingKey(optional(config, "routingKey"));
+                .routingKey(optional(config, "routingKey"))
+                .interactive(interactiveRequest(config));
         // Attribute criteria, only when the scenario names them: an unset optional stays off the wire.
         if (config.containsKey("attributes") && !config.isNull("attributes")) {
             request.attributes(config.getJsonArray("attributes").getValuesAs(JsonObject.class).stream()
@@ -417,6 +451,14 @@ public final class Driver {
                                     : null))
                     .collect(Collectors.toList()));
         }
+        reportGeneration(baseUrl, config, request);
+    }
+
+    /**
+     * Submits a generation request and reports what the client parsed from the job it answered
+     * with, or from the problem it raised.
+     */
+    private static void reportGeneration(String baseUrl, JsonObject config, GenerateDocumentRequest request) {
         try (Response response = clients(baseUrl, config)
                 .api(GenerationApi.class)
                 .generateDocumentWithHttpInfo(config.getString("tenantKey"), request)) {
@@ -427,6 +469,15 @@ public final class Driver {
             values.put("jobType", String.valueOf(job.getJobType()));
             values.put("total", job.getTotal() == null ? "null" : job.getTotal());
             values.put("location", String.valueOf(response.getHeaderString("Location")));
+            values.put("cancelReason", String.valueOf(job.getCancelReason()));
+            values.putAll(interactiveFields(job.getInteractive()));
+            values.put(
+                    "interactiveMissingFields",
+                    job.getInteractive() == null || job.getInteractive().getMissingFields() == null
+                            ? "null"
+                            : job.getInteractive().getMissingFields().stream()
+                                    .map(field -> field.getPath())
+                                    .collect(Collectors.joining(",")));
             report(baseUrl, values);
         } catch (ProblemDetailException e) {
             report(
@@ -436,6 +487,65 @@ public final class Driver {
                             "problemStatus", e.getStatusCode(),
                             "problemTiedVariants", String.join(",", e.getTiedVariants())));
         }
+    }
+
+    /** What a job's {@code interactive} echo says, each member {@code null} when the job has none. */
+    private static Map<String, Object> interactiveFields(InteractiveGenerationDto interactive) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("interactiveTrigger", interactive == null ? "null" : String.valueOf(interactive.getTrigger()));
+        values.put("interactiveUrl", interactive == null ? "null" : String.valueOf(interactive.getUrl()));
+        values.put("interactiveExpiresAt", instant(interactive == null ? null : interactive.getExpiresAt()));
+        return values;
+    }
+
+    /** {@code config.interactive} as the request's {@code interactive}, each member only when the config gives it. */
+    private static InteractiveGenerationRequest interactiveRequest(JsonObject config) {
+        if (!config.containsKey("interactive") || config.isNull("interactive")) {
+            return null;
+        }
+        JsonObject interactive = config.getJsonObject("interactive");
+        InteractiveGenerationRequest request = new InteractiveGenerationRequest()
+                .trigger(InteractiveGenerationTrigger.fromValue(interactive.getString("trigger")))
+                .expiresInMinutes(interactive.containsKey("expiresInMinutes") && !interactive.isNull("expiresInMinutes")
+                        ? interactive.getInt("expiresInMinutes")
+                        : null)
+                .returnUrl(optional(interactive, "returnUrl"))
+                .title(optional(interactive, "title"))
+                .instructions(optional(interactive, "instructions"))
+                .locale(optional(interactive, "locale"));
+        if (interactive.containsKey("links") && !interactive.isNull("links")) {
+            request.links(interactive.getJsonArray("links").getValuesAs(JsonObject.class).stream()
+                    .map(link -> new InteractiveGenerationLink().label(link.getString("label")).url(link.getString("url")))
+                    .collect(Collectors.toList()));
+        }
+        return request;
+    }
+
+    /**
+     * Renders again from an earlier item: the first item's {@code variantKey} and {@code data}, the
+     * data handed from the response model to the request model as the client returned it, with no
+     * conversion. That the generated types allow this, and that the data goes out as it came in, is
+     * what the scenario checks.
+     */
+    private static void regenerateFromItem(String baseUrl, JsonObject config) {
+        DocumentGenerationItemDto item = clients(baseUrl, config)
+                .api(GenerationApi.class)
+                .listGenerationJobItems(
+                        config.getString("tenantKey"), UUID.fromString(config.getString("requestId")), null, null, null)
+                .getItems()
+                .get(0);
+        if (item.getData() == null) {
+            throw new IllegalStateException("the item carries no data");
+        }
+        GenerateDocumentRequest request = new GenerateDocumentRequest()
+                .namespace(config.getString("namespace"))
+                .catalogKey(config.getString("catalogKey"))
+                .templateKey(config.getString("templateKey"))
+                .variantKey(item.getVariantKey())
+                .data(item.getData())
+                .versionRange(optional(config, "versionRange"))
+                .interactive(interactiveRequest(config));
+        reportGeneration(baseUrl, config, request);
     }
 
     /**
@@ -583,15 +693,16 @@ public final class Driver {
         DocumentGenerationJobDto job = clients(baseUrl, config)
                 .api(GenerationApi.class)
                 .getGenerationJobStatus(config.getString("tenantKey"), java.util.UUID.fromString(config.getString("requestId")));
-        report(
-                baseUrl,
-                Map.of(
-                        "requestId", String.valueOf(job.getRequestId()),
-                        "status", String.valueOf(job.getStatus()),
-                        "jobType", String.valueOf(job.getJobType()),
-                        "total", job.getTotal(),
-                        "completedCount", job.getCompletedCount(),
-                        "failedCount", job.getFailedCount()));
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("requestId", String.valueOf(job.getRequestId()));
+        values.put("status", String.valueOf(job.getStatus()));
+        values.put("jobType", String.valueOf(job.getJobType()));
+        values.put("total", job.getTotal());
+        values.put("completedCount", job.getCompletedCount());
+        values.put("failedCount", job.getFailedCount());
+        values.put("cancelReason", String.valueOf(job.getCancelReason()));
+        values.putAll(interactiveFields(job.getInteractive()));
+        report(baseUrl, values);
     }
 
     /** Lists a page of a generation job's items, {@code status}, {@code page} and {@code size} each sent only when set. */
@@ -613,6 +724,9 @@ public final class Driver {
                         "statuses", items.stream().map(item -> String.valueOf(item.getStatus())).collect(Collectors.joining(",")),
                         "documentIds", items.stream().map(item -> String.valueOf(item.getDocumentId())).collect(Collectors.joining(",")),
                         "correlationIds", items.stream().map(item -> String.valueOf(item.getCorrelationId())).collect(Collectors.joining(",")),
+                        "cancelReasons", items.stream().map(item -> String.valueOf(item.getCancelReason())).collect(Collectors.joining(",")),
+                        "dataMembers", items.stream().map(item -> dataMembers(item.getData())).collect(Collectors.joining(";")),
+                        "editedFields", items.stream().map(item -> editedFields(item.getEditedFields())).collect(Collectors.joining(";")),
                         "total", String.valueOf(response.getPage().getTotal())));
     }
 

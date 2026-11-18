@@ -6,6 +6,7 @@ package app.epistola.client.jakarta.collect;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -82,6 +83,86 @@ class ResultCollectorTest {
             assertEquals("order-2", handled.get(1).getCorrelationId());
             assertEquals(GenerationResult.StatusEnum.FAILED, handled.get(1).getStatus());
         }
+    }
+
+    // --- Interactive generation (ADR 0011) ---
+
+    private static final String INTERACTIVE_DATA = "{\"caseNumber\":\"Z-2026-0412\",\"amountDue\":19.99,"
+            + "\"precise\":0.1000000000000000055511151231257827,\"big\":12345678901234567890,\"lineCount\":3,"
+            + "\"paid\":false,\"reference\":null,"
+            + "\"citizen\":{\"name\":\"J. Jansen\",\"address\":{\"street\":\"Kerkstraat 11\"}},"
+            + "\"tags\":[\"objection\",\"urgent\",1,true]}";
+
+    private static String interactiveResult(long sequence, String status, String rest) {
+        return "{\"sequence\":" + sequence
+                + ",\"requestId\":\"11111111-1111-1111-1111-11111111111" + (sequence % 10) + "\""
+                + ",\"status\":\"" + status + "\""
+                + ",\"registry\":\"exchange.epistola.app\",\"namespace\":\"acme-corp\",\"catalogKey\":\"letters\""
+                + rest + "}";
+    }
+
+    @Test
+    void an_interactive_result_carries_its_data_edited_fields_and_cancel_reason() {
+        List<GenerationResult> handled = new ArrayList<>();
+        String body = String.join(
+                "\n",
+                interactiveResult(601, "completed", ",\"cancelReason\":null,\"data\":" + INTERACTIVE_DATA
+                        + ",\"editedFields\":[\"/citizen/address/street\",\"/amountDue\"]"),
+                interactiveResult(602, "cancelled", ",\"cancelReason\":\"expired\",\"data\":null,\"editedFields\":null"),
+                interactiveResult(603, "completed", ""),
+                meta(false));
+
+        try (StubServer stub = StubServer.start(request -> StubServer.StubResponse.of(200, NDJSON, body))) {
+            collector(stub, handled::add).collectOnce();
+        }
+
+        GenerationResult submitted = handled.get(0);
+        assertNull(submitted.getCancelReason());
+        java.util.Map<?, ?> data = assertInstanceOf(java.util.Map.class, submitted.getData());
+        assertEquals("Z-2026-0412", data.get("caseNumber"));
+        assertEquals(new java.math.BigDecimal("19.99"), data.get("amountDue"), "a decimal is kept exactly");
+        assertEquals(Boolean.FALSE, data.get("paid"));
+        assertTrue(data.containsKey("reference") && data.get("reference") == null, "a null member is kept");
+        assertEquals("Kerkstraat 11",
+                ((java.util.Map<?, ?>) ((java.util.Map<?, ?>) data.get("citizen")).get("address")).get("street"));
+        assertEquals(List.of("/citizen/address/street", "/amountDue"), submitted.getEditedFields());
+
+        GenerationResult cancelled = handled.get(1);
+        assertEquals(GenerationResult.StatusEnum.CANCELLED, cancelled.getStatus());
+        assertEquals(app.epistola.client.jakarta.model.GenerationCancelReason.EXPIRED, cancelled.getCancelReason());
+        assertNull(cancelled.getData());
+        assertNull(cancelled.getEditedFields());
+
+        GenerationResult withoutForm = handled.get(2);
+        assertNull(withoutForm.getCancelReason());
+        assertNull(withoutForm.getData());
+        assertNull(withoutForm.getEditedFields());
+    }
+
+    @Test
+    void a_results_data_goes_back_into_a_generation_request_unchanged() {
+        List<GenerationResult> handled = new ArrayList<>();
+        String body = interactiveResult(701, "failed", ",\"data\":" + INTERACTIVE_DATA + ",\"editedFields\":[]")
+                + "\n" + meta(false);
+
+        try (StubServer stub = StubServer.start(request -> StubServer.StubResponse.of(200, NDJSON, body))) {
+            collector(stub, handled::add).collectOnce();
+        }
+
+        app.epistola.client.jakarta.model.GenerateDocumentRequest request =
+                new app.epistola.client.jakarta.model.GenerateDocumentRequest()
+                        .namespace("acme-corp")
+                        .catalogKey("letters")
+                        .templateKey("objection-decision")
+                        .data(handled.get(0).getData());
+        String sent = app.epistola.client.jakarta.EpistolaJson.jsonb().toJson(request);
+
+        jakarta.json.JsonValue sentData = jakarta.json.Json.createReader(new java.io.StringReader(sent))
+                .readObject().get("data");
+        jakarta.json.JsonValue receivedData = jakarta.json.Json.createReader(new java.io.StringReader(INTERACTIVE_DATA))
+                .readValue();
+        assertEquals(receivedData, sentData, "every value is sent back as received: " + sent);
+        assertEquals(List.of(), handled.get(0).getEditedFields());
     }
 
     @Test

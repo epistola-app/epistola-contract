@@ -369,6 +369,8 @@ ResultCollector collector = ResultCollector.builder()
                 // the release rendered; getVersion() is null for a draft rendered through an environment.
                 case COMPLETED -> download(result.getDocumentId(), result.getCorrelationId());
                 case FAILED -> logFailure(result.getCorrelationId(), result.getError());
+                // An interactive job whose form was cancelled (USER, CALLER) or EXPIRED.
+                case CANCELLED -> log.info("form cancelled: {}", result.getCancelReason());
                 // A later 2.x may add a status (read as UNKNOWN_DEFAULT_OPEN_API). The result is
                 // acknowledged once the handler returns, so log what nobody handles, at least.
                 default -> log.warn("result {} has status {}", result.getRequestId(), result.getStatus());
@@ -397,6 +399,9 @@ on the next poll. Make the handler idempotent.
 automatically. The decompressor is chosen by sniffing the stream's magic bytes rather than trusting
 `Content-Encoding`, because an application server may have decoded gzip already.
 
+A result of an interactive job (below) also carries `getData()`, the complete data the document
+rendered from as the person amended it, a failed render included, and `getEditedFields()`.
+
 **Routing**: `collector.routingKeyToMe(key)` returns a routing key that lands on one of this node's
 partitions, so a submission's result comes back to the node that made it. Pass the returned value as
 the request's `routingKey`.
@@ -405,6 +410,62 @@ the request's `routingKey`.
 String routingKey = collector.routingKeyToMe("order-7890");
 generationApi.generateDocument(tenantKey, request.routingKey(routingKey));
 collector.kick();                              // a result is expected shortly
+```
+
+### Interactive generation (alpha)
+
+When the caller has only part of the data, a person can complete it in a form Epistola serves
+(contract ADR 0011). Send `interactive`; with `INCOMPLETE` the form appears only when the data
+misses a required field or holds an invalid value, with `ALWAYS` every time. A server that does not
+support it ignores the member and answers an ordinary job without `interactive`.
+
+```java
+GenerationJobResponse job = generationApi.generateDocument(tenantKey, new GenerateDocumentRequest()
+        .namespace("acme-corp")
+        .catalogKey("letters")
+        .templateKey("objection-decision")
+        .data(Map.of("caseNumber", "Z-2026-0412"))
+        .correlationId("Z-2026-0412")
+        .interactive(new InteractiveGenerationRequest()
+                .trigger(InteractiveGenerationTrigger.INCOMPLETE)
+                .returnUrl("https://cases.example.org/cases/Z-2026-0412")   // where the browser returns
+                .title("Objection decision, case Z-2026-0412")
+                .addLinksItem(new InteractiveGenerationLink()
+                        .label("Open case").url("https://cases.example.org/cases/Z-2026-0412"))));
+
+if (job.getInteractive() == null) {
+    // This server does not support forms; the job renders as sent.
+} else if (job.getInteractive().getUrl() != null) {
+    return redirectTo(job.getInteractive().getUrl());   // the job is AWAITING_INPUT
+}
+
+// The link need not be stored: the job returns it while it waits for the person.
+DocumentGenerationJobDto status = generationApi.getGenerationJobStatus(tenantKey, job.getRequestId());
+switch (status.getStatus()) {
+    case AWAITING_INPUT -> redirectTo(status.getInteractive().getUrl());
+    // A cancelled job says why: CALLER, USER (the person cancelled the form) or EXPIRED.
+    case CANCELLED -> log.info("cancelled: {}", status.getCancelReason());
+    default -> { }
+}
+```
+
+Items (and collect results, above) carry the complete `data` the document rendered from, as the
+person amended it, and `editedFields`, the JSON Pointers of the fields they changed. That `data` is
+valid input for a new request, so rendering again, to correct something or for a newer release,
+sends it back as is:
+
+```java
+DocumentGenerationItemDto item = generationApi
+        .listGenerationJobItems(tenantKey, job.getRequestId(), null, null, null).getItems().get(0);
+store(item.getData(), item.getEditedFields());   // what the person entered, not only the PDF
+
+generationApi.generateDocument(tenantKey, new GenerateDocumentRequest()
+        .namespace("acme-corp")
+        .catalogKey("letters")
+        .templateKey("objection-decision")
+        .variantKey(item.getVariantKey())
+        .data(item.getData())                     // no conversion: both are Object
+        .interactive(new InteractiveGenerationRequest().trigger(InteractiveGenerationTrigger.ALWAYS)));
 ```
 
 ## Client-side validation
@@ -433,7 +494,8 @@ new TemplateSchemaValidator(
 
 `ValidatingGenerationApi` wraps `GenerationApi` and reports a rejected generation request as the
 same exception. With an in-process validator it checks first, and a batch is reported in full,
-each path prefixed with its item index:
+each path prefixed with its item index. A request that sends `interactive` is not checked first:
+its data may be incomplete on purpose.
 
 ```java
 ValidatingGenerationApi generation = new ValidatingGenerationApi(generationApi, templatesApi);

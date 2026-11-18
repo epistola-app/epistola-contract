@@ -36,6 +36,12 @@ import java.util.function.Consumer;
  * <p>Results are processed one at a time — the response is never held in memory. Results from this
  * node come first; orphaned results from nodes that stopped polling follow.
  *
+ * <p>A result is {@code completed} or {@code failed}, or {@code cancelled} for an interactive job
+ * whose form was cancelled or expired (alpha, ADR 0011), with its {@code cancelReason}. A result of
+ * an interactive job also carries the complete {@code data} the document rendered from, as the
+ * person amended it, a failed render included, and {@code editedFields}. That {@code data} is typed
+ * {@code Object}, as {@code GenerateDocumentRequest.data} is, so it goes back into a request as is.
+ *
  * <p>What it handles:
  * <ul>
  *   <li>NDJSON streaming (constant memory)</li>
@@ -56,6 +62,7 @@ import java.util.function.Consumer;
  *         switch (result.getStatus()) {
  *             case COMPLETED -> downloadAndProcess(result.getDocumentId(), result.getCorrelationId());
  *             case FAILED -> logFailure(result.getCorrelationId(), result.getError());
+ *             case CANCELLED -> logCancelled(result.getCorrelationId(), result.getCancelReason());
  *             // A later 2.x may add a status; the result is acknowledged once this returns.
  *             default -> logUnhandled(result);
  *         }
