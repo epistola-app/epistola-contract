@@ -39,6 +39,8 @@ from epistola_client import (
     GenerateDocumentRequest,
     GenerationApi,
     ImagesApi,
+    InteractiveGenerationLink,
+    InteractiveGenerationRequest,
     SearchApi,
     JwtSigner,
     MergeIntoCatalogDraftRequest,
@@ -94,6 +96,7 @@ def main() -> int:
         "list-documents": _list_documents,
         "get-generation-job-status": _get_generation_job_status,
         "list-generation-job-items": _list_generation_job_items,
+        "regenerate-from-item": _regenerate_from_item,
         "search-tenant": _search_tenant,
         "list-images": _list_images,
         "upload-image": _upload_image,
@@ -292,6 +295,9 @@ def _collect(base_url: str, config: dict) -> None:
                 f"#{_show(r.release_id)}:{_show(r.release_name)}"
                 for r in handled
             ),
+            "cancelReasons": ",".join(_show(result.cancel_reason) for result in handled),
+            "dataMembers": ";".join(_data_members(result.data) for result in handled),
+            "editedFields": ";".join(_edited_fields(result.edited_fields) for result in handled),
         },
     )
 
@@ -330,16 +336,70 @@ def _generate_document(base_url: str, config: dict) -> None:
             )
             for attribute in config["attributes"]
         ]
+    interactive = _interactive_request(config)
+    if interactive is not None:
+        optional["interactive"] = interactive
+    _send_generate_document(
+        base_url,
+        config,
+        GenerateDocumentRequest(
+            namespace=config["namespace"],
+            catalogKey=config["catalogKey"],
+            templateKey=config["templateKey"],
+            data=config["data"],
+            **optional,
+        ),
+    )
+
+
+def _regenerate_from_item(base_url: str, config: dict) -> None:
+    """Renders again from an earlier job's first item: its ``variantKey`` and its ``data``, the
+    latter handed from the generated response model to the generated request exactly as the client
+    returned it. That round trip is what the scenario judges, so the driver converts nothing."""
+    api = GenerationApi(_client(base_url, config))
+    item = api.list_generation_job_items(config["tenantKey"], config["requestId"]).items[0]
+    optional = {name: config[name] for name in ("versionRange",) if name in config}
+    interactive = _interactive_request(config)
+    if interactive is not None:
+        optional["interactive"] = interactive
+    _send_generate_document(
+        base_url,
+        config,
+        GenerateDocumentRequest(
+            namespace=config["namespace"],
+            catalogKey=config["catalogKey"],
+            templateKey=config["templateKey"],
+            variantKey=item.variant_key,
+            data=item.data,
+            **optional,
+        ),
+    )
+
+
+def _interactive_request(config: dict):
+    """``config.interactive`` as the request's ``interactive``, each member only when the scenario
+    gives it, the links as objects; ``None`` when the scenario sends no ``interactive``."""
+    interactive = config.get("interactive")
+    if interactive is None:
+        return None
+    members = {
+        name: interactive[name]
+        for name in ("trigger", "expiresInMinutes", "returnUrl", "title", "instructions", "locale")
+        if name in interactive
+    }
+    if "links" in interactive:
+        members["links"] = [
+            InteractiveGenerationLink(label=link["label"], url=link["url"]) for link in interactive["links"]
+        ]
+    return InteractiveGenerationRequest(**members)
+
+
+def _send_generate_document(base_url: str, config: dict, request: GenerateDocumentRequest) -> None:
+    """Sends a generation request through the operation that exposes the response headers, and
+    reports the job it was accepted as, or the problem it was refused with."""
     try:
         response = GenerationApi(_client(base_url, config)).generate_document_with_http_info(
-            config["tenantKey"],
-            GenerateDocumentRequest(
-                namespace=config["namespace"],
-                catalogKey=config["catalogKey"],
-                templateKey=config["templateKey"],
-                data=config["data"],
-                **optional,
-            ),
+            config["tenantKey"], request
         )
     except ProblemDetailException as exc:
         _report(
@@ -360,8 +420,38 @@ def _generate_document(base_url: str, config: dict) -> None:
             "jobType": _show(_enum(job.job_type)),
             "total": job.total,
             "location": _header(response, "Location"),
+            "cancelReason": _show(_enum(job.cancel_reason)),
+            **_interactive_report(job.interactive),
+            "interactiveMissingFields": (
+                "null"
+                if job.interactive is None or job.interactive.missing_fields is None
+                else ",".join(field.path for field in job.interactive.missing_fields)
+            ),
         },
     )
+
+
+def _interactive_report(interactive) -> dict:
+    """A job's ``interactive`` as the scenarios read it, each member ``null`` when the job has no
+    ``interactive`` (a server that ignored the request's) or the member is null."""
+    if interactive is None:
+        return {"interactiveTrigger": "null", "interactiveUrl": "null", "interactiveExpiresAt": "null"}
+    return {
+        "interactiveTrigger": _show(_enum(interactive.trigger)),
+        "interactiveUrl": _show(interactive.url),
+        "interactiveExpiresAt": _show_instant(interactive.expires_at),
+    }
+
+
+def _data_members(data) -> str:
+    """A ``data`` object's top-level member names, sorted and joined with ``+``; ``null`` when the
+    data is null."""
+    return "null" if data is None else "+".join(sorted(data))
+
+
+def _edited_fields(edited_fields) -> str:
+    """The pointers of ``editedFields``, in order, joined with ``+``; ``null`` when null."""
+    return "null" if edited_fields is None else "+".join(edited_fields)
 
 
 def _download_document(base_url: str, config: dict) -> None:
@@ -396,7 +486,8 @@ def _preview_document(base_url: str, config: dict) -> None:
 
 
 def _get_generation_job_status(base_url: str, config: dict) -> None:
-    """Reads a generation job's status and reports its counts; the job carries no items."""
+    """Reads a generation job's status and reports its counts and its form; the job carries no
+    items."""
     job = GenerationApi(_client(base_url, config)).get_generation_job_status(config["tenantKey"], config["requestId"])
     _report(
         base_url,
@@ -407,6 +498,8 @@ def _get_generation_job_status(base_url: str, config: dict) -> None:
             "total": job.total,
             "completedCount": job.completed_count,
             "failedCount": job.failed_count,
+            "cancelReason": _show(_enum(job.cancel_reason)),
+            **_interactive_report(job.interactive),
         },
     )
 
@@ -425,6 +518,9 @@ def _list_generation_job_items(base_url: str, config: dict) -> None:
             "statuses": ",".join(_show(_enum(item.status)) for item in response.items),
             "documentIds": ",".join(_show(item.document_id) for item in response.items),
             "correlationIds": ",".join(_show(item.correlation_id) for item in response.items),
+            "cancelReasons": ",".join(_show(_enum(item.cancel_reason)) for item in response.items),
+            "dataMembers": ";".join(_data_members(item.data) for item in response.items),
+            "editedFields": ";".join(_edited_fields(item.edited_fields) for item in response.items),
             "total": _show(response.page.total),
         },
     )

@@ -32,6 +32,10 @@ RESULTS = [
         "version": "1.4.2",
         "templateKey": "invoice",
         "variantKey": "nl-nl",
+        "cancelReason": None,
+        "data": {"caseNumber": "Z-2026-0412", "amountDue": 19.99, "lines": 3, "paid": False, "note": None,
+                 "citizen": {"name": "J. Jansen"}, "tags": ["objection", 1]},
+        "editedFields": ["/citizen/name", "/note"],
     },
     {
         "sequence": 502,
@@ -45,11 +49,14 @@ RESULTS = [
     {
         "sequence": 503,
         "requestId": "11111111-1111-4111-8111-000000000503",
-        "status": "completed",
+        "status": "cancelled",
         "registry": "exchange.example.org",
         "namespace": "team-a",
         "catalogKey": "invoices",
         "version": "1.4.2",
+        "cancelReason": "expired",
+        "data": None,
+        "editedFields": None,
     },
 ]
 META = {"_meta": True, "hasMore": True, "resultCount": 3, "partitions": {"total": 8, "mine": [0, 3], "hash": "murmur3"}}
@@ -153,7 +160,43 @@ def test_each_status_is_the_wire_value_as_sent(server):
 
     _collector(server, handled).collect_once()
 
-    assert [r.status for r in handled] == ["completed", "failed", "completed"]
+    assert [r.status for r in handled] == ["completed", "failed", "cancelled"]
+
+
+def test_each_result_carries_why_it_was_cancelled(server):
+    handled = []
+
+    _collector(server, handled).collect_once()
+
+    # Null on the wire, absent from the line, and a reason: only the cancelled one has one.
+    assert [r.cancel_reason for r in handled] == [None, None, "expired"]
+
+
+def test_each_result_carries_the_data_the_person_completed_as_sent(server):
+    handled = []
+
+    _collector(server, handled).collect_once()
+
+    # Every JSON type kept as json reads it: numbers stay int and float, null stays None, nested
+    # objects and arrays intact.
+    assert handled[0].data == RESULTS[0]["data"]
+    assert type(handled[0].data["amountDue"]) is float
+    assert type(handled[0].data["lines"]) is int
+    assert handled[0].edited_fields == ["/citizen/name", "/note"]
+    # A line without the members (a job without a form, or an older server) and a cancelled one
+    # with them null both read as None.
+    assert (handled[1].data, handled[1].edited_fields) == (None, None)
+    assert (handled[2].data, handled[2].edited_fields) == (None, None)
+
+
+def test_a_result_with_data_is_still_hashable(server):
+    handled = []
+
+    _collector(server, handled).collect_once()
+
+    # data and edited_fields are a dict and a list; they are left out of the hash so a result can
+    # still go in a set, as it could before they were added.
+    assert len({*handled, *handled}) == 3
 
 
 def test_each_result_names_its_template_and_variant_by_key(server):

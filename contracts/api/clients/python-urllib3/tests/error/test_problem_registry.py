@@ -72,5 +72,6 @@ def test_the_validation_codes_are_generated_with_their_documented_values():
     assert KnownValidationCodes.PATTERN == "pattern"
     assert KnownValidationCodes.STENCIL_RECURSION == "stencil-recursion"
     assert KnownValidationCodes.CATALOG_RESOURCES_NOT_READY == "catalog-resources-not-ready"
-    assert len(KnownValidationCodes.ALL) == 51
+    assert KnownValidationCodes.URL_NOT_ALLOWED == "url-not-allowed"
+    assert len(KnownValidationCodes.ALL) == 52
     assert len(set(KnownValidationCodes.ALL)) == len(KnownValidationCodes.ALL)
