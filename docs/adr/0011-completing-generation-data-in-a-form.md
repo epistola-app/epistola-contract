@@ -291,6 +291,32 @@ job does, and go with it; on a collect line, for as long as the result is kept. 
 is never submitted, including progress the form kept, is discarded when the job is cancelled or its
 link expires.
 
+### Later: choices on the form
+
+The first version asks only for data. The next thing a user will want to decide is the variant: the
+case worker knows the citizen wants the letter in English, the caller does not. Bridge ADR 0019 puts
+variant selection on its wizard for the same reason. It is not designed here, but the contract above
+keeps room for it, and any later choice should follow the same rules:
+
+- **Pre-selected at acceptance, never left open.** `DocumentGenerationItemDto.variantKey` is
+  required and not nullable, and making it nullable would break clients that read every job. The
+  variant is still resolved when the job is accepted, from `variantKey`, `attributes` or the
+  template's default variant, and the user may change it, never empty it. A job is complete at
+  every moment; the form only amends it.
+- **Reported in members the result already has.** The chosen variant is the item's `variantKey`,
+  and rendering again sends it back. A choice that needs a new result member is a sign it is the
+  wrong kind of choice.
+- **Within the bound release.** The user chooses among what the job's release holds, never another
+  version.
+- **No effect on whether a form appears.** A pre-selected choice is never missing, so `prompt:
+  missing` still asks only for data; a caller that wants the user to choose sends `always`.
+- **Declared in `form` and echoed.** Something like `form.variantChoice`, naming the variants or the
+  attributes (say, only `language`) the user may pick from, appended inside `form`. A server that
+  predates it ignores it, so the response echoes it by the rule above.
+
+The data contract belongs to the template, not the variant, so switching variant keeps the form's
+fields. It changes the preview, and the optional fields the variant's template reads.
+
 ## Fit with Suite
 
 Checked against Epistola Suite's generation code on 2026-11-17, to make sure the contract asks for
