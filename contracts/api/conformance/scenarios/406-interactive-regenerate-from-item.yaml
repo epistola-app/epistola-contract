@@ -8,9 +8,12 @@ why: >
   Rendering again, to correct something or for a newer release, is a generation request with an
   earlier item's `data` and `variantKey` (ADR 0011). That only works if the client hands the item's
   `data` to the request as it is, with no conversion, and serializes it back exactly: every JSON type
-  kept, nested objects and arrays intact, numbers still numbers. A client whose response `data` has
-  a different type than its request `data`, or that reformats a number, breaks resubmission in a way
-  no compiler notices.
+  kept, nested objects and arrays intact, numbers still numbers, a null inside a nested object still
+  sent, and a string that looks like a date-time left as the string it is. A client whose response
+  `data` has a different type than its request `data`, or whose JSON library drops nested nulls or
+  parses and rewrites date-like strings, breaks resubmission in a way no compiler notices. The first
+  run found both: the Kotlin client dropped nulls inside maps, and the .NET client rewrote
+  `+02:00` to the machine's offset.
 
 action:
   name: regenerate-from-item
@@ -51,7 +54,8 @@ script:
             lineCount: 3
             paid: false
             reference: null
-            citizen: { name: J. Jansen, address: { street: Kerkstraat 11, city: Sittard } }
+            citizen: { name: J. Jansen, address: { street: Kerkstraat 11, city: Sittard, unit: null } }
+            decidedAt: "2026-11-19T09:12:00+02:00"
             tags: [objection, urgent]
           editedFields: [/citizen/address/street]
       page: { number: 0, size: 20, total: 1, totalPages: 1 }
@@ -91,7 +95,8 @@ expect:
             lineCount: 3
             paid: false
             reference: null
-            citizen: { name: J. Jansen, address: { street: Kerkstraat 11, city: Sittard } }
+            citizen: { name: J. Jansen, address: { street: Kerkstraat 11, city: Sittard, unit: null } }
+            decidedAt: "2026-11-19T09:12:00+02:00"
             tags: [objection, urgent]
           interactive:
             trigger: always

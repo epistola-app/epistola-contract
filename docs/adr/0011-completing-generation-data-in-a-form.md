@@ -415,11 +415,16 @@ above is the one chosen.
   type the request's `data` as `Any`, `Object` and `object`, but a map-shaped schema as
   `Map<String, Any>`; declared alike, rendering again passes `item.data` into `request.data`
   without a conversion, and the conformance scenario proves the round trip.
-- The collect stream is read by hand-written collectors in the Kotlin, Jakarta, .NET and Python
-  clients, with their own result types; only the Node.js collector uses the generated one. Those
-  four gain `data`, `editedFields` and `cancelReason` by hand, typed as each client types the
-  request's `data`, and their documentation stops calling a result "completed or failed". Their
-  status is already a string, so a `cancelled` line passes through.
+- The collect stream is parsed by hand in the Kotlin, .NET and Python collectors, into result types
+  of their own; the Jakarta and Node.js collectors use the generated `GenerationResult`. The three
+  gain `data`, `editedFields` and `cancelReason` by hand, typed as each client types the request's
+  `data`, and every collector's documentation stops calling a result "completed or failed". Their
+  status is a string, or for Jakarta a generated enum that gains `cancelled`, so a `cancelled` line
+  passes through.
+- Free-form JSON must survive the round trip exactly. Building this found two clients that did not:
+  the Kotlin client dropped nulls inside maps on every request, and the .NET client read date-like
+  strings as local times and wrote them back at another offset. Both are fixed, and the round-trip
+  scenario carries a nested null and a date-like string so no client regresses.
 - Suite gains an end-user surface reachable without a session, holding only a token. That is the
   surface to keep small and to review hardest.
 - A job can now wait on a person for up to `interactive.expiresAt`. Job counts, dashboards and timeouts

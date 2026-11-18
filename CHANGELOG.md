@@ -32,6 +32,23 @@ libraries.
 - "Compatibility within 2.x" now says that a server may ignore a request member it does not know,
   and that a member whose effect the caller must rely on is echoed in the response.
 
+### Clients
+
+- Every client's result collector surfaces `cancelReason`, `data` and `editedFields`, and the
+  READMEs show interactive generation. The Kotlin, .NET and Python collectors parse them by hand;
+  the Jakarta and Node.js collectors get them from the regenerated model.
+- **Fixed (Kotlin):** the client no longer drops `null` values inside free-form JSON. Its mapper
+  applied "omit nulls" to map contents as well as to unset properties, so a `null` member of a
+  generation request's `data`, or of a data model or data example, never reached the server.
+  Unset properties are still omitted.
+- **Fixed (.NET):** date-like strings in free-form JSON stay as sent; see the .NET client's
+  changelog.
+- The Kotlin and Jakarta `ValidatingGenerationApi` skip their in-process pre-flight for a request
+  with `interactive`, whose incomplete data is the point.
+- The conformance suite gains seven scenarios for interactive generation, among them a round trip
+  of an item's `data` back into `generateDocument` with every JSON type, a nested null and a
+  date-like string.
+
 ## [2.0.0] - 2026-11-12
 
 Contract 2.0 replaces per-template versions with **catalog releases**: a catalog's content is
