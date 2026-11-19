@@ -323,7 +323,7 @@ InteractiveGenerationRequest:
       example: 1440
     returnUrl:
       type: [string, "null"]
-      pattern: '^https?://'
+      pattern: '^https?://.*$'
       maxLength: 2048
       description: |
         Where the form sends the browser after the person submits or cancels. The form adds two
@@ -395,7 +395,7 @@ InteractiveGenerationLink:
       example: Open case
     url:
       type: string
-      pattern: '^https?://'
+      pattern: '^https?://.*$'
       maxLength: 2048
       description: The link's target, an origin the server allows
       example: "https://cases.example.org/cases/Z-2026-0412"

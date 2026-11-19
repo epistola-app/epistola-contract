@@ -64,7 +64,7 @@ CodeListDto:
       type:
         - string
         - 'null'
-      pattern: '^https://'
+      pattern: '^https://.*$'
       maxLength: 2048
       description: The HTTPS URL the entries are fetched from; set only when `sourceType` is `url`.
       example: null
@@ -229,7 +229,7 @@ CreateCodeListRequest:
       type:
         - string
         - 'null'
-      pattern: '^https://'
+      pattern: '^https://.*$'
       maxLength: 2048
       example: null
     authType:
@@ -276,7 +276,7 @@ UpdateCodeListRequest:
       type:
         - string
         - 'null'
-      pattern: '^https://'
+      pattern: '^https://.*$'
       maxLength: 2048
     authType:
       $ref: '#/CodeListAuthType'

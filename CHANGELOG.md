@@ -9,6 +9,15 @@ libraries.
 
 ## [Unreleased]
 
+### Fixed
+
+- `InteractiveGenerationRequest.returnUrl`, `InteractiveGenerationLink.url` and the code lists'
+  `sourceUrl` declared a prefix pattern (`^https?://`, `^https://`). JSON Schema reads that as
+  "starts with", but the generated Bean Validation `@Pattern` must match the whole value, so a
+  server built on the Kotlin stubs (and the Jakarta client) refused every real URL. The patterns
+  are now anchored at both ends (`^https?://.*$`), which both read the same, and a test holds every
+  pattern in the spec to that.
+
 ## [2.1.0] - 2026-11-19
 
 ### Generation
