@@ -430,7 +430,7 @@ info:
     releases (`listCatalogTemplates`), a dependency alias other than the catalog's key, and
     interactive generation among them. An operation a server does not implement yet answers 501
     `operation-not-implemented`.
-  version: "2.0.0"
+  version: "2.1.0"
   contact:
     name: Epistola Team
   license:
