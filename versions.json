@@ -1,6 +1,13 @@
 {
-  "latest": "v2.0.0",
+  "latest": "v2.1.0",
   "versions": [
+    {
+      "version": "v2.1.0",
+      "path": "/v2.1.0/",
+      "label": "2.1.0",
+      "releaseDate": "2026-11-19",
+      "status": "current"
+    },
     {
       "version": "v2.0.0",
       "path": "/v2.0.0/",

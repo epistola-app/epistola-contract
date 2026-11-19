@@ -203,6 +203,35 @@ info:
     at render time (`releaseName`), with a null `version`, and its PDF a preview watermark. Releasing a deployed draft keeps its `releaseId`, so the environment then serves it
     as released; discarding the draft ends the deployment.
 
+    ## Interactive generation
+
+    (alpha, `x-experimental`, contract ADR 0011.) A caller that has only part of a template's data
+    can have a person complete it in a form Epistola serves, by sending `interactive` with
+    `generateDocument`. With `trigger: incomplete` the form appears only when the data, as sent,
+    misses a required field or holds an invalid value under the data contract of the release the
+    job is bound to; with `trigger: always` every time, pre-filled for review.
+
+    - The job is accepted as usual (202), in status `awaiting-input`, and the response's
+      `interactive.url` is where to send the person's browser. The release and the variant are
+      bound at acceptance, as for any job.
+    - Epistola authenticates the caller, never the person: the link is a bearer capability over this
+      one job, which the caller hands only to the person it authenticated itself. It works until the
+      form is submitted, the job cancelled or `interactive.expiresAt` passes, and is submitted once.
+      `getGenerationJobStatus` returns it again while the job waits, so it need not be stored.
+    - No job waits for input longer than 30 days. The caller may set a shorter expiry
+      (`interactive.expiresInMinutes`), and a server may allow less than 30 days.
+    - Submitting moves the job to `pending`, and it renders like any other. The browser returns to
+      `interactive.returnUrl` with only `epistolaRequestId` and `epistolaRequestStatus` added, which
+      say the person is done with the form, not that the document exists. The document arrives as
+      any job's result does, through collect or `getGenerationJobStatus`.
+    - Items and collect results carry the complete `data` the document renders from, as amended,
+      and `editedFields`, the JSON Pointers the person changed. That `data` is valid input to
+      `generateDocument`, so rendering again, with or without a form, sends it back.
+    - A cancelled job says why (`cancelReason`: `caller`, `user` or `expired`), and the collect
+      stream delivers a `cancelled` result for a job with a form.
+
+    A server that does not support it ignores `interactive`, and its response carries none.
+
     ## Versions and version ranges
 
     A version (`ReleaseVersion`) is a SemVer core version, `MAJOR.MINOR.PATCH` without leading
@@ -378,6 +407,10 @@ info:
     not know with 400, so never send `unknown_default_open_api`. Operations and members marked
     `x-experimental` are outside these rules.
 
+    A server may ignore a request member it does not know. A member whose effect the caller must
+    rely on is therefore echoed in the response, as `interactive` is: a response without it means
+    the server did not honour it.
+
     A minor version adds members and parameters only after the existing ones, so the positional
     arguments of the generated clients keep their meaning; a major version may reorder them. A new optional parameter or member
     still changes the generated method and constructor signatures: rebuild against the client
@@ -394,10 +427,10 @@ info:
     Consumers API) among them, may still change. Epistola Suite, the server that implements this
     contract, may not implement them yet, nor every part of the rest: installing missing dependency
     releases when deploying, recording who requested a document, listing a stencil's usage in a released release, listing a catalog's templates across its
-    releases (`listCatalogTemplates`), and a dependency alias other than the catalog's key among
-    them. An operation a server does not implement yet answers 501
+    releases (`listCatalogTemplates`), a dependency alias other than the catalog's key, and
+    interactive generation among them. An operation a server does not implement yet answers 501
     `operation-not-implemented`.
-  version: 2.0.0
+  version: 2.1.0
   contact:
     name: Epistola Team
   license:
@@ -5505,6 +5538,13 @@ paths:
         template's data contract here; it is checked when the item renders, and an item whose data
         breaks the contract fails (`failed`, with its `errorMessage`). Check it first with
         `validateTemplateData` to find out before submitting.
+
+        With `interactive` (alpha, `x-experimental`, contract ADR 0011), the data is checked here
+        instead, against the release just bound, and a person may be asked to complete it: the job is
+        then accepted as `awaiting-input` and `interactive.url` is where to send their browser (see
+        "Interactive generation"). It needs no permission beyond this operation's. A URL in it on an
+        origin the server does not allow is refused with 400 `validation-error`, code
+        `url-not-allowed`, and an `expiresInMinutes` above the server's maximum with code `maximum`.
       tags:
         - Generation
       x-required-permissions:
@@ -5692,7 +5732,9 @@ paths:
     delete:
       operationId: cancelGenerationJob
       summary: Cancel a generation job
-      description: Cancel a pending or in-progress generation job
+      description: |
+        Cancel a pending or in-progress generation job, or one awaiting input on its form. The job's
+        `cancelReason` is then `caller`, and the link of a job awaiting input stops working.
       tags:
         - Generation
       x-required-permissions:
@@ -12418,7 +12460,10 @@ components:
             currency: EUR
     GenerateDocumentRequest:
       type: object
-      description: Request to generate a single document. Specify either variantKey (explicit) or attributes (auto-select) but not both.
+      description: |
+        Request to generate a single document. Specify either variantKey (explicit) or attributes
+        (auto-select) but not both. With neither, the template's default variant in the release that
+        renders is used. The variant is chosen when the request is accepted.
       required:
         - namespace
         - catalogKey
@@ -12548,6 +12593,189 @@ components:
             response metadata.
           maxLength: 255
           example: order-7890
+        interactive:
+          oneOf:
+            - $ref: '#/components/schemas/InteractiveGenerationRequest'
+            - type: 'null'
+          x-experimental: true
+          description: |
+            Ask a person to complete the data in a form before the document renders (alpha,
+            `x-experimental`, contract ADR 0011; see "Interactive generation" in the API description).
+            When `trigger` asks for it, the job is accepted in status `awaiting-input` and the response's
+            `interactive.url` is where to send the person's browser. Omitted or null: no form, as before.
+
+            A server that does not support it may ignore it. The response then carries no `interactive`,
+            which is how a caller tells.
+          example: null
+    InteractiveGenerationRequest:
+      type: object
+      x-experimental: true
+      description: |
+        How the person is asked to complete a generation request's data (alpha, contract ADR 0011).
+        Every URL in it must match an origin the server allows, or the request is refused with 400
+        `validation-error`, code `url-not-allowed`. The texts are shown as plain text.
+      required:
+        - trigger
+      properties:
+        trigger:
+          $ref: '#/components/schemas/InteractiveGenerationTrigger'
+        expiresInMinutes:
+          type:
+            - integer
+            - 'null'
+          minimum: 1
+          maximum: 43200
+          description: |
+            How long the form's link stays usable, in minutes. Omitted or null: the server's default.
+            No job waits for input longer than 30 days (43200 minutes): the contract caps this, and a
+            server may set a lower maximum of its own, and its default never exceeds either. Above
+            the maximum that applies, the request is refused with 400 `validation-error`, code
+            `maximum`. When it passes unsubmitted, the job is cancelled (`cancelReason` `expired`).
+          example: 1440
+        returnUrl:
+          type:
+            - string
+            - 'null'
+          pattern: ^https?://
+          maxLength: 2048
+          description: |
+            Where the form sends the browser after the person submits or cancels. The form adds two
+            query parameters, `epistolaRequestId` (the job's `requestId`) and `epistolaRequestStatus`
+            (its status at that moment: `pending` once submitted, `cancelled` once cancelled), after any
+            the URL already has, replacing any of the same name, keeps its fragment, and adds nothing
+            else. The redirect says the person is done with the form, not that the document exists: it
+            arrives like any job's result. Anyone can make such a URL, so check the job with
+            `getGenerationJobStatus` before acting on it. Omitted or null: the form ends on a page of
+            its own.
+          example: https://cases.example.org/cases/Z-2026-0412
+        title:
+          type:
+            - string
+            - 'null'
+          maxLength: 200
+          description: A heading for the form, such as the case and the document.
+          example: Objection decision, case Z-2026-0412
+        instructions:
+          type:
+            - string
+            - 'null'
+          maxLength: 4000
+          description: Text shown above the fields, as plain text with its line breaks.
+          example: Fill in the motivation and the decision date.
+        links:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/InteractiveGenerationLink'
+          description: Links shown with the form, such as back to the case.
+        locale:
+          type:
+            - string
+            - 'null'
+          maxLength: 35
+          pattern: ^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$
+          description: |
+            A BCP 47 language tag for the form's own text, such as its buttons. Omitted or null: the
+            tenant's default locale.
+          example: nl-NL
+      example:
+        trigger: incomplete
+        expiresInMinutes: 1440
+        returnUrl: https://cases.example.org/cases/Z-2026-0412
+        title: Objection decision, case Z-2026-0412
+        instructions: Fill in the motivation and the decision date.
+        links:
+          - label: Open case
+            url: https://cases.example.org/cases/Z-2026-0412
+        locale: nl-NL
+    InteractiveGenerationTrigger:
+      type: string
+      x-experimental: true
+      description: |
+        When the person is asked: `incomplete` only when the data, as sent, lacks a required field or
+        holds an invalid value under the data contract of the release the job is bound to (otherwise
+        the job is `pending` at once); `always` every time, with the form pre-filled for review.
+      enum:
+        - incomplete
+        - always
+    InteractiveGenerationLink:
+      type: object
+      x-experimental: true
+      description: A link shown with the form.
+      required:
+        - label
+        - url
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: The link's text
+          example: Open case
+        url:
+          type: string
+          pattern: ^https?://
+          maxLength: 2048
+          description: The link's target, an origin the server allows
+          example: https://cases.example.org/cases/Z-2026-0412
+    InteractiveGenerationDto:
+      type: object
+      x-experimental: true
+      description: |
+        The form of a job created with `interactive` (alpha, contract ADR 0011). Present exactly when
+        the server honoured the request's `interactive`, even when nothing was asked.
+      required:
+        - trigger
+        - missingFields
+      properties:
+        trigger:
+          $ref: '#/components/schemas/InteractiveGenerationTrigger'
+        url:
+          type:
+            - string
+            - 'null'
+          maxLength: 2048
+          description: |
+            Where to send the person's browser, while the job is `awaiting-input`; null otherwise. A
+            bearer capability over this one job: usable until the form is submitted, the job cancelled,
+            or `expiresAt` reached, and submitted once. Hand it only to the person it is meant for. It
+            is returned again, unchanged, for as long as the job waits, so it need not be stored.
+          example: https://epistola.example.org/forms/k3J9fQ2xV7mN0pL8sR4tY6wZ1aB5cD3e
+        expiresAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: |
+            When the link stops working and the job is cancelled; null when nothing was asked. Never
+            more than 30 days after the job was accepted.
+          example: '2026-11-19T09:12:00Z'
+        missingFields:
+          type: array
+          description: |
+            What the form asks for, as `validateTemplateData` reports it for the data as sent and the
+            release the job is bound to; empty when nothing was asked.
+          items:
+            $ref: '#/components/schemas/MissingDataField'
+      example:
+        trigger: incomplete
+        url: https://epistola.example.org/forms/k3J9fQ2xV7mN0pL8sR4tY6wZ1aB5cD3e
+        expiresAt: '2026-11-19T09:12:00Z'
+        missingFields:
+          - path: /motivation
+            required: true
+            schema:
+              type: string
+    GenerationCancelReason:
+      type: string
+      x-experimental: true
+      description: |
+        Why a job was cancelled: `caller` by `cancelGenerationJob`, `user` by the person on the form,
+        `expired` because nobody submitted the form before its link expired. May gain values.
+      enum:
+        - caller
+        - user
+        - expired
     BatchGenerationItem:
       type: object
       description: Single item in a batch generation request. Specify either variantKey (explicit) or attributes (auto-select) but not both. Both correlationId and filename must be unique within a batch (null values are excluded from uniqueness checks).
@@ -12737,6 +12965,23 @@ components:
           format: date-time
           description: When the request was created
           example: '2026-02-01T08:00:00Z'
+        cancelReason:
+          oneOf:
+            - $ref: '#/components/schemas/GenerationCancelReason'
+            - type: 'null'
+          x-experimental: true
+          description: Why the job was cancelled; set exactly when `status` is `cancelled` (alpha).
+          example: null
+        interactive:
+          oneOf:
+            - $ref: '#/components/schemas/InteractiveGenerationDto'
+            - type: 'null'
+          x-experimental: true
+          description: |
+            The job's form, when the request asked for one with `interactive` and the server honoured
+            it (alpha, contract ADR 0011); absent or null otherwise. When `interactive.url` is set the
+            job is `awaiting-input`: send the person's browser there.
+          example: null
       example:
         requestId: 550e8400-e29b-41d4-a716-446655440000
         status: pending
@@ -12748,13 +12993,15 @@ components:
       description: |
         Where a generation job stands: `pending` until a worker takes it, `in-progress` while its items
         render, then `completed` (every item done; some may have failed), `failed` (the job itself
-        could not run) or `cancelled` (`cancelGenerationJob`).
+        could not run) or `cancelled` (see `cancelReason`). A job created with `interactive` may first
+        be `awaiting-input`, until the person submits the form (then `pending`) or it is cancelled.
       enum:
         - pending
         - in-progress
         - completed
         - failed
         - cancelled
+        - awaiting-input
     GenerationJobType:
       type: string
       description: A job of one document (`generateDocument`) or of several (`generateDocumentBatch`).
@@ -12765,13 +13012,15 @@ components:
       type: string
       description: |
         Where one item of a generation job stands: `pending`, `in-progress`, then `completed` or
-        `failed`, or `cancelled` when its job was cancelled before the item rendered.
+        `failed`, or `cancelled` when its job was cancelled before the item rendered. An item of a job
+        created with `interactive` is `awaiting-input` while its job is.
       enum:
         - pending
         - in-progress
         - completed
         - failed
         - cancelled
+        - awaiting-input
     DocumentGenerationItemDto:
       type: object
       description: Individual item in a generation batch
@@ -12894,6 +13143,37 @@ components:
           format: date-time
           description: When processing completed
           example: '2026-02-01T08:00:03Z'
+        cancelReason:
+          oneOf:
+            - $ref: '#/components/schemas/GenerationCancelReason'
+            - type: 'null'
+          x-experimental: true
+          description: Why the item's job was cancelled; set exactly when `status` is `cancelled` (alpha).
+          example: null
+        data:
+          type:
+            - object
+            - 'null'
+          x-experimental: true
+          description: |
+            For a job created with `interactive`, the complete data the item renders from: the data the
+            caller sent, as amended on the form, before the data contract's defaults are applied (alpha,
+            contract ADR 0011). Set from the moment the form is submitted, a `failed` item included;
+            null while the job is `awaiting-input`, when it was cancelled, and for jobs without a form.
+            It is valid input to `generateDocument` for the same template, so rendering again sends it
+            back as the request's `data`.
+          example: null
+        editedFields:
+          type:
+            - array
+            - 'null'
+          x-experimental: true
+          items:
+            type: string
+          description: |
+            JSON Pointers (RFC 6901) into `data` where it differs from what the caller sent, fields the
+            person cleared included; set and null exactly when `data` is (alpha).
+          example: null
       example:
         itemId: 660e8400-e29b-41d4-a716-446655440001
         registry: exchange.epistola.app
@@ -12978,6 +13258,23 @@ components:
           format: double
           description: Progress percentage (0-100)
           example: 100
+        cancelReason:
+          oneOf:
+            - $ref: '#/components/schemas/GenerationCancelReason'
+            - type: 'null'
+          x-experimental: true
+          description: Why the job was cancelled; set exactly when `status` is `cancelled` (alpha).
+          example: null
+        interactive:
+          oneOf:
+            - $ref: '#/components/schemas/InteractiveGenerationDto'
+            - type: 'null'
+          x-experimental: true
+          description: |
+            The job's form, as `GenerationJobResponse.interactive` (alpha, contract ADR 0011). Its `url`
+            is returned for as long as the job is `awaiting-input`, so a caller fetches it here when the
+            person comes back rather than storing it.
+          example: null
       example:
         requestId: 550e8400-e29b-41d4-a716-446655440000
         jobType: single
@@ -13257,9 +13554,9 @@ components:
     GenerationResult:
       type: object
       description: |
-        A completed or failed generation result. Streamed as one NDJSON line
-        per result. Contains all information needed to process the result
-        without additional API calls (except downloading the document itself).
+        A completed or failed generation result, or a cancelled one for a job created with
+        `interactive`. Streamed as one NDJSON line per result. Contains all information needed to
+        process the result without additional API calls (except downloading the document itself).
       required:
         - sequence
         - requestId
@@ -13295,7 +13592,11 @@ components:
           enum:
             - completed
             - failed
-          description: Terminal status of the generation request
+            - cancelled
+          description: |
+            Terminal status of the generation request. `cancelled` is delivered only for a job created
+            with `interactive` (alpha, contract ADR 0011), so a caller that only collects learns that the
+            form was cancelled or expired; see `cancelReason`. May gain values: keep a default branch.
           example: completed
         documentId:
           type:
@@ -13396,8 +13697,36 @@ components:
         completedAt:
           type: string
           format: date-time
-          description: When the generation completed or failed
+          description: When the generation completed or failed, or the job was cancelled
           example: '2026-04-24T10:30:05Z'
+        cancelReason:
+          oneOf:
+            - $ref: '#/components/schemas/GenerationCancelReason'
+            - type: 'null'
+          x-experimental: true
+          description: Why the job was cancelled; set exactly when `status` is `cancelled` (alpha).
+          example: null
+        data:
+          type:
+            - object
+            - 'null'
+          x-experimental: true
+          description: |
+            For a job created with `interactive`, the complete data the document rendered from, as
+            `DocumentGenerationItemDto.data` (alpha, contract ADR 0011): set on a `completed` or
+            `failed` line, null on a `cancelled` one and for jobs without a form.
+          example: null
+        editedFields:
+          type:
+            - array
+            - 'null'
+          x-experimental: true
+          items:
+            type: string
+          description: |
+            JSON Pointers into `data` where it differs from what the caller sent, as
+            `DocumentGenerationItemDto.editedFields`; set and null exactly when `data` is (alpha).
+          example: null
     CollectMeta:
       type: object
       description: |
@@ -15641,3 +15970,6 @@ x-validation-codes:
     - code: source-url-not-allowed
       kind: domain
       description: A code list's source URL is not one this installation allows fetching from.
+    - code: url-not-allowed
+      kind: domain
+      description: A URL an interactive generation request shows or returns the person to (`returnUrl`, a link) is not on an origin this installation allows.
