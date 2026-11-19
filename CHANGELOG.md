@@ -9,6 +9,8 @@ libraries.
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-19
+
 ### Generation
 
 - **Interactive generation** (alpha, `x-experimental`, ADR 0011): `generateDocument` takes an

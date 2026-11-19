@@ -9,6 +9,8 @@ records contract changes; this file records changes to the hand-written library 
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-19
+
 ### Added
 
 - `ResultCollector.GenerationResult` gains `CancelReason`, `Data` and `EditedFields` (alpha,
