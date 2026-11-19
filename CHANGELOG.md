@@ -9,6 +9,18 @@ libraries.
 
 ## [Unreleased]
 
+### Changed
+
+- **Interactive generation links are short-lived** (alpha, ADR 0011 amended, #134). A link to the
+  form can now be opened for minutes, until the new `interactive.urlExpiresAt`; opening it starts
+  the person's session on the form, which lasts until the form is submitted, the job is cancelled or
+  `interactive.expiresAt` passes. Every `getGenerationJobStatus` hands out a fresh link while the
+  job waits, and `listGenerationJobs` hands out none. `interactive.expiresAt` and
+  `expiresInMinutes` now describe only the job's wait. **Callers that stored the 202's `url` must
+  instead fetch a link right before sending the person to the form**: a stored one is dead within
+  minutes. A behaviour change in an alpha feature, so it ships in a patch. Conformance scenarios
+  400, 401 and 403 check `urlExpiresAt` in every client.
+
 ### Fixed
 
 - `InteractiveGenerationRequest.returnUrl`, `InteractiveGenerationLink.url` and the code lists'

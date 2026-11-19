@@ -374,6 +374,7 @@ public static class Driver
         values["interactiveTrigger"] = interactive == null ? "null" : Wire(interactive.Trigger);
         values["interactiveUrl"] = Show(interactive?.Url);
         values["interactiveExpiresAt"] = Show(Iso(interactive?.ExpiresAt));
+        values["interactiveUrlExpiresAt"] = Show(Iso(interactive?.UrlExpiresAt));
     }
 
     /// <summary>Free-form data's top-level member names, sorted and joined with <c>+</c>; <c>null</c> when the data is.</summary>

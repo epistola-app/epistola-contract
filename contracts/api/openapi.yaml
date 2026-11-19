@@ -215,10 +215,13 @@ info:
       `interactive.url` is where to send the person's browser. The release and the variant are
       bound at acceptance, as for any job.
     - Epistola authenticates the caller, never the person: the link is a bearer capability over this
-      one job, which the caller hands only to the person it authenticated itself. It works until the
-      form is submitted, the job cancelled or `interactive.expiresAt` passes, and is submitted once.
-      `getGenerationJobStatus` returns it again while the job waits, so it need not be stored.
-    - No job waits for input longer than 30 days. The caller may set a shorter expiry
+      one job, which the caller hands only to the person it authenticated itself. A link is
+      short-lived: it can be opened until `interactive.urlExpiresAt`, minutes away, and opening it
+      starts the person's session on the form, which lasts until the form is submitted (once), the
+      job is cancelled or `interactive.expiresAt` passes. Every `getGenerationJobStatus` hands out a
+      fresh link while the job waits: fetch one right before sending the person to the form, and
+      never store or forward it.
+    - No job waits for input longer than 30 days. The caller may set a shorter wait
       (`interactive.expiresInMinutes`), and a server may allow less than 30 days.
     - Submitting moves the job to `pending`, and it renders like any other. The browser returns to
       `interactive.returnUrl` with only `epistolaRequestId` and `epistolaRequestStatus` added, which

@@ -315,7 +315,9 @@ InteractiveGenerationRequest:
       minimum: 1
       maximum: 43200
       description: |
-        How long the form's link stays usable, in minutes. Omitted or null: the server's default.
+        How long the job waits for the person to submit the form, in minutes (each link to the form
+        is short-lived, see `InteractiveGenerationDto.urlExpiresAt`). Omitted or null: the server's
+        default.
         No job waits for input longer than 30 days (43200 minutes): the contract caps this, and a
         server may set a lower maximum of its own, and its default never exceeds either. Above
         the maximum that applies, the request is refused with 400 `validation-error`, code
@@ -416,17 +418,24 @@ InteractiveGenerationDto:
       type: [string, "null"]
       maxLength: 2048
       description: |
-        Where to send the person's browser, while the job is `awaiting-input`; null otherwise. A
-        bearer capability over this one job: usable until the form is submitted, the job cancelled,
-        or `expiresAt` reached, and submitted once. Hand it only to the person it is meant for. It
-        is returned again, unchanged, for as long as the job waits, so it need not be stored.
+        Where to send the person's browser, while the job is `awaiting-input`; null otherwise, and
+        always null in `listGenerationJobs`. A short-lived bearer capability over this one job: it
+        can be opened until `urlExpiresAt`, and opening it starts the person's session on the form,
+        which lasts until the form is submitted, the job cancelled or `expiresAt` passes. The form is
+        submitted once.
+
+        Each `getGenerationJobStatus` hands out a fresh link while the job waits, and a link handed
+        out earlier keeps working until its own `urlExpiresAt`. Fetch one right before sending the
+        person to the form, hand it only to the person it is meant for, and never store or forward
+        it: a link that leaks into a log, a history or a message is dead within minutes.
       example: "https://epistola.example.org/forms/k3J9fQ2xV7mN0pL8sR4tY6wZ1aB5cD3e"
     expiresAt:
       type: [string, "null"]
       format: date-time
       description: |
-        When the link stops working and the job is cancelled; null when nothing was asked. Never
-        more than 30 days after the job was accepted.
+        When the job stops waiting: unless the form is submitted by then, the job is cancelled
+        (`cancelReason` `expired`). Null when nothing was asked. Never more than 30 days after the
+        job was accepted. Not when a link expires: see `urlExpiresAt`.
       example: "2026-11-19T09:12:00Z"
     missingFields:
       type: array
@@ -435,10 +444,20 @@ InteractiveGenerationDto:
         release the job is bound to; empty when nothing was asked.
       items:
         $ref: './validation.yaml#/MissingDataField'
+    urlExpiresAt:
+      type: [string, "null"]
+      format: date-time
+      x-experimental: true
+      description: |
+        When `url` can no longer be opened; set exactly when `url` is. A server keeps it short
+        (minutes), and never later than `expiresAt`. A person who opened the form before it keeps
+        working on it; one who has not asks the caller for a fresh link.
+      example: "2026-11-18T09:27:00Z"
   example:
     trigger: incomplete
-    url: "https://epistola.example.org/forms/k3J9fQ2xV7mN0pL8sR4tY6wZ1aB5cD3e"
+    url: "https://epistola.example.org/forms/550e8400-e29b-41d4-a716-446655440000?authCode=k3J9fQ2xV7mN0pL8sR4tY6wZ1aB5cD3e"
     expiresAt: "2026-11-19T09:12:00Z"
+    urlExpiresAt: "2026-11-18T09:27:00Z"
     missingFields:
       - path: /motivation
         required: true
@@ -450,7 +469,7 @@ GenerationCancelReason:
   x-experimental: true
   description: |
     Why a job was cancelled: `caller` by `cancelGenerationJob`, `user` by the person on the form,
-    `expired` because nobody submitted the form before its link expired. May gain values.
+    `expired` because nobody submitted the form before the job's `interactive.expiresAt`. May gain values.
   enum: [caller, user, expired]
 
 BatchGenerationItem:

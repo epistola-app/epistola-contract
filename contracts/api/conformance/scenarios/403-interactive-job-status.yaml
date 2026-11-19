@@ -3,12 +3,13 @@
 # SPDX-License-Identifier: EUPL-1.2
 
 id: interactive-job-status
-title: A job awaiting input returns its form's link again
+title: A job awaiting input hands out a fresh link to its form
 why: >
-  A caller need not store the form's link: `getGenerationJobStatus` returns it for as long as the
-  job is `awaiting-input`, so a "continue" button fetches it when the person comes back (ADR 0011).
-  A client must read `awaiting-input`, which 2.0 clients read as unknown, and surface the link and
-  its expiry from the job.
+  A caller never stores the form's link: links are short-lived, and `getGenerationJobStatus` hands
+  out a fresh one for as long as the job is `awaiting-input`, so a "continue" button fetches one
+  when the person comes back (ADR 0011, amended in 2.1.1). A client must read `awaiting-input`,
+  which 2.0 clients read as unknown, and surface the link, the link's own expiry and the job's
+  from the job.
 
 action:
   name: get-generation-job-status
@@ -36,9 +37,10 @@ script:
       cancelReason: null
       interactive:
         trigger: always
-        url: https://epistola.example.org/forms/k3J9fQ2xV7mN0pL8sR4tY6wZ1aB5cD3e
+        url: https://epistola.example.org/forms/550e8400-e29b-41d4-a716-446655440000?authCode=k3J9fQ2xV7mN0pL8sR4tY6wZ1aB5cD3e
         expiresAt: "2026-11-19T09:12:00Z"
         missingFields: []
+        urlExpiresAt: "2026-11-18T09:27:00Z"
 
 expect:
   requestCount: 1
@@ -49,6 +51,7 @@ expect:
     requestId: 550e8400-e29b-41d4-a716-446655440000
     status: awaiting-input
     interactiveTrigger: always
-    interactiveUrl: https://epistola.example.org/forms/k3J9fQ2xV7mN0pL8sR4tY6wZ1aB5cD3e
+    interactiveUrl: https://epistola.example.org/forms/550e8400-e29b-41d4-a716-446655440000?authCode=k3J9fQ2xV7mN0pL8sR4tY6wZ1aB5cD3e
     interactiveExpiresAt: "2026-11-19T09:12:00Z"
+    interactiveUrlExpiresAt: "2026-11-18T09:27:00Z"
     cancelReason: "null"

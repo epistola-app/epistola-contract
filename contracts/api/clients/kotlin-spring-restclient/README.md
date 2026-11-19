@@ -495,7 +495,8 @@ when {
     else -> logger.info("The data was complete; no form needed")
 }
 
-// The link need not be stored: the job returns it while it waits for the person.
+// A link is short-lived (job.interactive?.urlExpiresAt): never store it. When the person comes
+// back, fetch a fresh one; the job hands one out for as long as it waits.
 val status = api.getGenerationJobStatus("acme-corp", job.requestId)
 when (status.status) {
     GenerationJobStatus.awaitingMinusInput -> status.interactive?.url?.let(::redirectTo)

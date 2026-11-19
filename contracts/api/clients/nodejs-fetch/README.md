@@ -316,7 +316,8 @@ if (job.interactive == null) {
   redirect(job.interactive.url)                // status 'awaiting-input'; a bearer link, for this person only
 }
 
-// The link need not be stored: fetch it again while the job awaits input.
+// A link is short-lived (interactive.urlExpiresAt): never store it. When the person comes back,
+// fetch a fresh one; the job hands one out for as long as it awaits input.
 const status = await generation.getGenerationJobStatus({ tenantKey: 'acme', requestId: job.requestId })
 if (status.status === GenerationJobStatus.AwaitingInput) redirect(status.interactive!.url!)
 ```

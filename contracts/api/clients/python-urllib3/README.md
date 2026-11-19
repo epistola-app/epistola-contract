@@ -96,7 +96,7 @@ if job.status == GenerationJobStatus.COMPLETED:
 elif job.status in (GenerationJobStatus.FAILED, GenerationJobStatus.CANCELLED):
     report(job)
 elif job.status == GenerationJobStatus.AWAITING_MINUS_INPUT:
-    remind(job.interactive.url)  # an interactive job waiting for its form (alpha)
+    remind(job)  # waiting for its form (alpha): fetch a fresh link when the person comes back
 else:
     retry_later(job)  # pending, in-progress, and any status added later, e.g. job.status.value
 ```
@@ -239,9 +239,9 @@ job = generation.generate_document("acme", GenerateDocumentRequest(
 if job.interactive is None:
     ...  # the server ignored interactive: an ordinary job
 elif job.status == GenerationJobStatus.AWAITING_MINUS_INPUT:
-    redirect(job.interactive.url)  # send the person's browser here, before job.interactive.expires_at
+    redirect(job.interactive.url)  # now: the link is short-lived (job.interactive.url_expires_at)
 
-# The link need not be stored: the job returns it for as long as it waits.
+# Never store the link: when the person comes back, fetch a fresh one while the job waits.
 url = generation.get_generation_job_status("acme", job.request_id).interactive.url
 
 # What the person entered comes with each item (and each collected result, below), a failed

@@ -337,7 +337,8 @@ else if (job.Interactive.Url != null)
     Redirect(job.Interactive.Url);
 }
 
-// The link need not be stored: the job returns it for as long as it waits.
+// A link is short-lived (Interactive.UrlExpiresAt): never store it. When the person comes back,
+// fetch a fresh one; the job hands one out for as long as it waits.
 var status = generation.GetGenerationJobStatus("acme-corp", job.RequestId);
 if (status.Status == GenerationJobStatus.AwaitingInput) Redirect(status.Interactive.Url);
 ```

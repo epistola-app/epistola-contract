@@ -335,6 +335,7 @@ function interactiveFields(job) {
     interactiveTrigger: show(interactive?.trigger),
     interactiveUrl: show(interactive?.url),
     interactiveExpiresAt: showInstant(interactive?.expiresAt),
+    interactiveUrlExpiresAt: showInstant(interactive?.urlExpiresAt),
   }
 }
 

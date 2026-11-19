@@ -1,7 +1,7 @@
 # ADR 0011: Completing generation data in a form
 
 - **Status:** Proposed
-- **Date:** 2026-11-17
+- **Date:** 2026-11-17; amended 2026-11-19 for 2.1.1 (short-lived links, issue #134)
 - **Scope:** API contract (`contracts/api`), contract 2.x (additive, alpha)
 - **Related:** Epistola Bridge ADRs 0019 (complete the document on the wizard page), 0020 (a
   caller's handle never leaves the Bridge), 0021 (saving a half-filled wizard form, rejected)
@@ -132,9 +132,10 @@ appended. So does `DocumentGenerationJobDto`, so `getGenerationJobStatus` and `l
 | `interactive.`  | Meaning                                                                                 |
 | --------------- | --------------------------------------------------------------------------------------- |
 | `trigger`       | The request's `trigger`, echoed                                                         |
-| `url`           | Where to send the user's browser, while the job is `awaiting-input`; null otherwise. A bearer capability (below) |
-| `expiresAt`     | When the link stops working and the job is cancelled; null when nothing was asked       |
+| `url`           | Where to send the user's browser, while the job is `awaiting-input`; null otherwise, and in `listGenerationJobs`. A short-lived bearer capability (below) |
+| `expiresAt`     | When the job stops waiting and is cancelled unless submitted; null when nothing was asked |
 | `missingFields` | What the form asks for, as `validateTemplateData` reports it (`MissingDataField`); empty when nothing was asked |
+| `urlExpiresAt`  | When `url` can no longer be opened; set exactly when `url` is (2.1.1)                   |
 
 When the user must act, the job's `status` is `awaiting-input` and `interactive.url` is set. When nothing
 is asked, the job is `pending` and `interactive.url` is null. A caller only checks `interactive.url`.
@@ -200,33 +201,46 @@ complete the document, as it decides today who may have one generated. The link 
 caller's authority over this one job to that user, and nothing beyond it: not other jobs, not another
 template, no lookups.
 
-`interactive.url` carries an unguessable token and nothing else: no tenant credential, no caller identity,
-no data. Its rules:
+`interactive.url` carries an unguessable, short-lived code and nothing else: no tenant credential,
+no caller identity, no data. Its rules (amended in 2.1.1, below):
 
-- **Usable until submitted or expired.** It can be opened any number of times until the form is
-  submitted, the job cancelled, or `interactive.expiresAt` reached, whichever is first. Reloading the page,
-  closing the tab and returning, or a dropped connection costs the user nothing.
+- **Short-lived, fetched when needed.** A link can be opened until `interactive.urlExpiresAt`,
+  minutes after it was handed out. Every `getGenerationJobStatus` hands out a fresh one while the job
+  is `awaiting-input`, and a link handed out earlier keeps working until its own expiry, so two tabs
+  or two callers never revoke each other. A "continue" button asks for a link when it is pressed.
+  `listGenerationJobs` hands out none: a caller polling a list would otherwise collect live links it
+  never uses.
+- **Opening it starts a session on the form.** The person keeps working after the link itself has
+  expired: reloading, a dropped connection or an hour spent on the motivation costs nothing, until
+  the form is submitted, the job is cancelled or `interactive.expiresAt` passes. How the server keeps
+  that session is its own; the link is what must not linger.
 - **Submitted once.** The first submission moves the job from `awaiting-input` to `pending`, and
   every later one, from another tab or a replay, is refused with the outcome shown. Changing the data
   afterwards is a new job (see "Rendering again").
-- **One link per job, never reissued.** Its lifetime is the job's wait for input.
-- **Fetched, not stored.** The caller need not keep the link: `getGenerationJobStatus` returns it
-  for as long as the job is `awaiting-input`. A "continue" button asks for it when it is pressed, so
-  the link lives in Epistola and in the browser of the user it was handed to, not in the caller's
-  database or a message.
-- **The expiry bounds a leak.** Whoever holds the link sees the pre-filled data and the preview until
-  it expires. The caller hands it only to the authenticated user it is meant for, and does not
-  forward it. The page sends no `Referer`, so the token does not travel to links on it.
+- **Never stored, never forwarded.** The caller fetches a link right before sending the person's
+  browser to it, hands it only to the authenticated user it is meant for, and does not keep it. A
+  link that leaks into a proxy log, a browser history, a chat or a screenshot is dead within
+  minutes, rather than live until the job's expiry. The page sends no `Referer`.
 
-`interactive.expiresAt` follows from `interactive.expiresInMinutes` or the server's default. Resuming the next day,
-with the progress the form kept, is a matter of asking for a long enough expiry, within the maximum
-the installation allows.
+`interactive.expiresAt` bounds the wait for the person, and follows from
+`interactive.expiresInMinutes` or the server's default. Resuming the next day, with the progress the
+form kept, is a matter of asking for a long enough wait, within the maximum the installation allows,
+and fetching a fresh link then.
 
-Fresh links on request were considered: an operation on the job that mints a short-lived link and
-revokes the previous one, so a job can wait for days while each link lives for minutes. It is
-deferred. It complicates what every caller has to do, and a capped, per-job expiry covers the cases
-in sight. It can be appended without breaking anything if callers turn out to need forms that wait
-longer than an installation lets a link live.
+**Amended in 2.1.1.** 2.1.0 made the link itself live as long as the job's wait: one link per job,
+never reissued, returned unchanged by `getGenerationJobStatus`. A leaked link then opened the form,
+with the pre-filled personal data and the preview, for up to 30 days. Fresh links had been deferred
+because they "complicate what every caller has to do", but the decision already told callers to
+fetch the link when the person presses "continue" rather than store it, and a caller has to check
+that the job still waits before redirecting anyway; that check is the same call. So the only new
+rule is to fetch a link right before redirecting. The change is alpha, so it ships in a patch, and
+it is a behaviour change for a caller that stored the 202's `url`: the CHANGELOG says so.
+
+Considered and left for later: **caller-signed codes**, where each application registers a public
+key and the caller mints a link offline. It saves the status call, but it makes the link's format
+part of the contract (parameter, claims, algorithms, expiry cap), puts a key pair in every
+integration, and still needs server-issued links for callers without an application. It can be
+added without breaking anything if callers ask to skip the call.
 
 ### Coming back
 
@@ -419,13 +433,14 @@ above is the one chosen.
 - **The page is Suite's first public one.** No page or endpoint outside the API and the authenticated
   UI is reachable today, so the form needs its own route with token authentication. Suite's hashed
   API keys and its hashed, expiring OAuth state already show the pattern for storing the token.
-  Because the link stays usable until it is submitted, the page needs no session: the token is
-  looked up on every request and posted back with the form, which also keeps it working in an iframe
-  where third-party cookies are blocked. Its content security policy (no inline scripts, no framing
-  unless embedding is enabled) is why the form is specified as a page of its own.
-- **Returning the link from `getGenerationJobStatus`** means the token cannot be kept only as a
-  hash: Suite keeps it encrypted, or derives it, so it can hand it out again until the job leaves
-  `awaiting-input`.
+  Its content security policy (no inline scripts, no framing unless embedding is enabled) is why
+  the form is specified as a page of its own. (2.1.0 said the page needed no session because the
+  link lived as long as the wait; with short-lived links, 2.1.1, opening one starts a session the
+  server keeps, which an iframe with third-party cookies blocked may not hold. The contract already
+  says a caller cannot count on an iframe.)
+- **Returning a link from `getGenerationJobStatus`** (2.1.1: a fresh one each time) needs nothing
+  stored per link: a code signed by the server over the job and its expiry, redeemed when the page is
+  opened, is enough, and the job's status still decides whether the form can be used.
 - **Request data is already kept per job and never cleared after rendering**, and contract defaults
   are applied in memory at render time. `data` is therefore the stored data, and the "before defaults"
   rule above is what Suite has. `editedFields` needs the data as the caller sent it, kept beside the
@@ -515,16 +530,17 @@ above is the one chosen.
   for `returnUrl` and every link); a per-consumer list can be appended later.
 - **Unknown request members** get a sentence in "Compatibility within 2.x" that describes rather
   than promises, with the echo as the general rule.
-- **The link is submitted once and lives until its expiry**, rather than opening once. Reopening it
-  is what users do after a reload or a dropped connection, and losing the form to that would be
-  worse than the exposure the expiry already bounds.
+- **The form is submitted once, and reopening it costs nothing**, rather than a link that opens
+  once. Reopening is what users do after a reload or a dropped connection. In 2.1.0 the link itself
+  lived until the job's expiry for that; since 2.1.1 the session that opening a link starts does, and
+  the link lives minutes.
 - **Prefixed return parameters.** `requestId` and `status` were the first names, matching the JSON;
   they are not API members, though, but parameters on the caller's URL, where `status` in particular
   clashes. `epistolaRequestId` and `epistolaRequestStatus` keep the caller's own parameters intact and
   say where they came from.
-- **The link is fetched, not stored.** `getGenerationJobStatus` returns it while the job waits, so a
-  "continue" button never needs a stored copy.
-- **Resuming overnight is a long enough expiry.** The caller sets it per job up to the server's
+- **The link is fetched, not stored.** `getGenerationJobStatus` hands out a fresh one while the job
+  waits, so a "continue" button never needs a stored copy, and (2.1.1) a stored copy would be dead.
+- **Resuming overnight is a long enough wait.** The caller sets it per job up to the server's
   maximum, never more than the contract's 30 days, and the form restores the progress it kept. Unlike the Bridge's case (Bridge ADR 0021),
   the caller can offer "continue": it holds the `requestId` and can list its jobs `awaiting-input`.
 - **Context instead of identity.** The form shows what the caller says the document is about
@@ -595,8 +611,9 @@ and checks both URLs against the allowed origins.
   "cancelReason": null,
   "interactive": {
     "trigger": "incomplete",
-    "url": "https://suite.gemeente-x.nl/forms/k3J9fQ2xV7mN0pL8sR4tY6wZ1aB5cD3e",
+    "url": "https://suite.gemeente-x.nl/forms/550e8400-e29b-41d4-a716-446655440000?authCode=k3J9fQ2xV7mN0pL8sR4tY6wZ1aB5cD3e",
     "expiresAt": "2026-11-19T09:12:00Z",
+    "urlExpiresAt": "2026-11-18T09:27:00Z",
     "missingFields": [
       { "path": "/motivation",         "required": true,  "schema": { "type": "string", "title": "Motivering" } },
       { "path": "/decisionDate",       "required": true,  "schema": { "type": "string", "format": "date" } },
@@ -606,8 +623,11 @@ and checks both URLs against the allowed origins.
 }
 ```
 
+(The link's shape is the server's; this one is Suite's, with the job in the path and a short-lived
+code that opening the page redeems and drops from the address bar.)
+
 The case system keeps the `requestId`, shows "letter waiting for input" with a **Continue** button,
-and opens `interactive.url` in a new tab. **Continue**, pressed the next morning, fetches the same link with
+and opens `interactive.url` in a new tab. **Continue**, pressed the next morning, fetches a fresh link with
 `getGenerationJobStatus`; the form still holds what the user typed.
 
 **3. The user submits.** They fill in the motivation and the date, pick a salutation, correct the

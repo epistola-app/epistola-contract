@@ -435,11 +435,12 @@ def _interactive_report(interactive) -> dict:
     """A job's ``interactive`` as the scenarios read it, each member ``null`` when the job has no
     ``interactive`` (a server that ignored the request's) or the member is null."""
     if interactive is None:
-        return {"interactiveTrigger": "null", "interactiveUrl": "null", "interactiveExpiresAt": "null"}
+        return {"interactiveTrigger": "null", "interactiveUrl": "null", "interactiveExpiresAt": "null", "interactiveUrlExpiresAt": "null"}
     return {
         "interactiveTrigger": _show(_enum(interactive.trigger)),
         "interactiveUrl": _show(interactive.url),
         "interactiveExpiresAt": _show_instant(interactive.expires_at),
+        "interactiveUrlExpiresAt": _show_instant(interactive.url_expires_at),
     }
 
 
