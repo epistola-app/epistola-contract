@@ -50,5 +50,6 @@ expect:
     interactiveTrigger: "null"
     interactiveUrl: "null"
     interactiveExpiresAt: "null"
+    interactiveUrlExpiresAt: "null"
     interactiveMissingFields: "null"
     cancelReason: "null"

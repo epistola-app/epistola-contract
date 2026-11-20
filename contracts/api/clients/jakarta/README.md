@@ -439,7 +439,8 @@ if (job.getInteractive() == null) {
     return redirectTo(job.getInteractive().getUrl());   // the job is AWAITING_INPUT
 }
 
-// The link need not be stored: the job returns it while it waits for the person.
+// A link is short-lived (getUrlExpiresAt()): never store it. When the person comes back, fetch a
+// fresh one; the job hands one out for as long as it waits.
 DocumentGenerationJobDto status = generationApi.getGenerationJobStatus(tenantKey, job.getRequestId());
 switch (status.getStatus()) {
     case AWAITING_INPUT -> redirectTo(status.getInteractive().getUrl());

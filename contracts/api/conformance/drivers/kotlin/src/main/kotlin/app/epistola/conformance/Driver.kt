@@ -369,6 +369,7 @@ object Driver {
         "interactiveTrigger" to (interactive?.trigger?.value ?: "null"),
         "interactiveUrl" to (interactive?.url ?: "null"),
         "interactiveExpiresAt" to timestamp(interactive?.expiresAt),
+        "interactiveUrlExpiresAt" to timestamp(interactive?.urlExpiresAt),
     )
 
     /** `config.interactive` as the request's `interactive`, each member only when the config gives it. */

@@ -495,6 +495,7 @@ public final class Driver {
         values.put("interactiveTrigger", interactive == null ? "null" : String.valueOf(interactive.getTrigger()));
         values.put("interactiveUrl", interactive == null ? "null" : String.valueOf(interactive.getUrl()));
         values.put("interactiveExpiresAt", instant(interactive == null ? null : interactive.getExpiresAt()));
+        values.put("interactiveUrlExpiresAt", instant(interactive == null ? null : interactive.getUrlExpiresAt()));
         return values;
     }
 
