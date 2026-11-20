@@ -9,6 +9,8 @@ libraries.
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-11-20
+
 ### Changed
 
 - **Interactive generation links are short-lived** (alpha, ADR 0011 amended, #134). A link to the
